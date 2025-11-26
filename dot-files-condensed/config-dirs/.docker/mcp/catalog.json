@@ -1,0 +1,9 @@
+{
+  "catalogs": {
+    "docker-mcp": {
+      "displayName": "Docker MCP Catalog",
+      "url": "https://desktop.docker.com/mcp/catalog/v2/catalog.yaml",
+      "lastUpdate": "2025-10-15T00:12:28-05:00"
+    }
+  }
+}

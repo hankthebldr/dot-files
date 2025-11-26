@@ -1,0 +1,6 @@
+firefox
+font-meslo-lg-nerd-font
+gcloud-cli
+google-cloud-sdk
+tor-browser
+warp

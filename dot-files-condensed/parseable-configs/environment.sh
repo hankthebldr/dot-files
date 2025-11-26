@@ -1,0 +1,10 @@
+# Exported environment configuration
+# Source this file: source environment.sh
+
+# Path configuration
+export PATH="/opt/homebrew/share/google-cloud-sdk/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/Users/henry/.local/bin"
+
+# Shell
+export SHELL="/bin/zsh"
+
+# Exported aliases (sample - review and uncomment as needed)

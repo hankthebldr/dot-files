@@ -1,0 +1,2898 @@
+{
+  "source": {
+    "type": "image",
+    "image": {
+      "name": "docker/labs-k8s-toolkit-extension",
+      "digest": "sha256:fbbe16ec2589da84c253ba2d1af4507c82f780f41f296772ae542fdbf5c92a86",
+      "tags": [
+        "0.0.46"
+      ],
+      "manifest": {
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "config": {
+          "mediaType": "application/vnd.docker.container.image.v1+json",
+          "size": 10943,
+          "digest": "sha256:fbbe16ec2589da84c253ba2d1af4507c82f780f41f296772ae542fdbf5c92a86"
+        },
+        "layers": [
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 386,
+            "digest": "sha256:4bae6d146a9ec7ea79d3c1fff6a981d63a9a2a1a44e1d91fa62d7c9075e3d505"
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 4981,
+            "digest": "sha256:25f14380ec4a212ec853eb6cc826907ee13ab4e3c198a163c5bd373f0a7ae241"
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 1544130,
+            "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66"
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 12471938,
+            "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247"
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 1632122,
+            "digest": "sha256:8d1464e7c6af4f6df2f72e1b2900ab8b5909109d0a8a301bc884c4acca3e04c5"
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 13627228,
+            "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5"
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 1500091,
+            "digest": "sha256:f5206da0b601c2da6aa8fe5c6a551ae9dc9a7f3398612eddf4dac2424bd92fc8"
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 12323515,
+            "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e"
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 3385614,
+            "digest": "sha256:893c579769d27861d290d7f2970aa7331bfcbd36cfabb2cb1df511ce15e0aec1"
+          }
+        ]
+      },
+      "config": {
+        "architecture": "arm64",
+        "created": "2023-11-30T12:49:46.042022522Z",
+        "history": [
+          {
+            "created": "2023-11-30T12:49:09.435302079Z",
+            "created_by": "ARG TARGETARCH",
+            "comment": "buildkit.dockerfile.v0",
+            "empty_layer": true
+          },
+          {
+            "created": "2023-11-30T12:49:09.435302079Z",
+            "created_by": "ARG INSTALLER_BINARY",
+            "comment": "buildkit.dockerfile.v0",
+            "empty_layer": true
+          },
+          {
+            "created": "2023-11-30T12:49:09.435302079Z",
+            "created_by": "ARG GIT_COMMIT",
+            "comment": "buildkit.dockerfile.v0",
+            "empty_layer": true
+          },
+          {
+            "created": "2023-11-30T12:49:09.435302079Z",
+            "created_by": "LABEL org.opencontainers.image.title=Docker Labs K8s Toolkit org.opencontainers.image.description=A Kubernetes debugging toolkit. Get your favorite shell with all your debug tools into any pod/container. org.opencontainers.image.vendor=Docker Inc. com.docker.desktop.extension.api.version=0.3.4 com.docker.extension.screenshots=[         {\"url\": \"https://docker-extension-screenshots.s3.amazonaws.com/labs-k8s-toolkit/demo-k8s.gif\", \"alt\": \"Get a shell into any pod/container.\"}         ] com.docker.desktop.extension.icon=https://docker-extension-screenshots.s3.amazonaws.com/labs-k8s-toolkit/k8s.svg com.docker.extension.detailed-description=       <h3>Usage</h3>        <p>        Get a shell into any image or container, local or remote.        Comes with bash/fish/zsh shell, NixOS based package manager, dynamic port forwarding, nice prompt and more.        </p>        <p style=\"margin-bottom: 2px; padding-bottom: 0\">Get a debug shell into your pod: </p>        <p style=\"margin-top: 0; padding-top: 0\"><span style=\"font-family:monospace;color: #abb2bf; background-color: #282c34; padding: 4px 8px; display: inline-block\">kubectl shell my-pod</span></p>        <p style=\"margin-bottom: 2px; padding-bottom: 0\">...in namespace foo with a fish shell:</p>        <p style=\"margin-top: 0; padding-top: 0\"><span style=\"font-family:monospace;color: #abb2bf; background-color: #282c34; padding: 4px 8px; display: inline-block\">kubectl shell -n foo --shell=fish my-pod</span></p>        <p style=\"margin-bottom: 2px; padding-bottom: 0\">...in container bar in pod my-pod in namespace foo:</p>        <p style=\"margin-top: 0; padding-top: 0\"><span style=\"font-family:monospace;color: #abb2bf; background-color: #282c34; padding: 4px 8px; display: inline-block\">kubectl shell -n foo -c bar my-pod</span></p>        <h4 style=\"margin-top: 30px\">Syntax</h4>        <p><span style=\"font-family:monospace;color: #abb2bf; background-color: #282c34; padding: 4px 8px; display: inline-block\">kubectl shell [OPTIONS] POD</span></p>        <p>Built-in commands:</p>        <ul>        <li><span style=\"font-family:monospace\">install</span>: add any tool available on NixOS</li>        <li><span style=\"font-family:monospace\">uninstall</span></li>        </ul>        <p>Options:</p>       <ul>       <li><span style=\"font-family:monospace\">--shell</span> select bash, fish or zsh shell (default auto)</li>       </ul>       <p>       Note: The /nix directory is never visible to the actual image/container.      </p>       <p>For more details run <span style=\"font-family:monospace\">kubectl shell --help</span>.</p>         com.docker.extension.publisher-url=https://www.docker.com/ com.docker.extension.categories=development,utility-tools com.docker.extension.changelog=<ul>    <li>Display version info.</li>    <li>Optimised extension installation size.</li>    </ul> org.opencontainers.image.revision=a99afadb2395ff9f4ee2ae117fc01ef8974af46b org.opencontainers.image.source=https://github.com/docker/labs-debug-tools com.docker.extension.additional-urls=[     {\"title\":\"Request a feature\",\"url\":\"https://github.com/docker/roadmap/issues/590\"},     {\"title\":\"Report a bug\",\"url\":\"https://github.com/docker/roadmap/issues/523\"},     {\"title\":\"Learn more about experimental features.\",\"url\":\"https://docs.docker.com/release-lifecycle/#experimental\"}     ]",
+            "comment": "buildkit.dockerfile.v0",
+            "empty_layer": true
+          },
+          {
+            "created": "2023-11-30T12:49:09.435302079Z",
+            "created_by": "COPY extensions/docker-labs-k8s-toolkit/metadata.json . # buildkit",
+            "comment": "buildkit.dockerfile.v0"
+          },
+          {
+            "created": "2023-11-30T12:49:09.531559726Z",
+            "created_by": "COPY extensions/docker-labs-k8s-toolkit/k8s.svg . # buildkit",
+            "comment": "buildkit.dockerfile.v0"
+          },
+          {
+            "created": "2023-11-30T12:49:09.583342718Z",
+            "created_by": "COPY dist/windows_arm64/k8s-installer.exe /windows/k8s-installer.exe # buildkit",
+            "comment": "buildkit.dockerfile.v0"
+          },
+          {
+            "created": "2023-11-30T12:49:09.744471162Z",
+            "created_by": "COPY dist/windows_arm64/kubectl-shell.exe /windows/kubectl-shell.exe # buildkit",
+            "comment": "buildkit.dockerfile.v0"
+          },
+          {
+            "created": "2023-11-30T12:49:09.801718806Z",
+            "created_by": "COPY dist/darwin_arm64/k8s-installer /darwin/k8s-installer # buildkit",
+            "comment": "buildkit.dockerfile.v0"
+          },
+          {
+            "created": "2023-11-30T12:49:10.055263215Z",
+            "created_by": "COPY dist/darwin_arm64/kubectl-shell /darwin/kubectl-shell # buildkit",
+            "comment": "buildkit.dockerfile.v0"
+          },
+          {
+            "created": "2023-11-30T12:49:10.094866343Z",
+            "created_by": "COPY dist/linux_arm64/k8s-installer /linux/k8s-installer # buildkit",
+            "comment": "buildkit.dockerfile.v0"
+          },
+          {
+            "created": "2023-11-30T12:49:10.295940426Z",
+            "created_by": "COPY dist/linux_arm64/kubectl-shell /linux/kubectl-shell # buildkit",
+            "comment": "buildkit.dockerfile.v0"
+          },
+          {
+            "created": "2023-11-30T12:49:46.042022522Z",
+            "created_by": "COPY /ui/build ui # buildkit",
+            "comment": "buildkit.dockerfile.v0"
+          }
+        ],
+        "os": "linux",
+        "rootfs": {
+          "type": "layers",
+          "diff_ids": [
+            "sha256:5d6529a3abd043b81bba2a8bf7841a9ce3475a3186eecd53c00c459e2d2979f3",
+            "sha256:d2858a0a4e8b78ae6cf0c45e81b223bcf95add2168b2d74ce252a92b882b5070",
+            "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb",
+            "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c",
+            "sha256:8965441a765aafdb582589d73bfe00a6573fe3fe1732cc03468bd26688c09804",
+            "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714",
+            "sha256:22c07fb22c50e8ae7fcd7f91d832736f31a5e95e328aea820ec03a960c63e3b5",
+            "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c",
+            "sha256:b2701c1055480a218f07cc365a512eecaf271eabadd34de9a02436f94b6a093d"
+          ]
+        },
+        "config": {
+          "Env": [
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          ],
+          "Labels": {
+            "com.docker.desktop.extension.api.version": "0.3.4",
+            "com.docker.desktop.extension.icon": "https://docker-extension-screenshots.s3.amazonaws.com/labs-k8s-toolkit/k8s.svg",
+            "com.docker.extension.additional-urls": "[     {\"title\":\"Request a feature\",\"url\":\"https://github.com/docker/roadmap/issues/590\"},     {\"title\":\"Report a bug\",\"url\":\"https://github.com/docker/roadmap/issues/523\"},     {\"title\":\"Learn more about experimental features.\",\"url\":\"https://docs.docker.com/release-lifecycle/#experimental\"}     ]",
+            "com.docker.extension.categories": "development,utility-tools",
+            "com.docker.extension.changelog": "<ul>    <li>Display version info.</li>    <li>Optimised extension installation size.</li>    </ul>",
+            "com.docker.extension.detailed-description": "       <h3>Usage</h3>        <p>        Get a shell into any image or container, local or remote.        Comes with bash/fish/zsh shell, NixOS based package manager, dynamic port forwarding, nice prompt and more.        </p>        <p style=\"margin-bottom: 2px; padding-bottom: 0\">Get a debug shell into your pod: </p>        <p style=\"margin-top: 0; padding-top: 0\"><span style=\"font-family:monospace;color: #abb2bf; background-color: #282c34; padding: 4px 8px; display: inline-block\">kubectl shell my-pod</span></p>        <p style=\"margin-bottom: 2px; padding-bottom: 0\">...in namespace foo with a fish shell:</p>        <p style=\"margin-top: 0; padding-top: 0\"><span style=\"font-family:monospace;color: #abb2bf; background-color: #282c34; padding: 4px 8px; display: inline-block\">kubectl shell -n foo --shell=fish my-pod</span></p>        <p style=\"margin-bottom: 2px; padding-bottom: 0\">...in container bar in pod my-pod in namespace foo:</p>        <p style=\"margin-top: 0; padding-top: 0\"><span style=\"font-family:monospace;color: #abb2bf; background-color: #282c34; padding: 4px 8px; display: inline-block\">kubectl shell -n foo -c bar my-pod</span></p>        <h4 style=\"margin-top: 30px\">Syntax</h4>        <p><span style=\"font-family:monospace;color: #abb2bf; background-color: #282c34; padding: 4px 8px; display: inline-block\">kubectl shell [OPTIONS] POD</span></p>        <p>Built-in commands:</p>        <ul>        <li><span style=\"font-family:monospace\">install</span>: add any tool available on NixOS</li>        <li><span style=\"font-family:monospace\">uninstall</span></li>        </ul>        <p>Options:</p>       <ul>       <li><span style=\"font-family:monospace\">--shell</span> select bash, fish or zsh shell (default auto)</li>       </ul>       <p>       Note: The /nix directory is never visible to the actual image/container.      </p>       <p>For more details run <span style=\"font-family:monospace\">kubectl shell --help</span>.</p>        ",
+            "com.docker.extension.publisher-url": "https://www.docker.com/",
+            "com.docker.extension.screenshots": "[         {\"url\": \"https://docker-extension-screenshots.s3.amazonaws.com/labs-k8s-toolkit/demo-k8s.gif\", \"alt\": \"Get a shell into any pod/container.\"}         ]",
+            "org.opencontainers.image.description": "A Kubernetes debugging toolkit. Get your favorite shell with all your debug tools into any pod/container.",
+            "org.opencontainers.image.revision": "a99afadb2395ff9f4ee2ae117fc01ef8974af46b",
+            "org.opencontainers.image.source": "https://github.com/docker/labs-debug-tools",
+            "org.opencontainers.image.title": "Docker Labs K8s Toolkit",
+            "org.opencontainers.image.vendor": "Docker Inc."
+          },
+          "WorkingDir": "/"
+        }
+      },
+      "raw_manifest": "eyJzY2hlbWFWZXJzaW9uIjoyLCJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmRpc3RyaWJ1dGlvbi5tYW5pZmVzdC52Mitqc29uIiwiY29uZmlnIjp7Im1lZGlhVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5kb2NrZXIuY29udGFpbmVyLmltYWdlLnYxK2pzb24iLCJzaXplIjoxMDk0MywiZGlnZXN0Ijoic2hhMjU2OmZiYmUxNmVjMjU4OWRhODRjMjUzYmEyZDFhZjQ1MDdjODJmNzgwZjQxZjI5Njc3MmFlNTQyZmRiZjVjOTJhODYifSwibGF5ZXJzIjpbeyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmltYWdlLnJvb3Rmcy5kaWZmLnRhci5nemlwIiwic2l6ZSI6Mzg2LCJkaWdlc3QiOiJzaGEyNTY6NGJhZTZkMTQ2YTllYzdlYTc5ZDNjMWZmZjZhOTgxZDYzYTlhMmExYTQ0ZTFkOTFmYTYyZDdjOTA3NWUzZDUwNSJ9LHsibWVkaWFUeXBlIjoiYXBwbGljYXRpb24vdm5kLmRvY2tlci5pbWFnZS5yb290ZnMuZGlmZi50YXIuZ3ppcCIsInNpemUiOjQ5ODEsImRpZ2VzdCI6InNoYTI1NjoyNWYxNDM4MGVjNGEyMTJlYzg1M2ViNmNjODI2OTA3ZWUxM2FiNGUzYzE5OGExNjNjNWJkMzczZjBhN2FlMjQxIn0seyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmltYWdlLnJvb3Rmcy5kaWZmLnRhci5nemlwIiwic2l6ZSI6MTU0NDEzMCwiZGlnZXN0Ijoic2hhMjU2Ojc2ZjU0N2Q5ZmExN2RlNmFkOWIxMmQ5ZDM5ZjdkZTBlZjcyMGQyNDA3NjlhZWM1YzgxYWZkZmQ5M2VjYTNiNjYifSx7Im1lZGlhVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5kb2NrZXIuaW1hZ2Uucm9vdGZzLmRpZmYudGFyLmd6aXAiLCJzaXplIjoxMjQ3MTkzOCwiZGlnZXN0Ijoic2hhMjU2OmJlYWZlMDNkZmZmMzMzNmRlMTcwODVlNjQzMGNlZTVhZGRkZjc0YTcwYTBiNThhZDU0NmRkMGY2YzE1YWEyNDcifSx7Im1lZGlhVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5kb2NrZXIuaW1hZ2Uucm9vdGZzLmRpZmYudGFyLmd6aXAiLCJzaXplIjoxNjMyMTIyLCJkaWdlc3QiOiJzaGEyNTY6OGQxNDY0ZTdjNmFmNGY2ZGYyZjcyZTFiMjkwMGFiOGI1OTA5MTA5ZDBhOGEzMDFiYzg4NGM0YWNjYTNlMDRjNSJ9LHsibWVkaWFUeXBlIjoiYXBwbGljYXRpb24vdm5kLmRvY2tlci5pbWFnZS5yb290ZnMuZGlmZi50YXIuZ3ppcCIsInNpemUiOjEzNjI3MjI4LCJkaWdlc3QiOiJzaGEyNTY6MjU4YzAzNDk2MDgwN2YzYmEwMjUzYTJhNzU1ZjA5Yjg0Njk5YmRlYmFkZGQzMTc2ZDUwYmI2YmNlNGYyMDJlNSJ9LHsibWVkaWFUeXBlIjoiYXBwbGljYXRpb24vdm5kLmRvY2tlci5pbWFnZS5yb290ZnMuZGlmZi50YXIuZ3ppcCIsInNpemUiOjE1MDAwOTEsImRpZ2VzdCI6InNoYTI1NjpmNTIwNmRhMGI2MDFjMmRhNmFhOGZlNWM2YTU1MWFlOWRjOWE3ZjMzOTg2MTJlZGRmNGRhYzI0MjRiZDkyZmM4In0seyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmltYWdlLnJvb3Rmcy5kaWZmLnRhci5nemlwIiwic2l6ZSI6MTIzMjM1MTUsImRpZ2VzdCI6InNoYTI1NjpiMGJjM2IxNWFiYzNkOGMzOWVkZGIwZjJkOGM2NzJkZTQ2MzI0MmM4OGE1OTNmMDZmODNhMDdhMTJlMWU5YjhlIn0seyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmltYWdlLnJvb3Rmcy5kaWZmLnRhci5nemlwIiwic2l6ZSI6MzM4NTYxNCwiZGlnZXN0Ijoic2hhMjU2Ojg5M2M1Nzk3NjlkMjc4NjFkMjkwZDdmMjk3MGFhNzMzMWJmY2JkMzZjZmFiYjJjYjFkZjUxMWNlMTVlMGFlYzEifV19",
+      "raw_config": "eyJhcmNoaXRlY3R1cmUiOiJhcm02NCIsImNvbmZpZyI6eyJFbnYiOlsiUEFUSD0vdXNyL2xvY2FsL3NiaW46L3Vzci9sb2NhbC9iaW46L3Vzci9zYmluOi91c3IvYmluOi9zYmluOi9iaW4iXSwiV29ya2luZ0RpciI6Ii8iLCJMYWJlbHMiOnsiY29tLmRvY2tlci5kZXNrdG9wLmV4dGVuc2lvbi5hcGkudmVyc2lvbiI6IjAuMy40IiwiY29tLmRvY2tlci5kZXNrdG9wLmV4dGVuc2lvbi5pY29uIjoiaHR0cHM6Ly9kb2NrZXItZXh0ZW5zaW9uLXNjcmVlbnNob3RzLnMzLmFtYXpvbmF3cy5jb20vbGFicy1rOHMtdG9vbGtpdC9rOHMuc3ZnIiwiY29tLmRvY2tlci5leHRlbnNpb24uYWRkaXRpb25hbC11cmxzIjoiWyAgICAge1widGl0bGVcIjpcIlJlcXVlc3QgYSBmZWF0dXJlXCIsXCJ1cmxcIjpcImh0dHBzOi8vZ2l0aHViLmNvbS9kb2NrZXIvcm9hZG1hcC9pc3N1ZXMvNTkwXCJ9LCAgICAge1widGl0bGVcIjpcIlJlcG9ydCBhIGJ1Z1wiLFwidXJsXCI6XCJodHRwczovL2dpdGh1Yi5jb20vZG9ja2VyL3JvYWRtYXAvaXNzdWVzLzUyM1wifSwgICAgIHtcInRpdGxlXCI6XCJMZWFybiBtb3JlIGFib3V0IGV4cGVyaW1lbnRhbCBmZWF0dXJlcy5cIixcInVybFwiOlwiaHR0cHM6Ly9kb2NzLmRvY2tlci5jb20vcmVsZWFzZS1saWZlY3ljbGUvI2V4cGVyaW1lbnRhbFwifSAgICAgXSIsImNvbS5kb2NrZXIuZXh0ZW5zaW9uLmNhdGVnb3JpZXMiOiJkZXZlbG9wbWVudCx1dGlsaXR5LXRvb2xzIiwiY29tLmRvY2tlci5leHRlbnNpb24uY2hhbmdlbG9nIjoiXHUwMDNjdWxcdTAwM2UgICAgXHUwMDNjbGlcdTAwM2VEaXNwbGF5IHZlcnNpb24gaW5mby5cdTAwM2MvbGlcdTAwM2UgICAgXHUwMDNjbGlcdTAwM2VPcHRpbWlzZWQgZXh0ZW5zaW9uIGluc3RhbGxhdGlvbiBzaXplLlx1MDAzYy9saVx1MDAzZSAgICBcdTAwM2MvdWxcdTAwM2UiLCJjb20uZG9ja2VyLmV4dGVuc2lvbi5kZXRhaWxlZC1kZXNjcmlwdGlvbiI6IiAgICAgICBcdTAwM2NoM1x1MDAzZVVzYWdlXHUwMDNjL2gzXHUwMDNlICAgICAgICBcdTAwM2NwXHUwMDNlICAgICAgICBHZXQgYSBzaGVsbCBpbnRvIGFueSBpbWFnZSBvciBjb250YWluZXIsIGxvY2FsIG9yIHJlbW90ZS4gICAgICAgIENvbWVzIHdpdGggYmFzaC9maXNoL3pzaCBzaGVsbCwgTml4T1MgYmFzZWQgcGFja2FnZSBtYW5hZ2VyLCBkeW5hbWljIHBvcnQgZm9yd2FyZGluZywgbmljZSBwcm9tcHQgYW5kIG1vcmUuICAgICAgICBcdTAwM2MvcFx1MDAzZSAgICAgICAgXHUwMDNjcCBzdHlsZT1cIm1hcmdpbi1ib3R0b206IDJweDsgcGFkZGluZy1ib3R0b206IDBcIlx1MDAzZUdldCBhIGRlYnVnIHNoZWxsIGludG8geW91ciBwb2Q6IFx1MDAzYy9wXHUwMDNlICAgICAgICBcdTAwM2NwIHN0eWxlPVwibWFyZ2luLXRvcDogMDsgcGFkZGluZy10b3A6IDBcIlx1MDAzZVx1MDAzY3NwYW4gc3R5bGU9XCJmb250LWZhbWlseTptb25vc3BhY2U7Y29sb3I6ICNhYmIyYmY7IGJhY2tncm91bmQtY29sb3I6ICMyODJjMzQ7IHBhZGRpbmc6IDRweCA4cHg7IGRpc3BsYXk6IGlubGluZS1ibG9ja1wiXHUwMDNla3ViZWN0bCBzaGVsbCBteS1wb2RcdTAwM2Mvc3Bhblx1MDAzZVx1MDAzYy9wXHUwMDNlICAgICAgICBcdTAwM2NwIHN0eWxlPVwibWFyZ2luLWJvdHRvbTogMnB4OyBwYWRkaW5nLWJvdHRvbTogMFwiXHUwMDNlLi4uaW4gbmFtZXNwYWNlIGZvbyB3aXRoIGEgZmlzaCBzaGVsbDpcdTAwM2MvcFx1MDAzZSAgICAgICAgXHUwMDNjcCBzdHlsZT1cIm1hcmdpbi10b3A6IDA7IHBhZGRpbmctdG9wOiAwXCJcdTAwM2VcdTAwM2NzcGFuIHN0eWxlPVwiZm9udC1mYW1pbHk6bW9ub3NwYWNlO2NvbG9yOiAjYWJiMmJmOyBiYWNrZ3JvdW5kLWNvbG9yOiAjMjgyYzM0OyBwYWRkaW5nOiA0cHggOHB4OyBkaXNwbGF5OiBpbmxpbmUtYmxvY2tcIlx1MDAzZWt1YmVjdGwgc2hlbGwgLW4gZm9vIC0tc2hlbGw9ZmlzaCBteS1wb2RcdTAwM2Mvc3Bhblx1MDAzZVx1MDAzYy9wXHUwMDNlICAgICAgICBcdTAwM2NwIHN0eWxlPVwibWFyZ2luLWJvdHRvbTogMnB4OyBwYWRkaW5nLWJvdHRvbTogMFwiXHUwMDNlLi4uaW4gY29udGFpbmVyIGJhciBpbiBwb2QgbXktcG9kIGluIG5hbWVzcGFjZSBmb286XHUwMDNjL3BcdTAwM2UgICAgICAgIFx1MDAzY3Agc3R5bGU9XCJtYXJnaW4tdG9wOiAwOyBwYWRkaW5nLXRvcDogMFwiXHUwMDNlXHUwMDNjc3BhbiBzdHlsZT1cImZvbnQtZmFtaWx5Om1vbm9zcGFjZTtjb2xvcjogI2FiYjJiZjsgYmFja2dyb3VuZC1jb2xvcjogIzI4MmMzNDsgcGFkZGluZzogNHB4IDhweDsgZGlzcGxheTogaW5saW5lLWJsb2NrXCJcdTAwM2VrdWJlY3RsIHNoZWxsIC1uIGZvbyAtYyBiYXIgbXktcG9kXHUwMDNjL3NwYW5cdTAwM2VcdTAwM2MvcFx1MDAzZSAgICAgICAgXHUwMDNjaDQgc3R5bGU9XCJtYXJnaW4tdG9wOiAzMHB4XCJcdTAwM2VTeW50YXhcdTAwM2MvaDRcdTAwM2UgICAgICAgIFx1MDAzY3BcdTAwM2VcdTAwM2NzcGFuIHN0eWxlPVwiZm9udC1mYW1pbHk6bW9ub3NwYWNlO2NvbG9yOiAjYWJiMmJmOyBiYWNrZ3JvdW5kLWNvbG9yOiAjMjgyYzM0OyBwYWRkaW5nOiA0cHggOHB4OyBkaXNwbGF5OiBpbmxpbmUtYmxvY2tcIlx1MDAzZWt1YmVjdGwgc2hlbGwgW09QVElPTlNdIFBPRFx1MDAzYy9zcGFuXHUwMDNlXHUwMDNjL3BcdTAwM2UgICAgICAgIFx1MDAzY3BcdTAwM2VCdWlsdC1pbiBjb21tYW5kczpcdTAwM2MvcFx1MDAzZSAgICAgICAgXHUwMDNjdWxcdTAwM2UgICAgICAgIFx1MDAzY2xpXHUwMDNlXHUwMDNjc3BhbiBzdHlsZT1cImZvbnQtZmFtaWx5Om1vbm9zcGFjZVwiXHUwMDNlaW5zdGFsbFx1MDAzYy9zcGFuXHUwMDNlOiBhZGQgYW55IHRvb2wgYXZhaWxhYmxlIG9uIE5peE9TXHUwMDNjL2xpXHUwMDNlICAgICAgICBcdTAwM2NsaVx1MDAzZVx1MDAzY3NwYW4gc3R5bGU9XCJmb250LWZhbWlseTptb25vc3BhY2VcIlx1MDAzZXVuaW5zdGFsbFx1MDAzYy9zcGFuXHUwMDNlXHUwMDNjL2xpXHUwMDNlICAgICAgICBcdTAwM2MvdWxcdTAwM2UgICAgICAgIFx1MDAzY3BcdTAwM2VPcHRpb25zOlx1MDAzYy9wXHUwMDNlICAgICAgIFx1MDAzY3VsXHUwMDNlICAgICAgIFx1MDAzY2xpXHUwMDNlXHUwMDNjc3BhbiBzdHlsZT1cImZvbnQtZmFtaWx5Om1vbm9zcGFjZVwiXHUwMDNlLS1zaGVsbFx1MDAzYy9zcGFuXHUwMDNlIHNlbGVjdCBiYXNoLCBmaXNoIG9yIHpzaCBzaGVsbCAoZGVmYXVsdCBhdXRvKVx1MDAzYy9saVx1MDAzZSAgICAgICBcdTAwM2MvdWxcdTAwM2UgICAgICAgXHUwMDNjcFx1MDAzZSAgICAgICBOb3RlOiBUaGUgL25peCBkaXJlY3RvcnkgaXMgbmV2ZXIgdmlzaWJsZSB0byB0aGUgYWN0dWFsIGltYWdlL2NvbnRhaW5lci4gICAgICBcdTAwM2MvcFx1MDAzZSAgICAgICBcdTAwM2NwXHUwMDNlRm9yIG1vcmUgZGV0YWlscyBydW4gXHUwMDNjc3BhbiBzdHlsZT1cImZvbnQtZmFtaWx5Om1vbm9zcGFjZVwiXHUwMDNla3ViZWN0bCBzaGVsbCAtLWhlbHBcdTAwM2Mvc3Bhblx1MDAzZS5cdTAwM2MvcFx1MDAzZSAgICAgICAgIiwiY29tLmRvY2tlci5leHRlbnNpb24ucHVibGlzaGVyLXVybCI6Imh0dHBzOi8vd3d3LmRvY2tlci5jb20vIiwiY29tLmRvY2tlci5leHRlbnNpb24uc2NyZWVuc2hvdHMiOiJbICAgICAgICAge1widXJsXCI6IFwiaHR0cHM6Ly9kb2NrZXItZXh0ZW5zaW9uLXNjcmVlbnNob3RzLnMzLmFtYXpvbmF3cy5jb20vbGFicy1rOHMtdG9vbGtpdC9kZW1vLWs4cy5naWZcIiwgXCJhbHRcIjogXCJHZXQgYSBzaGVsbCBpbnRvIGFueSBwb2QvY29udGFpbmVyLlwifSAgICAgICAgIF0iLCJvcmcub3BlbmNvbnRhaW5lcnMuaW1hZ2UuZGVzY3JpcHRpb24iOiJBIEt1YmVybmV0ZXMgZGVidWdnaW5nIHRvb2xraXQuIEdldCB5b3VyIGZhdm9yaXRlIHNoZWxsIHdpdGggYWxsIHlvdXIgZGVidWcgdG9vbHMgaW50byBhbnkgcG9kL2NvbnRhaW5lci4iLCJvcmcub3BlbmNvbnRhaW5lcnMuaW1hZ2UucmV2aXNpb24iOiJhOTlhZmFkYjIzOTVmZjlmNGVlMmFlMTE3ZmMwMWVmODk3NGFmNDZiIiwib3JnLm9wZW5jb250YWluZXJzLmltYWdlLnNvdXJjZSI6Imh0dHBzOi8vZ2l0aHViLmNvbS9kb2NrZXIvbGFicy1kZWJ1Zy10b29scyIsIm9yZy5vcGVuY29udGFpbmVycy5pbWFnZS50aXRsZSI6IkRvY2tlciBMYWJzIEs4cyBUb29sa2l0Iiwib3JnLm9wZW5jb250YWluZXJzLmltYWdlLnZlbmRvciI6IkRvY2tlciBJbmMuIn0sIk9uQnVpbGQiOm51bGx9LCJjcmVhdGVkIjoiMjAyMy0xMS0zMFQxMjo0OTo0Ni4wNDIwMjI1MjJaIiwiaGlzdG9yeSI6W3siY3JlYXRlZCI6IjIwMjMtMTEtMzBUMTI6NDk6MDkuNDM1MzAyMDc5WiIsImNyZWF0ZWRfYnkiOiJBUkcgVEFSR0VUQVJDSCIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIiwiZW1wdHlfbGF5ZXIiOnRydWV9LHsiY3JlYXRlZCI6IjIwMjMtMTEtMzBUMTI6NDk6MDkuNDM1MzAyMDc5WiIsImNyZWF0ZWRfYnkiOiJBUkcgSU5TVEFMTEVSX0JJTkFSWSIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIiwiZW1wdHlfbGF5ZXIiOnRydWV9LHsiY3JlYXRlZCI6IjIwMjMtMTEtMzBUMTI6NDk6MDkuNDM1MzAyMDc5WiIsImNyZWF0ZWRfYnkiOiJBUkcgR0lUX0NPTU1JVCIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIiwiZW1wdHlfbGF5ZXIiOnRydWV9LHsiY3JlYXRlZCI6IjIwMjMtMTEtMzBUMTI6NDk6MDkuNDM1MzAyMDc5WiIsImNyZWF0ZWRfYnkiOiJMQUJFTCBvcmcub3BlbmNvbnRhaW5lcnMuaW1hZ2UudGl0bGU9RG9ja2VyIExhYnMgSzhzIFRvb2xraXQgb3JnLm9wZW5jb250YWluZXJzLmltYWdlLmRlc2NyaXB0aW9uPUEgS3ViZXJuZXRlcyBkZWJ1Z2dpbmcgdG9vbGtpdC4gR2V0IHlvdXIgZmF2b3JpdGUgc2hlbGwgd2l0aCBhbGwgeW91ciBkZWJ1ZyB0b29scyBpbnRvIGFueSBwb2QvY29udGFpbmVyLiBvcmcub3BlbmNvbnRhaW5lcnMuaW1hZ2UudmVuZG9yPURvY2tlciBJbmMuIGNvbS5kb2NrZXIuZGVza3RvcC5leHRlbnNpb24uYXBpLnZlcnNpb249MC4zLjQgY29tLmRvY2tlci5leHRlbnNpb24uc2NyZWVuc2hvdHM9WyAgICAgICAgIHtcInVybFwiOiBcImh0dHBzOi8vZG9ja2VyLWV4dGVuc2lvbi1zY3JlZW5zaG90cy5zMy5hbWF6b25hd3MuY29tL2xhYnMtazhzLXRvb2xraXQvZGVtby1rOHMuZ2lmXCIsIFwiYWx0XCI6IFwiR2V0IGEgc2hlbGwgaW50byBhbnkgcG9kL2NvbnRhaW5lci5cIn0gICAgICAgICBdIGNvbS5kb2NrZXIuZGVza3RvcC5leHRlbnNpb24uaWNvbj1odHRwczovL2RvY2tlci1leHRlbnNpb24tc2NyZWVuc2hvdHMuczMuYW1hem9uYXdzLmNvbS9sYWJzLWs4cy10b29sa2l0L2s4cy5zdmcgY29tLmRvY2tlci5leHRlbnNpb24uZGV0YWlsZWQtZGVzY3JpcHRpb249ICAgICAgIFx1MDAzY2gzXHUwMDNlVXNhZ2VcdTAwM2MvaDNcdTAwM2UgICAgICAgIFx1MDAzY3BcdTAwM2UgICAgICAgIEdldCBhIHNoZWxsIGludG8gYW55IGltYWdlIG9yIGNvbnRhaW5lciwgbG9jYWwgb3IgcmVtb3RlLiAgICAgICAgQ29tZXMgd2l0aCBiYXNoL2Zpc2gvenNoIHNoZWxsLCBOaXhPUyBiYXNlZCBwYWNrYWdlIG1hbmFnZXIsIGR5bmFtaWMgcG9ydCBmb3J3YXJkaW5nLCBuaWNlIHByb21wdCBhbmQgbW9yZS4gICAgICAgIFx1MDAzYy9wXHUwMDNlICAgICAgICBcdTAwM2NwIHN0eWxlPVwibWFyZ2luLWJvdHRvbTogMnB4OyBwYWRkaW5nLWJvdHRvbTogMFwiXHUwMDNlR2V0IGEgZGVidWcgc2hlbGwgaW50byB5b3VyIHBvZDogXHUwMDNjL3BcdTAwM2UgICAgICAgIFx1MDAzY3Agc3R5bGU9XCJtYXJnaW4tdG9wOiAwOyBwYWRkaW5nLXRvcDogMFwiXHUwMDNlXHUwMDNjc3BhbiBzdHlsZT1cImZvbnQtZmFtaWx5Om1vbm9zcGFjZTtjb2xvcjogI2FiYjJiZjsgYmFja2dyb3VuZC1jb2xvcjogIzI4MmMzNDsgcGFkZGluZzogNHB4IDhweDsgZGlzcGxheTogaW5saW5lLWJsb2NrXCJcdTAwM2VrdWJlY3RsIHNoZWxsIG15LXBvZFx1MDAzYy9zcGFuXHUwMDNlXHUwMDNjL3BcdTAwM2UgICAgICAgIFx1MDAzY3Agc3R5bGU9XCJtYXJnaW4tYm90dG9tOiAycHg7IHBhZGRpbmctYm90dG9tOiAwXCJcdTAwM2UuLi5pbiBuYW1lc3BhY2UgZm9vIHdpdGggYSBmaXNoIHNoZWxsOlx1MDAzYy9wXHUwMDNlICAgICAgICBcdTAwM2NwIHN0eWxlPVwibWFyZ2luLXRvcDogMDsgcGFkZGluZy10b3A6IDBcIlx1MDAzZVx1MDAzY3NwYW4gc3R5bGU9XCJmb250LWZhbWlseTptb25vc3BhY2U7Y29sb3I6ICNhYmIyYmY7IGJhY2tncm91bmQtY29sb3I6ICMyODJjMzQ7IHBhZGRpbmc6IDRweCA4cHg7IGRpc3BsYXk6IGlubGluZS1ibG9ja1wiXHUwMDNla3ViZWN0bCBzaGVsbCAtbiBmb28gLS1zaGVsbD1maXNoIG15LXBvZFx1MDAzYy9zcGFuXHUwMDNlXHUwMDNjL3BcdTAwM2UgICAgICAgIFx1MDAzY3Agc3R5bGU9XCJtYXJnaW4tYm90dG9tOiAycHg7IHBhZGRpbmctYm90dG9tOiAwXCJcdTAwM2UuLi5pbiBjb250YWluZXIgYmFyIGluIHBvZCBteS1wb2QgaW4gbmFtZXNwYWNlIGZvbzpcdTAwM2MvcFx1MDAzZSAgICAgICAgXHUwMDNjcCBzdHlsZT1cIm1hcmdpbi10b3A6IDA7IHBhZGRpbmctdG9wOiAwXCJcdTAwM2VcdTAwM2NzcGFuIHN0eWxlPVwiZm9udC1mYW1pbHk6bW9ub3NwYWNlO2NvbG9yOiAjYWJiMmJmOyBiYWNrZ3JvdW5kLWNvbG9yOiAjMjgyYzM0OyBwYWRkaW5nOiA0cHggOHB4OyBkaXNwbGF5OiBpbmxpbmUtYmxvY2tcIlx1MDAzZWt1YmVjdGwgc2hlbGwgLW4gZm9vIC1jIGJhciBteS1wb2RcdTAwM2Mvc3Bhblx1MDAzZVx1MDAzYy9wXHUwMDNlICAgICAgICBcdTAwM2NoNCBzdHlsZT1cIm1hcmdpbi10b3A6IDMwcHhcIlx1MDAzZVN5bnRheFx1MDAzYy9oNFx1MDAzZSAgICAgICAgXHUwMDNjcFx1MDAzZVx1MDAzY3NwYW4gc3R5bGU9XCJmb250LWZhbWlseTptb25vc3BhY2U7Y29sb3I6ICNhYmIyYmY7IGJhY2tncm91bmQtY29sb3I6ICMyODJjMzQ7IHBhZGRpbmc6IDRweCA4cHg7IGRpc3BsYXk6IGlubGluZS1ibG9ja1wiXHUwMDNla3ViZWN0bCBzaGVsbCBbT1BUSU9OU10gUE9EXHUwMDNjL3NwYW5cdTAwM2VcdTAwM2MvcFx1MDAzZSAgICAgICAgXHUwMDNjcFx1MDAzZUJ1aWx0LWluIGNvbW1hbmRzOlx1MDAzYy9wXHUwMDNlICAgICAgICBcdTAwM2N1bFx1MDAzZSAgICAgICAgXHUwMDNjbGlcdTAwM2VcdTAwM2NzcGFuIHN0eWxlPVwiZm9udC1mYW1pbHk6bW9ub3NwYWNlXCJcdTAwM2VpbnN0YWxsXHUwMDNjL3NwYW5cdTAwM2U6IGFkZCBhbnkgdG9vbCBhdmFpbGFibGUgb24gTml4T1NcdTAwM2MvbGlcdTAwM2UgICAgICAgIFx1MDAzY2xpXHUwMDNlXHUwMDNjc3BhbiBzdHlsZT1cImZvbnQtZmFtaWx5Om1vbm9zcGFjZVwiXHUwMDNldW5pbnN0YWxsXHUwMDNjL3NwYW5cdTAwM2VcdTAwM2MvbGlcdTAwM2UgICAgICAgIFx1MDAzYy91bFx1MDAzZSAgICAgICAgXHUwMDNjcFx1MDAzZU9wdGlvbnM6XHUwMDNjL3BcdTAwM2UgICAgICAgXHUwMDNjdWxcdTAwM2UgICAgICAgXHUwMDNjbGlcdTAwM2VcdTAwM2NzcGFuIHN0eWxlPVwiZm9udC1mYW1pbHk6bW9ub3NwYWNlXCJcdTAwM2UtLXNoZWxsXHUwMDNjL3NwYW5cdTAwM2Ugc2VsZWN0IGJhc2gsIGZpc2ggb3IgenNoIHNoZWxsIChkZWZhdWx0IGF1dG8pXHUwMDNjL2xpXHUwMDNlICAgICAgIFx1MDAzYy91bFx1MDAzZSAgICAgICBcdTAwM2NwXHUwMDNlICAgICAgIE5vdGU6IFRoZSAvbml4IGRpcmVjdG9yeSBpcyBuZXZlciB2aXNpYmxlIHRvIHRoZSBhY3R1YWwgaW1hZ2UvY29udGFpbmVyLiAgICAgIFx1MDAzYy9wXHUwMDNlICAgICAgIFx1MDAzY3BcdTAwM2VGb3IgbW9yZSBkZXRhaWxzIHJ1biBcdTAwM2NzcGFuIHN0eWxlPVwiZm9udC1mYW1pbHk6bW9ub3NwYWNlXCJcdTAwM2VrdWJlY3RsIHNoZWxsIC0taGVscFx1MDAzYy9zcGFuXHUwMDNlLlx1MDAzYy9wXHUwMDNlICAgICAgICAgY29tLmRvY2tlci5leHRlbnNpb24ucHVibGlzaGVyLXVybD1odHRwczovL3d3dy5kb2NrZXIuY29tLyBjb20uZG9ja2VyLmV4dGVuc2lvbi5jYXRlZ29yaWVzPWRldmVsb3BtZW50LHV0aWxpdHktdG9vbHMgY29tLmRvY2tlci5leHRlbnNpb24uY2hhbmdlbG9nPVx1MDAzY3VsXHUwMDNlICAgIFx1MDAzY2xpXHUwMDNlRGlzcGxheSB2ZXJzaW9uIGluZm8uXHUwMDNjL2xpXHUwMDNlICAgIFx1MDAzY2xpXHUwMDNlT3B0aW1pc2VkIGV4dGVuc2lvbiBpbnN0YWxsYXRpb24gc2l6ZS5cdTAwM2MvbGlcdTAwM2UgICAgXHUwMDNjL3VsXHUwMDNlIG9yZy5vcGVuY29udGFpbmVycy5pbWFnZS5yZXZpc2lvbj1hOTlhZmFkYjIzOTVmZjlmNGVlMmFlMTE3ZmMwMWVmODk3NGFmNDZiIG9yZy5vcGVuY29udGFpbmVycy5pbWFnZS5zb3VyY2U9aHR0cHM6Ly9naXRodWIuY29tL2RvY2tlci9sYWJzLWRlYnVnLXRvb2xzIGNvbS5kb2NrZXIuZXh0ZW5zaW9uLmFkZGl0aW9uYWwtdXJscz1bICAgICB7XCJ0aXRsZVwiOlwiUmVxdWVzdCBhIGZlYXR1cmVcIixcInVybFwiOlwiaHR0cHM6Ly9naXRodWIuY29tL2RvY2tlci9yb2FkbWFwL2lzc3Vlcy81OTBcIn0sICAgICB7XCJ0aXRsZVwiOlwiUmVwb3J0IGEgYnVnXCIsXCJ1cmxcIjpcImh0dHBzOi8vZ2l0aHViLmNvbS9kb2NrZXIvcm9hZG1hcC9pc3N1ZXMvNTIzXCJ9LCAgICAge1widGl0bGVcIjpcIkxlYXJuIG1vcmUgYWJvdXQgZXhwZXJpbWVudGFsIGZlYXR1cmVzLlwiLFwidXJsXCI6XCJodHRwczovL2RvY3MuZG9ja2VyLmNvbS9yZWxlYXNlLWxpZmVjeWNsZS8jZXhwZXJpbWVudGFsXCJ9ICAgICBdIiwiY29tbWVudCI6ImJ1aWxka2l0LmRvY2tlcmZpbGUudjAiLCJlbXB0eV9sYXllciI6dHJ1ZX0seyJjcmVhdGVkIjoiMjAyMy0xMS0zMFQxMjo0OTowOS40MzUzMDIwNzlaIiwiY3JlYXRlZF9ieSI6IkNPUFkgZXh0ZW5zaW9ucy9kb2NrZXItbGFicy1rOHMtdG9vbGtpdC9tZXRhZGF0YS5qc29uIC4gIyBidWlsZGtpdCIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIn0seyJjcmVhdGVkIjoiMjAyMy0xMS0zMFQxMjo0OTowOS41MzE1NTk3MjZaIiwiY3JlYXRlZF9ieSI6IkNPUFkgZXh0ZW5zaW9ucy9kb2NrZXItbGFicy1rOHMtdG9vbGtpdC9rOHMuc3ZnIC4gIyBidWlsZGtpdCIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIn0seyJjcmVhdGVkIjoiMjAyMy0xMS0zMFQxMjo0OTowOS41ODMzNDI3MThaIiwiY3JlYXRlZF9ieSI6IkNPUFkgZGlzdC93aW5kb3dzX2FybTY0L2s4cy1pbnN0YWxsZXIuZXhlIC93aW5kb3dzL2s4cy1pbnN0YWxsZXIuZXhlICMgYnVpbGRraXQiLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCJ9LHsiY3JlYXRlZCI6IjIwMjMtMTEtMzBUMTI6NDk6MDkuNzQ0NDcxMTYyWiIsImNyZWF0ZWRfYnkiOiJDT1BZIGRpc3Qvd2luZG93c19hcm02NC9rdWJlY3RsLXNoZWxsLmV4ZSAvd2luZG93cy9rdWJlY3RsLXNoZWxsLmV4ZSAjIGJ1aWxka2l0IiwiY29tbWVudCI6ImJ1aWxka2l0LmRvY2tlcmZpbGUudjAifSx7ImNyZWF0ZWQiOiIyMDIzLTExLTMwVDEyOjQ5OjA5LjgwMTcxODgwNloiLCJjcmVhdGVkX2J5IjoiQ09QWSBkaXN0L2Rhcndpbl9hcm02NC9rOHMtaW5zdGFsbGVyIC9kYXJ3aW4vazhzLWluc3RhbGxlciAjIGJ1aWxka2l0IiwiY29tbWVudCI6ImJ1aWxka2l0LmRvY2tlcmZpbGUudjAifSx7ImNyZWF0ZWQiOiIyMDIzLTExLTMwVDEyOjQ5OjEwLjA1NTI2MzIxNVoiLCJjcmVhdGVkX2J5IjoiQ09QWSBkaXN0L2Rhcndpbl9hcm02NC9rdWJlY3RsLXNoZWxsIC9kYXJ3aW4va3ViZWN0bC1zaGVsbCAjIGJ1aWxka2l0IiwiY29tbWVudCI6ImJ1aWxka2l0LmRvY2tlcmZpbGUudjAifSx7ImNyZWF0ZWQiOiIyMDIzLTExLTMwVDEyOjQ5OjEwLjA5NDg2NjM0M1oiLCJjcmVhdGVkX2J5IjoiQ09QWSBkaXN0L2xpbnV4X2FybTY0L2s4cy1pbnN0YWxsZXIgL2xpbnV4L2s4cy1pbnN0YWxsZXIgIyBidWlsZGtpdCIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIn0seyJjcmVhdGVkIjoiMjAyMy0xMS0zMFQxMjo0OToxMC4yOTU5NDA0MjZaIiwiY3JlYXRlZF9ieSI6IkNPUFkgZGlzdC9saW51eF9hcm02NC9rdWJlY3RsLXNoZWxsIC9saW51eC9rdWJlY3RsLXNoZWxsICMgYnVpbGRraXQiLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCJ9LHsiY3JlYXRlZCI6IjIwMjMtMTEtMzBUMTI6NDk6NDYuMDQyMDIyNTIyWiIsImNyZWF0ZWRfYnkiOiJDT1BZIC91aS9idWlsZCB1aSAjIGJ1aWxka2l0IiwiY29tbWVudCI6ImJ1aWxka2l0LmRvY2tlcmZpbGUudjAifV0sIm9zIjoibGludXgiLCJyb290ZnMiOnsidHlwZSI6ImxheWVycyIsImRpZmZfaWRzIjpbInNoYTI1Njo1ZDY1MjlhM2FiZDA0M2I4MWJiYTJhOGJmNzg0MWE5Y2UzNDc1YTMxODZlZWNkNTNjMDBjNDU5ZTJkMjk3OWYzIiwic2hhMjU2OmQyODU4YTBhNGU4Yjc4YWU2Y2YwYzQ1ZTgxYjIyM2JjZjk1YWRkMjE2OGIyZDc0Y2UyNTJhOTJiODgyYjUwNzAiLCJzaGEyNTY6YTA0NTUxYWRmM2JmOGJhZmUxYjVhNzFiNjBiOWIwMDE0YjllNmRjZDI2N2I1YjE4OTBlMzc4MDUxZjFkZWJiYiIsInNoYTI1Njo5M2U0YjZhNGM0ODNlYzEzZDNkMTkxMjk5N2YzZDI3ZWY3ZWFiMGE1MDkyNDg5NjQwMDE2NGZiNTA2YWNkYTBjIiwic2hhMjU2Ojg5NjU0NDFhNzY1YWFmZGI1ODI1ODlkNzNiZmUwMGE2NTczZmUzZmUxNzMyY2MwMzQ2OGJkMjY2ODhjMDk4MDQiLCJzaGEyNTY6ZDU4OWQ5ZmZkZjlkYTE4ZDIyNzM2ODc3N2FkODJmZDlhOWZjMDRkMjljYzI5ZDVlMzNmZTU1M2QyYmNiMTcxNCIsInNoYTI1NjoyMmMwN2ZiMjJjNTBlOGFlN2ZjZDdmOTFkODMyNzM2ZjMxYTVlOTVlMzI4YWVhODIwZWMwM2E5NjBjNjNlM2I1Iiwic2hhMjU2OjkxZWJiMGQ1M2YyNGJiYTNiNGY4NzJiYzJkOWY5YTBjMzNhYTMxNjk1ODM0M2ZjNmVjOWRhMWViNjZlNzA4MGMiLCJzaGEyNTY6YjI3MDFjMTA1NTQ4MGEyMThmMDdjYzM2NWE1MTJlZWNhZjI3MWVhYmFkZDM0ZGU5YTAyNDM2Zjk0YjZhMDkzZCJdfX0=",
+      "distro": {},
+      "platform": {
+        "os": "linux",
+        "architecture": "arm64"
+      },
+      "size": 46490005
+    },
+    "provenance": {
+      "vcs": {
+        "revision": "a99afadb2395ff9f4ee2ae117fc01ef8974af46b",
+        "source": "https://github.com/docker/labs-debug-tools"
+      }
+    }
+  },
+  "attestations": null,
+  "artifacts": [
+    {
+      "type": "golang",
+      "namespace": "github.com/azure",
+      "name": "go-ansiterm",
+      "version": "0.0.0-20210617225240-d185dfc1b5a1",
+      "purl": "pkg:golang/github.com/azure/go-ansiterm@0.0.0-20210617225240-d185dfc1b5a1",
+      "locations": [
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/chai2010",
+      "name": "gettext-go",
+      "version": "1.0.2",
+      "purl": "pkg:golang/github.com/chai2010/gettext-go@1.0.2",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/creack",
+      "name": "pty",
+      "version": "1.1.20",
+      "purl": "pkg:golang/github.com/creack/pty@1.1.20",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/davecgh",
+      "name": "go-spew",
+      "version": "1.1.1",
+      "purl": "pkg:golang/github.com/davecgh/go-spew@1.1.1",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/docker",
+      "name": "desktop-api",
+      "version": "0.0.0-20230124133219-6dfce84435e9",
+      "purl": "pkg:golang/github.com/docker/desktop-api@0.0.0-20230124133219-6dfce84435e9",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/docker",
+      "name": "distribution",
+      "version": "2.8.2+incompatible",
+      "purl": "pkg:golang/github.com/docker/distribution@2.8.2%2Bincompatible",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/docker",
+      "name": "docker",
+      "version": "24.0.7+incompatible",
+      "purl": "pkg:golang/github.com/docker/docker@24.0.7%2Bincompatible",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/docker",
+      "name": "go-connections",
+      "version": "0.4.1-0.20210727194412-58542c764a11",
+      "purl": "pkg:golang/github.com/docker/go-connections@0.4.1-0.20210727194412-58542c764a11",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/docker",
+      "name": "go-units",
+      "version": "0.5.0",
+      "purl": "pkg:golang/github.com/docker/go-units@0.5.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/docker",
+      "name": "labs-debug-tools",
+      "version": "0.0.46",
+      "purl": "pkg:golang/github.com/docker/labs-debug-tools@0.0.46",
+      "locations": [
+        {
+          "path": "/darwin/k8s-installer",
+          "ordinal": 8,
+          "digest": "sha256:8d1464e7c6af4f6df2f72e1b2900ab8b5909109d0a8a301bc884c4acca3e04c5",
+          "diff_id": "sha256:8965441a765aafdb582589d73bfe00a6573fe3fe1732cc03468bd26688c09804"
+        },
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/k8s-installer",
+          "ordinal": 10,
+          "digest": "sha256:f5206da0b601c2da6aa8fe5c6a551ae9dc9a7f3398612eddf4dac2424bd92fc8",
+          "diff_id": "sha256:22c07fb22c50e8ae7fcd7f91d832736f31a5e95e328aea820ec03a960c63e3b5"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/k8s-installer.exe",
+          "ordinal": 6,
+          "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66",
+          "diff_id": "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/emicklei",
+      "name": "go-restful",
+      "version": "3.10.1",
+      "purl": "pkg:golang/github.com/emicklei/go-restful@3.10.1#v3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/evanphx",
+      "name": "json-patch",
+      "version": "4.12.0+incompatible",
+      "purl": "pkg:golang/github.com/evanphx/json-patch@4.12.0%2Bincompatible",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/exponent-io",
+      "name": "jsonpath",
+      "version": "0.0.0-20151013193312-d6023ce2651d",
+      "purl": "pkg:golang/github.com/exponent-io/jsonpath@0.0.0-20151013193312-d6023ce2651d",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/go-errors",
+      "name": "errors",
+      "version": "1.4.2",
+      "purl": "pkg:golang/github.com/go-errors/errors@1.4.2",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/go-logr",
+      "name": "logr",
+      "version": "1.3.0",
+      "purl": "pkg:golang/github.com/go-logr/logr@1.3.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/go-ole",
+      "name": "go-ole",
+      "version": "1.2.6",
+      "purl": "pkg:golang/github.com/go-ole/go-ole@1.2.6",
+      "locations": [
+        {
+          "path": "/windows/k8s-installer.exe",
+          "ordinal": 6,
+          "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66",
+          "diff_id": "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/go-openapi",
+      "name": "jsonpointer",
+      "version": "0.19.6",
+      "purl": "pkg:golang/github.com/go-openapi/jsonpointer@0.19.6",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/go-openapi",
+      "name": "jsonreference",
+      "version": "0.20.2",
+      "purl": "pkg:golang/github.com/go-openapi/jsonreference@0.20.2",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/go-openapi",
+      "name": "swag",
+      "version": "0.22.3",
+      "purl": "pkg:golang/github.com/go-openapi/swag@0.22.3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/gogo",
+      "name": "protobuf",
+      "version": "1.3.2",
+      "purl": "pkg:golang/github.com/gogo/protobuf@1.3.2",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/golang",
+      "name": "protobuf",
+      "version": "1.5.3",
+      "purl": "pkg:golang/github.com/golang/protobuf@1.5.3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/google",
+      "name": "btree",
+      "version": "1.0.1",
+      "purl": "pkg:golang/github.com/google/btree@1.0.1",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/google",
+      "name": "gnostic-models",
+      "version": "0.6.8",
+      "purl": "pkg:golang/github.com/google/gnostic-models@0.6.8",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/google",
+      "name": "go-cmp",
+      "version": "0.6.0",
+      "purl": "pkg:golang/github.com/google/go-cmp@0.6.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/google",
+      "name": "gofuzz",
+      "version": "1.2.0",
+      "purl": "pkg:golang/github.com/google/gofuzz@1.2.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/google",
+      "name": "shlex",
+      "version": "0.0.0-20191202100458-e7afc7fbc510",
+      "purl": "pkg:golang/github.com/google/shlex@0.0.0-20191202100458-e7afc7fbc510",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/google",
+      "name": "uuid",
+      "version": "1.4.0",
+      "purl": "pkg:golang/github.com/google/uuid@1.4.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/gregjones",
+      "name": "httpcache",
+      "version": "0.0.0-20180305231024-9cad4c3443a7",
+      "purl": "pkg:golang/github.com/gregjones/httpcache@0.0.0-20180305231024-9cad4c3443a7",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/imdario",
+      "name": "mergo",
+      "version": "0.3.13",
+      "purl": "pkg:golang/github.com/imdario/mergo@0.3.13",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/inconshreveable",
+      "name": "mousetrap",
+      "version": "1.1.0",
+      "purl": "pkg:golang/github.com/inconshreveable/mousetrap@1.1.0",
+      "locations": [
+        {
+          "path": "/windows/k8s-installer.exe",
+          "ordinal": 6,
+          "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66",
+          "diff_id": "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/josharian",
+      "name": "intern",
+      "version": "1.0.0",
+      "purl": "pkg:golang/github.com/josharian/intern@1.0.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/json-iterator",
+      "name": "go",
+      "version": "1.1.12",
+      "purl": "pkg:golang/github.com/json-iterator/go@1.1.12",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/labstack",
+      "name": "echo",
+      "version": "4.11.3",
+      "purl": "pkg:golang/github.com/labstack/echo@4.11.3#v4",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/labstack",
+      "name": "gommon",
+      "version": "0.4.1",
+      "purl": "pkg:golang/github.com/labstack/gommon@0.4.1",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/liggitt",
+      "name": "tabwriter",
+      "version": "0.0.0-20181228230101-89fcab3d43de",
+      "purl": "pkg:golang/github.com/liggitt/tabwriter@0.0.0-20181228230101-89fcab3d43de",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/mailru",
+      "name": "easyjson",
+      "version": "0.7.7",
+      "purl": "pkg:golang/github.com/mailru/easyjson@0.7.7",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/makenowjust",
+      "name": "heredoc",
+      "version": "1.0.0",
+      "purl": "pkg:golang/github.com/makenowjust/heredoc@1.0.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/mattn",
+      "name": "go-colorable",
+      "version": "0.1.13",
+      "purl": "pkg:golang/github.com/mattn/go-colorable@0.1.13",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/mattn",
+      "name": "go-isatty",
+      "version": "0.0.20",
+      "purl": "pkg:golang/github.com/mattn/go-isatty@0.0.20",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/microsoft",
+      "name": "go-winio",
+      "version": "0.6.1",
+      "purl": "pkg:golang/github.com/microsoft/go-winio@0.6.1",
+      "locations": [
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/mitchellh",
+      "name": "go-wordwrap",
+      "version": "1.0.1",
+      "purl": "pkg:golang/github.com/mitchellh/go-wordwrap@1.0.1",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/moby",
+      "name": "spdystream",
+      "version": "0.2.0",
+      "purl": "pkg:golang/github.com/moby/spdystream@0.2.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/moby",
+      "name": "term",
+      "version": "0.0.0-20221205130635-1aeaba878587",
+      "purl": "pkg:golang/github.com/moby/term@0.0.0-20221205130635-1aeaba878587",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/modern-go",
+      "name": "concurrent",
+      "version": "0.0.0-20180306012644-bacd9c7ef1dd",
+      "purl": "pkg:golang/github.com/modern-go/concurrent@0.0.0-20180306012644-bacd9c7ef1dd",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/modern-go",
+      "name": "reflect2",
+      "version": "1.0.2",
+      "purl": "pkg:golang/github.com/modern-go/reflect2@1.0.2",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/monochromegane",
+      "name": "go-gitignore",
+      "version": "0.0.0-20200626010858-205db1a8cc00",
+      "purl": "pkg:golang/github.com/monochromegane/go-gitignore@0.0.0-20200626010858-205db1a8cc00",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/munnerz",
+      "name": "goautoneg",
+      "version": "0.0.0-20191010083416-a7dc8b61c822",
+      "purl": "pkg:golang/github.com/munnerz/goautoneg@0.0.0-20191010083416-a7dc8b61c822",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/opencontainers",
+      "name": "go-digest",
+      "version": "1.0.0",
+      "purl": "pkg:golang/github.com/opencontainers/go-digest@1.0.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/opencontainers",
+      "name": "image-spec",
+      "version": "1.1.0-rc5",
+      "purl": "pkg:golang/github.com/opencontainers/image-spec@1.1.0-rc5",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/peterbourgon",
+      "name": "diskv",
+      "version": "2.0.1+incompatible",
+      "purl": "pkg:golang/github.com/peterbourgon/diskv@2.0.1%2Bincompatible",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/pkg",
+      "name": "errors",
+      "version": "0.9.1",
+      "purl": "pkg:golang/github.com/pkg/errors@0.9.1",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/russross",
+      "name": "blackfriday",
+      "version": "2.1.0",
+      "purl": "pkg:golang/github.com/russross/blackfriday@2.1.0#v2",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/segmentio",
+      "name": "analytics-go",
+      "version": "3.1.0+incompatible",
+      "purl": "pkg:golang/github.com/segmentio/analytics-go@3.1.0%2Bincompatible",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/segmentio",
+      "name": "backo-go",
+      "version": "1.0.1",
+      "purl": "pkg:golang/github.com/segmentio/backo-go@1.0.1",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/shirou",
+      "name": "gopsutil",
+      "version": "3.23.10",
+      "purl": "pkg:golang/github.com/shirou/gopsutil@3.23.10#v3",
+      "locations": [
+        {
+          "path": "/darwin/k8s-installer",
+          "ordinal": 8,
+          "digest": "sha256:8d1464e7c6af4f6df2f72e1b2900ab8b5909109d0a8a301bc884c4acca3e04c5",
+          "diff_id": "sha256:8965441a765aafdb582589d73bfe00a6573fe3fe1732cc03468bd26688c09804"
+        },
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/k8s-installer",
+          "ordinal": 10,
+          "digest": "sha256:f5206da0b601c2da6aa8fe5c6a551ae9dc9a7f3398612eddf4dac2424bd92fc8",
+          "diff_id": "sha256:22c07fb22c50e8ae7fcd7f91d832736f31a5e95e328aea820ec03a960c63e3b5"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/k8s-installer.exe",
+          "ordinal": 6,
+          "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66",
+          "diff_id": "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/shoenig",
+      "name": "go-m1cpu",
+      "version": "0.1.6",
+      "purl": "pkg:golang/github.com/shoenig/go-m1cpu@0.1.6",
+      "locations": [
+        {
+          "path": "/darwin/k8s-installer",
+          "ordinal": 8,
+          "digest": "sha256:8d1464e7c6af4f6df2f72e1b2900ab8b5909109d0a8a301bc884c4acca3e04c5",
+          "diff_id": "sha256:8965441a765aafdb582589d73bfe00a6573fe3fe1732cc03468bd26688c09804"
+        },
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/sirupsen",
+      "name": "logrus",
+      "version": "1.9.3",
+      "purl": "pkg:golang/github.com/sirupsen/logrus@1.9.3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/spf13",
+      "name": "cobra",
+      "version": "1.8.0",
+      "purl": "pkg:golang/github.com/spf13/cobra@1.8.0",
+      "locations": [
+        {
+          "path": "/darwin/k8s-installer",
+          "ordinal": 8,
+          "digest": "sha256:8d1464e7c6af4f6df2f72e1b2900ab8b5909109d0a8a301bc884c4acca3e04c5",
+          "diff_id": "sha256:8965441a765aafdb582589d73bfe00a6573fe3fe1732cc03468bd26688c09804"
+        },
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/k8s-installer",
+          "ordinal": 10,
+          "digest": "sha256:f5206da0b601c2da6aa8fe5c6a551ae9dc9a7f3398612eddf4dac2424bd92fc8",
+          "diff_id": "sha256:22c07fb22c50e8ae7fcd7f91d832736f31a5e95e328aea820ec03a960c63e3b5"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/k8s-installer.exe",
+          "ordinal": 6,
+          "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66",
+          "diff_id": "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/spf13",
+      "name": "pflag",
+      "version": "1.0.5",
+      "purl": "pkg:golang/github.com/spf13/pflag@1.0.5",
+      "locations": [
+        {
+          "path": "/darwin/k8s-installer",
+          "ordinal": 8,
+          "digest": "sha256:8d1464e7c6af4f6df2f72e1b2900ab8b5909109d0a8a301bc884c4acca3e04c5",
+          "diff_id": "sha256:8965441a765aafdb582589d73bfe00a6573fe3fe1732cc03468bd26688c09804"
+        },
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/k8s-installer",
+          "ordinal": 10,
+          "digest": "sha256:f5206da0b601c2da6aa8fe5c6a551ae9dc9a7f3398612eddf4dac2424bd92fc8",
+          "diff_id": "sha256:22c07fb22c50e8ae7fcd7f91d832736f31a5e95e328aea820ec03a960c63e3b5"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/k8s-installer.exe",
+          "ordinal": 6,
+          "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66",
+          "diff_id": "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/tklauser",
+      "name": "go-sysconf",
+      "version": "0.3.12",
+      "purl": "pkg:golang/github.com/tklauser/go-sysconf@0.3.12",
+      "locations": [
+        {
+          "path": "/darwin/k8s-installer",
+          "ordinal": 8,
+          "digest": "sha256:8d1464e7c6af4f6df2f72e1b2900ab8b5909109d0a8a301bc884c4acca3e04c5",
+          "diff_id": "sha256:8965441a765aafdb582589d73bfe00a6573fe3fe1732cc03468bd26688c09804"
+        },
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/k8s-installer",
+          "ordinal": 10,
+          "digest": "sha256:f5206da0b601c2da6aa8fe5c6a551ae9dc9a7f3398612eddf4dac2424bd92fc8",
+          "diff_id": "sha256:22c07fb22c50e8ae7fcd7f91d832736f31a5e95e328aea820ec03a960c63e3b5"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/tklauser",
+      "name": "numcpus",
+      "version": "0.6.1",
+      "purl": "pkg:golang/github.com/tklauser/numcpus@0.6.1",
+      "locations": [
+        {
+          "path": "/linux/k8s-installer",
+          "ordinal": 10,
+          "digest": "sha256:f5206da0b601c2da6aa8fe5c6a551ae9dc9a7f3398612eddf4dac2424bd92fc8",
+          "diff_id": "sha256:22c07fb22c50e8ae7fcd7f91d832736f31a5e95e328aea820ec03a960c63e3b5"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/valyala",
+      "name": "bytebufferpool",
+      "version": "1.0.0",
+      "purl": "pkg:golang/github.com/valyala/bytebufferpool@1.0.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/valyala",
+      "name": "fasttemplate",
+      "version": "1.2.2",
+      "purl": "pkg:golang/github.com/valyala/fasttemplate@1.2.2",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/xlab",
+      "name": "treeprint",
+      "version": "1.2.0",
+      "purl": "pkg:golang/github.com/xlab/treeprint@1.2.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/xtgo",
+      "name": "uuid",
+      "version": "0.0.0-20140804021211-a0b114877d4c",
+      "purl": "pkg:golang/github.com/xtgo/uuid@0.0.0-20140804021211-a0b114877d4c",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/yusufpapurcu",
+      "name": "wmi",
+      "version": "1.2.3",
+      "purl": "pkg:golang/github.com/yusufpapurcu/wmi@1.2.3",
+      "locations": [
+        {
+          "path": "/windows/k8s-installer.exe",
+          "ordinal": 6,
+          "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66",
+          "diff_id": "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "github.com/ztrue",
+      "name": "tracerr",
+      "version": "0.4.0",
+      "purl": "pkg:golang/github.com/ztrue/tracerr@0.4.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "name": "go.starlark.net",
+      "version": "0.0.0-20230525235612-a134d8f9ddca",
+      "purl": "pkg:golang/go.starlark.net@0.0.0-20230525235612-a134d8f9ddca",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "golang.org/x",
+      "name": "crypto",
+      "version": "0.15.0",
+      "purl": "pkg:golang/golang.org/x/crypto@0.15.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "golang.org/x",
+      "name": "net",
+      "version": "0.18.0",
+      "purl": "pkg:golang/golang.org/x/net@0.18.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "golang.org/x",
+      "name": "oauth2",
+      "version": "0.11.0",
+      "purl": "pkg:golang/golang.org/x/oauth2@0.11.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "golang.org/x",
+      "name": "sync",
+      "version": "0.5.0",
+      "purl": "pkg:golang/golang.org/x/sync@0.5.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "golang.org/x",
+      "name": "sys",
+      "version": "0.14.0",
+      "purl": "pkg:golang/golang.org/x/sys@0.14.0",
+      "locations": [
+        {
+          "path": "/darwin/k8s-installer",
+          "ordinal": 8,
+          "digest": "sha256:8d1464e7c6af4f6df2f72e1b2900ab8b5909109d0a8a301bc884c4acca3e04c5",
+          "diff_id": "sha256:8965441a765aafdb582589d73bfe00a6573fe3fe1732cc03468bd26688c09804"
+        },
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/k8s-installer",
+          "ordinal": 10,
+          "digest": "sha256:f5206da0b601c2da6aa8fe5c6a551ae9dc9a7f3398612eddf4dac2424bd92fc8",
+          "diff_id": "sha256:22c07fb22c50e8ae7fcd7f91d832736f31a5e95e328aea820ec03a960c63e3b5"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/k8s-installer.exe",
+          "ordinal": 6,
+          "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66",
+          "diff_id": "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "golang.org/x",
+      "name": "term",
+      "version": "0.14.0",
+      "purl": "pkg:golang/golang.org/x/term@0.14.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "golang.org/x",
+      "name": "text",
+      "version": "0.14.0",
+      "purl": "pkg:golang/golang.org/x/text@0.14.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "golang.org/x",
+      "name": "time",
+      "version": "0.3.0",
+      "purl": "pkg:golang/golang.org/x/time@0.3.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "google.golang.org",
+      "name": "protobuf",
+      "version": "1.31.0",
+      "purl": "pkg:golang/google.golang.org/protobuf@1.31.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "gopkg.in",
+      "name": "inf.v0",
+      "version": "0.9.1",
+      "purl": "pkg:golang/gopkg.in/inf.v0@0.9.1",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "gopkg.in/natefinch",
+      "name": "lumberjack.v2",
+      "version": "2.2.1",
+      "purl": "pkg:golang/gopkg.in/natefinch/lumberjack.v2@2.2.1",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "gopkg.in",
+      "name": "yaml.v2",
+      "version": "2.4.0",
+      "purl": "pkg:golang/gopkg.in/yaml.v2@2.4.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "gopkg.in",
+      "name": "yaml.v3",
+      "version": "3.0.1",
+      "purl": "pkg:golang/gopkg.in/yaml.v3@3.0.1",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "k8s.io",
+      "name": "api",
+      "version": "0.28.3",
+      "purl": "pkg:golang/k8s.io/api@0.28.3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "k8s.io",
+      "name": "apimachinery",
+      "version": "0.28.3",
+      "purl": "pkg:golang/k8s.io/apimachinery@0.28.3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "k8s.io",
+      "name": "cli-runtime",
+      "version": "0.28.3",
+      "purl": "pkg:golang/k8s.io/cli-runtime@0.28.3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "k8s.io",
+      "name": "client-go",
+      "version": "0.28.3",
+      "purl": "pkg:golang/k8s.io/client-go@0.28.3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "k8s.io",
+      "name": "component-base",
+      "version": "0.28.3",
+      "purl": "pkg:golang/k8s.io/component-base@0.28.3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "k8s.io/klog",
+      "name": "v2",
+      "version": "2.100.1",
+      "purl": "pkg:golang/k8s.io/klog/v2@2.100.1",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "k8s.io",
+      "name": "kube-openapi",
+      "version": "0.0.0-20230717233707-2695361300d9",
+      "purl": "pkg:golang/k8s.io/kube-openapi@0.0.0-20230717233707-2695361300d9",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "k8s.io",
+      "name": "kubectl",
+      "version": "0.28.3",
+      "purl": "pkg:golang/k8s.io/kubectl@0.28.3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "k8s.io",
+      "name": "utils",
+      "version": "0.0.0-20230726121419-3b25d923346b",
+      "purl": "pkg:golang/k8s.io/utils@0.0.0-20230726121419-3b25d923346b",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "sigs.k8s.io",
+      "name": "json",
+      "version": "0.0.0-20221116044647-bc3834ca7abd",
+      "purl": "pkg:golang/sigs.k8s.io/json@0.0.0-20221116044647-bc3834ca7abd",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "sigs.k8s.io/kustomize",
+      "name": "api",
+      "version": "0.13.5-0.20230601165947-6ce0bf390ce3",
+      "purl": "pkg:golang/sigs.k8s.io/kustomize/api@0.13.5-0.20230601165947-6ce0bf390ce3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "sigs.k8s.io/kustomize",
+      "name": "kyaml",
+      "version": "0.14.3-0.20230601165947-6ce0bf390ce3",
+      "purl": "pkg:golang/sigs.k8s.io/kustomize/kyaml@0.14.3-0.20230601165947-6ce0bf390ce3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "sigs.k8s.io/structured-merge-diff",
+      "name": "v4",
+      "version": "4.2.3",
+      "purl": "pkg:golang/sigs.k8s.io/structured-merge-diff/v4@4.2.3",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "namespace": "sigs.k8s.io",
+      "name": "yaml",
+      "version": "1.3.0",
+      "purl": "pkg:golang/sigs.k8s.io/yaml@1.3.0",
+      "locations": [
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "name": "stdlib",
+      "version": "1.20.11",
+      "purl": "pkg:golang/stdlib@1.20.11",
+      "locations": [
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        },
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/darwin/k8s-installer",
+          "ordinal": 8,
+          "digest": "sha256:8d1464e7c6af4f6df2f72e1b2900ab8b5909109d0a8a301bc884c4acca3e04c5",
+          "diff_id": "sha256:8965441a765aafdb582589d73bfe00a6573fe3fe1732cc03468bd26688c09804"
+        },
+        {
+          "path": "/linux/k8s-installer",
+          "ordinal": 10,
+          "digest": "sha256:f5206da0b601c2da6aa8fe5c6a551ae9dc9a7f3398612eddf4dac2424bd92fc8",
+          "diff_id": "sha256:22c07fb22c50e8ae7fcd7f91d832736f31a5e95e328aea820ec03a960c63e3b5"
+        },
+        {
+          "path": "/windows/k8s-installer.exe",
+          "ordinal": 6,
+          "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66",
+          "diff_id": "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb"
+        }
+      ]
+    },
+    {
+      "type": "golang",
+      "name": "stdlib",
+      "version": "go1.20.11",
+      "purl": "pkg:golang/stdlib@go1.20.11",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "locations": [
+        {
+          "path": "/darwin/k8s-installer",
+          "ordinal": 8,
+          "digest": "sha256:8d1464e7c6af4f6df2f72e1b2900ab8b5909109d0a8a301bc884c4acca3e04c5",
+          "diff_id": "sha256:8965441a765aafdb582589d73bfe00a6573fe3fe1732cc03468bd26688c09804"
+        },
+        {
+          "path": "/darwin/kubectl-shell",
+          "ordinal": 9,
+          "digest": "sha256:258c034960807f3ba0253a2a755f09b84699bdebaddd3176d50bb6bce4f202e5",
+          "diff_id": "sha256:d589d9ffdf9da18d227368777ad82fd9a9fc04d29cc29d5e33fe553d2bcb1714"
+        },
+        {
+          "path": "/linux/k8s-installer",
+          "ordinal": 10,
+          "digest": "sha256:f5206da0b601c2da6aa8fe5c6a551ae9dc9a7f3398612eddf4dac2424bd92fc8",
+          "diff_id": "sha256:22c07fb22c50e8ae7fcd7f91d832736f31a5e95e328aea820ec03a960c63e3b5"
+        },
+        {
+          "path": "/linux/kubectl-shell",
+          "ordinal": 11,
+          "digest": "sha256:b0bc3b15abc3d8c39eddb0f2d8c672de463242c88a593f06f83a07a12e1e9b8e",
+          "diff_id": "sha256:91ebb0d53f24bba3b4f872bc2d9f9a0c33aa316958343fc6ec9da1eb66e7080c"
+        },
+        {
+          "path": "/windows/k8s-installer.exe",
+          "ordinal": 6,
+          "digest": "sha256:76f547d9fa17de6ad9b12d9d39f7de0ef720d240769aec5c81afdfd93eca3b66",
+          "diff_id": "sha256:a04551adf3bf8bafe1b5a71b60b9b0014b9e6dcd267b5b1890e378051f1debbb"
+        },
+        {
+          "path": "/windows/kubectl-shell.exe",
+          "ordinal": 7,
+          "digest": "sha256:beafe03dfff3336de17085e6430cee5adddf74a70a0b58ad546dd0f6c15aa247",
+          "diff_id": "sha256:93e4b6a4c483ec13d3d1912997f3d27ef7eab0a50924896400164fb506acda0c"
+        }
+      ]
+    }
+  ],
+  "descriptor": {
+    "name": "docker-scout",
+    "version": "1.14.0",
+    "sbom_version": "11"
+  }
+}

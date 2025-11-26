@@ -1,0 +1,84 @@
+Alfred 5.app
+Amphetamine.app
+AnyDesk.app
+Arc.app
+Asana.app
+Ascii Table.app
+Bitwarden.app
+Boop.app
+Capture Data.app
+ChatGPT.app
+Claude.app
+Cookie.app
+DaisyDisk.app
+Developer.app
+Discord.app
+Docker.app
+Firefox.app
+FlashFTP.app
+Flighty.app
+GarageBand.app
+GitHub Desktop.app
+Google Chrome.app
+Google Docs.app
+Google Drive.app
+Google Sheets.app
+Google Slides.app
+Grammarly Desktop.app
+Grammarly for Safari.app
+Hex Fiend.app
+Icon Maker Pro.app
+iMovie.app
+inShort.app
+Invisible.app
+Keynote.app
+Kodika.app
+LanScan.app
+lghub.app
+Logi Tune.app
+logioptionsplus.app
+MacFamilyTree 9.app
+Magnet.app
+MetaFlow.app
+Microsoft Remote Desktop.app
+Monodraw.app
+Notability.app
+Numbers.app
+Obsidian.app
+Okta Verify.app
+Ollama.app
+Pages.app
+Parcel.app
+Prime Video.app
+Prisma Access Browser.app
+ProtonVPN.app
+Pure Paste.app
+PyCharm.app
+Reeder.app
+Safari.app
+Serial.app
+Slack.app
+Steam.app
+Streaks.app
+TestFlight.app
+Textastic.app
+Thincast Client Updater.app
+Thincast RD WebAccess Client.app
+Thincast Remote Desktop Client.app
+Things3.app
+ThingsMacSandboxHelper.app
+Tor Browser.app
+Tot.app
+UniFi.app
+Userscripts.app
+Utilities
+UTM.app
+Vectornator.app
+VirtualBox.app
+Visual Studio Code.app
+VNC Viewer.app
+Warp.app
+WebPomodoro.app
+WhatsApp.app
+WiFiSpoof.app
+Xcode.app

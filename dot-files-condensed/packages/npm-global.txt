@@ -1,0 +1,10 @@
+/opt/homebrew/lib
+├── @anthropic-ai/claude-code@2.0.19
+├── @mermaid-js/mermaid-cli@11.12.0
+├── corepack@0.34.0
+├── firebase-tools@14.17.0
+├── genkit-cli@1.21.0
+├── npm-check-updates@17.1.15
+├── npm@11.6.0
+└── pnpm@10.18.1
+

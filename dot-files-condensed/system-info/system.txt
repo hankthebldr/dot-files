@@ -1,0 +1,8 @@
+# System Information
+Export Date: Wed Oct 15 21:39:52 CDT 2025
+Hostname: Mac.attlocal.net
+OS Version: macOS 26.1
+Kernel: Darwin 25.1.0 arm64
+Architecture: arm64
+User: henry
+Shell: /bin/zsh

@@ -1,0 +1,4 @@
+Chrome Apps.localized
+Prisma Access Browser Apps.localized
+PSI Bridge Secure Browser.app
+zoom.us.app

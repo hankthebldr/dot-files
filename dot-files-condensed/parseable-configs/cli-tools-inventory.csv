@@ -1,0 +1,21 @@
+# CLI Tools Inventory
+# Detected command-line tools with versions
+
+Tool,Version,Location
+git,"git version 2.51.0 ",/opt/homebrew/bin/git
+vim,"VIM - Vi IMproved 9.1 (2024 Jan 02, compiled Oct 12 2025 14:37:02) ",/opt/homebrew/bin/vim
+tmux,"usage: tmux [-2CDlNuVv] [-c shell-command] [-f file] [-L socket-name] ",/opt/homebrew/bin/tmux
+zsh,"zsh 5.9 (arm64-apple-darwin25.0) ",/bin/zsh
+bash,"GNU bash, version 5.3.3(1)-release (aarch64-apple-darwin24.4.0) ",/opt/homebrew/bin/bash
+python3,"Python 3.14.0 ",/opt/homebrew/bin/python3
+ruby,"ruby 2.6.10p210 (2022-04-12 revision 67958) [universal.arm64e-darwin25] ",/usr/bin/ruby
+node,"v24.10.0 ",/opt/homebrew/bin/node
+npm,"11.6.0 ",/opt/homebrew/bin/npm
+yarn,"1.22.22 ",/opt/homebrew/bin/yarn
+pip,"pip 25.2 from /opt/homebrew/lib/python3.10/site-packages/pip (python 3.10) ",/opt/homebrew/bin/pip
+pip3,"pip 25.2 from /opt/homebrew/lib/python3.14/site-packages/pip (python 3.14) ",/opt/homebrew/bin/pip3
+docker,"Docker version 28.5.1, build e180ab8ab8 ",/opt/homebrew/bin/docker
+kubectl,"error: unknown flag: --version ",/opt/homebrew/bin/kubectl
+aws,"aws-cli/2.31.15 Python/3.13.8 Darwin/25.1.0 source/arm64 ",/opt/homebrew/bin/aws
+gcloud,"Google Cloud SDK 521.0.0 ",/opt/homebrew/share/google-cloud-sdk/bin/gcloud
+terraform,"Terraform v1.5.7 ",/opt/homebrew/bin/terraform

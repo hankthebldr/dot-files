@@ -1,0 +1,190 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+
+# If you come from bash you might have to change your $PATH.
+# export PATH=$HOME/bin:/usr/local/bin:$PATH
+
+# zsh-completetions gh repo clone into zsh custom plugins.
+fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src
+export ZSH="$HOME/.oh-my-zsh"
+
+# zsh-autosuggestions source/activiation - required before compinit is executed 
+#source $HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+# Set name of the theme to load --- if set to "random", it will
+# load a random theme each time oh-my-zsh is loaded, in which case,
+# to know which specific one was loaded, run: echo $RANDOM_THEME
+# See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
+ZSH_THEME="powerlevel10k/powerlevel10k"
+
+
+# Set list of themes to pick from when loading at random
+# Setting this variable when ZSH_THEME=random will cause zsh to load
+# a theme from this variable instead of looking in $ZSH/themes/
+# If set to an empty array, this variable will have no effect.
+# ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
+
+# Uncomment the following line to use case-sensitive completion.
+# CASE_SENSITIVE="true"
+
+# Uncomment the following line to use hyphen-insensitive completion.
+# Case-sensitive completion must be off. _ and - will be interchangeable.
+HYPHEN_INSENSITIVE="true"
+
+# Uncomment one of the following lines to change the auto-update behavior
+# zstyle ':omz:update' mode disabled  # disable automatic updates
+ zstyle ':omz:update' mode auto      # update automatically without asking
+# zstyle ':omz:update' mode reminder  # just remind me to update when it's time
+
+# Uncomment the following line to change how often to auto-update (in days).
+# zstyle ':omz:update' frequency 13
+# Uncomment the following line if pasting URLs and other text is messed up.
+# DISABLE_MAGIC_FUNCTIONS="true"
+# Uncomment the following line to disable colors in ls.
+# DISABLE_LS_COLORS="true"
+# Uncomment the following line to disable auto-setting terminal title.
+# DISABLE_AUTO_TITLE="true"
+# Uncomment the following line to enable command auto-correction.
+# ENABLE_CORRECTION="true"
+
+# Uncomment the following line to display red dots whilst waiting for completion.
+# You can also set it to another string to have that shown instead of the default red dots.
+# e.g. COMPLETION_WAITING_DOTS="%F{yellow}waiting...%f"
+# Caution: this setting can cause issues with multiline prompts in zsh < 5.7.1 (see #5765)
+COMPLETION_WAITING_DOTS="true"
+
+# Uncomment the following line if you want to disable marking untracked files
+# under VCS as dirty. This makes repository status check for large repositories
+# much, much faster.
+# DISABLE_UNTRACKED_FILES_DIRTY="true"
+
+# Uncomment the following line if you want to change the command execution time
+# stamp shown in the history command output.
+# You can set one of the optional three formats:
+# "mm/dd/yyyy"|"dd.mm.yyyy"|"yyyy-mm-dd"
+# or set a custom format using the strftime function format specifications,
+# see 'man strftime' for details.
+# HIST_STAMPS="mm/dd/yyyy"
+
+# Would you like to use another custom folder than $ZSH/custom?
+# ZSH_CUSTOM=/path/to/new-custom-folder
+
+# Which plugins would you like to load?
+# Standard plugins can be found in $ZSH/plugins/
+# Custom plugins may be added to $ZSH_CUSTOM/plugins/
+# Example format: plugins=(rails git textmate ruby lighthouse)
+# Add wisely, as too many plugins slow down shell st
+
+plugins=(git aws azure brew cask emoji emoji-clock golang helm ssh ssh-agent kubectx microk8s nmap tailscale ansible debian docker docker-compose gcloud macos kubectl salt colorize web-search textmate autojump github python ubuntu textastic terraform vault aliases colored-man-pages copypath copyfile cp github gnu-utils emoji gh node npm systemd dotnet systemadmin operator-sdk vscode sudo jsontools istioctl copybuffer vi-mode lxd kind)
+
+# zsh-autocomplete: brew formulae 
+source /opt/homebrew/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh
+
+# zsh-shellscript-source: 
+source $ZSH/oh-my-zsh.sh
+
+# user-manualpath-config:
+export MANPATH="/usr/local/man:$MANPATH"
+
+# enviroment-language configuration
+export LANG=en_US.UTF-8
+
+# Preferred editor for local and remote sessions
+if [[ -n $SSH_CONNECTION ]]; then
+   export EDITOR='vim'
+ else
+   export EDITOR='mvim'
+fi
+
+# Compilation flags
+# export ARCHFLAGS="-arch x86_64"
+# Set personal aliases, overriding those provided by oh-my-zsh libs,
+# plugins, and themes. Aliases can be placed here, though oh-my-zsh
+# users are encouraged to define aliases within the ZSH_CUSTOM folder.
+# For a full list of active aliases, run `alias`.
+
+#The Fuck Alias Add on 
+# eval $(thefuck --alias)
+# need to revisit this plugin 
+
+# Aliases 
+alias zshconfig="mate ~/.zshrc"
+alias ohmyzsh="mate ~/.oh-my-zsh"
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/hreed/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/hreed/Downloads/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/hreed/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/hreed/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
+
+# zsh-syntax-highlighting.zsh
+source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# github plugin configruation 
+if (( ! ${fpath[(I)/usr/local/share/zsh/site-functions]} )); then
+  FPATH=/usr/local/share/zsh/site-functions:$FPATH
+fi
+
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# p10k auto-load bash-autocompletion 
+autoload -U +X bashcompinit && bashcompinit
+complete -o nospace -C /opt/homebrew/bin/terraform terraform
+source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
+
+# p10k configurations
+# Show prompt segment "kubecontext" only when the command you are typing invokes one of these tools.
+typeset -g POWERLEVEL9K_KUBECONTEXT_SHOW_ON_COMMAND='kubectl|helm|kubens'
+
+# enable colors 
+# Enable color in the terminal
+export CLICOLOR=1
+export LSCOLORS=GxFxCxDxBxegedabagaced
+
+# Gruvbox Colors
+#GRUVBOX_BLACK='%F{0}'
+#GRUVBOX_RED='%F{1}'
+#GRUVBOX_GREEN='%F{2}'
+#GRUVBOX_YELLOW='%F{3}'
+#GRUVBOX_BLUE='%F{4}'
+#GRUVBOX_PURPLE='%F{5}'
+#GRUVBOX_AQUA='%F{6}'
+#GRUVBOX_WHITE='%F{7}'
+#GRUVBOX_RESET='%f'
+
+# Bright Variants
+#GRUVBOX_BRIGHT_BLACK='%F{8}'
+#GRUVBOX_BRIGHT_RED='%F{9}'
+#GRUVBOX_BRIGHT_GREEN='%F{10}'
+#GRUVBOX_BRIGHT_YELLOW='%F{11}'
+#GRUVBOX_BRIGHT_BLUE='%F{12}'
+#GRUVBOX_BRIGHT_PURPLE='%F{13}'
+#GRUVBOX_BRIGHT_AQUA='%F{14}'
+#GRUVBOX_BRIGHT_WHITE='%F{15}'
+# dynamically change prompt when logging into host 
+# # SSH Prompt
+#function set_gruvbox_prompt() {
+#    if [[ -n $SSH_CONNECTION ]]; then
+#        PROMPT="${GRUVBOX_YELLOW}%n${GRUVBOX_RESET}@${GRUVBOX_GREEN}%m${GRUVBOX_RESET}:${GRUVBOX_BLUE}%~${GRUVBOX_RESET}$ "
+#    else
+#        PROMPT="%F{cyan}%n@%m:%~%f$ "
+#    fi
+#}
+
+# dynamically update prompt 
+#autoload -Uz add-zsh-hook
+#add-zsh-hook precmd set_gruvbox_prompt
+
+# Add Gruv box dir colors
+# [[ -n $SSH_CONNECTION ]] && eval "$(dircolors ~/.dircolors-gruvbox)"
+#  dynamically update prompt
+export PATH="$PATH:/Users/henry/.local/bin" # Added by Docker Labs Debug Tools"
