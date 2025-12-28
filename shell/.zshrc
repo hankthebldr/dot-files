@@ -6,6 +6,9 @@ source "$HOME/.dotfiles/shell/path.zsh"
 # 2. Environment Variables
 source "$HOME/.dotfiles/shell/exports.zsh"
 
+# 2.1 Load .env file (secrets)
+[[ -f "$HOME/.dotfiles/shell/load-env.zsh" ]] && source "$HOME/.dotfiles/shell/load-env.zsh"
+
 # 3. Aliases
 [[ -f "$HOME/.dotfiles/shell/aliases.zsh" ]] && source "$HOME/.dotfiles/shell/aliases.zsh"
 

@@ -156,3 +156,17 @@ $RECYCLE.BIN/
 *.backup
 *.old
 *.orig
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# AWS credentials
+.aws/credentials
+config-dirs/.aws/credentials
