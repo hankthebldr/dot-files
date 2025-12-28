@@ -170,3 +170,14 @@ $RECYCLE.BIN/
 # AWS credentials
 .aws/credentials
 config-dirs/.aws/credentials
+
+# Browser profiles (contain sensitive data like cookies, sessions, cached credentials)
+browser-profiles/
+**/browser-profiles/
+*.sqlite
+*.db
+*.ldb
+Cookies
+History
+**/Local Storage/
+**/*.plist
