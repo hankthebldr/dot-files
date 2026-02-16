@@ -14,6 +14,10 @@ SECURITY_TOOLS=(
     sqlmap
     aircrack-ng
     nikto
+    trivy
+    grype
+    step
+    amass
 )
 
 # List of optional/heavy tools

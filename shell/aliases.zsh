@@ -8,12 +8,13 @@
 # MODERN CLI REPLACEMENTS
 # ============================================
 
-# File operations (waiting for eza install, using enhanced ls)
-alias ls='ls -G'                        # macOS color
-alias ll='ls -lah'
-alias la='ls -A'
-alias l='ls -CF'
-alias lt='ls -lhtr'                     # Sort by time
+# File operations (using eza)
+alias ls='eza --icons --git'
+alias ll='eza -lah --icons --git'
+alias la='eza -A --icons --git'
+alias l='eza -F --icons --git'
+alias lt='eza -l --sort=modified --icons --git'
+alias tree='eza --tree --icons'
 
 # Better cat/grep/find (using installed tools)
 alias cat='bat --paging=never'
@@ -45,8 +46,7 @@ alias cp='cp -i'
 alias mv='mv -i'
 alias mkdir='mkdir -pv'
 
-# Tree with color
-alias tree='tree -C'
+
 
 # ============================================
 # KUBERNETES & DOCKER

@@ -43,3 +43,23 @@ check_sudo() {
         return $?
     fi
 }
+
+verify_installation() {
+    log_info "Verifying installation..."
+    local failed=0
+    local tools=("git" "vim" "tmux" "zsh")
+    
+    for tool in "${tools[@]}"; do
+        if ! command -v "$tool" &>/dev/null; then
+            log_error "$tool is NOT installed."
+            failed=1
+        else
+            log_success "$tool is installed."
+        fi
+    done
+    
+    if [[ $failed -eq 1 ]]; then
+        return 1
+    fi
+    return 0
+}

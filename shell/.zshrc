@@ -1,45 +1,43 @@
-# .zshrc - Main Zsh Configuration
+# .zshrc
+# Main Zsh configuration file
 
-# 1. Path Configuration
-source "$HOME/.dotfiles/shell/path.zsh"
+# 1. Source exports first
+source $HOME/.dotfiles/shell/exports.zsh
 
-# 2. Environment Variables
-source "$HOME/.dotfiles/shell/exports.zsh"
+# 2. Source aliases
+source $HOME/.dotfiles/shell/aliases.zsh
+source $HOME/.dotfiles/shell/security.zsh
 
-# 2.1 Load .env file (secrets)
-[[ -f "$HOME/.dotfiles/shell/load-env.zsh" ]] && source "$HOME/.dotfiles/shell/load-env.zsh"
+# Integrated Help
+alias dothelp='$HOME/.dotfiles/scripts/utils/help.sh'
 
-# 3. Aliases
-[[ -f "$HOME/.dotfiles/shell/aliases.zsh" ]] && source "$HOME/.dotfiles/shell/aliases.zsh"
 
-# 4. Functions
-[[ -f "$HOME/.dotfiles/shell/functions.zsh" ]] && source "$HOME/.dotfiles/shell/functions.zsh"
-
-# 5. Zsh Settings & History
-HISTFILE="$HOME/.zsh_history"
-HISTSIZE=50000
-SAVEHIST=10000
-setopt APPEND_HISTORY
-setopt EXTENDED_HISTORY
-setopt HIST_EXPIRE_DUPS_FIRST
-setopt HIST_IGNORE_DUPS
-setopt HIST_IGNORE_SPACE      # Don't save commands starting with space (Security)
-setopt HIST_VERIFY
-setopt SHARE_HISTORY
-
-# 6. Prompt (Starship)
-if command -v starship &>/dev/null; then
-    eval "$(starship init zsh)"
+# 3. Initialize Zoxide (Smart CD)
+if command -v zoxide &> /dev/null; then
+  eval "$(zoxide init zsh)"
 fi
 
-# 7. Plugins (Manual or Manager)
-# Example: source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-
-# 8. Security Profile (ParrotOS Interoperability)
-# If on a security distro or requested, load security tools
-if [[ -f "$HOME/.dotfiles/shell/security.zsh" ]]; then
-    source "$HOME/.dotfiles/shell/security.zsh"
+# 4. Initialize Starship (Prompt)
+if command -v starship &> /dev/null; then
+  export STARSHIP_CONFIG="$HOME/.config/starship.toml"
+  eval "$(starship init zsh)"
 fi
 
-# 9. Local Overrides (Last)
-[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
+# 5. FZF Configuration
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+# 6. Atuin (Magical Shell History)
+if command -v atuin &> /dev/null; then
+  eval "$(atuin init zsh)"
+fi
+
+# 7. Syntax Highlighting & Autosuggestions (if installed via brew)
+if [ -d /opt/homebrew/share/zsh-syntax-highlighting ]; then
+  source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+fi
+if [ -d /opt/homebrew/share/zsh-autosuggestions ]; then
+  source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+fi
+
+# 7. Local Overrides
+[ -f ~/.zshrc.local ] && source ~/.zshrc.local

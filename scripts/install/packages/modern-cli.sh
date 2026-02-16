@@ -20,6 +20,8 @@ TOOLS=(
     lazygit     # git tui
     neovim      # vim replacement
     starship    # prompt
+    glow        # markdown reader
+    navi        # interactive cheatsheet
 )
 
 install_modern_cli() {
