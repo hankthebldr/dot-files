@@ -14,6 +14,7 @@ MODULES=(
     tmux
     terminal
     tools
+    config
 )
 
 stow_modules() {

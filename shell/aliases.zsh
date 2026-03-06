@@ -1,14 +1,13 @@
 # ============================================
-# OPTIMIZED ZSH ALIASES & FUNCTIONS
-# Generated: 2025-10-16
-# For: macOS Production Laptop & ParrotOS Interoperability
+# OPEN CLAW — ZSH ALIASES & FUNCTIONS
+# Deduplicated & Optimized
 # ============================================
 
 # ============================================
 # MODERN CLI REPLACEMENTS
 # ============================================
 
-# File operations (using eza)
+# File listing (eza)
 alias ls='eza --icons --git'
 alias ll='eza -lah --icons --git'
 alias la='eza -A --icons --git'
@@ -16,21 +15,34 @@ alias l='eza -F --icons --git'
 alias lt='eza -l --sort=modified --icons --git'
 alias tree='eza --tree --icons'
 
-# Better cat/grep/find (using installed tools)
+# Open Claw & Toolkit
+alias claw='openclaw'
+alias oc='openclaw'
+alias tk='$HOME/.dotfiles/scripts/utils/toolkit.sh'
+
+# Better cat (bat)
 alias cat='bat --paging=never'
 alias catp='bat'                        # With paging
 alias catn='bat --style=plain'          # No decorations
+
+# Better grep (ripgrep)
 alias grep='rg'
 alias gi='rg -i'                        # Case insensitive
 alias rga='rg --hidden --no-ignore'     # Search all files
 
-# Git with delta (already installed!)
+# Better diff (delta)
 alias diff='delta'
 
 # System monitoring
 alias top='btop'
 alias htop='btop'
 alias cpu='btop'
+alias proc='procs'
+
+# Modern disk utilities
+alias du='dust'
+alias df='duf'
+alias diskusage='ncdu'
 
 # Directory navigation
 alias ..='cd ..'
@@ -46,19 +58,18 @@ alias cp='cp -i'
 alias mv='mv -i'
 alias mkdir='mkdir -pv'
 
-
-
 # ============================================
-# KUBERNETES & DOCKER
+# KUBERNETES & CONTAINER ORCHESTRATION
 # ============================================
 
-# Kubectl shortcuts
+# Kubectl core
 alias k='kubectl'
 alias kgp='kubectl get pods'
 alias kgpa='kubectl get pods -A'
 alias kgs='kubectl get svc'
 alias kgn='kubectl get nodes'
 alias kgd='kubectl get deployments'
+alias kga='kubectl get all'
 alias kd='kubectl describe'
 alias kdp='kubectl describe pod'
 alias kl='kubectl logs'
@@ -66,11 +77,21 @@ alias klf='kubectl logs -f'
 alias kex='kubectl exec -it'
 alias kctx='kubectl config current-context'
 alias kns='kubectl config set-context --current --namespace'
-alias kga='kubectl get all'
 alias kdel='kubectl delete'
 alias kapply='kubectl apply -f'
 
-# Helm shortcuts
+# Kubectl extras
+alias kx='kubectx'
+alias kwatch='watch -n 2 kubectl get pods'
+alias klogs='stern'                     # Multi-pod logs
+
+# K9s interactive views
+alias k9='k9s'
+alias k9p='k9s -c pods'
+alias k9d='k9s -c deployments'
+alias k9sv='k9s -c services'
+
+# Helm
 alias h='helm'
 alias hls='helm list'
 alias hlsa='helm list -A'
@@ -80,7 +101,17 @@ alias hd='helm delete'
 alias hs='helm search'
 alias hh='helm show values'
 
-# Docker shortcuts
+# Minikube
+alias mk='minikube'
+alias mks='minikube start'
+alias mkst='minikube status'
+alias mkstop='minikube stop'
+alias mkdel='minikube delete'
+
+# ============================================
+# DOCKER & CONTAINERS
+# ============================================
+
 alias d='docker'
 alias dps='docker ps'
 alias dpsa='docker ps -a'
@@ -92,6 +123,7 @@ alias dprune='docker system prune -af'
 alias drmi='docker rmi $(docker images -q)'
 alias drm='docker rm $(docker ps -aq)'
 alias dstop='docker stop $(docker ps -q)'
+alias lzd='lazydocker'
 
 # Docker Compose
 alias dc='docker-compose'
@@ -101,15 +133,8 @@ alias dcl='docker-compose logs -f'
 alias dcr='docker-compose restart'
 alias dcp='docker-compose ps'
 
-# Minikube
-alias mk='minikube'
-alias mks='minikube start'
-alias mkst='minikube status'
-alias mkstop='minikube stop'
-alias mkdel='minikube delete'
-
 # ============================================
-# CLOUD PLATFORMS
+# CLOUD PLATFORMS & IaC
 # ============================================
 
 # AWS
@@ -122,6 +147,9 @@ alias gcwho='gcloud config get-value account'
 alias gcproj='gcloud config get-value project'
 alias gclist='gcloud projects list'
 alias gcconf='gcloud config list'
+
+# Azure
+alias azwho='az account show'
 
 # Terraform
 alias tf='terraform'
@@ -139,6 +167,11 @@ alias tfwl='terraform workspace list'
 alias tfs='terraform state'
 alias tfsl='terraform state list'
 
+# Ansible
+alias ans='ansible'
+alias ansp='ansible-playbook'
+alias ansv='ansible-vault'
+
 # Vault
 alias vl='vault login'
 alias vr='vault read'
@@ -147,7 +180,7 @@ alias vls='vault list'
 alias vs='vault status'
 
 # ============================================
-# GIT ALIASES (complement oh-my-zsh git plugin)
+# GIT
 # ============================================
 
 # Quick status and logs
@@ -157,6 +190,8 @@ alias gl='git log --oneline --graph --decorate -20'
 alias gla='git log --oneline --graph --decorate --all -20'
 alias glp='git log -p'
 alias gll='git log --graph --pretty=format:"%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset" --abbrev-commit'
+alias glog='git log --oneline --graph --decorate --all'
+alias glg='lazygit'
 
 # GitHub CLI
 alias ghpr='gh pr create'
@@ -178,7 +213,6 @@ alias glmv='glab mr view'
 # Git shortcuts
 alias ga='git add'
 alias gaa='git add .'
-alias gcm='git commit -m'
 alias gca='git commit --amend'
 alias gcan='git commit --amend --no-edit'
 alias gcf='git commit --fixup'
@@ -212,6 +246,38 @@ alias gma='git merge --abort'
 alias gt='git tag'
 alias gta='git tag -a'
 
+# Git commit function (replaces alias to allow add+commit in one step)
+unalias gcm 2>/dev/null
+gcm() {
+    if [[ -n "$1" ]]; then
+        git add .
+        git commit -m "$1"
+    else
+        echo "Usage: gcm \"commit message\""
+    fi
+}
+
+# Git commit and push
+unalias gcp 2>/dev/null
+gcp() {
+    if [[ -n "$1" ]]; then
+        git add .
+        git commit -m "$1"
+        git push
+    else
+        echo "Usage: gcp \"commit message\""
+    fi
+}
+
+# Git checkout branch with fzf
+gcof() {
+    local branch
+    branch=$(git branch -a | fzf --height 40% --reverse | sed 's/remotes\/origin\///' | tr -d ' *')
+    if [ -n "$branch" ]; then
+        git checkout "$branch"
+    fi
+}
+
 # ============================================
 # DEVELOPMENT
 # ============================================
@@ -221,7 +287,6 @@ alias py='python3'
 alias pip='pip3'
 alias venv='python3 -m venv'
 alias activate='source venv/bin/activate'
-alias deactivate='deactivate'
 alias jl='jupyter lab'
 alias jn='jupyter notebook'
 alias pipr='pip install -r requirements.txt'
@@ -260,30 +325,31 @@ alias gog='go get'
 
 # Task runner
 alias t='task'
-alias tl='task --list'
+alias tls='task --list'
 
 # ============================================
-# PRODUCTIVITY
+# PRODUCTIVITY & TOOLS
 # ============================================
 
 # File search with fzf
 alias f='fzf --preview "bat --color=always {}"'
 alias fv='vim $(fzf --preview "bat --color=always {}")'
 
-# JSON processing
+# JSON/YAML processing
 alias json='jq'
 alias jsonp='jq "."'
 alias jsonc='jq -c'
+alias prettyjson='jq .'
+alias prettyyaml='yq .'
 
 # Quick help
-alias h='tldr'
 alias halp='tldr'
-alias cheat='tldr'
+alias cheat='navi'
 
 # System info
-alias info='neofetch'
-alias sysinfo='neofetch'
-alias fetch='neofetch'
+alias info='fastfetch'
+alias sysinfo='fastfetch'
+alias fetch='fastfetch'
 
 # Network
 alias myip='curl -s ifconfig.me'
@@ -291,7 +357,8 @@ alias localip='ipconfig getifaddr en0'
 alias ips='ifconfig | grep "inet " | grep -v 127.0.0.1'
 alias ping='ping -c 5'
 alias speed='networkQuality'
-alias ports='lsof -i -P -n | grep LISTEN'
+alias ports='lsof -iTCP -sTCP:LISTEN -n -P'
+alias http='httpie'
 
 # Tmux shortcuts
 alias ta='tmux attach -t'
@@ -304,25 +371,31 @@ alias tkss='tmux kill-session -t'
 # Quick edits
 alias zshrc='$EDITOR ~/.zshrc'
 alias reload='source ~/.zshrc'
-alias aliases='$EDITOR ~/.config/zsh/aliases.zsh'
+alias aliases='$EDITOR $HOME/.dotfiles/shell/aliases.zsh'
 alias vimrc='$EDITOR ~/.vimrc'
 
 # Package management
 alias brewup='brew update && brew upgrade && brew cleanup'
-alias brewdump='brew bundle dump --force --file=~/Github/Github_desktop/dot-files/Brewfile'
+alias brewdump='brew bundle dump --force --file=$HOME/.dotfiles/Brewfile'
 alias brewlist='brew list --formula'
 alias brewcask='brew list --cask'
 alias brewinfo='brew info'
 alias brewsearch='brew search'
 
-# Disk usage
-alias du='du -h'
-alias df='df -h'
-alias ducks='du -cksh * | sort -hr | head -15'
-
 # History
 alias hist='history'
 alias histg='history | grep'
+
+# File watching
+alias watchfile='entr'
+alias watchcmd='watch'
+alias logs='tail -f'
+
+# Markdown preview
+unalias md 2>/dev/null
+mdview() {
+    glow "$1"
+}
 
 # ============================================
 # SECURITY & SCANNING
@@ -333,6 +406,12 @@ alias nmap-quick='nmap -T4 -F'
 alias nmap-full='nmap -T4 -A -v'
 alias nmap-vuln='nmap --script vuln'
 alias nmap-ping='nmap -sn'
+
+# Container scanning
+alias trivy-fs='trivy fs .'
+alias trivy-img='trivy image'
+alias grype-img='grype'
+alias grype-dir='grype dir:.'
 
 # Checkov (IaC security)
 alias ckv='checkov'
@@ -345,7 +424,7 @@ alias certdates='openssl x509 -noout -dates -in'
 
 # SSH
 alias sshconfig='$EDITOR ~/.ssh/config'
-alias sshkey='cat ~/.ssh/id_rsa.pub | pbcopy && echo "SSH key copied to clipboard"'
+alias sshkey='cat ~/.ssh/id_ed25519.pub | pbcopy && echo "SSH key copied to clipboard"'
 
 # ============================================
 # MACOS SPECIFIC
@@ -402,27 +481,11 @@ psgrep() {
     ps aux | grep -v grep | grep -i -e VSZ -e "$1"
 }
 
-# Git commit and push (unalias gcp from git plugin first)
-unalias gcp 2>/dev/null
-gcpush() {
-    git add .
-    git commit -m "$1"
-    git push
-}
-
-# Git quick commit (commit all with message)
-gcap() {
-    git add .
-    git commit -m "$1"
-    git push
-}
-
 # Docker cleanup
-dclean() {
-    echo "Cleaning Docker..."
-    docker system prune -af
-    docker volume prune -f
-    echo "Docker cleaned!"
+dcleanup() {
+    echo "🧹 Cleaning up Docker..."
+    docker system prune -af --volumes
+    echo "✅ Docker cleanup complete"
 }
 
 # K8s context switcher with fzf
@@ -454,6 +517,15 @@ awsp() {
     fi
 }
 
+# Terraform workspace switcher with fzf
+tfw-switch() {
+    local workspace
+    workspace=$(terraform workspace list | fzf --height 40% --reverse | tr -d ' *')
+    if [ -n "$workspace" ]; then
+        terraform workspace select "$workspace"
+    fi
+}
+
 # Find and kill process with fzf
 fkill() {
     local pid
@@ -461,24 +533,6 @@ fkill() {
     if [ -n "$pid" ]; then
         kill -9 "$pid"
         echo "Killed process $pid"
-    fi
-}
-
-# Git checkout branch with fzf
-gcof() {
-    local branch
-    branch=$(git branch -a | fzf --height 40% --reverse | sed 's/remotes\/origin\///' | tr -d ' *')
-    if [ -n "$branch" ]; then
-        git checkout "$branch"
-    fi
-}
-
-# Terraform workspace switcher with fzf
-tfw-switch() {
-    local workspace
-    workspace=$(terraform workspace list | fzf --height 40% --reverse | tr -d ' *')
-    if [ -n "$workspace" ]; then
-        terraform workspace select "$workspace"
     fi
 }
 
@@ -519,6 +573,11 @@ cht() {
     curl "cheat.sh/$1"
 }
 
+# Interactive cheat.sh with bat
+cheet() {
+    curl -s "cheat.sh/$1" | bat
+}
+
 # Show PATH in readable format
 showpath() {
     echo $PATH | tr ':' '\n'
@@ -529,171 +588,24 @@ note() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" >> ~/notes.txt
 }
 
-# ============================================
-# TOOL INTEGRATIONS
-# ============================================
-
-# FZF configuration
-export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
-export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
-export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border --inline-info'
-
-# Bat theme (Gruvbox)
-export BAT_THEME="gruvbox-dark"
-
-# Ripgrep config file
-export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
-
-# TheFuck integration
-eval $(thefuck --alias)
-eval $(thefuck --alias fk)
-
-# Delta for git diff
-export GIT_PAGER='delta'
-
-# ============================================
-# HOMELAB & CLOUD POWER USER ALIASES
-# ============================================
-
-# ----------------
-# Kubernetes Aliases
-# ----------------
-alias k='kubectl'
-alias kgp='kubectl get pods'
-alias kgs='kubectl get svc'
-alias kgd='kubectl get deployments'
-alias kgn='kubectl get nodes'
-alias kga='kubectl get all'
-alias kd='kubectl describe'
-alias kdp='kubectl describe pod'
-alias kl='kubectl logs'
-alias klf='kubectl logs -f'
-alias kx='kubectx'
-alias kns='kubens'
-alias kwatch='watch -n 2 kubectl get pods'
-
-# K9s with common views
-alias k9='k9s'
-alias k9p='k9s -c pods'
-alias k9d='k9s -c deployments'
-alias k9s='k9s -c services'
-
-# Stern (multi-pod logs)
-alias klogs='stern'
-
-# ----------------
-# Docker & Container Aliases
-# ----------------
-alias d='docker'
-alias dc='docker-compose'
-alias dps='docker ps'
-alias dpsa='docker ps -a'
-alias di='docker images'
-alias dex='docker exec -it'
-alias dlog='docker logs -f'
-alias dprune='docker system prune -af'
-alias dstop='docker stop $(docker ps -q)'
-alias drm='docker rm $(docker ps -aq)'
-alias lzd='lazydocker'
-
-# Docker cleanup functions
-dcleanup() {
-    echo "🧹 Cleaning up Docker..."
-    docker system prune -af --volumes
-    echo "✅ Docker cleanup complete"
-}
-
-# ----------------
-# Infrastructure as Code
-# ----------------
-alias tf='terraform'
-alias tfi='terraform init'
-alias tfp='terraform plan'
-alias tfa='terraform apply'
-alias tfd='terraform destroy'
-alias tfv='terraform validate'
-alias tff='terraform fmt'
-
-alias ans='ansible'
-alias ansp='ansible-playbook'
-alias ansv='ansible-vault'
-
-# ----------------
-# Cloud Provider CLIs
-# ----------------
-alias awswho='aws sts get-caller-identity'
-alias awsprofile='export AWS_PROFILE=$(aws configure list-profiles | fzf)'
-alias gcpwho='gcloud config get-value account'
-alias gcpproj='gcloud config get-value project'
-alias azwho='az account show'
-
-# ----------------
-# Security & Scanning
-# ----------------
-alias trivy-image='trivy image'
-alias trivy-fs='trivy fs .'
-alias grype-image='grype'
-alias grype-dir='grype dir:.'
-
-# ----------------
-# Monitoring & System
-# ----------------
-alias top='btop'
-alias htop='btop'
-alias proc='procs'
-alias du='dust'
-alias df='duf'
-alias diskusage='ncdu'
-
-# ----------------
-# Network & API Testing
-# ----------------
-alias myip='curl -s ifconfig.me'
-alias localip='ipconfig getifaddr en0'
-alias ports='lsof -iTCP -sTCP:LISTEN -n -P'
-alias http='httpie'
-alias https='http --verify=no'
-
-# Quick HTTP server
-serve() {
-    local port="${1:-8000}"
-    python3 -m http.server "$port"
-}
-
-# ----------------
-# YAML/JSON Processing
-# ----------------
-alias yq='yq'
-alias jq='jq'
-alias prettyjson='jq .'
-alias prettyyaml='yq .'
-
-# ----------------
-# File Watching & Monitoring
-# ----------------
-alias watchfile='entr'
-alias watchcmd='watch'
-
-# Live tail with color
-alias logs='tail -f'
-
-# ----------------
-# SSH & Remote
-# ----------------
-# Quick SSH with key file
+# SSH with specific key file
 sshmykey() {
     ssh -i "$1" "${@:2}"
 }
 
 # Copy SSH key to clipboard
 sshcopy() {
-    cat ~/.ssh/id_rsa.pub | pbcopy
-    echo "SSH public key copied to clipboard"
+    if [[ -f ~/.ssh/id_ed25519.pub ]]; then
+        cat ~/.ssh/id_ed25519.pub | pbcopy
+        echo "✅ Copied id_ed25519.pub to clipboard"
+    elif [[ -f ~/.ssh/id_rsa.pub ]]; then
+        cat ~/.ssh/id_rsa.pub | pbcopy
+        echo "✅ Copied id_rsa.pub to clipboard"
+    else
+        echo "❌ No standard SSH public key found."
+    fi
 }
 
-# ----------------
-# Homelab Specific
-# ----------------
 # Quick connectivity test
 pingtest() {
     local hosts=("8.8.8.8" "1.1.1.1" "google.com")
@@ -711,62 +623,33 @@ portscan() {
     nmap -sV -T4 "$1"
 }
 
-# Quick service status check
+# Quick HTTP status check
 servstat() {
     curl -s -o /dev/null -w "%{http_code}" "$1"
 }
 
-# ----------------
-# Development Workflow
-# ----------------
-# Quick commit (unalias gcm from git plugin first)
-unalias gcm 2>/dev/null
-gcm() {
-    git add .
-    git commit -m "$1"
-}
-
-# Interactive git log
-alias glog='git log --oneline --graph --decorate --all'
-alias glg='lazygit'
-
-# ----------------
-# Quality of Life
-# ----------------
-# Better help/man pages with colors
-alias help='tldr'
-alias cheat='navi'
-
-# Interactive cheatsheets
-cheet() {
-    curl -s "cheat.sh/$1" | bat
-}
-
-# Markdown preview (unalias md from common-aliases if present)
-unalias md 2>/dev/null
-mdview() {
-    glow "$1"
-}
-
 # ============================================
-# ENHANCED TOOL CONFIGURATIONS
+# ZSH COMPLETIONS
 # ============================================
 
-# FZF with better defaults for cloud work
-export FZF_DEFAULT_OPTS='
-    --height 40%
-    --layout=reverse
-    --border
-    --inline-info
-    --color=fg:#ebdbb2,bg:#282828,hl:#fabd2f
-    --color=fg+:#ebdbb2,bg+:#3c3836,hl+:#fabd2f
-    --color=info:#83a598,prompt:#bdae93,spinner:#fabd2f
-    --color=pointer:#83a598,marker:#fe8019,header:#665c54
-'
-
-# Kubectl completion with fzf
+# Kubectl
 if command -v kubectl &> /dev/null; then
     source <(kubectl completion zsh)
+fi
+
+# Docker
+if command -v docker &> /dev/null; then
+    source <(docker completion zsh 2>/dev/null) || true
+fi
+
+# Helm
+if command -v helm &> /dev/null; then
+    source <(helm completion zsh 2>/dev/null) || true
+fi
+
+# GitHub CLI
+if command -v gh &> /dev/null; then
+    source <(gh completion -s zsh 2>/dev/null) || true
 fi
 
 # ============================================
