@@ -13,5 +13,5 @@ export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 export PATH="$HOME/.cargo/bin:$PATH"    # Rust
 export PATH="$HOME/go/bin:$PATH"        # Go
 
-# Dotfiles utilities
-export PATH="$HOME/.dotfiles/scripts/utils:$PATH"
+# Dotfiles utilities (DOTFILES_DIR is set by exports.zsh)
+export PATH="${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils:$PATH"

@@ -11,8 +11,11 @@ function claw_welcome_tui() {
         return
     fi
 
+    # Use $DOTFILES_DIR set by exports.zsh (NOT $0 — $0 is the function name inside a function)
+    local _d="$DOTFILES_DIR"
+
     # Trigger background tool updater silently
-    ( "$HOME/.dotfiles/scripts/utils/tool-updater.sh" ) &> /dev/null &
+    ( "$_d/scripts/utils/tool-updater.sh" ) &> /dev/null &
 
     # Modern GitHub macOS Dark Theme (True Colors)
     local c_reset=$'\e[0m'
@@ -27,7 +30,7 @@ function claw_welcome_tui() {
     local c_white=$'\e[38;2;201;209;217m'  # GitHub fg: #c9d1d9
 
     # Render Dashboard Header via fastfetch with custom OPEN CLAW branding
-    local ff_config="$HOME/.dotfiles/config/fastfetch/config.jsonc"
+    local ff_config="$_d/config/fastfetch/config.jsonc"
     if command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
         echo ""
         fastfetch -c "$ff_config"
@@ -94,7 +97,7 @@ function claw_welcome_tui() {
         default|security|cloud|devops|research|ai|cortex|local)
             export CLAW_ACTIVE_PROFILE="$key"
             echo "${c_cyan}Loading $key profile...${c_reset}"
-            local _profile="$HOME/.dotfiles/shell/profiles/${key}.zsh"
+            local _profile="$_d/shell/profiles/${key}.zsh"
             if [[ -f "$_profile" ]]; then
                 source "$_profile"
             else
@@ -102,8 +105,8 @@ function claw_welcome_tui() {
             fi
             ;;
         homelab)
-            if [[ -f "$HOME/.dotfiles/scripts/utils/homelab.sh" ]]; then
-                "$HOME/.dotfiles/scripts/utils/homelab.sh"
+            if [[ -f "$_d/scripts/utils/homelab.sh" ]]; then
+                "$_d/scripts/utils/homelab.sh"
             else
                 echo "${c_red}Homelab connector not found.${c_reset}"
             fi
@@ -111,11 +114,11 @@ function claw_welcome_tui() {
         ai_tools)
             echo "${c_purple}Opening AI Toolkit...${c_reset}"
             export TK_AUTO_START="8"
-            "$HOME/.dotfiles/scripts/utils/toolkit.sh"
+            "$_d/scripts/utils/toolkit.sh"
             ;;
         mcp)
-            if [[ -f "$HOME/.dotfiles/scripts/utils/mcp-manager.sh" ]]; then
-                "$HOME/.dotfiles/scripts/utils/mcp-manager.sh"
+            if [[ -f "$_d/scripts/utils/mcp-manager.sh" ]]; then
+                "$_d/scripts/utils/mcp-manager.sh"
             else
                 echo "${c_red}MCP Manager not found.${c_reset}"
             fi
@@ -134,16 +137,16 @@ function claw_welcome_tui() {
             if command -v yazi &> /dev/null; then yazi; else echo "${c_red}Yazi not installed.${c_reset}"; fi
             ;;
         update)
-            if [[ -f "$HOME/.dotfiles/scripts/utils/system-update.sh" ]]; then
-                source "$HOME/.dotfiles/scripts/utils/system-update.sh"
+            if [[ -f "$_d/scripts/utils/system-update.sh" ]]; then
+                source "$_d/scripts/utils/system-update.sh"
             else
                 echo "${c_dim}Running brew update & upgrade...${c_reset}"
                 brew update && brew upgrade
             fi
             ;;
         doc)
-            if [[ -f "$HOME/.dotfiles/scripts/utils/help.sh" ]]; then
-                "$HOME/.dotfiles/scripts/utils/help.sh"
+            if [[ -f "$_d/scripts/utils/help.sh" ]]; then
+                "$_d/scripts/utils/help.sh"
             else
                 echo "${c_red}Help script not found.${c_reset}"
             fi
@@ -156,3 +159,4 @@ function claw_welcome_tui() {
             ;;
     esac
 }
+

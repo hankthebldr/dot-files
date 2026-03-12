@@ -52,5 +52,16 @@ if [ -d /opt/homebrew/share/zsh-autosuggestions ]; then
     source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 fi
 
-# 11. Local Overrides
+# 11. Load active profile (set by welcome TUI)
+if [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then
+    if [[ -f "$HOME/.dotfiles/shell/profiles/${CLAW_ACTIVE_PROFILE}.zsh" ]]; then
+        source "$HOME/.dotfiles/shell/profiles/${CLAW_ACTIVE_PROFILE}.zsh"
+    fi
+fi
+
+# 12. Local Overrides
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
+
+# 13. Welcome TUI (interactive login shells only, skipped if profile already active)
+source $HOME/.dotfiles/shell/welcome-tui.zsh
+claw_welcome_tui

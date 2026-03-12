@@ -18,10 +18,16 @@ alias tree='eza --tree --icons'
 # Open Claw & Toolkit
 alias claw='openclaw'
 alias oc='openclaw'
-alias tk='$HOME/.dotfiles/scripts/utils/toolkit.sh'
+alias tk='$DOTFILES_DIR/scripts/utils/toolkit.sh'
 
-# Better cat (bat)
-alias cat='bat --paging=never'
+# Better cat (bat) — function wrapper to avoid breaking pipes
+cat() {
+    if [[ -t 1 ]] && [[ $# -gt 0 ]]; then
+        bat --paging=never "$@"
+    else
+        command cat "$@"
+    fi
+}
 alias catp='bat'                        # With paging
 alias catn='bat --style=plain'          # No decorations
 
@@ -371,12 +377,12 @@ alias tkss='tmux kill-session -t'
 # Quick edits
 alias zshrc='$EDITOR ~/.zshrc'
 alias reload='source ~/.zshrc'
-alias aliases='$EDITOR $HOME/.dotfiles/shell/aliases.zsh'
+alias aliases='$EDITOR $DOTFILES_DIR/shell/aliases.zsh'
 alias vimrc='$EDITOR ~/.vimrc'
 
 # Package management
 alias brewup='brew update && brew upgrade && brew cleanup'
-alias brewdump='brew bundle dump --force --file=$HOME/.dotfiles/Brewfile'
+alias brewdump='brew bundle dump --force --file=$DOTFILES_DIR/Brewfile'
 alias brewlist='brew list --formula'
 alias brewcask='brew list --cask'
 alias brewinfo='brew info'

@@ -2,6 +2,9 @@
 # scripts/utils/toolkit.sh
 # Interactive Open Claw TUI for modular toolsets and workflows
 
+# Auto-detect dotfiles root (this file lives at <dotfiles>/scripts/utils/toolkit.sh)
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
 # Theme Colors (GitHub macOS Dark)
 c_reset=$'\e[0m'
 c_cyan=$'\e[38;2;88;166;255m'
@@ -211,15 +214,15 @@ case $main_choice in
             8) command -v voxcii &> /dev/null && voxcii || echo "${c_red}voxcii not installed.${c_reset}" ;;
             9) command -v clawea &> /dev/null && clawea || echo "${c_red}clawea not installed.${c_reset}" ;;
             10) 
-                if [[ -f "$HOME/Github/Github_desktop/dot-files/scripts/utils/homelab.sh" ]]; then
-                    "$HOME/Github/Github_desktop/dot-files/scripts/utils/homelab.sh"
+                if [[ -f "$DOTFILES_DIR/scripts/utils/homelab.sh" ]]; then
+                    "$DOTFILES_DIR/scripts/utils/homelab.sh"
                 else
                     echo "${c_red}Homelab connector script missing.${c_reset}"
                 fi
                 ;;
             11)
-                if [[ -f "$HOME/Github/Github_desktop/dot-files/scripts/utils/system-update.sh" ]]; then
-                    "$HOME/Github/Github_desktop/dot-files/scripts/utils/system-update.sh"
+                if [[ -f "$DOTFILES_DIR/scripts/utils/system-update.sh" ]]; then
+                    "$DOTFILES_DIR/scripts/utils/system-update.sh"
                 else
                     echo "${c_red}System update script missing.${c_reset}"
                 fi
@@ -311,8 +314,8 @@ case $main_choice in
                 fi
                 ;;
             5)
-                if [[ -f "$HOME/Github/Github_desktop/dot-files/scripts/utils/mcp-manager.sh" ]]; then
-                    "$HOME/Github/Github_desktop/dot-files/scripts/utils/mcp-manager.sh"
+                if [[ -f "$DOTFILES_DIR/scripts/utils/mcp-manager.sh" ]]; then
+                    "$DOTFILES_DIR/scripts/utils/mcp-manager.sh"
                 else
                     echo "${c_red}MCP Manager script missing.${c_reset}"
                 fi
@@ -325,8 +328,8 @@ case $main_choice in
                 fi
                 ;;
             7)
-                if [[ -f "$HOME/Github/Github_desktop/dot-files/scripts/utils/mac-ui-automate.sh" ]]; then
-                    "$HOME/Github/Github_desktop/dot-files/scripts/utils/mac-ui-automate.sh" notify "Toolkit Test" "OS Automation is active!"
+                if [[ -f "$DOTFILES_DIR/scripts/utils/mac-ui-automate.sh" ]]; then
+                    "$DOTFILES_DIR/scripts/utils/mac-ui-automate.sh" notify "Toolkit Test" "OS Automation is active!"
                 else
                     echo "${c_red}mac-ui-automate script missing.${c_reset}"
                 fi

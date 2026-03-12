@@ -10,8 +10,8 @@ export VISUAL='vim'
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-# Dotfiles root
-export DOTFILES_DIR="$HOME/.dotfiles"
+# Dotfiles root (auto-detect from this file's location)
+export DOTFILES_DIR="${0:A:h:h}"
 
 # ============================================
 # XDG BASE DIRECTORIES

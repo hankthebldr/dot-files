@@ -138,7 +138,7 @@ For environment variables, copy `.env.example` to `.env` and customize.
 
 ## 📚 Documentation
 
-- [Feature Gap Analysis](docs/FEATURES.md)
+- [CLI Optimization Summary](docs/cli-optimization-summary.md)
 - [Quick Commands Reference](docs/quick-commands-reference.md)
 - [macOS Power User Setup](docs/macbook-pro-poweruser-setup.md)
 - [Quick Start Guide](docs/quick-start-guide.md)

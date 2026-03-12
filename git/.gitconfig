@@ -1,6 +1,7 @@
 [user]
-    # name = [Your Name]
-    # email = [your@email.com]
+    # TODO: Uncomment and set your name/email after stowing
+    # name = Your Name
+    # email = your@email.com
 
 [core]
     editor = vim
@@ -21,7 +22,7 @@
     colorMoved = default
 
 [init]
-    defaultBranch = main
+    defaultBranch = master
 
 [pull]
     rebase = true
