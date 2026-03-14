@@ -9,9 +9,7 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 c_reset=$'\e[0m'
 c_cyan=$'\e[38;2;88;166;255m'
 c_green=$'\e[38;2;63;185;80m'
-c_pink=$'\e[38;2;255;123;114m'
 c_purple=$'\e[38;2;188;140;255m'
-c_orange=$'\e[38;2;210;153;34m'
 c_yellow=$'\e[38;2;210;153;34m'
 c_dim=$'\e[38;2;139;148;158m'
 c_red=$'\e[38;2;255;123;114m'
@@ -69,7 +67,7 @@ case $main_choice in
             5) python3 -m http.server 8000 ;;
             6)
                 if command -v fx &> /dev/null; then
-                    local json=$(find . -maxdepth 3 -iname "*.json" 2>/dev/null | fzf --height 40% --reverse --prompt="Select JSON: ")
+                    json=$(find . -maxdepth 3 -iname "*.json" 2>/dev/null | fzf --height 40% --reverse --prompt="Select JSON: ")
                     [[ -n "$json" ]] && fx "$json"
                 else
                     echo "${c_red}fx not installed.${c_reset}"
@@ -86,7 +84,7 @@ case $main_choice in
         echo "  3. Stop ALL Running Containers"
         echo "  4. Remove ALL Containers"
         echo "  5. View Docker Compose Logs (Tail)"
-        read -p "  ${c_purple}▶${c_reset} Run workflow [1-5]: " sub
+        # shellcheck disable=SC2046
         case $sub in
             1) command -v lazydocker &> /dev/null && lazydocker || echo "${c_red}Lazydocker not installed.${c_reset}" ;;
             2) docker system prune -af --volumes ;;
@@ -235,7 +233,7 @@ case $main_choice in
         echo "${c_green}── Knowledge & Notes (Obsidian) ──${c_reset}"
         
         export OBSIDIAN_VAULT="$HOME/vault-main"
-        local vault_name=$(basename "$OBSIDIAN_VAULT")
+        vault_name=$(basename "$OBSIDIAN_VAULT")
         # Ensure the new Obsidian CLI is available (macOS path)
         export PATH="$PATH:/Applications/Obsidian.app/Contents/MacOS"
         

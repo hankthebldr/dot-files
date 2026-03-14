@@ -20,12 +20,7 @@ SECURITY_TOOLS=(
     amass
 )
 
-# List of optional/heavy tools
-HEAVY_TOOLS=(
-    metasploit-framework
-    john
-    hydra
-)
+# Removed unused HEAVY_TOOLS array
 
 install_security_tools() {
     log_info "Installing security tools..."

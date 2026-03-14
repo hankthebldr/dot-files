@@ -7,9 +7,7 @@ c_reset=$'\e[0m'
 c_cyan=$'\e[38;2;88;166;255m'
 c_green=$'\e[38;2;63;185;80m'
 c_purple=$'\e[38;2;188;140;255m'
-c_orange=$'\e[38;2;210;153;34m'
 c_dim=$'\e[38;2;139;148;158m'
-c_red=$'\e[38;2;255;123;114m'
 
 # Check if running in non-interactive (MCP) mode
 INTERACTIVE=1

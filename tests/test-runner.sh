@@ -35,7 +35,7 @@ test_configs() {
     fi
     
     # Zsh
-    zsh -n scripts/install/packages/common.sh || return 1
+    bash -n scripts/install/packages/common.sh || return 1
     
     return 0
 }

@@ -6,14 +6,19 @@ set -e
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Ensure Homebrew is in PATH for non-interactive Apple Silicon shells
+if [[ -d "/opt/homebrew/bin" ]]; then
+    export PATH="/opt/homebrew/bin:$PATH"
+fi
+
 # Colors
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-DIM='\033[0;90m'
-NC='\033[0m'
+green='\033[0;32m'
+red='\033[0;31m'
+dim='\033[0;90m'
+nc='\033[0m'
 
 if ! command -v shellcheck &> /dev/null; then
-    echo -e "${RED}shellcheck is not installed.${NC}"
+    echo -e "${red}shellcheck is not installed.${nc}"
     echo "Install with: brew install shellcheck"
     exit 1
 fi
@@ -36,23 +41,23 @@ while IFS= read -r file; do
     fi
 
     if shellcheck -x -S warning "$file" 2>/dev/null; then
-        echo -e "  ${GREEN}✓${NC} $rel"
+        echo -e "  ${green}✓${nc} $rel"
         ((PASS++))
     else
-        echo -e "  ${RED}✗${NC} $rel"
+        echo -e "  ${red}✗${nc} $rel"
         ((FAIL++))
     fi
 done < <(find "$REPO_ROOT" -name "*.sh" -not -path "*/legacy/*" -not -path "*/.git/*" | sort)
 
 echo ""
 echo "──────────────────────────────"
-echo -e "  ${GREEN}Passed:${NC}  $PASS"
-echo -e "  ${RED}Failed:${NC}  $FAIL"
-echo -e "  ${DIM}Skipped:${NC} $SKIP (zsh files)"
+echo -e "  ${green}Passed:${nc}  $PASS"
+echo -e "  ${red}Failed:${nc}  $FAIL"
+echo -e "  ${dim}Skipped:${nc} $SKIP (zsh files)"
 echo "──────────────────────────────"
 
 if [[ $FAIL -gt 0 ]]; then
     exit 1
 fi
 
-echo -e "${GREEN}All shell scripts passed!${NC}"
+echo -e "${green}All shell scripts passed!${nc}"

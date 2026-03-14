@@ -25,7 +25,8 @@ check_command() {
 check_disk_space() {
     # Simple check if / has decent space (e.g., > 1GB)
     local min_space=1000000 # 1GB in KB
-    local avail_space=$(df -k / | awk 'NR==2 {print $4}')
+    local avail_space
+    avail_space=$(df -k / | awk 'NR==2 {print $4}')
     
     if [[ "$avail_space" -lt "$min_space" ]]; then
         log_warning "Low disk space detected!"
@@ -47,7 +48,7 @@ check_sudo() {
 verify_installation() {
     log_info "Verifying installation..."
     local failed=0
-    local tools=("git" "vim" "tmux" "zsh")
+    local tools=("git" "vim" "zsh")
     
     for tool in "${tools[@]}"; do
         if ! command -v "$tool" &>/dev/null; then

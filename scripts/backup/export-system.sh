@@ -320,6 +320,7 @@ for chrome_path in "${CHROME_PROFILES[@]}"; do
 
         # List all profiles
         if [ -d "$chrome_path" ]; then
+            # shellcheck disable=SC2010
             ls "$chrome_path" 2>/dev/null | grep -E "^(Default|Profile [0-9]+)$" > "$EXPORT_DIR/browser-profiles/$browser_name/profiles-list.txt" 2>/dev/null
         fi
 
@@ -462,7 +463,9 @@ print_section "Creating Parseable Configuration Files"
 # Create JSON manifest of all packages
 {
     echo "{"
+    # shellcheck disable=SC2046
     echo '  "export_date": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'",'
+    # shellcheck disable=SC2046
     echo '  "hostname": "'$(hostname)'",'
     echo '  "os": "macOS",'
     echo '  "packages": {'
@@ -500,6 +503,7 @@ print_section "Creating Parseable Configuration Files"
 
     echo '  },'
     echo '  "shell": "'$SHELL'",'
+    # shellcheck disable=SC2046
     echo '  "user": "'$(whoami)'"'
     echo "}"
 } > "$EXPORT_DIR/parseable-configs/packages.json"
@@ -566,6 +570,7 @@ print_success "packages.yml created"
     echo ""
 
     if command -v brew &> /dev/null; then
+        # shellcheck disable=SC2221,SC2222
         brew list --formula | while read pkg; do
             case "$pkg" in
                 # CLI tools with direct APT equivalents

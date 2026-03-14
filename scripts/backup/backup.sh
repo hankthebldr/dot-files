@@ -32,7 +32,8 @@ backup_configs() {
         if [[ -e "$HOME/$file" && ! -L "$HOME/$file" ]]; then
             # If it's a real file/dir (not a symlink), backup it
             # Preserve directory structure
-            local dir=$(dirname "$file")
+            local dir
+            dir=$(dirname "$file")
             if [[ "$dir" != "." ]]; then
                 mkdir -p "$BACKUP_DIR/$dir"
             fi

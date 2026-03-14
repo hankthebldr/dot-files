@@ -55,7 +55,8 @@ if command -v go &> /dev/null; then
     # Use go install if go is available
     go install github.com/PaloAltoNetworks/panos-cli@latest || log_warning "Failed to install panos-cli"
     # Ensure Go bin is in path for this session if it isn't
-    export PATH="$PATH:$(go env GOPATH)/bin"
+    GOPATH_BIN="$(go env GOPATH)/bin"
+    export PATH="$PATH:$GOPATH_BIN"
 else
     log_warning "Go is not installed. Skipping panos-cli installation."
 fi

@@ -21,7 +21,8 @@ needs_update() {
     if [[ ! -f "$cache_file" ]]; then
         return 0  # Never run, needs update
     fi
-    local last=$(cat "$cache_file")
+    local last
+    last=$(cat "$cache_file")
     local diff=$((CURRENT_TIME - last))
     [[ $diff -ge $interval_seconds ]]
 }
