@@ -32,4 +32,4 @@ alias dops-stern="stern"
 alias dops-watch="watch -n 1"
 alias dops-top="btop"
 
-echo -e "\n\033[0;35m[!] DevOps Profile Loaded. Initialized Workspace: $DEVOPS_WORKSPACE\033[0m\n"
+# Profile banner handled by fastfetch (config-devops.jsonc)

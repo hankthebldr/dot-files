@@ -58,4 +58,4 @@ alias dfir-vol="volatility -f"
 alias rev-rad="radare2"
 alias rev-cap="cstool"
 
-echo -e "\n\033[0;31m[!] Security Profile Loaded. Initialized Workspace: $ENGAGEMENT_DIR\033[0m\n"
+# Profile banner handled by fastfetch (config-security.jsonc)

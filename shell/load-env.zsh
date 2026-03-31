@@ -8,14 +8,10 @@ load_env() {
     local env_path="$dotfiles_dir/$env_file"
 
     if [[ -f "$env_path" ]]; then
-        # Export all variables from .env file
+        # Export all variables from .env file silently
         set -a
         source "$env_path"
         set +a
-        echo "✓ Loaded environment variables from $env_file"
-    else
-        echo "⚠ Warning: $env_path not found"
-        echo "  Create it from the template: cp $dotfiles_dir/.env.example $env_path"
     fi
 }
 

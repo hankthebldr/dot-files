@@ -30,7 +30,7 @@ function claw_welcome_tui() {
     local c_white=$'\e[38;2;201;209;217m'  # GitHub fg: #c9d1d9
 
     # Render Dashboard Header via fastfetch with custom OPEN CLAW branding
-    local ff_config="$_d/config/fastfetch/config.jsonc"
+    local ff_config="$_d/config/.config/fastfetch/config.jsonc"
     if command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
         echo ""
         fastfetch -c "$ff_config"
@@ -57,8 +57,7 @@ function claw_welcome_tui() {
 
     # Build Interactive Menu Choices
     # Entries: Value\tDisplay String
-    local choices="skip\t${c_white}💻 Exit to Shell${c_reset}\n"
-    choices+="default\t${c_cyan}⚙️  Default Profile${c_dim}  Standard Dev${c_reset}\n"
+    local choices="default\t${c_cyan}⚙️  Default Profile${c_dim}  Standard Dev${c_reset}\n"
     choices+="security\t${c_pink}🔐 Security Profile${c_dim}  Pentesting & Scanners${c_reset}\n"
     choices+="cloud\t${c_cyan}☁️  Cloud Profile${c_dim}  AWS / K8s / Terraform${c_reset}\n"
     choices+="devops\t${c_green}🏗️  DevOps Profile${c_dim}  CI/CD / Monitoring / IaC${c_reset}\n"
@@ -67,6 +66,7 @@ function claw_welcome_tui() {
     choices+="cortex\t${c_pink}🛡️  Cortex Profile${c_dim}  XSOAR / XSIAM / PAN-OS${c_reset}\n"
     choices+="local\t${c_green}🛠️  Local Profile${c_dim}  Custom Built CLI Tools${c_reset}\n"
     choices+="homelab\t${c_orange}📡 HomeLab${c_dim}  Interactive SSH Manager${c_reset}\n"
+    choices+="tunnel\t${c_cyan}🔗 SSH Tunnels${c_dim}  Port Forwards & SOCKS${c_reset}\n"
     choices+="ai_tools\t${c_purple}🧠 AI Toolkit${c_dim}  Ollama / Claude / Aider / MCP${c_reset}\n"
     choices+="mcp\t${c_cyan}🔌 MCP Manager${c_dim}  Model Context Protocol${c_reset}\n"
     choices+="claude\t${c_orange}💻 Claude Code${c_reset}\n"
@@ -75,13 +75,14 @@ function claw_welcome_tui() {
     choices+="update\t${c_yellow}🔧 System Update${c_dim}  Brew & NPM${c_reset}\n"
     choices+="doc\t${c_dim}📖 CLI Docs & Help${c_reset}\n"
     choices+="top\t${c_dim}📊 System Monitor${c_reset}\n"
+    choices+="skip\t${c_white}💻 Exit to Shell${c_reset}\n"
 
     # Launch fzf menu
     local selection
     selection=$(echo -e "$choices" | column -s $'\t' -t | fzf \
         --height=18 --reverse --margin=0,0,0,4 \
         --prompt="▶ " \
-        --header="  ↑/↓ navigate · ENTER select · ESC shell" \
+        --header="  ↑/↓ navigate · ENTER select (default) · ESC shell" \
         --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff" \
         --ansi \
         || echo "skip")
@@ -96,12 +97,17 @@ function claw_welcome_tui() {
             ;;
         default|security|cloud|devops|research|ai|cortex|local)
             export CLAW_ACTIVE_PROFILE="$key"
-            echo "${c_cyan}Loading $key profile...${c_reset}"
             local _profile="$_d/shell/profiles/${key}.zsh"
             if [[ -f "$_profile" ]]; then
                 source "$_profile"
             else
                 echo "${c_red}Profile not found: $_profile${c_reset}"
+            fi
+            # Display profile-specific fastfetch dashboard
+            local _ff_profile="$_d/config/.config/fastfetch/config-${key}.jsonc"
+            if command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
+                echo ""
+                fastfetch -c "$_ff_profile"
             fi
             ;;
         homelab)
@@ -109,6 +115,13 @@ function claw_welcome_tui() {
                 "$_d/scripts/utils/homelab.sh"
             else
                 echo "${c_red}Homelab connector not found.${c_reset}"
+            fi
+            ;;
+        tunnel)
+            if [[ -f "$_d/scripts/utils/tunnel-manager.sh" ]]; then
+                "$_d/scripts/utils/tunnel-manager.sh"
+            else
+                echo "${c_red}Tunnel manager not found.${c_reset}"
             fi
             ;;
         ai_tools)

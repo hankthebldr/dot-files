@@ -432,6 +432,12 @@ alias certdates='openssl x509 -noout -dates -in'
 alias sshconfig='$EDITOR ~/.ssh/config'
 alias sshkey='cat ~/.ssh/id_ed25519.pub | pbcopy && echo "SSH key copied to clipboard"'
 
+# SSH Tunnel Manager
+alias tun='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/tunnel-manager.sh'
+alias tunls='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/tunnel-manager.sh --list'
+alias tunkill='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/tunnel-manager.sh --kill-all'
+alias tuntopo='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/tunnel-manager.sh --topology'
+
 # ============================================
 # MACOS SPECIFIC
 # ============================================

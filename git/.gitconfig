@@ -1,7 +1,12 @@
+[filter "lfs"]
+    process = git-lfs filter-process
+    required = true
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+
 [user]
-    # TODO: Uncomment and set your name/email after stowing
-    # name = Your Name
-    # email = your@email.com
+    name = Henry Reed
+    email = Henry.reed@icloud.com
 
 [core]
     editor = vim

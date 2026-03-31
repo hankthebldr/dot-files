@@ -52,7 +52,23 @@ pipx_tools=(
     "dvc"
     "mlflow"
     "aider-chat"
+    "google-adk"
 )
+
+# Node-based AI tools (Claude Agent SDK)
+echo -e "${BLUE}[INFO]${NC} Installing Node AI Tools..."
+if command -v npm &> /dev/null; then
+    for pkg in "@anthropic-ai/claude-agent-sdk"; do
+        if npm list -g "$pkg" &>/dev/null 2>&1; then
+            echo -e "${BLUE}[INFO]${NC} $pkg already installed globally."
+        else
+            echo -e "${BLUE}[INFO]${NC} Installing $pkg globally..."
+            npm install -g "$pkg" || echo -e "${RED}[ERROR]${NC} Failed to install $pkg"
+        fi
+    done
+else
+    echo -e "${RED}[ERROR]${NC} npm not found — install Node.js first (S4)"
+fi
 
 for tool in "${pipx_tools[@]}"; do
     echo -e "${BLUE}[INFO]${NC} Ensuring pipx install for $tool..."

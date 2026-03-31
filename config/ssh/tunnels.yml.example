@@ -1,0 +1,62 @@
+# SSH Tunnel Manager Configuration
+# Copy to tunnels.yml and customize
+#
+# Tunnel types:
+#   local  — Forward local port to remote service (-L)
+#   remote — Expose local service on remote port (-R)
+#   socks  — SOCKS5 proxy through remote host (-D)
+#
+# Each hop requires: host, user, key
+# Optional per-hop: port (default: 22)
+
+tunnels:
+  # Local port forward through a bastion to a database
+  db-prod:
+    description: "Production PostgreSQL via bastion"
+    type: local
+    local_port: 5432
+    remote_host: db.internal.prod
+    remote_port: 5432
+    hops:
+      - host: bastion.example.com
+        user: henry
+        key: ~/.ssh/id_ed25519
+        port: 22
+      - host: jumpbox.internal
+        user: deploy
+        key: ~/.ssh/deploy_key
+        port: 2222
+
+  # Single-hop local forward to a web app
+  web-staging:
+    description: "Staging web app"
+    type: local
+    local_port: 8080
+    remote_host: localhost
+    remote_port: 80
+    hops:
+      - host: staging.example.com
+        user: henry
+        key: ~/.ssh/id_ed25519
+
+  # SOCKS proxy through a VPN gateway
+  socks-corp:
+    description: "SOCKS proxy through corporate VPN"
+    type: socks
+    local_port: 1080
+    hops:
+      - host: vpn-gateway.corp.net
+        user: hreed
+        key: ~/.ssh/corp_key
+
+  # Expose local dev server on a remote host
+  reverse-dev:
+    description: "Expose local dev server to remote"
+    type: remote
+    local_port: 3000
+    remote_host: 0.0.0.0
+    remote_port: 9000
+    hops:
+      - host: public-server.example.com
+        user: henry
+        key: ~/.ssh/id_ed25519

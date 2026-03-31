@@ -29,19 +29,21 @@ bash scripts/install/master-setup.sh shell    # Shell tools only
 
 ### Shell Configuration Loading Order (.zshrc)
 
-1. `shell/exports.zsh` - Environment variables
-2. `shell/aliases.zsh` - All aliases and shell functions (~780 lines)
-3. `shell/security.zsh` - Safe file ops, network recon, scanning aliases
-4. `shell/obsidian.zsh` - Obsidian vault integration (`on`, `os`, `ov`)
-5. Tool init: zoxide, starship, fzf, atuin, zsh-syntax-highlighting, zsh-autosuggestions
-6. `~/.zshrc.local` - User-local overrides (not tracked)
-
-**Note:** `aliases.zsh` is sourced twice in the current `.zshrc` (line 8 and 9) - this is a bug.
+1. `shell/path.zsh` - PATH setup (homebrew, cargo, go, local bin)
+2. `shell/exports.zsh` - Environment variables
+3. `shell/load-env.zsh` - `.env` file loading (optional, guarded)
+4. `shell/aliases.zsh` - All aliases and shell functions (~660 lines)
+5. `shell/security.zsh` - Safe file ops, network recon, scanning aliases
+6. `shell/obsidian.zsh` - Obsidian vault integration (`on`, `os`, `ov`)
+7. Tool init: zoxide, starship, fzf, atuin, thefuck, zsh-syntax-highlighting, zsh-autosuggestions
+8. Profile loading via `$CLAW_ACTIVE_PROFILE`
+9. `~/.zshrc.local` - User-local overrides (not tracked)
+10. Welcome TUI (`claw_welcome_tui`)
 
 ### Profile System
 
 `shell/profiles/` contains context-specific environments loaded via the welcome TUI:
-- `default.zsh`, `cloud.zsh`, `security.zsh`, `devops.zsh`, `ai.zsh`, `research.zsh`, `cortex.zsh`
+- `default.zsh`, `cloud.zsh`, `security.zsh`, `devops.zsh`, `ai.zsh`, `research.zsh`, `cortex.zsh`, `local.zsh`
 
 Each profile sets `CLAW_PROFILE_THEME` and provides domain-specific aliases/functions.
 
@@ -57,6 +59,9 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 
 - `shell/welcome-tui.zsh` - FZF-based login dashboard showing system info and 15+ workflow options (profile loading, tool launching, system management)
 - `scripts/utils/toolkit.sh` - "Open Claw Toolkit" FZF menu for Git, Docker, K8s, Cloud, Security, and System workflows
+- `scripts/utils/mcp-manager.sh` - Interactive MCP server manager (list, register, scaffold TS/Python servers, edit Claude Desktop config at `~/Library/Application Support/Claude/claude_desktop_config.json`)
+- `scripts/utils/system-update.sh` - Cumulative updater for brew, npm, yarn, pnpm, uv, pipx, pip, gem, rustup, go
+- `scripts/utils/tool-updater.sh` - Background auto-updater with cache-based intervals (brew weekly, pipx weekly, go bi-weekly, cargo monthly)
 
 ## Conventions
 
@@ -82,6 +87,14 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | `scripts/setup/symlinks.sh` | Dotfile symlinking |
 | `tmux/.tmux.conf` | Tmux config (GitHub dark theme, mouse, clipboard) |
 | `git/.gitconfig` | Git config with delta integration |
+| `shell/path.zsh` | PATH setup (homebrew, cargo, go, dotfiles utils) |
+| `shell/load-env.zsh` | Optional .env file loader |
+| `scripts/utils/help.sh` | Integrated help system (`dothelp` alias) |
+| `scripts/utils/mcp-manager.sh` | MCP server manager (list/register/scaffold) |
+| `scripts/utils/system-update.sh` | System-wide package updater |
+| `scripts/utils/tool-updater.sh` | Background tool auto-updater |
+| `terminal/.config/starship.toml` | Starship prompt config (GitHub Dark theme) |
+| `config/.config/fastfetch/config.jsonc` | Fastfetch system info dashboard config |
 | `bootstrap.sh` | Primary setup entry point |
 | `scripts/install/master-setup.sh` | Alternative setup orchestrator |
 

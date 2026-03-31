@@ -34,4 +34,4 @@ alias res-yt="yt-dlp --dump-json"
 alias res-pup="pup"
 alias res-pandoc="pandoc"
 
-echo -e "\n\033[38;5;166m[!] Research Profile Loaded. Initialized Workspace: $RESEARCH_WORKSPACE\033[0m\n"
+# Profile banner handled by fastfetch (config-research.jsonc)

@@ -8,9 +8,11 @@ export CLAW_PROFILE_THEME="ai"
 export AI_WORKSPACE="$HOME/ai_models"
 mkdir -p "$AI_WORKSPACE"
 
-# Note: Set API Keys in your secure vault (e.g. 1Password/AWS Vault)
+# Note: Set API Keys in ~/.zshrc.local or secure vault (e.g. 1Password/AWS Vault)
 # export OPENAI_API_KEY="..."
 # export ANTHROPIC_API_KEY="..."
+# export GOOGLE_API_KEY="..."
+# export GOOGLE_CLOUD_PROJECT="..."
 
 # ==========================================
 # CATEGORIZED ALIASES & PIPELINES
@@ -43,4 +45,12 @@ alias ai-lang="langchain-cli"
 alias aider="aider"
 alias ai-fab="fabric --pattern"
 
-echo -e "\n\033[0;32m[!] AI Profile Loaded. Initialized Workspace: $AI_WORKSPACE\033[0m\n"
+# --- Agent SDKs ---
+alias ai-claude-sdk="claude"
+alias ai-adk="adk"
+alias ai-adk-web="adk web"
+alias ai-adk-run="adk run"
+alias ai-adk-eval="adk eval"
+alias ai-adk-deploy="adk deploy"
+
+# Profile banner handled by fastfetch (config-ai.jsonc)

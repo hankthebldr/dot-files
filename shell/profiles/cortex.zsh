@@ -48,4 +48,4 @@ alias pan-docs="open https://pan.dev"
 alias cortex-docs="open https://docs.paloaltonetworks.com/cortex"
 alias xsoar-docs="open https://xsoar.pan.dev"
 
-echo -e "\n\033[38;2;255;102;0m[!] Cortex Module Loaded. Initialized Workspace: $CORTEX_WORKSPACE\033[0m\n"
+# Profile banner handled by fastfetch (config-cortex.jsonc)
