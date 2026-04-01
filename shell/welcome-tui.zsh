@@ -11,7 +11,7 @@ function claw_welcome_tui() {
         return
     fi
 
-    # Use $DOTFILES_DIR set by exports.zsh (NOT $0 — $0 is the function name inside a function)
+    # Use $DOTFILES_DIR set by .zshrc
     local _d="$DOTFILES_DIR"
 
     # Trigger background tool updater silently
@@ -28,6 +28,7 @@ function claw_welcome_tui() {
     local c_dim=$'\e[38;2;139;148;158m'    # GitHub Muted: #8b949e
     local c_red=$'\e[38;2;255;123;114m'    # GitHub Red: #ff7b72
     local c_white=$'\e[38;2;201;209;217m'  # GitHub fg: #c9d1d9
+    local c_bold=$'\e[1m'
 
     # Render Dashboard Header via fastfetch with custom OPEN CLAW branding
     local ff_config="$_d/config/.config/fastfetch/config.jsonc"
@@ -55,45 +56,60 @@ function claw_welcome_tui() {
         return
     fi
 
-    # Build Interactive Menu Choices
-    # Entries: Value\tDisplay String
-    local choices="default\t${c_cyan}⚙️  Default Profile${c_dim}  Standard Dev${c_reset}\n"
-    choices+="security\t${c_pink}🔐 Security Profile${c_dim}  Pentesting & Scanners${c_reset}\n"
-    choices+="cloud\t${c_cyan}☁️  Cloud Profile${c_dim}  AWS / K8s / Terraform${c_reset}\n"
-    choices+="devops\t${c_green}🏗️  DevOps Profile${c_dim}  CI/CD / Monitoring / IaC${c_reset}\n"
-    choices+="research\t${c_orange}🔬 Research Profile${c_dim}  Datasets & Scraping${c_reset}\n"
-    choices+="ai\t${c_purple}🤖 AI Profile${c_dim}  LLMs / Embeddings / MLOps${c_reset}\n"
-    choices+="cortex\t${c_pink}🛡️  Cortex Profile${c_dim}  XSOAR / XSIAM / PAN-OS${c_reset}\n"
-    choices+="local\t${c_green}🛠️  Local Profile${c_dim}  Custom Built CLI Tools${c_reset}\n"
-    choices+="homelab\t${c_orange}📡 HomeLab${c_dim}  Interactive SSH Manager${c_reset}\n"
-    choices+="tunnel\t${c_cyan}🔗 SSH Tunnels${c_dim}  Port Forwards & SOCKS${c_reset}\n"
-    choices+="ai_tools\t${c_purple}🧠 AI Toolkit${c_dim}  Ollama / Claude / Aider / MCP${c_reset}\n"
-    choices+="mcp\t${c_cyan}🔌 MCP Manager${c_dim}  Model Context Protocol${c_reset}\n"
+    # Build Interactive Menu Choices — grouped by category
+    local choices=""
+
+    # ── Daily Driver (top, highlighted) ──
+    choices+="default\t${c_green}${c_bold}⚙️  Default Shell${c_reset}${c_dim}      Standard Dev · daily driver${c_reset}\n"
+
+    # ── Workflow Profiles ──
+    choices+="security\t${c_pink}🔐 Security${c_reset}${c_dim}           Pentesting · Scanners · OSINT${c_reset}\n"
+    choices+="cloud\t${c_cyan}☁️  Cloud${c_reset}${c_dim}              AWS · K8s · Terraform${c_reset}\n"
+    choices+="devops\t${c_green}🏗️  DevOps${c_reset}${c_dim}             CI/CD · Monitoring · IaC${c_reset}\n"
+    choices+="ai\t${c_purple}🤖 AI${c_reset}${c_dim}                 LLMs · Embeddings · MLOps${c_reset}\n"
+    choices+="research\t${c_orange}🔬 Research${c_reset}${c_dim}           Datasets · Scraping · NLP${c_reset}\n"
+    choices+="cortex\t${c_pink}🛡️  Cortex${c_reset}${c_dim}             XSOAR · XSIAM · PAN-OS${c_reset}\n"
+    choices+="local\t${c_green}🛠️  Local${c_reset}${c_dim}              Custom Built CLI Tools${c_reset}\n"
+
+    # ── Tools ──
+    choices+="─\t${c_dim}───────────────────────────────────────────────${c_reset}\n"
+    choices+="homelab\t${c_orange}📡 HomeLab${c_reset}${c_dim}            SSH Topology Manager${c_reset}\n"
+    choices+="tunnel\t${c_cyan}🔗 SSH Tunnels${c_reset}${c_dim}        Port Forwards · SOCKS${c_reset}\n"
+    choices+="ai_tools\t${c_purple}🧠 AI Toolkit${c_reset}${c_dim}         Ollama · Claude · Aider${c_reset}\n"
+    choices+="mcp\t${c_cyan}🔌 MCP Manager${c_reset}${c_dim}        Model Context Protocol${c_reset}\n"
     choices+="claude\t${c_orange}💻 Claude Code${c_reset}\n"
-    choices+="tmux\t${c_green}🪟 TMUX${c_dim}  Attach or New Session${c_reset}\n"
-    choices+="yazi\t${c_cyan}📂 Yazi${c_dim}  File Browser${c_reset}\n"
-    choices+="update\t${c_yellow}🔧 System Update${c_dim}  Brew & NPM${c_reset}\n"
+
+    # ── System ──
+    choices+="─\t${c_dim}───────────────────────────────────────────────${c_reset}\n"
+    choices+="tmux\t${c_green}🪟 TMUX${c_reset}${c_dim}               Attach or New Session${c_reset}\n"
+    choices+="yazi\t${c_cyan}📂 Yazi${c_reset}${c_dim}               File Browser${c_reset}\n"
+    choices+="update\t${c_yellow}🔧 System Update${c_reset}${c_dim}      Brew · NPM · Pip${c_reset}\n"
     choices+="doc\t${c_dim}📖 CLI Docs & Help${c_reset}\n"
     choices+="top\t${c_dim}📊 System Monitor${c_reset}\n"
-    choices+="skip\t${c_white}💻 Exit to Shell${c_reset}\n"
+    choices+="skip\t${c_white}↩  Shell${c_reset}${c_dim}              Exit to prompt${c_reset}\n"
 
     # Launch fzf menu
     local selection
     selection=$(echo -e "$choices" | column -s $'\t' -t | fzf \
-        --height=18 --reverse --margin=0,0,0,4 \
+        --height=24 --reverse --margin=0,0,0,4 \
         --prompt="▶ " \
-        --header="  ↑/↓ navigate · ENTER select (default) · ESC shell" \
+        --header="  ENTER default · ↑/↓ navigate · ESC shell" \
         --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff" \
         --ansi \
-        || echo "skip")
+        || echo "default")
 
     # Extract just the lookup key from the selection line
     local key=$(echo "$selection" | awk '{print $1}')
 
+    # Separator lines are not selectable actions
+    [[ "$key" == "─" ]] && key="default"
+    # Empty = user pressed ESC with no override → default
+    [[ -z "$key" ]] && key="default"
+
     # Process choice directly into the shell session
     case "$key" in
         skip)
-            # Default exit: do nothing, proceed to standard shell
+            # Exit to bare shell — no profile loaded
             ;;
         default|security|cloud|devops|research|ai|cortex|local)
             export CLAW_ACTIVE_PROFILE="$key"
@@ -108,6 +124,10 @@ function claw_welcome_tui() {
             if command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
                 echo ""
                 fastfetch -c "$_ff_profile"
+            fi
+            # Default profile: show quick-ref cheatsheet
+            if [[ "$key" == "default" ]]; then
+                _claw_default_quickref
             fi
             ;;
         homelab)
@@ -168,8 +188,35 @@ function claw_welcome_tui() {
             if command -v btop &> /dev/null; then btop; else top; fi
             ;;
         *)
-            # Fallback for empty or unrecognized input
+            # Fallback: load default profile
+            export CLAW_ACTIVE_PROFILE="default"
+            [[ -f "$_d/shell/profiles/default.zsh" ]] && source "$_d/shell/profiles/default.zsh"
             ;;
     esac
 }
 
+# ============================================
+# DEFAULT PROFILE QUICK-REFERENCE CHEATSHEET
+# Displayed inline after default profile loads
+# ============================================
+_claw_default_quickref() {
+    local c_reset=$'\e[0m'
+    local c_cyan=$'\e[38;2;88;166;255m'
+    local c_green=$'\e[38;2;63;185;80m'
+    local c_purple=$'\e[38;2;188;140;255m'
+    local c_orange=$'\e[38;2;210;153;34m'
+    local c_dim=$'\e[38;2;139;148;158m'
+    local c_white=$'\e[38;2;201;209;217m'
+    local c_bold=$'\e[1m'
+
+    echo ""
+    echo "  ${c_purple}╭──────────────────────────────────────────────────────────╮${c_reset}"
+    echo "  ${c_purple}│${c_reset}  ${c_cyan}${c_bold}Quick Reference${c_reset}                ${c_dim}type ${c_white}default-help${c_dim} for more${c_reset}  ${c_purple}│${c_reset}"
+    echo "  ${c_purple}╰──────────────────────────────────────────────────────────╯${c_reset}"
+    echo ""
+    echo "  ${c_green}Navigation${c_reset}     ${c_white}z${c_reset} ${c_dim}smart cd${c_reset}  ${c_white}Ctrl+R${c_reset} ${c_dim}history${c_reset}  ${c_white}Ctrl+T${c_reset} ${c_dim}find files${c_reset}"
+    echo "  ${c_cyan}Modern CLI${c_reset}     ${c_white}ls${c_reset} ${c_dim}eza${c_reset}  ${c_white}cat${c_reset} ${c_dim}bat${c_reset}  ${c_white}grep${c_reset} ${c_dim}rg${c_reset}  ${c_white}find${c_reset} ${c_dim}fd${c_reset}  ${c_white}diff${c_reset} ${c_dim}delta${c_reset}  ${c_white}top${c_reset} ${c_dim}btop${c_reset}"
+    echo "  ${c_orange}Workflows${c_reset}      ${c_white}tun${c_reset} ${c_dim}tunnels${c_reset}  ${c_white}glg${c_reset} ${c_dim}lazygit${c_reset}  ${c_white}lzd${c_reset} ${c_dim}lazydocker${c_reset}  ${c_white}fkill${c_reset} ${c_dim}proc kill${c_reset}"
+    echo "  ${c_purple}Help${c_reset}           ${c_white}default-help${c_reset} ${c_dim}full ref${c_reset}  ${c_white}dothelp${c_reset} ${c_dim}docs${c_reset}  ${c_white}halp${c_reset} ${c_dim}tldr${c_reset}"
+    echo ""
+}

@@ -22,20 +22,31 @@
   },
   "modules": [
     { "type": "title", "format": "{user-name}@{host-name}", "key": " " },
-    { "type": "separator", "string": "─────────────────────────" },
+    { "type": "separator", "string": "─────────────────────────────" },
     { "type": "os", "key": "  OS" },
     { "type": "host", "key": "  HW" },
     { "type": "cpu", "key": "  CPU" },
+    { "type": "gpu", "key": "  GPU" },
     { "type": "memory", "key": "  MEM" },
     { "type": "disk", "key": "  DSK", "folders": "/" },
-    { "type": "localip", "key": "  IP" },
-    { "type": "uptime", "key": "  UP" },
-    { "type": "separator", "string": "─────────────────────────" },
+    { "type": "battery", "key": "  BAT" },
+    { "type": "separator", "string": "─────────────────────────────" },
     { "type": "shell", "key": "  SH" },
     { "type": "terminal", "key": "  TERM" },
     { "type": "packages", "key": "  PKG" },
-    { "type": "battery", "key": "  BAT" },
-    { "type": "separator", "string": "─────────────────────────" },
+    { "type": "uptime", "key": "  UP" },
+    { "type": "localip", "key": "  IP" },
+    {
+      "type": "command",
+      "key": "  GIT",
+      "text": "git -C ~ config user.name 2>/dev/null || echo 'n/a'"
+    },
+    {
+      "type": "command",
+      "key": "  DATE",
+      "text": "date '+%A, %B %d  %H:%M'"
+    },
+    { "type": "separator", "string": "─────────────────────────────" },
     { "type": "colors", "paddingLeft": 2, "symbol": "circle" }
   ]
 }
