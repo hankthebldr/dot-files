@@ -44,7 +44,7 @@
     {
       "type": "command",
       "key": "  VPN",
-      "text": "if scutil --nwi 2>/dev/null | grep -q utun; then echo 'connected'; else echo 'off'; fi"
+      "text": "if command -v scutil >/dev/null; then if scutil --nwi 2>/dev/null | grep -q utun; then echo 'connected'; else echo 'off'; fi; elif ip link show 2>/dev/null | grep -qE 'tun0|wg0'; then echo 'connected'; else echo 'off'; fi"
     },
     { "type": "packages", "key": "  PKG" },
     { "type": "battery", "key": "  BAT" },

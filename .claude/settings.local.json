@@ -93,7 +93,8 @@
       "Bash(zsh -n /Users/henry/Github/Github_desktop/dot-files/shell/.zshrc)",
       "Bash(zsh -n /Users/henry/Github/Github_desktop/dot-files/shell/profiles/default.zsh)",
       "Bash(command ls:*)",
-      "Bash(zsh --no-rcs -c 'source /Users/henry/.zshrc')"
+      "Bash(zsh --no-rcs -c 'source /Users/henry/.zshrc')",
+      "Bash(zsh --no-rcs -c 'source /Users/henry/Github/Github_desktop/dot-files/shell/.zshrc; echo \"\"DOTFILES_DIR=$DOTFILES_DIR\"\"; echo \"\"CLAW_OS=$CLAW_OS\"\"; echo \"\"HOMEBREW_PREFIX=$HOMEBREW_PREFIX\"\"; echo \"\"EXIT=$?\"\"')"
     ],
     "deny": [],
     "ask": []

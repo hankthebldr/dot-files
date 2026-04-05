@@ -357,14 +357,60 @@ alias info='fastfetch'
 alias sysinfo='fastfetch'
 alias fetch='fastfetch'
 
-# Network
+# ── Network Inspection ──
 alias myip='curl -s ifconfig.me'
-alias localip='ipconfig getifaddr en0'
-alias ips='ifconfig | grep "inet " | grep -v 127.0.0.1'
+alias localip='local_ip'  # cross-platform via platform.zsh
+alias ips='ip -br addr 2>/dev/null || ifconfig | grep "inet " | grep -v 127.0.0.1'
 alias ping='ping -c 5'
-alias speed='networkQuality'
+# speed alias set by platform.zsh (networkQuality on macOS, speedtest on Linux)
 alias ports='lsof -iTCP -sTCP:LISTEN -n -P'
 alias http='httpie'
+
+# DNS & Routing
+alias dns='dig +short'
+alias dnsfull='dig +trace'
+alias dnsflush='if [[ "$OSTYPE" == "darwin"* ]]; then sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder; else sudo systemd-resolve --flush-caches 2>/dev/null || sudo resolvectl flush-caches; fi && echo "DNS cache flushed"'
+alias gateway='ip route 2>/dev/null | grep default | awk "{print \$3}" || route -n get default 2>/dev/null | grep gateway | awk "{print \$2}"'
+alias tracert='traceroute'
+
+# Connection inspection
+alias conns='ss -tunap 2>/dev/null || netstat -tunap 2>/dev/null'
+alias listening='ss -tlnp 2>/dev/null || lsof -iTCP -sTCP:LISTEN -n -P'
+alias established='ss -tnp state established 2>/dev/null || lsof -iTCP -sTCP:ESTABLISHED -n -P'
+alias whoison='arp -a'
+
+# HTTP & API testing
+alias headers='curl -sI'
+alias status='curl -so /dev/null -w "%{http_code}"'
+alias timing='curl -so /dev/null -w "DNS: %{time_namelookup}s\nConnect: %{time_connect}s\nTLS: %{time_appconnect}s\nFirst byte: %{time_starttransfer}s\nTotal: %{time_total}s\n"'
+
+# Bandwidth & monitoring
+if command -v bandwhich &>/dev/null; then
+    alias bw='sudo bandwhich'
+fi
+if command -v nethogs &>/dev/null; then
+    alias nethogs='sudo nethogs'
+fi
+
+# Quick network diagnostics
+netcheck() {
+    local c_green=$'\e[38;2;63;185;80m' c_red=$'\e[38;2;255;123;114m'
+    local c_cyan=$'\e[38;2;88;166;255m' c_dim=$'\e[38;2;139;148;158m' c_reset=$'\e[0m'
+    echo ""
+    echo "  ${c_cyan}Network Diagnostics${c_reset}"
+    echo "  ${c_dim}────────────────────────────────────${c_reset}"
+    printf "  %-18s %s\n" "Local IP:" "$(local_ip 2>/dev/null)"
+    printf "  %-18s %s\n" "Public IP:" "$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo 'unreachable')"
+    printf "  %-18s %s\n" "Gateway:" "$(ip route 2>/dev/null | grep default | awk '{print $3}' || route -n get default 2>/dev/null | grep gateway | awk '{print $2}' || echo 'n/a')"
+    printf "  %-18s %s\n" "DNS:" "$(cat /etc/resolv.conf 2>/dev/null | grep nameserver | head -1 | awk '{print $2}' || echo 'n/a')"
+    printf "  %-18s " "Internet:"
+    if ping -c1 -W2 1.1.1.1 &>/dev/null; then echo "${c_green}online${c_reset}"; else echo "${c_red}offline${c_reset}"; fi
+    printf "  %-18s " "DNS resolve:"
+    if ping -c1 -W2 google.com &>/dev/null; then echo "${c_green}working${c_reset}"; else echo "${c_red}failing${c_reset}"; fi
+    printf "  %-18s %s\n" "VPN:" "$(vpn_status 2>/dev/null || echo 'n/a')"
+    printf "  %-18s %s\n" "Listening ports:" "$(ss -tlnp 2>/dev/null | tail -n +2 | wc -l | tr -d ' ' || lsof -iTCP -sTCP:LISTEN -n -P 2>/dev/null | tail -n +2 | wc -l | tr -d ' ') services"
+    echo ""
+}
 
 # Tmux shortcuts
 alias ta='tmux attach -t'
@@ -430,7 +476,7 @@ alias certdates='openssl x509 -noout -dates -in'
 
 # SSH
 alias sshconfig='$EDITOR ~/.ssh/config'
-alias sshkey='cat ~/.ssh/id_ed25519.pub | pbcopy && echo "SSH key copied to clipboard"'
+alias sshkey='cat ~/.ssh/id_ed25519.pub | clip_copy && echo "SSH key copied to clipboard"'
 
 # SSH Tunnel Manager
 alias tun='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/tunnel-manager.sh'
@@ -443,12 +489,14 @@ alias tuntopo='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/tunnel-manager.sh 
 # ============================================
 
 # Clipboard
-alias copy='pbcopy'
-alias paste='pbpaste'
+# copy/paste aliases set by platform.zsh (pbcopy on macOS, xclip on Linux)
 
 # Finder
-alias showfiles='defaults write com.apple.finder AppleShowAllFiles YES; killall Finder'
-alias hidefiles='defaults write com.apple.finder AppleShowAllFiles NO; killall Finder'
+# macOS-only: show/hide hidden files in Finder
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    alias showfiles='defaults write com.apple.finder AppleShowAllFiles YES; killall Finder'
+    alias hidefiles='defaults write com.apple.finder AppleShowAllFiles NO; killall Finder'
+fi
 
 # Clean up
 alias cleanup='find . -type f -name "*.DS_Store" -ls -delete'
@@ -608,10 +656,10 @@ sshmykey() {
 # Copy SSH key to clipboard
 sshcopy() {
     if [[ -f ~/.ssh/id_ed25519.pub ]]; then
-        cat ~/.ssh/id_ed25519.pub | pbcopy
+        cat ~/.ssh/id_ed25519.pub | clip_copy
         echo "✅ Copied id_ed25519.pub to clipboard"
     elif [[ -f ~/.ssh/id_rsa.pub ]]; then
-        cat ~/.ssh/id_rsa.pub | pbcopy
+        cat ~/.ssh/id_rsa.pub | clip_copy
         echo "✅ Copied id_rsa.pub to clipboard"
     else
         echo "❌ No standard SSH public key found."

@@ -4,25 +4,29 @@
     "source": "~/.dotfiles/config/.config/fastfetch/logo-default.txt",
     "type": "file",
     "color": {
-      "1": "38;2;88;166;255",
-      "2": "38;2;188;140;255",
-      "3": "38;2;63;185;80",
+      "1": "38;2;63;185;80",
+      "2": "38;2;88;166;255",
+      "3": "38;2;188;140;255",
       "4": "38;2;210;153;34",
-      "5": "38;2;88;166;255",
+      "5": "38;2;255;123;114",
       "6": "38;2;139;148;158"
     },
-    "padding": { "top": 1, "left": 2, "right": 3 }
+    "padding": { "top": 0, "left": 2, "right": 3 }
   },
   "display": {
     "separator": "  ",
     "color": {
       "keys": "38;2;88;166;255",
-      "title": "38;2;188;140;255"
+      "title": "38;2;63;185;80"
     }
   },
   "modules": [
-    { "type": "title", "format": "{user-name}@{host-name}", "key": " " },
-    { "type": "separator", "string": "─────────────────────────────" },
+    {
+      "type": "title",
+      "format": "{user-name-colored}@{host-name-colored}",
+      "key": " "
+    },
+    { "type": "separator", "string": "───────────────────────────────" },
     { "type": "os", "key": "  OS" },
     { "type": "host", "key": "  HW" },
     { "type": "cpu", "key": "  CPU" },
@@ -30,23 +34,18 @@
     { "type": "memory", "key": "  MEM" },
     { "type": "disk", "key": "  DSK", "folders": "/" },
     { "type": "battery", "key": "  BAT" },
-    { "type": "separator", "string": "─────────────────────────────" },
+    { "type": "separator", "string": "───────────────────────────────" },
     { "type": "shell", "key": "  SH" },
     { "type": "terminal", "key": "  TERM" },
     { "type": "packages", "key": "  PKG" },
-    { "type": "uptime", "key": "  UP" },
     { "type": "localip", "key": "  IP" },
-    {
-      "type": "command",
-      "key": "  GIT",
-      "text": "git -C ~ config user.name 2>/dev/null || echo 'n/a'"
-    },
+    { "type": "uptime", "key": "  UP" },
     {
       "type": "command",
       "key": "  DATE",
-      "text": "date '+%A, %B %d  %H:%M'"
+      "text": "date '+%A, %b %d  %H:%M'"
     },
-    { "type": "separator", "string": "─────────────────────────────" },
+    { "type": "separator", "string": "───────────────────────────────" },
     { "type": "colors", "paddingLeft": 2, "symbol": "circle" }
   ]
 }

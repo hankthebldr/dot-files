@@ -2,14 +2,14 @@
 # Interactive Open Claw Login Dashboard
 
 function claw_welcome_tui() {
-    # Check if we are running interactively
-    if [[ ! -o interactive ]]; then
-        return
-    fi
+    # SAFETY: Never run in non-interactive shells (breaks scp, rsync, git-over-ssh)
+    [[ ! -o interactive ]] && return
+    # SAFETY: Never run if stdin is not a terminal (piped input)
+    [[ ! -t 0 ]] && return
+    # SAFETY: Never run inside SSH that's piping data (e.g. scp, rsync)
+    [[ -n "$SSH_CONNECTION" && ! -t 1 ]] && return
     # Skip if a profile is already active to prevent infinite loop
-    if [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then
-        return
-    fi
+    [[ -n "$CLAW_ACTIVE_PROFILE" ]] && return
 
     # Use $DOTFILES_DIR set by .zshrc
     local _d="$DOTFILES_DIR"
@@ -43,8 +43,8 @@ function claw_welcome_tui() {
         echo "  ${c_purple}│${c_reset}   ${c_cyan}█▀█ █▀█ █▀▀ █▄░█   ${c_green}█▀▀ █░░ ▄▀█ █░█░█${c_reset}   ${c_purple}│${c_reset}"
         echo "  ${c_purple}│${c_reset}   ${c_cyan}█▄█ █▀▀ ██▄ █░▀█   ${c_green}█▄▄ █▄▄ █▀█ ▀▄▀▄▀${c_reset}   ${c_purple}│${c_reset}"
         echo "  ${c_purple}│${c_reset}                                              ${c_purple}│${c_reset}"
-        echo "  ${c_purple}│${c_reset}   ${c_dim}$(sw_vers -productName 2>/dev/null || echo 'System') $(sw_vers -productVersion 2>/dev/null) · $(uname -m)${c_reset}"
-        echo "  ${c_purple}│${c_reset}   ${c_dim}$(date '+%a %b %d %H:%M') · $(ipconfig getifaddr en0 2>/dev/null || echo 'offline')${c_reset}"
+        echo "  ${c_purple}│${c_reset}   ${c_dim}$(os_version 2>/dev/null || uname -sr) · $(uname -m)${c_reset}"
+        echo "  ${c_purple}│${c_reset}   ${c_dim}$(date '+%a %b %d %H:%M') · $(local_ip 2>/dev/null)${c_reset}"
         echo "  ${c_purple}│${c_reset}                                              ${c_purple}│${c_reset}"
         echo "  ${c_purple}╰──────────────────────────────────────────────╯${c_reset}"
     fi
@@ -205,18 +205,22 @@ _claw_default_quickref() {
     local c_green=$'\e[38;2;63;185;80m'
     local c_purple=$'\e[38;2;188;140;255m'
     local c_orange=$'\e[38;2;210;153;34m'
+    local c_red=$'\e[38;2;255;123;114m'
     local c_dim=$'\e[38;2;139;148;158m'
     local c_white=$'\e[38;2;201;209;217m'
     local c_bold=$'\e[1m'
 
     echo ""
-    echo "  ${c_purple}╭──────────────────────────────────────────────────────────╮${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_cyan}${c_bold}Quick Reference${c_reset}                ${c_dim}type ${c_white}default-help${c_dim} for more${c_reset}  ${c_purple}│${c_reset}"
-    echo "  ${c_purple}╰──────────────────────────────────────────────────────────╯${c_reset}"
-    echo ""
-    echo "  ${c_green}Navigation${c_reset}     ${c_white}z${c_reset} ${c_dim}smart cd${c_reset}  ${c_white}Ctrl+R${c_reset} ${c_dim}history${c_reset}  ${c_white}Ctrl+T${c_reset} ${c_dim}find files${c_reset}"
-    echo "  ${c_cyan}Modern CLI${c_reset}     ${c_white}ls${c_reset} ${c_dim}eza${c_reset}  ${c_white}cat${c_reset} ${c_dim}bat${c_reset}  ${c_white}grep${c_reset} ${c_dim}rg${c_reset}  ${c_white}find${c_reset} ${c_dim}fd${c_reset}  ${c_white}diff${c_reset} ${c_dim}delta${c_reset}  ${c_white}top${c_reset} ${c_dim}btop${c_reset}"
-    echo "  ${c_orange}Workflows${c_reset}      ${c_white}tun${c_reset} ${c_dim}tunnels${c_reset}  ${c_white}glg${c_reset} ${c_dim}lazygit${c_reset}  ${c_white}lzd${c_reset} ${c_dim}lazydocker${c_reset}  ${c_white}fkill${c_reset} ${c_dim}proc kill${c_reset}"
-    echo "  ${c_purple}Help${c_reset}           ${c_white}default-help${c_reset} ${c_dim}full ref${c_reset}  ${c_white}dothelp${c_reset} ${c_dim}docs${c_reset}  ${c_white}halp${c_reset} ${c_dim}tldr${c_reset}"
+    echo "  ${c_purple}╭──────────────────────────────────────────────────────────────────╮${c_reset}"
+    echo "  ${c_purple}│${c_reset}  ${c_cyan}${c_bold}Daily Driver${c_reset}                          ${c_dim}type ${c_white}default-help${c_dim} for full ref${c_reset}  ${c_purple}│${c_reset}"
+    echo "  ${c_purple}├──────────────────────────────────────────────────────────────────┤${c_reset}"
+    echo "  ${c_purple}│${c_reset}                                                                  ${c_purple}│${c_reset}"
+    echo "  ${c_purple}│${c_reset}  ${c_green}${c_bold}Navigate${c_reset}    ${c_white}z${c_reset} ${c_dim}smart cd${c_reset}   ${c_white}Ctrl+R${c_reset} ${c_dim}history${c_reset}   ${c_white}Ctrl+T${c_reset} ${c_dim}find files${c_reset}     ${c_purple}│${c_reset}"
+    echo "  ${c_purple}│${c_reset}  ${c_cyan}${c_bold}Files${c_reset}       ${c_white}ls${c_reset} ${c_dim}eza${c_reset}  ${c_white}cat${c_reset} ${c_dim}bat${c_reset}  ${c_white}find${c_reset} ${c_dim}fd${c_reset}  ${c_white}grep${c_reset} ${c_dim}rg${c_reset}  ${c_white}diff${c_reset} ${c_dim}delta${c_reset}      ${c_purple}│${c_reset}"
+    echo "  ${c_purple}│${c_reset}  ${c_orange}${c_bold}Network${c_reset}     ${c_white}netcheck${c_reset} ${c_dim}diag${c_reset}  ${c_white}ports${c_reset} ${c_dim}listen${c_reset}  ${c_white}myip${c_reset}  ${c_white}dns${c_reset}  ${c_white}headers${c_reset}    ${c_purple}│${c_reset}"
+    echo "  ${c_purple}│${c_reset}  ${c_red}${c_bold}Tools${c_reset}       ${c_white}tun${c_reset} ${c_dim}tunnels${c_reset}  ${c_white}glg${c_reset} ${c_dim}lazygit${c_reset}  ${c_white}lzd${c_reset} ${c_dim}docker${c_reset}  ${c_white}fkill${c_reset}      ${c_purple}│${c_reset}"
+    echo "  ${c_purple}│${c_reset}  ${c_purple}${c_bold}System${c_reset}      ${c_white}top${c_reset} ${c_dim}btop${c_reset}  ${c_white}df${c_reset} ${c_dim}duf${c_reset}  ${c_white}du${c_reset} ${c_dim}dust${c_reset}  ${c_white}reload${c_reset}  ${c_white}update${c_reset}     ${c_purple}│${c_reset}"
+    echo "  ${c_purple}│${c_reset}                                                                  ${c_purple}│${c_reset}"
+    echo "  ${c_purple}╰──────────────────────────────────────────────────────────────────╯${c_reset}"
     echo ""
 }
