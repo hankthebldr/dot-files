@@ -16,7 +16,8 @@ alias lt='eza -l --sort=modified --icons --git'
 alias tree='eza --tree --icons'
 
 # Open Claw & Toolkit
-alias claw='openclaw'
+# claw() function defined below — inline profile switcher
+alias openclaw='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/openclaw.sh'
 alias oc='openclaw'
 alias tk='$DOTFILES_DIR/scripts/utils/toolkit.sh'
 
@@ -423,8 +424,39 @@ alias tkss='tmux kill-session -t'
 # Quick edits
 alias zshrc='$EDITOR ~/.zshrc'
 alias reload='source ~/.zshrc'
+
+# Profile switching (inline, no restart needed)
+claw() {
+    local _d="${DOTFILES_DIR:-$HOME/.dotfiles}"
+    if [[ -z "$1" ]]; then
+        # No args: re-launch FZF profile menu
+        if [[ -f "$_d/shell/welcome-tui.zsh" ]]; then
+            unset CLAW_ACTIVE_PROFILE CLAW_PROFILE_THEME
+            source "$_d/shell/welcome-tui.zsh"
+            claw_welcome_tui
+        fi
+        return
+    fi
+    local profile="$1"
+    local profile_path="$_d/shell/profiles/${profile}.zsh"
+    if [[ ! -f "$profile_path" ]]; then
+        echo "Unknown profile: $profile"
+        echo "Available: default security cloud devops ai research cortex local"
+        return 1
+    fi
+    export CLAW_ACTIVE_PROFILE="$profile"
+    unset CLAW_PROFILE_THEME
+    source "$profile_path"
+    # Show profile fastfetch if available
+    local ff="$_d/config/.config/fastfetch/config-${profile}.jsonc"
+    if command -v fastfetch &>/dev/null && [[ -f "$ff" ]]; then
+        echo ""
+        fastfetch -c "$ff"
+    fi
+}
 alias aliases='$EDITOR $DOTFILES_DIR/shell/aliases.zsh'
-alias vimrc='$EDITOR ~/.vimrc'
+alias vim='nvim'
+alias vimrc='$EDITOR ~/.config/nvim/init.lua'
 
 # Package management
 alias brewup='brew update && brew upgrade && brew cleanup'
@@ -445,9 +477,184 @@ alias logs='tail -f'
 
 # Markdown preview
 unalias md 2>/dev/null
-mdview() {
-    glow "$1"
+mdview() { glow "$1"; }
+
+# ============================================
+# DAILY WORKFLOW TOOLS
+# ============================================
+
+# Quick server
+serve() { python3 -m http.server "${1:-8000}"; }
+
+# Universal archive extractor
+extract() {
+    if [[ ! -f "$1" ]]; then echo "File not found: $1"; return 1; fi
+    case "$1" in
+        *.tar.bz2) tar xjf "$1" ;;
+        *.tar.gz)  tar xzf "$1" ;;
+        *.tar.xz)  tar xJf "$1" ;;
+        *.tar.zst) tar --zstd -xf "$1" ;;
+        *.bz2)     bunzip2 "$1" ;;
+        *.gz)      gunzip "$1" ;;
+        *.tar)     tar xf "$1" ;;
+        *.tbz2)    tar xjf "$1" ;;
+        *.tgz)     tar xzf "$1" ;;
+        *.zip)     unzip "$1" ;;
+        *.Z)       uncompress "$1" ;;
+        *.7z)      7z x "$1" ;;
+        *.rar)     unrar x "$1" ;;
+        *.xz)      unxz "$1" ;;
+        *.zst)     unzstd "$1" ;;
+        *)         echo "Cannot extract: $1" ;;
+    esac
 }
+
+# mkdir + cd
+mkcd() { mkdir -p "$1" && cd "$1"; }
+
+# Weather
+alias weather='curl -s "wttr.in?format=%C+%t+%w+%h"'
+alias weatherfull='curl -s wttr.in'
+
+# Cheat sheets
+cheat() { curl -s "cheat.sh/$1"; }
+
+# JSON pretty printer (pipe-friendly)
+alias json='jq .'
+alias jsonc='jq -C .'
+
+# Word-level diff
+alias diffw='delta --word-diff'
+
+# Watch + re-run on file change
+watchrun() {
+    if [[ -z "$1" || -z "$2" ]]; then
+        echo "Usage: watchrun <file-pattern> <command>"
+        echo "  e.g. watchrun '*.py' 'python main.py'"
+        return 1
+    fi
+    find . -name "$1" | entr -c sh -c "$2"
+}
+
+# Quick calculator
+calc() { echo "$@" | bc -l; }
+
+# URL encode/decode
+urlencode() { python3 -c "import urllib.parse; print(urllib.parse.quote('$1'))"; }
+urldecode() { python3 -c "import urllib.parse; print(urllib.parse.unquote('$1'))"; }
+
+# Base64
+alias b64e='base64'
+alias b64d='base64 -d'
+
+# ============================================
+# FZF POWER FEATURES
+# ============================================
+
+# Fuzzy process killer
+fkill() {
+    local pid
+    pid=$(ps aux | sed 1d | fzf -m --header='Select process(es) to kill' \
+        --preview='echo {}' --preview-window=down:3:wrap \
+        --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950" | \
+        awk '{print $2}')
+    if [[ -n "$pid" ]]; then
+        echo "$pid" | xargs kill -9
+        echo "Killed: $pid"
+    fi
+}
+
+# Fuzzy cd into any subdirectory
+fcd() {
+    local dir
+    dir=$(find "${1:-.}" -type d -not -path '*/\.*' 2>/dev/null | fzf \
+        --preview='ls -la {}' \
+        --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950" \
+        +m) && cd "$dir"
+}
+
+# Fuzzy git branch switcher with log preview
+fgit() {
+    local branch
+    branch=$(git branch -a --sort=-committerdate | sed 's/^[* ]*//' | fzf \
+        --header='Switch branch' \
+        --preview='git log --oneline --graph --color=always {} -- | head -30' \
+        --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950") \
+        && git checkout "$(echo "$branch" | sed 's|remotes/origin/||')"
+}
+
+# Fuzzy git log with diff preview
+flog() {
+    git log --oneline --color=always | fzf --ansi --no-sort \
+        --preview='git show --color=always {1}' \
+        --preview-window='right:60%' \
+        --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950" \
+        --bind='enter:execute(git show --color=always {1} | less -R)'
+}
+
+# Fuzzy environment variable viewer
+fenv() {
+    env | sort | fzf \
+        --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950"
+}
+
+# Configure FZF file finder to use bat preview
+export FZF_CTRL_T_OPTS="--preview 'bat --style=numbers --color=always --line-range=:300 {} 2>/dev/null || ls -la {}' --preview-window='right:60%:wrap'"
+export FZF_ALT_C_OPTS="--preview 'ls -la {} | head -20'"
+
+# ============================================
+# GIT WORKFLOW ENHANCEMENTS
+# ============================================
+
+# Quick WIP commit
+gwip() { git add -A && git commit -m "wip: $(date '+%Y-%m-%d %H:%M')"; }
+
+# Interactive conventional commit (with gum or fallback)
+gcommit() {
+    if command -v gum &>/dev/null; then
+        local type scope msg
+        type=$(gum choose "feat" "fix" "refactor" "docs" "style" "test" "chore" "perf" "ci" "build")
+        scope=$(gum input --placeholder "scope (optional)")
+        msg=$(gum input --placeholder "commit message")
+        [[ -n "$scope" ]] && type="${type}(${scope})"
+        git commit -m "${type}: ${msg}"
+    else
+        echo -n "Type (feat/fix/refactor/docs/chore): " && read type
+        echo -n "Message: " && read msg
+        git commit -m "${type}: ${msg}"
+    fi
+}
+
+# Interactive branch cleanup (delete merged branches)
+gclean() {
+    local branches
+    branches=$(git branch --merged | grep -v '\*\|main\|master\|develop' | \
+        fzf -m --header='Select merged branches to delete (TAB to multi-select)' \
+        --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950")
+    if [[ -n "$branches" ]]; then
+        echo "$branches" | xargs git branch -d
+    fi
+}
+
+# Quick PR creation (with gum or fallback)
+gpr() {
+    if ! command -v gh &>/dev/null; then echo "gh CLI required"; return 1; fi
+    if command -v gum &>/dev/null; then
+        local title body
+        title=$(gum input --placeholder "PR title")
+        body=$(gum write --placeholder "PR description (Ctrl+D to finish)")
+        gh pr create --title "$title" --body "$body"
+    else
+        gh pr create
+    fi
+}
+
+# Git status shortcut with nice format
+alias gs='git status -sb'
+alias gd='git diff --color-moved'
+alias gds='git diff --staged --color-moved'
+alias gl='git log --oneline --graph --color --decorate -20'
+alias gla='git log --oneline --graph --color --decorate --all -30'
 
 # ============================================
 # SECURITY & SCANNING
@@ -483,6 +690,9 @@ alias tun='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/tunnel-manager.sh'
 alias tunls='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/tunnel-manager.sh --list'
 alias tunkill='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/tunnel-manager.sh --kill-all'
 alias tuntopo='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/tunnel-manager.sh --topology'
+
+# SSH Remote Deployment
+alias ssh-deploy='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/ssh-deploy.sh'
 
 # ============================================
 # MACOS SPECIFIC

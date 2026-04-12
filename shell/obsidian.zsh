@@ -9,7 +9,7 @@ export OBSIDIAN_VAULT="$HOME/vault-main"
 # Aliases
 # --------------------------------------------
 alias o='cd "$OBSIDIAN_VAULT" && ls -lt'
-alias obs='open -a "Obsidian"'
+alias obs='claw_open "obsidian://"'
 
 # --------------------------------------------
 # Functions
@@ -31,7 +31,7 @@ function on() {
     fi
     
     # Open in Obsidian via URI
-    open "obsidian://open?vault=$(basename "$OBSIDIAN_VAULT")&file=$(urlencode "$note_name")"
+    claw_open "obsidian://open?vault=$(basename "$OBSIDIAN_VAULT")&file=$(urlencode "$note_name")"
 }
 
 # os: Obsidian Search (Content) using Ripgrep + FZF
@@ -39,7 +39,7 @@ function on() {
 function os() {
     if [ -z "$1" ]; then
         # If no argument, just fuzzy find file names
-        cd "$OBSIDIAN_VAULT" && fzf --preview 'bat --style=numbers --color=always {}' | xargs -I {} open "obsidian://open?vault=$(basename "$OBSIDIAN_VAULT")&file={}"
+        cd "$OBSIDIAN_VAULT" && fzf --preview 'bat --style=numbers --color=always {}' | xargs -I {} claw_open "obsidian://open?vault=$(basename "$OBSIDIAN_VAULT")&file={}"
     else
         # Search content with ripgrep and feed to fzf
         cd "$OBSIDIAN_VAULT" && rg --line-number --no-heading --color=always --smart-case "$1" | \
@@ -47,7 +47,7 @@ function os() {
               --delimiter : \
               --preview 'bat --style=numbers --color=always {1} --highlight-line {2}' \
               --preview-window 'up,60%,border-bottom,+{2}+3/3,~3' \
-              --bind 'enter:become(open "obsidian://open?vault=$(basename "$OBSIDIAN_VAULT")&file={1}")'
+              --bind 'enter:become(claw_open "obsidian://open?vault=$(basename "$OBSIDIAN_VAULT")&file={1}")'
     fi
 }
 

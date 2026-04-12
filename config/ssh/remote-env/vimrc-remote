@@ -1,0 +1,154 @@
+" ==============================================================================
+" Deployed by Open Claw ssh-deploy
+" ==============================================================================
+" Portable vim/nvim config. No plugins required. Works with vim 7.4+ and nvim.
+" ==============================================================================
+
+" --- Core ---
+syntax on
+filetype plugin indent on
+set nocompatible
+set encoding=utf-8
+set fileencoding=utf-8
+
+" --- Line Numbers ---
+set number
+set relativenumber
+set cursorline
+
+" --- Indentation ---
+set expandtab
+set shiftwidth=4
+set tabstop=4
+set softtabstop=4
+set autoindent
+set smartindent
+
+" --- Search ---
+set incsearch
+set hlsearch
+set ignorecase
+set smartcase
+
+" --- Completion ---
+set wildmenu
+set wildmode=longest:full,full
+set wildignore+=*.o,*.obj,*.pyc,*.class,*.swp,*~
+
+" --- Mouse & Clipboard ---
+set mouse=a
+if has('unnamedplus')
+    set clipboard=unnamedplus
+endif
+
+" --- Scrolling & Display ---
+set scrolloff=8
+set sidescrolloff=8
+set signcolumn=yes
+set showmatch
+set laststatus=2
+set showcmd
+set noshowmode
+
+" --- Performance ---
+set lazyredraw
+set updatetime=300
+set timeoutlen=500
+
+" --- Files ---
+set nobackup
+set nowritebackup
+set noswapfile
+set hidden
+set autoread
+
+" --- Colors ---
+if has('termguicolors')
+    set termguicolors
+endif
+
+" Use a sensible built-in colorscheme (no external themes needed)
+" habamax is available in vim 9+ and nvim; fall back to slate
+try
+    colorscheme habamax
+catch
+    try
+        colorscheme slate
+    catch
+        " Last resort: desert is available everywhere
+        colorscheme desert
+    endtry
+endtry
+
+" --- Leader Key ---
+let mapleader = " "
+
+" --- Key Mappings ---
+" Save / Quit
+nnoremap <leader>w :w<CR>
+nnoremap <leader>q :q<CR>
+nnoremap <leader>x :x<CR>
+
+" Clear search highlight
+nnoremap <leader>h :nohlsearch<CR>
+
+" Escape with jk
+inoremap jk <Esc>
+
+" Move between splits
+nnoremap <C-h> <C-w>h
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nnoremap <C-l> <C-w>l
+
+" Resize splits
+nnoremap <C-Up>    :resize +2<CR>
+nnoremap <C-Down>  :resize -2<CR>
+nnoremap <C-Left>  :vertical resize -2<CR>
+nnoremap <C-Right> :vertical resize +2<CR>
+
+" Move lines up/down in visual mode
+vnoremap J :m '>+1<CR>gv=gv
+vnoremap K :m '<-2<CR>gv=gv
+
+" Keep cursor centered when scrolling
+nnoremap <C-d> <C-d>zz
+nnoremap <C-u> <C-u>zz
+
+" Better indenting in visual mode
+vnoremap < <gv
+vnoremap > >gv
+
+" Buffer navigation
+nnoremap <leader>bn :bnext<CR>
+nnoremap <leader>bp :bprevious<CR>
+nnoremap <leader>bd :bdelete<CR>
+
+" Quick access to vimrc
+nnoremap <leader>ve :edit $MYVIMRC<CR>
+nnoremap <leader>vr :source $MYVIMRC<CR>
+
+" --- Status Line (pure vimscript, no plugins) ---
+set statusline=
+set statusline+=%#PmenuSel#
+set statusline+=\ %{toupper(mode())}\
+set statusline+=%#LineNr#
+set statusline+=\ %f
+set statusline+=%m
+set statusline+=%r
+set statusline+=%=
+set statusline+=%#CursorColumn#
+set statusline+=\ %y
+set statusline+=\ %{&fileencoding?&fileencoding:&encoding}
+set statusline+=\[%{&fileformat}\]
+set statusline+=\ %l:%c
+set statusline+=\ %p%%
+set statusline+=\
+
+" --- Netrw (built-in file explorer) ---
+let g:netrw_banner = 0
+let g:netrw_liststyle = 3
+let g:netrw_browse_split = 4
+let g:netrw_altv = 1
+let g:netrw_winsize = 25
+nnoremap <leader>e :Lexplore<CR>

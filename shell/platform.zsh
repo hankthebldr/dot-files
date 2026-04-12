@@ -43,13 +43,14 @@ else
 fi
 
 # ── Open URLs/Files ──────────────────────────────────────
-# Usage: sysopen "https://example.com"  /  sysopen file.pdf
+# Usage: claw_open "https://example.com"  /  claw_open file.pdf
+# NOTE: DO NOT name this 'sysopen' — zsh has a builtin 'sysopen' used by p10k
 if [[ "$CLAW_OS" == "macos" ]]; then
-    sysopen() { open "$@"; }
+    claw_open() { open "$@"; }
 elif command -v xdg-open &>/dev/null; then
-    sysopen() { xdg-open "$@"; }
+    claw_open() { xdg-open "$@"; }
 else
-    sysopen() { echo "No opener found (install xdg-utils)"; }
+    claw_open() { echo "No opener found (install xdg-utils)"; }
 fi
 
 # ── Local IP ─────────────────────────────────────────────

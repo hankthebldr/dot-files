@@ -1,0 +1,179 @@
+# ==============================================================================
+# Deployed by Open Claw ssh-deploy — portable, zero-dependency
+# ==============================================================================
+# Self-contained zshrc for remote machines. No external tools required.
+# Modern CLI tools are aliased if detected, with standard fallbacks.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# History
+# ------------------------------------------------------------------------------
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt SHARE_HISTORY
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_REDUCE_BLANKS
+setopt HIST_IGNORE_SPACE
+setopt APPEND_HISTORY
+setopt INC_APPEND_HISTORY
+
+# ------------------------------------------------------------------------------
+# Shell Options
+# ------------------------------------------------------------------------------
+setopt AUTO_CD
+setopt AUTO_PUSHD
+setopt PUSHD_IGNORE_DUPS
+setopt INTERACTIVE_COMMENTS
+setopt EXTENDED_GLOB
+setopt NO_BEEP
+
+# ------------------------------------------------------------------------------
+# Open Claw Palette (GitHub Dark theme — true color)
+# ------------------------------------------------------------------------------
+_OC_GREEN="%{\e[38;2;63;185;80m%}"
+_OC_BLUE="%{\e[38;2;88;166;255m%}"
+_OC_PURPLE="%{\e[38;2;188;140;255m%}"
+_OC_DIM="%{\e[38;2;139;148;158m%}"
+_OC_RESET="%{\e[0m%}"
+
+# ------------------------------------------------------------------------------
+# Git Branch (pure zsh, no external tools)
+# ------------------------------------------------------------------------------
+_oc_git_branch() {
+    local branch=""
+    if [ -d .git ] || git rev-parse --git-dir &>/dev/null 2>&1; then
+        branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
+        if [ -n "$branch" ]; then
+            echo " ${_OC_DIM}on${_OC_RESET} ${_OC_PURPLE}${branch}${_OC_RESET}"
+        fi
+    fi
+}
+
+# ------------------------------------------------------------------------------
+# Prompt
+# ------------------------------------------------------------------------------
+setopt PROMPT_SUBST
+PROMPT='${_OC_GREEN}%m${_OC_RESET} ${_OC_DIM}in${_OC_RESET} ${_OC_BLUE}%~${_OC_RESET}$(_oc_git_branch) ${_OC_DIM}%#${_OC_RESET} '
+
+# ------------------------------------------------------------------------------
+# Modern CLI Tool Detection (use if available, fallback to standard)
+# ------------------------------------------------------------------------------
+if command -v eza &>/dev/null; then
+    alias ls='eza --icons --group-directories-first'
+    alias ll='eza -la --icons --group-directories-first --git'
+    alias la='eza -a --icons --group-directories-first'
+    alias lt='eza --tree --level=2 --icons'
+else
+    alias ls='ls --color=auto 2>/dev/null || ls -G'
+    alias ll='ls -alh'
+    alias la='ls -A'
+    alias lt='find . -maxdepth 2 -print | head -100'
+fi
+
+if command -v bat &>/dev/null; then
+    alias cat='bat --paging=never'
+elif command -v batcat &>/dev/null; then
+    alias cat='batcat --paging=never'
+fi
+
+if command -v rg &>/dev/null; then
+    alias grep='rg'
+else
+    alias grep='grep --color=auto'
+fi
+
+if command -v fd &>/dev/null; then
+    alias find='fd'
+elif command -v fdfind &>/dev/null; then
+    alias find='fdfind'
+fi
+
+if command -v zoxide &>/dev/null; then
+    eval "$(zoxide init zsh)"
+fi
+
+# ------------------------------------------------------------------------------
+# Safety Aliases
+# ------------------------------------------------------------------------------
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# ------------------------------------------------------------------------------
+# Quick Aliases
+# ------------------------------------------------------------------------------
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias cls='clear'
+alias h='history'
+alias j='jobs -l'
+alias path='echo $PATH | tr ":" "\n"'
+alias now='date +"%Y-%m-%d %H:%M:%S"'
+
+# ------------------------------------------------------------------------------
+# Network Aliases (cross-platform)
+# ------------------------------------------------------------------------------
+alias myip='curl -s https://ifconfig.me'
+alias localip='ifconfig 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | awk "{print \$2}" || ip -4 addr show 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | awk "{print \$2}" | cut -d/ -f1'
+alias ports='ss -tulnp 2>/dev/null || netstat -tulnp 2>/dev/null || lsof -i -P -n 2>/dev/null'
+
+# ------------------------------------------------------------------------------
+# Utility Functions
+# ------------------------------------------------------------------------------
+
+# Create directory and cd into it
+mkcd() {
+    mkdir -p "$1" && cd "$1"
+}
+
+# Extract archives (supports common formats)
+extract() {
+    if [ -f "$1" ]; then
+        case "$1" in
+            *.tar.bz2)   tar xjf "$1"    ;;
+            *.tar.gz)    tar xzf "$1"    ;;
+            *.tar.xz)    tar xJf "$1"    ;;
+            *.bz2)       bunzip2 "$1"    ;;
+            *.rar)       unrar x "$1"    ;;
+            *.gz)        gunzip "$1"     ;;
+            *.tar)       tar xf "$1"     ;;
+            *.tbz2)      tar xjf "$1"    ;;
+            *.tgz)       tar xzf "$1"    ;;
+            *.zip)       unzip "$1"      ;;
+            *.Z)         uncompress "$1" ;;
+            *.7z)        7z x "$1"       ;;
+            *.xz)        xz -d "$1"      ;;
+            *.zst)       zstd -d "$1"    ;;
+            *)           echo "'$1' cannot be extracted via extract()" ;;
+        esac
+    else
+        echo "'$1' is not a valid file"
+    fi
+}
+
+# Quick file size
+fs() {
+    du -sh "${1:-.}" 2>/dev/null
+}
+
+# ------------------------------------------------------------------------------
+# Key Bindings
+# ------------------------------------------------------------------------------
+bindkey -e
+bindkey '^[[A' up-line-or-search
+bindkey '^[[B' down-line-or-search
+bindkey '^[[H' beginning-of-line
+bindkey '^[[F' end-of-line
+bindkey '^[[3~' delete-char
+
+# ------------------------------------------------------------------------------
+# Completion
+# ------------------------------------------------------------------------------
+autoload -Uz compinit
+compinit -C
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"

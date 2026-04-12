@@ -1,0 +1,125 @@
+# ==============================================================================
+# SSH Configuration Template — Open Claw Dot-Files
+# ==============================================================================
+#
+# Copy this file to ~/.ssh/config and customize for your environment.
+# Permissions should be 600: chmod 600 ~/.ssh/config
+#
+# IMPORTANT: Create the sockets directory for connection multiplexing:
+#   mkdir -p ~/.ssh/sockets
+#
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Global Defaults
+# ------------------------------------------------------------------------------
+# These settings apply to ALL hosts unless overridden per-host.
+
+Host *
+    # Automatically add keys to ssh-agent when used
+    AddKeysToAgent yes
+
+    # Only use explicitly configured identity files (prevents key leakage)
+    IdentitiesOnly yes
+
+    # Send keepalive every 60 seconds to prevent idle disconnects
+    ServerAliveInterval 60
+
+    # Drop connection after 3 missed keepalives (3 minutes of dead connection)
+    ServerAliveCountMax 3
+
+    # Reuse existing connections to the same host (auto = first connection becomes master)
+    ControlMaster auto
+
+    # Socket path for multiplexed connections (%r=user, %h=host, %p=port)
+    ControlPath ~/.ssh/sockets/%r@%h-%p
+
+    # Keep master connection alive for 10 minutes after last session closes
+    ControlPersist 10m
+
+    # Use stronger key exchange and ciphers
+    KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+
+    # Hash known hosts for privacy (hostnames not stored in plaintext)
+    HashKnownHosts yes
+
+    # Disable password auth by default (prefer keys)
+    PasswordAuthentication no
+
+# ------------------------------------------------------------------------------
+# Bastion / Jump Host
+# ------------------------------------------------------------------------------
+# Central gateway for accessing internal infrastructure.
+# ForwardAgent allows your local key to authenticate on downstream hosts.
+#
+# WARNING: Only enable ForwardAgent for hosts you fully trust.
+
+Host bastion
+    HostName bastion.example.com
+    User ops
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519
+    ForwardAgent yes
+
+# ------------------------------------------------------------------------------
+# Internal Hosts via Bastion (ProxyJump Pattern)
+# ------------------------------------------------------------------------------
+# Traffic is tunneled through the bastion — no direct exposure needed.
+# The bastion must be defined above for ProxyJump to resolve.
+
+Host internal-web
+    HostName 10.0.1.10
+    User deploy
+    IdentityFile ~/.ssh/id_ed25519
+    ProxyJump bastion
+
+Host internal-db
+    HostName 10.0.1.20
+    User dbadmin
+    IdentityFile ~/.ssh/id_ed25519
+    ProxyJump bastion
+
+# ------------------------------------------------------------------------------
+# Direct Host Example
+# ------------------------------------------------------------------------------
+# For hosts reachable without a jump host.
+
+Host dev-server
+    HostName dev.example.com
+    User henry
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519
+
+# ------------------------------------------------------------------------------
+# Wildcard Patterns
+# ------------------------------------------------------------------------------
+# Match groups of hosts by naming convention.
+
+Host staging-*
+    User deploy
+    IdentityFile ~/.ssh/id_ed25519_staging
+    ProxyJump bastion
+
+Host prod-*
+    User deploy
+    IdentityFile ~/.ssh/id_ed25519_prod
+    ProxyJump bastion
+    # Extra caution: no agent forwarding in production
+    ForwardAgent no
+
+# ------------------------------------------------------------------------------
+# GitHub / GitLab
+# ------------------------------------------------------------------------------
+
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    AddKeysToAgent yes
+
+Host gitlab.com
+    HostName gitlab.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    AddKeysToAgent yes

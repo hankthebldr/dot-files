@@ -191,14 +191,14 @@ case $main_choice in
             1) sudo lsof -iTCP -sTCP:LISTEN -n -P ;;
             2)
                 if [[ -f ~/.ssh/id_rsa.pub ]]; then
-                    cat ~/.ssh/id_rsa.pub | pbcopy && echo "✅ Copied id_rsa.pub to clipboard"
+                    cat ~/.ssh/id_rsa.pub | clip_copy && echo "✅ Copied id_rsa.pub to clipboard"
                 elif [[ -f ~/.ssh/id_ed25519.pub ]]; then
-                    cat ~/.ssh/id_ed25519.pub | pbcopy && echo "✅ Copied id_ed25519.pub to clipboard"
+                    cat ~/.ssh/id_ed25519.pub | clip_copy && echo "✅ Copied id_ed25519.pub to clipboard"
                 else
                     echo "${c_red}No standard SSH public key found.${c_reset}"
                 fi
                 ;;
-            3) networkQuality ;;
+            3) if command -v networkQuality &>/dev/null; then networkQuality; elif command -v speedtest &>/dev/null; then speedtest; else echo "${c_red}Install speedtest-cli: pip install speedtest-cli${c_reset}"; fi ;;
             4) 
                 if command -v bandwhich &> /dev/null; then
                     sudo bandwhich
@@ -244,7 +244,7 @@ case $main_choice in
         read -p "  ${c_purple}▶${c_reset} Run workflow [1-4]: " sub
         case $sub in
             1)
-                obsidian open vault="$vault_name" || open -a "Obsidian"
+                obsidian open vault="$vault_name" 2>/dev/null || xdg-open "obsidian://" 2>/dev/null || open -a "Obsidian" 2>/dev/null || echo "${c_red}Cannot open Obsidian${c_reset}"
                 ;;
             2)
                 daily_note=$(date '+%Y-%m-%d')

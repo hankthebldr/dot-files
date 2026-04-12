@@ -30,10 +30,12 @@ function claw_welcome_tui() {
     local c_white=$'\e[38;2;201;209;217m'  # GitHub fg: #c9d1d9
     local c_bold=$'\e[1m'
 
-    # Render Dashboard Header via fastfetch with custom OPEN CLAW branding
+    # Clean slate — TUI owns the full terminal
+    clear
+
+    # Render Dashboard Header via fastfetch with native OS logo
     local ff_config="$_d/config/.config/fastfetch/config.jsonc"
     if command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
-        echo ""
         fastfetch -c "$ff_config"
     else
         # Fallback: branded header if fastfetch is missing
@@ -69,6 +71,7 @@ function claw_welcome_tui() {
     choices+="ai\t${c_purple}🤖 AI${c_reset}${c_dim}                 LLMs · Embeddings · MLOps${c_reset}\n"
     choices+="research\t${c_orange}🔬 Research${c_reset}${c_dim}           Datasets · Scraping · NLP${c_reset}\n"
     choices+="cortex\t${c_pink}🛡️  Cortex${c_reset}${c_dim}             XSOAR · XSIAM · PAN-OS${c_reset}\n"
+    choices+="claude\t${c_orange}🧡 Claude Code${c_reset}${c_dim}        Agent SDK · MCP · AI Dev${c_reset}\n"
     choices+="local\t${c_green}🛠️  Local${c_reset}${c_dim}              Custom Built CLI Tools${c_reset}\n"
 
     # ── Tools ──
@@ -91,7 +94,7 @@ function claw_welcome_tui() {
     # Launch fzf menu
     local selection
     selection=$(echo -e "$choices" | column -s $'\t' -t | fzf \
-        --height=24 --reverse --margin=0,0,0,4 \
+        --height=~24 --reverse --margin=0,0,0,4 \
         --prompt="▶ " \
         --header="  ENTER default · ↑/↓ navigate · ESC shell" \
         --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff" \
@@ -111,7 +114,7 @@ function claw_welcome_tui() {
         skip)
             # Exit to bare shell — no profile loaded
             ;;
-        default|security|cloud|devops|research|ai|cortex|local)
+        default|security|cloud|devops|research|ai|cortex|claude|local)
             export CLAW_ACTIVE_PROFILE="$key"
             local _profile="$_d/shell/profiles/${key}.zsh"
             if [[ -f "$_profile" ]]; then
@@ -174,7 +177,7 @@ function claw_welcome_tui() {
                 source "$_d/scripts/utils/system-update.sh"
             else
                 echo "${c_dim}Running brew update & upgrade...${c_reset}"
-                brew update && brew upgrade
+                if command -v brew &>/dev/null; then brew update && brew upgrade; elif command -v apt &>/dev/null; then sudo apt update && sudo apt upgrade -y; fi
             fi
             ;;
         doc)

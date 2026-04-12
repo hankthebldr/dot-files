@@ -50,11 +50,39 @@ selected_host=$(echo "$hosts" | fzf \
     --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950" \
     --color="hl:#ff7b72,hl+:#ff7b72,info:#8b949e,marker:#d29922,spinner:#bc8cff")
 
-if [[ -n "$selected_host" ]]; then
-    echo "${c_green}Initializing connection to: $selected_host...${c_reset}"
-    # Use exec to replace the current process (TUI/Shell) with the SSH session
-    exec ssh "$selected_host"
-else
+if [[ -z "$selected_host" ]]; then
     echo "${c_dim}Connection cancelled.${c_reset}"
     exit 0
 fi
+
+# Post-selection: choose action
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
+DEPLOY_SCRIPT="$DOTFILES_DIR/scripts/utils/ssh-deploy.sh"
+
+action="connect"
+if [[ -f "$DEPLOY_SCRIPT" ]]; then
+    action=$(printf "connect\tSSH into $selected_host\ndeploy\tDeploy Open Claw env to $selected_host\nboth\tDeploy env + connect" | \
+        column -s $'\t' -t | fzf \
+        --height=6 --reverse \
+        --prompt="▶ Action: " \
+        --header="  Choose action for $selected_host" \
+        --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950" \
+        --ansi | awk '{print $1}')
+    [[ -z "$action" ]] && action="connect"
+fi
+
+case "$action" in
+    deploy)
+        bash "$DEPLOY_SCRIPT" "$selected_host"
+        ;;
+    both)
+        bash "$DEPLOY_SCRIPT" "$selected_host"
+        echo ""
+        echo "${c_green}Connecting to $selected_host...${c_reset}"
+        exec ssh "$selected_host"
+        ;;
+    *)
+        echo "${c_green}Connecting to $selected_host...${c_reset}"
+        exec ssh "$selected_host"
+        ;;
+esac
