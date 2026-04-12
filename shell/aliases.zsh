@@ -351,7 +351,10 @@ alias prettyyaml='yq .'
 
 # Quick help
 alias halp='tldr'
-alias cheat='navi'
+# navi cheatsheet (cheat.sh function defined below uses curl fallback)
+if command -v navi &>/dev/null; then
+    alias navi-browse='navi'
+fi
 
 # System info
 alias info='fastfetch'

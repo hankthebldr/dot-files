@@ -133,14 +133,60 @@ main() {
         log_info "Backup skipped (--no-backup)"
     fi
 
-    # ── Step 3: Install package manager ──────────────────
+    # ── Step 3: Install package manager + Ubuntu essentials ─
     step "Installing package manager"
     if [[ "$PKG_MANAGER" == "apt" ]]; then
-        log_info "Updating apt index..."
+        log_info "Updating apt and installing build prerequisites..."
         sudo apt update -y
-        sudo apt install -y build-essential curl git
+        sudo apt install -y \
+            build-essential curl git wget unzip tar \
+            software-properties-common apt-transport-https \
+            ca-certificates gnupg lsb-release \
+            xclip xsel \
+            python3 python3-pip python3-venv \
+            net-tools dnsutils iproute2 traceroute \
+            2>/dev/null || true
     fi
     source "$SCRIPT_DIR/scripts/install/brew.sh"
+
+    # On Ubuntu, also install tools available via apt that brew may not have
+    if [[ "$PKG_MANAGER" == "apt" ]]; then
+        log_info "Installing Ubuntu-native quality-of-life tools..."
+        local apt_tools=(
+            zsh-syntax-highlighting    # syntax coloring
+            zsh-autosuggestions        # fish-like suggestions
+            shellcheck                 # shell linter
+            tree                       # directory tree
+            htop                       # process viewer
+            ncdu                       # disk usage
+            mtr                        # better traceroute
+            nmap                       # network scanner
+            nethogs                    # per-process bandwidth
+            iftop                      # network top
+            httpie                     # friendly curl
+            entr                       # file watcher
+            tmux                       # terminal multiplexer
+            neovim                     # editor
+            silversearcher-ag          # code search
+            fd-find                    # find replacement (fd)
+            ripgrep                    # grep replacement
+            bat                        # cat replacement
+            fzf                        # fuzzy finder
+        )
+        for tool in "${apt_tools[@]}"; do
+            sudo apt install -y "$tool" 2>/dev/null || true
+        done
+        # fd-find installs as fdfind on Ubuntu — create symlink
+        if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
+            sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd
+            log_success "Linked fdfind → fd"
+        fi
+        # bat installs as batcat on Ubuntu — create symlink
+        if command -v batcat &>/dev/null && ! command -v bat &>/dev/null; then
+            sudo ln -sf "$(command -v batcat)" /usr/local/bin/bat
+            log_success "Linked batcat → bat"
+        fi
+    fi
 
     # ── Step 4: Install essentials ───────────────────────
     step "Installing essential packages (git, zsh, tmux, stow, curl)"
@@ -200,20 +246,21 @@ main() {
     step "Installing modern CLI tools"
     source "$SCRIPT_DIR/scripts/install/packages/modern-cli.sh"
 
-    # Install extras needed by dot-files features
-    local extras=(yq gum)
-    for tool in "${extras[@]}"; do
-        if ! command -v "$tool" &>/dev/null; then
-            log_info "Installing $tool..."
-            if [[ "$PKG_MANAGER" == "brew" ]] || command -v brew &>/dev/null; then
+    # Install brew-only tools (not available via apt or need newer versions)
+    if command -v brew &>/dev/null; then
+        local brew_extras=(yq gum eza zoxide atuin btop lazygit lazydocker git-delta dust duf procs glow fastfetch vivid)
+        for tool in "${brew_extras[@]}"; do
+            if ! command -v "$tool" &>/dev/null; then
+                log_info "Installing $tool via brew..."
                 brew install "$tool" 2>/dev/null || log_warning "Failed to install $tool"
-            elif [[ "$PKG_MANAGER" == "apt" ]]; then
-                sudo apt install -y "$tool" 2>/dev/null || log_warning "Failed to install $tool via apt"
+            else
+                log_success "$tool already installed"
             fi
-        else
-            log_success "$tool already installed"
-        fi
-    done
+        done
+    else
+        log_warning "Homebrew not available — some modern CLI tools will be missing (eza, zoxide, atuin, btop, lazygit, delta)"
+        log_info "Install Homebrew: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+    fi
 
     # ── Step 7: Install Nerd Fonts ───────────────────────
     step "Installing Nerd Fonts (icons for eza, starship, fastfetch)"
@@ -261,12 +308,9 @@ main() {
         [[ -f "$SCRIPT_DIR/scripts/install/packages/security.sh" ]] && source "$SCRIPT_DIR/scripts/install/packages/security.sh"
     fi
 
-    # Linux: install xclip for clipboard support
-    if [[ "$OS_TYPE" != "macos" ]]; then
-        if ! command -v xclip &>/dev/null; then
-            log_info "Installing xclip (clipboard support)..."
-            sudo apt install -y xclip 2>/dev/null || log_warning "xclip install failed"
-        fi
+    # Linux: verify clipboard support is available
+    if [[ "$OS_TYPE" != "macos" ]] && ! command -v xclip &>/dev/null && ! command -v xsel &>/dev/null; then
+        log_warning "No clipboard tool found. Install: sudo apt install xclip"
     fi
 
     # ── Done ─────────────────────────────────────────────
