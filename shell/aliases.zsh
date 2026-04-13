@@ -836,11 +836,6 @@ x() {
     chmod +x "$1"
 }
 
-# Weather
-weather() {
-    curl "wttr.in/${1:-}"
-}
-
 # Cheat.sh integration
 cht() {
     curl "cheat.sh/$1"
