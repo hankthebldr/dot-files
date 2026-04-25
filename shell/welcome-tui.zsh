@@ -14,8 +14,11 @@ function claw_welcome_tui() {
     # Use $DOTFILES_DIR set by .zshrc
     local _d="$DOTFILES_DIR"
 
-    # Trigger background tool updater silently
-    ( "$_d/scripts/utils/tool-updater.sh" ) &> /dev/null &
+    # Trigger background tool updater silently.
+    # NOTE: `&!` is zsh's background-and-disown — it prevents the `[N] + done`
+    # job-control notification from bleeding over the fastfetch logo when the
+    # wrapper subshell exits a few ms later (the script itself self-backgrounds).
+    "$_d/scripts/utils/tool-updater.sh" &>/dev/null &!
 
     # Modern GitHub macOS Dark Theme (True Colors)
     local c_reset=$'\e[0m'
