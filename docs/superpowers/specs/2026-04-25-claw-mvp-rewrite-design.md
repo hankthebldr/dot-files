@@ -1,231 +1,242 @@
-# Open Claw MVP Rewrite — Design
+# Open Claw MVP — Design (v3)
 
-**Date:** 2026-04-25
+**Date:** 2026-04-27
 **Status:** Pending review
-**Supersedes:** 2026-04-25-welcome-tui-overhaul-design.md (which only treated symptoms)
+**Supersedes:** v1 (welcome-tui-overhaul) and v2 (initial mvp-rewrite which over-cut)
 
-## Problem
+## Pivot from v2
 
-The current architecture has accumulated more surface than value:
+User direction is to **keep the rich profile-driven experience** but make it actually good — 8 polished profiles instead of 22 half-built pieces. Cuts only what's clearly dead weight; future-proofs the agent layer for non-Claude agents (Hermes, Aider, etc.).
 
-- **Profile system is high-overhead, low-payoff.** 8 profile zsh files × ~150 lines each, 8 fastfetch configs, 8 logo files, 8 install scripts. Each profile defines 30-60 prefixed aliases (`cloud-k`, `osint-nmap`, `red-msf`) that lose to muscle memory — most users will type `kubectl`, `nmap`, `msfconsole` directly. Most aliases are dead code in practice.
-- **Welcome TUI runs on every shell.** Every tmux pane, every new tab, every `exec zsh` blocks on the menu. Default-on-ESC helps but is still friction. The branded dashboard is a one-time impression overhead repeated 50× per day.
-- **Profiles are pretend-stateful.** `source cloud.zsh` mutates only the current shell. New tab → no cloud. There's no prompt indicator, no session propagation, no way to know which profile you're in. The architecture promises "modes" but delivers one-shot sourcing.
-- **Workspace mutation on profile load is a footgun.** `security.zsh` auto-`cd`s into a freshly created `~/pentest/<date>_engagement/` tree just from selecting it in a menu.
-- **Three months in and there's no real MVP.** The polish (logos, dashboards, color palettes) outpaced the actual daily-use value.
+| v2 said | v3 says |
+|---|---|
+| Archive 8 profiles to `legacy/` | **Keep them in-tree.** Drop only `local` → 8 profiles total. |
+| Welcome TUI runs once/day | **Keep current per-shell flow** with profile selection. |
+| Drop fastfetch profile dashboards | **Keep them.** Hand-tune each logo so they're genuinely distinctive. |
+| Auto-launch `exec claude` from menu | **Generalize to agents** via `agents.toml` registry + `claw <agent-name>`. |
+| Drop alias prefixes | **Still drop them.** Muscle memory wins. |
+
+## Problem (recap, sharpened)
+
+- **Logos are smiley clones** — 8 profiles, one template, badge-text-swap. Read as cosplay, not branding.
+- **Aliases lose to muscle memory** — `cloud-k` is longer than `k`; `osint-nmap` doesn't beat `nmap`.
+- **`[N] + done` bleeds over the logo** — already fixed (see git history).
+- **Generic OPEN CLAW header doesn't render** — `config.jsonc` has `type: auto` so fastfetch picks Apple instead of `logo.txt`.
+- **Claude profile shows a dashboard but never launches `claude`** — and the same problem will repeat for every future agent.
+- **No single entry point** — workflows scattered across `tunnel-manager.sh`, `mcp-manager.sh`, `homelab.sh`, `toolkit.sh`, `system-update.sh`, `tool-updater.sh`. Hard to discover, hard to remember.
+- **No agent abstraction** — adding Hermes or Aider would mean another bespoke welcome-TUI menu entry + case branch, not a plug-in.
 
 ## Goals
 
-Ship an MVP that:
-
-1. **Removes friction** — no menu blocks every shell; the polished dashboard is for first-impression moments only.
-2. **One entry point** — `claw` command surfaces everything (status, update, tunnels, MCP, optional profile load).
-3. **Aliases serve muscle memory** — global, short, no `<profile>-` prefixes; what's shorter than the original survives.
-4. **Profiles are optional and discoverable** — auto-load via `.claw` file in a project root (direnv-style); never imposed by global state.
-5. **Active context is visible** — Starship segment shows `[profile]` when one is loaded.
-6. **Cuts maintenance burden** — archive 8 profile files + 8 fastfetch configs + 8 logos to `legacy/`; recovered later if needed.
+1. **One entry point: `claw`** — surfaces every existing tool (skills/MCP/homelab/tunnels/updates/agents) without rewriting any of them.
+2. **8 fully-realized profiles** — each visually distinctive, functional, and useful day-to-day.
+3. **Agent-agnostic launcher** — `claw claude`, `claw hermes`, `claw aider` all work via a single registry file.
+4. **Drop alias-prefix bloat** — `cloud-k`/`osint-nmap`/etc. removed; what survives is genuinely shorter than the real command.
+5. **Restore OPEN CLAW logo** — fix the broken `auto` → `file` config.
+6. **Keep the polish** — modern CLI base, Starship, fastfetch dashboards, help functions, docs all stay.
 
 ## Non-Goals
 
-- Deleting any working code permanently. Everything cut moves to `legacy/` first.
-- Replacing the modern CLI base layer (eza, bat, rg, fd, fzf, zoxide, atuin, delta, btop, lazygit, yazi, starship). These are the foundation and stay.
-- Touching `bootstrap.sh`'s install logic for the base layer.
-- Removing the tunnel manager, MCP manager, system-update.sh, toolkit.sh — these are real value.
-- Building per-profile install toolchains (`*-toolchain.sh`). They become opt-in: only fire if user explicitly invokes them, e.g. `claw install cloud`.
+- Removing any profile beyond `local`.
+- Cutting the welcome TUI's profile selector.
+- Touching `bootstrap.sh`'s base-layer install logic.
+- Building per-profile install toolchains automatically (`claw install <toolchain>` is opt-in, no auto-run).
+- Multi-agent composition (`claw claude+hermes` — defer to v4).
 
 ## Design
 
 ### 1. The `claw` command (single entry point)
 
-New file: `bin/claw` (added to PATH in `shell/path.zsh`).
+New file: `bin/claw` (~150 lines bash). Added to PATH via `shell/path.zsh`.
 
-A pure-bash dispatcher with subcommands:
+Subcommands surface every existing capability:
 
-| Subcommand | Behavior |
+| Subcommand | Routes to |
 |---|---|
-| `claw` (no args) | Open FZF launcher menu (slimmed-down current welcome-tui) |
-| `claw doctor` | Render system + tool health dashboard (replaces per-profile `_xxx_tool_check`) |
-| `claw update` | Run `system-update.sh` (full system update with gum spinners) |
-| `claw tools` | Run `tool-updater.sh --interactive` (curated CLI tool refresh) |
-| `claw tun` | Launch tunnel manager |
-| `claw mcp` | Launch MCP manager |
-| `claw load <profile>` | Source `legacy/profiles/<profile>.zsh` in current shell + set `CLAW_ACTIVE_PROFILE` (opt-in) |
-| `claw off` | Unset `CLAW_ACTIVE_PROFILE`, clear profile-loaded aliases |
-| `claw install <toolchain>` | Run `scripts/install/<toolchain>-toolchain.sh` (opt-in) |
-| `claw help` | Show subcommand list |
+| `claw` (no args) | `claw_welcome_tui` (current FZF menu) |
+| `claw doctor` | Renders system + active-profile health (replaces per-profile `_xxx_tool_check`) |
+| `claw update` | `scripts/utils/system-update.sh` |
+| `claw tools` | `scripts/utils/tool-updater.sh --interactive` |
+| `claw tun` | `scripts/utils/tunnel-manager.sh` |
+| `claw mcp` | `scripts/utils/mcp-manager.sh` |
+| `claw homelab` | `scripts/utils/homelab.sh` |
+| `claw toolkit` | `scripts/utils/toolkit.sh` |
+| `claw skills` | FZF list of `~/.claude/skills/` (or wherever skills live) — opens picked skill's README in `glow` |
+| `claw load <profile>` | `source shell/profiles/<p>.zsh` + export `CLAW_ACTIVE_PROFILE` |
+| `claw off` | Unset `CLAW_ACTIVE_PROFILE`, instruct user to `exec zsh` for a clean shell |
+| **`claw <agent>`** | **Look up `<agent>` in `~/.config/claw/agents.toml`, optionally load profile, then exec the binary** |
+| `claw agent list` | Print registered agents from `agents.toml` |
+| `claw agent add <name> <cmd> [profile]` | Append entry to `agents.toml` |
+| `claw install <toolchain>` | Run `scripts/install/<toolchain>-toolchain.sh` (opt-in only) |
+| `claw help` | Subcommand list |
 
-Implementation: ~80 lines of bash, case statement, sources the relevant scripts. No clever abstractions — readable wins.
+**Implementation note:** dispatcher uses a flat `case "$1" in ... esac` pattern — readable, no clever metaprogramming. Adding a subcommand = adding a case arm.
 
-### 2. Welcome TUI runs once per day, not every shell
+### 2. Agent registry (the Hermes-future-proofing piece)
 
-In `.zshrc`, gate the call:
-
-```zsh
-# Welcome TUI: only first interactive shell per day
-if [[ -o interactive ]] && [[ -t 0 ]]; then
-    local _welcome_sentinel="$HOME/.cache/claw/welcomed-$(date +%F)"
-    if [[ ! -f "$_welcome_sentinel" ]]; then
-        mkdir -p "$(dirname "$_welcome_sentinel")"
-        touch "$_welcome_sentinel"
-        claw_welcome_tui
-    fi
-fi
-```
-
-The sentinel auto-rolls every midnight (different filename each day). Old sentinels from prior days get cleaned by a once-weekly find:
-
-```zsh
-find "$HOME/.cache/claw" -name 'welcomed-*' -mtime +7 -delete 2>/dev/null
-```
-
-Inside the welcome TUI itself, drop the profile-selector entries — keep only the launcher actions (tunnel, MCP, system update, claw toolkit). Profiles get loaded via `claw load <p>` or `.claw` file, not the menu.
-
-### 3. Drop alias prefixes (the "C" piece)
-
-Audit `shell/aliases.zsh`. Apply this rule:
-
-- **Keep** if shorter than the real command and unambiguous: `k=kubectl`, `tf=terraform`, `g=git`, `lzd=lazydocker`, `glg=lazygit`, `ll=eza -l`
-- **Drop** if it just adds a namespace prefix without saving keystrokes: `cloud-k`, `cloud-tff`, `osint-nmap`, `red-msf`, `web-ffuf`, `dfir-bin`, `rev-rad` — all gone
-- **Move** profile-specific helpers (engagement-dir-creator, AWS profile switcher, etc.) into `legacy/profiles/<profile>.zsh` so they survive but don't pollute the global namespace
-
-Also flag any alias targeting a tool that's not in the standard install (e.g. `wpscan`, `crackmapexec`, `volatility`) — those move to legacy too. Global aliases must be globally available.
-
-### 4. Profile auto-load via `.claw` file (the "B" piece)
-
-Direnv-style optional hook. In `shell/load-env.zsh` (or new `shell/claw-direnv.zsh`):
-
-```zsh
-_claw_check_envrc() {
-    local _claw_file="$PWD/.claw"
-    if [[ -f "$_claw_file" ]]; then
-        local _profile
-        _profile=$(grep -E '^profile=' "$_claw_file" | head -1 | cut -d= -f2)
-        if [[ -n "$_profile" && -f "$HOME/.dotfiles/legacy/profiles/$_profile.zsh" ]]; then
-            export CLAW_ACTIVE_PROFILE="$_profile"
-            source "$HOME/.dotfiles/legacy/profiles/$_profile.zsh"
-        fi
-    fi
-}
-chpwd_functions+=(_claw_check_envrc)
-_claw_check_envrc   # also fire on shell start
-```
-
-If direnv is installed, prefer using its native hook (cleaner unload). Otherwise the chpwd hook is the fallback. The `.claw` file format is intentionally trivial:
-
-```
-profile=cloud
-```
-
-(Future expansion: `profile=cloud,security` could compose; not in MVP.)
-
-### 5. Starship `[profile]` segment
-
-In `terminal/.config/starship.toml`, add a `custom.claw_profile` block:
+New file: `~/.config/claw/agents.toml` (created on first run if absent, with claude pre-registered):
 
 ```toml
-[custom.claw_profile]
-command = "echo $CLAW_ACTIVE_PROFILE"
-when = "test -n \"$CLAW_ACTIVE_PROFILE\""
-format = "[\\[$output\\]]($style) "
-style = "bold purple"
+# Open Claw agent registry
+# Add an entry per coding/AI agent you use. `claw <name>` launches it.
+
+[claude]
+command = "claude"
+profile = "claude"      # optional — load this profile before launching
+description = "Anthropic Claude Code (default agent)"
+
+# Future:
+# [hermes]
+# command = "hermes-cli"
+# profile = "ai"
+# description = "Hermes 70B local agent"
+#
+# [aider]
+# command = "aider"
+# profile = "ai"
+# description = "Aider pair-programmer"
 ```
 
-Insert in the `format` line. Now you always know what's loaded.
+Format intentionally trivial. `command` is the binary to exec. `profile` is optional (auto-source first if set). `description` is shown by `claw agent list`.
 
-### 6. Restore OPEN CLAW logo (the surviving fastfetch config)
+`bin/claw` parses with a 20-line awk/grep pipeline — no `yq`/`tomlq` dependency. If a key isn't found: error gracefully and suggest `claw agent list`.
 
-`config/.config/fastfetch/config.jsonc` line 4: change `"type": "auto"` to `"type": "file"` + explicit source + 6-color GitHub-dark palette. (Same one-shot fix from prior spec — kept because it still matters; this is the *only* fastfetch config that survives.)
+**Adding Hermes later** = drop a `[hermes]` block in the TOML. No code change.
 
-The other 8 `config-*.jsonc` files and 8 `logo-*.txt` files move to `legacy/fastfetch/`.
+### 3. Drop the 9th profile, keep 8
 
-### 7. `tool-updater.sh` interactive mode (still useful, kept from prior spec)
+Remove `shell/profiles/local.zsh` and `config/.config/fastfetch/config-local.jsonc` + `logo-local.txt` (its menu entry too). Reason: "local CLI tools" is now the dispatcher's job (`claw tools`, `claw toolkit`), and `default` already covers daily-driver CLI.
 
-Add `--interactive` and `--force` argv modes. Surface via `claw tools`. Same design as prior spec § 5. Build atop a new `scripts/utils/tui-style.sh` that also gets sourced by `system-update.sh` (extracts duplicated theme/spinner helpers).
+Surviving 8: `default, claude, cloud, security, devops, ai, research, cortex`.
 
-### 8. Archive plan
+### 4. Restore OPEN CLAW logo
 
-```
-legacy/
-├── profiles/
-│   ├── ai.zsh
-│   ├── claude.zsh
-│   ├── cloud.zsh
-│   ├── cortex.zsh
-│   ├── default.zsh         # [keep top-level too — it's the base]
-│   ├── devops.zsh
-│   ├── local.zsh
-│   ├── research.zsh
-│   └── security.zsh
-└── fastfetch/
-    ├── config-ai.jsonc
-    ├── config-claude.jsonc
-    ├── config-cloud.jsonc
-    ├── ... (5 more)
-    ├── logo-ai.txt
-    ├── ... (7 more)
-    └── README.md           # one-paragraph note: "These were per-profile dashboards in v1. Restore by moving back to config/ and adding a `claw load <p>` call."
-```
+`config/.config/fastfetch/config.jsonc` — change `"type": "auto"` → `"type": "file"` + explicit source + 6-color GitHub-dark palette. (Same fix from the earlier spec; still needed.)
 
-`shell/profiles/default.zsh` stays at its current path because `claw_welcome_tui`'s "Default Shell" choice still sources it as the base experience.
+### 5. Hand-tune 8 profile logos (the part that's failed twice)
 
-## Implementation Order (each commit-ready, each adds value alone)
+Past attempts that fell flat:
+- Original smiley clones — template-with-text-swap, all the same shape
+- ASCII mockups (claude spark, infinity loop, etc.) — too thin, lacked depth
+- Built-in distro logos (Kali, NixOS, GarudaDragon, etc.) — generic, not branded to the profile
 
-1. **`bin/claw` dispatcher** + add `~/.dotfiles/bin` to `shell/path.zsh`
-2. **Date-gate welcome TUI** in `.zshrc`
-3. **Restore OPEN CLAW logo** in `config/.config/fastfetch/config.jsonc`
-4. **Audit & de-prefix `shell/aliases.zsh`** — drop `cloud-`, `osint-`, `red-`, `web-`, `dfir-`, `rev-` aliases; keep what's shorter than the real command
-5. **Archive 8 profiles + 8 fastfetch configs + 8 logos to `legacy/`** (one big `git mv`)
-6. **Slim welcome TUI** — remove profile-picker rows; keep launcher rows (tunnel, MCP, system-update, claw)
-7. **Starship `[profile]` segment**
-8. **`.claw` direnv hook** in `shell/claw-direnv.zsh`
+**This time** — each logo is hand-curated and committed individually. Process per logo:
+
+1. Pick subject matter that's profile-iconic (not generic)
+2. Draft in `logo-<profile>.txt` using all 6 color slots `$1-$6` for depth/shading
+3. Render via `fastfetch -c config-<profile>.jsonc`
+4. Show inline in chat for approval
+5. Iterate until it looks genuinely good (no shipping the first draft)
+
+Per-profile direction (each gets its own subtask with mockups):
+
+| Profile | Subject matter | Color palette intent |
+|---|---|---|
+| **default** | Apple silhouette (current) | Already good — keep |
+| **claude** | Anthropic 8-ray asterisk, dense block, gold-on-cream | Brand-accurate, not generic spark |
+| **cloud** | AWS hex stack (3D layered hexagons) | Blue + cream + cyan accents |
+| **security** | Kali fastfetch built-in, recolored to red/purple | Iconic dragon swirl, universal pentest signal |
+| **devops** | Docker whale (recognizable silhouette) OR Kubernetes wheel | Whale wins on recognition |
+| **ai** | Dense neural-net node graph (multi-layer) | Purple core + green/red activations |
+| **research** | Erlenmeyer flask + molecular lattice (composite) | Two-element scene, gold + green |
+| **cortex** | Palo Alto Cortex hex grid + radar sweep | Brand-accurate orange + crimson |
+
+**Approval gate**: each logo gets shown inline before committing. If a logo doesn't land, we iterate on it — not commit-and-move-on.
+
+### 6. Drop alias prefixes
+
+Audit `shell/aliases.zsh` + each `shell/profiles/*.zsh`. Apply rule:
+
+- **KEEP** if shorter than the real command and unambiguous (`k=kubectl`, `tf=terraform`, `g=git`, `lzd=lazydocker`, `glg=lazygit`)
+- **DROP** if it just adds a `<profile>-` namespace prefix (`cloud-k`, `osint-nmap`, `red-msf`, `web-ffuf`, `dfir-bin`, `rev-rad`)
+- **REPLACE** with shorter unprefixed versions where they don't exist yet (e.g., `cloud-tff` → `tff` in cloud profile)
+
+Profile aliases that target uninstalled tools (`wpscan`, `crackmapexec`, `volatility`) stay in the profile but get a `command -v` guard so they fail with a clear "tool not installed" message rather than confusing errors.
+
+### 7. Welcome TUI: keep flow, polish the seams
+
+`shell/welcome-tui.zsh` stays as the per-shell entry point. Changes:
+
+- Drop `local` from the profile list (8 profiles instead of 9)
+- Dedupe the duplicate `claude` entry (lines 74 + 83)
+- For the `claude` profile, add `exec claude` after dashboard (and any other profile whose registered agent in `agents.toml` matches the profile name)
+- Add a single `🚀 Agents` row that opens `claw agent list` so registered agents are discoverable
+
+The job-control `&` → `&!` fix has already landed.
+
+### 8. Skills / MCP / Homelab integration
+
+These already exist as standalone scripts. Dispatcher just routes:
+
+- `claw mcp` → `scripts/utils/mcp-manager.sh` (existing TUI)
+- `claw homelab` → `scripts/utils/homelab.sh` (existing TUI)
+- `claw skills` → **new tiny script** (~30 lines): FZF-pick from `~/.claude/skills/*/SKILL.md`, render with `glow`. Skills aren't currently surfaced anywhere in the project.
+
+This is purely additive — no rewrite of existing scripts.
+
+### 9. Tool updater interactive mode (kept from prior spec)
+
+Add `--interactive` and `--force` argv modes to `tool-updater.sh`. Surface via `claw tools`. Built atop a new `scripts/utils/tui-style.sh` shared helper (de-duplicates with `system-update.sh`). Same design as the prior spec § 5 — no change.
+
+## Implementation Order
+
+Each step is commit-ready and independently valuable:
+
+1. **`bin/claw` dispatcher** + add `$DOTFILES_DIR/bin` to `shell/path.zsh` (skeleton with all subcommands as case arms; agent registry parsing)
+2. **Agent registry** — create `~/.config/claw/agents.toml` template + `claw agent list/add` subcommands
+3. **Restore OPEN CLAW logo** in `config/.config/fastfetch/config.jsonc` (1-line config change)
+4. **Drop `local` profile** + dedupe `claude` menu entry in welcome-tui
+5. **Hand-tune 8 profile logos** (one commit per logo, each shown inline for approval)
+6. **De-prefix alias audit** — `shell/aliases.zsh` + each `shell/profiles/*.zsh`
+7. **Wire `claw <agent>`** to `exec` the agent binary with optional profile pre-load (claude works first; doc the pattern for adding others)
+8. **`claw skills`** — new 30-line script, FZF picker over `~/.claude/skills/`
 9. **`scripts/utils/tui-style.sh`** + refactor `system-update.sh` to source it
-10. **`tool-updater.sh --interactive` / `--force` modes** + wire to `claw tools`
-
-Each step ends in green; no step depends on a later step beyond ordering. After step 5 the repo is materially smaller and friction is materially lower.
+10. **`tool-updater.sh --interactive` / `--force`** + wire to `claw tools`
+11. **`docs/claw.md`** — single-page user docs
 
 ## File Touch List
 
 | File | Change |
 |---|---|
-| `bin/claw` | **new** — dispatcher |
-| `shell/path.zsh` | add `$DOTFILES_DIR/bin` to PATH |
-| `.zshrc` | gate `claw_welcome_tui` behind date sentinel; add cleanup find |
-| `shell/welcome-tui.zsh` | drop profile rows; keep launcher rows; remove case branches for profile keys |
-| `shell/aliases.zsh` | bulk de-prefix audit (~50-80 line removals expected) |
-| `shell/claw-direnv.zsh` | **new** — `.claw` chpwd hook |
-| `terminal/.config/starship.toml` | add `[custom.claw_profile]` block |
-| `config/.config/fastfetch/config.jsonc` | logo block: `auto` → `file` + 6-color palette |
+| `bin/claw` | **new** — dispatcher (~150 lines) |
+| `shell/path.zsh` | prepend `$DOTFILES_DIR/bin` to PATH |
+| `~/.config/claw/agents.toml` | **new** (created on first run) — agent registry |
+| `config/.config/fastfetch/config.jsonc` | `auto` → `file` + 6-color palette |
+| `shell/welcome-tui.zsh` | drop `local`, dedupe claude, add `Agents` row |
+| `shell/aliases.zsh` | de-prefix audit (~50 line removals) |
+| `shell/profiles/*.zsh` | de-prefix per-profile aliases; add `command -v` guards |
+| `shell/profiles/local.zsh` | **delete** |
+| `config/.config/fastfetch/config-local.jsonc` | **delete** |
+| `config/.config/fastfetch/logo-local.txt` | **delete** |
+| `config/.config/fastfetch/logo-{profile}.txt` × 7 | **rewrite** with hand-tuned art (one commit each) |
+| `config/.config/fastfetch/config-{profile}.jsonc` × 7 | update `logo.color` palette per profile |
+| `scripts/utils/skills-picker.sh` | **new** (~30 lines) |
 | `scripts/utils/tui-style.sh` | **new** — shared TUI helpers |
-| `scripts/utils/system-update.sh` | source `tui-style.sh`, drop duplicated helpers |
-| `scripts/utils/tool-updater.sh` | argv parsing, interactive/force modes |
-| `legacy/profiles/*.zsh` | **moved** from `shell/profiles/` (8 files; default.zsh keeps a copy at original path) |
-| `legacy/fastfetch/config-*.jsonc` | **moved** from `config/.config/fastfetch/` (8 files) |
-| `legacy/fastfetch/logo-*.txt` | **moved** (8 files) |
-| `legacy/README.md` | **new** — one-paragraph restoration note |
-| `docs/claw.md` | **new** — single-page user docs for the `claw` command |
+| `scripts/utils/system-update.sh` | source `tui-style.sh`, remove duplicates |
+| `scripts/utils/tool-updater.sh` | argv parsing, interactive renderer |
+| `docs/claw.md` | **new** — user docs |
 
 ## Verification
 
-After all 10 steps:
+After all 11 steps:
 
-1. Open new shell after midnight rollover → fastfetch + welcome TUI fire once
-2. Open new tmux pane same day → straight to prompt, no menu
-3. Run `claw doctor` → health dashboard
-4. Run `claw tun` → tunnel manager opens
-5. `cd` into a directory containing `.claw` with `profile=cloud` → Starship shows `[cloud]`
-6. `cd` out of it → Starship `[cloud]` clears
-7. Type `k get pods` → works (kubectl alias)
-8. Type `cloud-k get pods` → command not found (de-prefixed)
-9. Type `claw load security` → security profile manually loaded; Starship shows `[security]`
-10. Type `claw off` → profile unloaded
-11. `bash scripts/utils/system-update.sh` → still renders identically
-12. `claw tools` → interactive tool-updater render
+1. New shell → fastfetch OPEN CLAW renders (not Apple) and welcome TUI shows 8 profiles + agents row
+2. Pick `claude` from menu → dashboard renders, then `exec claude` lands in a Claude session
+3. `claw` from prompt → menu opens
+4. `claw doctor` → health dashboard
+5. `claw mcp`/`claw tun`/`claw homelab`/`claw skills` → each opens the right TUI
+6. `claw claude` → dashboard + exec
+7. `claw agent list` → shows registered agents
+8. `claw agent add hermes hermes-cli ai` → appends to `agents.toml`; `claw hermes` then works (assuming binary present)
+9. Each of 8 profile logos renders distinctly (visual diff vs. v1 is obvious)
+10. `cloud-k get pods` → "command not found" (de-prefixed)
+11. `k get pods` → works
+12. `claw tools` → interactive tool-updater renders
 
 ## Risks & Notes
 
-- **Breaking change for muscle memory.** Anyone who already types `cloud-k` will get errors. Mitigation: a one-time `~/.zshrc.local` warning on first shell after install pointing at a migration note in `legacy/README.md`.
-- **Direnv is optional.** The `.claw` chpwd hook works without direnv; if direnv is installed, prefer its native `.envrc`. Document both paths.
-- **`exec claude` from welcome TUI** (the prior idea) is **dropped from MVP**. Instead, dropping a `.claw` with `profile=claude` in a Claude project gives the same effect when you `cd` in. Cleaner.
-- **`bin/` directory** is new. Bootstrap.sh needs to ensure `chmod +x bin/claw` lands.
-- **Profile files moved to legacy/**. Anyone with a downstream fork referencing `shell/profiles/cloud.zsh` will break. Ship a NOTICE.md.
-- **Defer real MVP value-adds for v2.1**: per-project virtualenv detection in `.claw`, multi-profile composition (`profile=cloud,security`), prompt-aware MCP server status. None of these are MVP.
+- **Logo iteration burden** — committing to per-logo approval gates means 7 round-trips minimum. Worth it because past attempts failed by skipping iteration.
+- **Agent registry parser** — bash TOML parsing is fragile. Keep format trivial (only `[name]`, `command`, `profile`, `description` keys; no nested tables; no array values). If it gets complex later, swap to `yq` (already required in extras).
+- **Backwards-compat with prefix aliases** — anyone using `cloud-k` in scripts will break. Mitigation: print one-time NOTICE in `~/.zshrc.local` on first new-shell after install.
+- **`exec claude` from welcome TUI** — terminates the shell. If claude exits, user lands at parent shell, not back in menu. Acceptable; menu is for entry, not re-entry.
+- **`local` profile deletion is destructive** — git history retains it. Anyone who liked it can `git show <sha>:shell/profiles/local.zsh` to recover.
