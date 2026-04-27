@@ -10,7 +10,7 @@ User direction is to **keep the rich profile-driven experience** but make it act
 
 | v2 said | v3 says |
 |---|---|
-| Archive 8 profiles to `legacy/` | **Keep them in-tree.** Drop only `local` → 8 profiles total. |
+| Archive 8 profiles to `legacy/` | **Keep them all in-tree.** All 9 profiles stay (default, claude, cloud, security, devops, ai, research, cortex, local). |
 | Welcome TUI runs once/day | **Keep current per-shell flow** with profile selection. |
 | Drop fastfetch profile dashboards | **Keep them.** Hand-tune each logo so they're genuinely distinctive. |
 | Auto-launch `exec claude` from menu | **Generalize to agents** via `agents.toml` registry + `claw <agent-name>`. |
@@ -103,17 +103,17 @@ Format intentionally trivial. `command` is the binary to exec. `profile` is opti
 
 **Adding Hermes later** = drop a `[hermes]` block in the TOML. No code change.
 
-### 3. Drop the 9th profile, keep 8
+### 3. Keep all 9 profiles
 
-Remove `shell/profiles/local.zsh` and `config/.config/fastfetch/config-local.jsonc` + `logo-local.txt` (its menu entry too). Reason: "local CLI tools" is now the dispatcher's job (`claw tools`, `claw toolkit`), and `default` already covers daily-driver CLI.
+`default, claude, cloud, security, devops, ai, research, cortex, local` — all stay. The "8 vs 9" question was a recommendation, not a hard line; user prefers keeping `local` for custom-built CLI tools (clawea, netwatch-tui, eilmeldung, rovr, osint-d2). The `local` profile remains the home for those tool-specific aliases and `claw load local` activates it.
 
-Surviving 8: `default, claude, cloud, security, devops, ai, research, cortex`.
+Only cleanup in this section: dedupe the duplicate `claude` menu entry in welcome-tui (lines 74 + 83 both use key `claude`). Keep the orange Workflow-Profiles entry (line 74), remove the Tools entry (line 83).
 
 ### 4. Restore OPEN CLAW logo
 
 `config/.config/fastfetch/config.jsonc` — change `"type": "auto"` → `"type": "file"` + explicit source + 6-color GitHub-dark palette. (Same fix from the earlier spec; still needed.)
 
-### 5. Hand-tune 8 profile logos (the part that's failed twice)
+### 5. Hand-tune 9 profile logos (the part that's failed twice)
 
 Past attempts that fell flat:
 - Original smiley clones — template-with-text-swap, all the same shape
@@ -140,6 +140,7 @@ Per-profile direction (each gets its own subtask with mockups):
 | **ai** | Dense neural-net node graph (multi-layer) | Purple core + green/red activations |
 | **research** | Erlenmeyer flask + molecular lattice (composite) | Two-element scene, gold + green |
 | **cortex** | Palo Alto Cortex hex grid + radar sweep | Brand-accurate orange + crimson |
+| **local** | Workbench: anvil + hammer + wrench (artisan/maker) | Green + cream + gold; signals hand-built tools |
 
 **Approval gate**: each logo gets shown inline before committing. If a logo doesn't land, we iterate on it — not commit-and-move-on.
 
@@ -186,7 +187,7 @@ Each step is commit-ready and independently valuable:
 2. **Agent registry** — create `~/.config/claw/agents.toml` template + `claw agent list/add` subcommands
 3. **Restore OPEN CLAW logo** in `config/.config/fastfetch/config.jsonc` (1-line config change)
 4. **Drop `local` profile** + dedupe `claude` menu entry in welcome-tui
-5. **Hand-tune 8 profile logos** (one commit per logo, each shown inline for approval)
+5. **Hand-tune 9 profile logos** (one commit per logo, each shown inline for approval)
 6. **De-prefix alias audit** — `shell/aliases.zsh` + each `shell/profiles/*.zsh`
 7. **Wire `claw <agent>`** to `exec` the agent binary with optional profile pre-load (claude works first; doc the pattern for adding others)
 8. **`claw skills`** — new 30-line script, FZF picker over `~/.claude/skills/`
@@ -205,11 +206,8 @@ Each step is commit-ready and independently valuable:
 | `shell/welcome-tui.zsh` | drop `local`, dedupe claude, add `Agents` row |
 | `shell/aliases.zsh` | de-prefix audit (~50 line removals) |
 | `shell/profiles/*.zsh` | de-prefix per-profile aliases; add `command -v` guards |
-| `shell/profiles/local.zsh` | **delete** |
-| `config/.config/fastfetch/config-local.jsonc` | **delete** |
-| `config/.config/fastfetch/logo-local.txt` | **delete** |
-| `config/.config/fastfetch/logo-{profile}.txt` × 7 | **rewrite** with hand-tuned art (one commit each) |
-| `config/.config/fastfetch/config-{profile}.jsonc` × 7 | update `logo.color` palette per profile |
+| `config/.config/fastfetch/logo-{profile}.txt` × 8 | **rewrite** with hand-tuned art (one commit each — all profiles except default) |
+| `config/.config/fastfetch/config-{profile}.jsonc` × 8 | update `logo.color` palette per profile |
 | `scripts/utils/skills-picker.sh` | **new** (~30 lines) |
 | `scripts/utils/tui-style.sh` | **new** — shared TUI helpers |
 | `scripts/utils/system-update.sh` | source `tui-style.sh`, remove duplicates |
@@ -228,7 +226,7 @@ After all 11 steps:
 6. `claw claude` → dashboard + exec
 7. `claw agent list` → shows registered agents
 8. `claw agent add hermes hermes-cli ai` → appends to `agents.toml`; `claw hermes` then works (assuming binary present)
-9. Each of 8 profile logos renders distinctly (visual diff vs. v1 is obvious)
+9. Each of 9 profile logos renders distinctly (visual diff vs. v1 is obvious)
 10. `cloud-k get pods` → "command not found" (de-prefixed)
 11. `k get pods` → works
 12. `claw tools` → interactive tool-updater renders
@@ -239,4 +237,3 @@ After all 11 steps:
 - **Agent registry parser** — bash TOML parsing is fragile. Keep format trivial (only `[name]`, `command`, `profile`, `description` keys; no nested tables; no array values). If it gets complex later, swap to `yq` (already required in extras).
 - **Backwards-compat with prefix aliases** — anyone using `cloud-k` in scripts will break. Mitigation: print one-time NOTICE in `~/.zshrc.local` on first new-shell after install.
 - **`exec claude` from welcome TUI** — terminates the shell. If claude exits, user lands at parent shell, not back in menu. Acceptable; menu is for entry, not re-entry.
-- **`local` profile deletion is destructive** — git history retains it. Anyone who liked it can `git show <sha>:shell/profiles/local.zsh` to recover.
