@@ -22,3 +22,6 @@ export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 
 # Dotfiles utilities
 export PATH="${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils:$PATH"
+
+# claw dispatcher (single entry point)
+export PATH="${DOTFILES_DIR:-$HOME/.dotfiles}/bin:$PATH"

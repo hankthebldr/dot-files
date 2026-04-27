@@ -1,0 +1,315 @@
+#!/usr/bin/env bash
+# claw — single entry point for Open Claw dotfiles
+# Routes to skills, MCP, homelab, tunnels, agents, profiles, updates
+#
+# Usage: claw [subcommand] [args...]
+# Run `claw help` for the full list.
+
+set -e
+
+DOTFILES="${DOTFILES_DIR:-$HOME/.dotfiles}"
+CLAW_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claw"
+AGENTS_TOML="$CLAW_CONFIG_DIR/agents.toml"
+
+# ============================================
+# THEME (GitHub Dark — matches system-update.sh)
+# ============================================
+c_reset=$'\e[0m'
+c_cyan=$'\e[38;2;88;166;255m'
+c_green=$'\e[38;2;63;185;80m'
+c_purple=$'\e[38;2;188;140;255m'
+c_orange=$'\e[38;2;210;153;34m'
+c_red=$'\e[38;2;255;123;114m'
+c_dim=$'\e[38;2;139;148;158m'
+c_white=$'\e[38;2;201;209;217m'
+c_bold=$'\e[1m'
+
+err()  { printf "  ${c_red}✗${c_reset} %s\n" "$*" >&2; }
+info() { printf "  ${c_cyan}●${c_reset} %s\n" "$*"; }
+ok()   { printf "  ${c_green}✓${c_reset} %s\n" "$*"; }
+
+# ============================================
+# AGENTS REGISTRY
+# ============================================
+ensure_agents_toml() {
+    if [[ ! -f "$AGENTS_TOML" ]]; then
+        mkdir -p "$CLAW_CONFIG_DIR"
+        cat > "$AGENTS_TOML" <<'EOF'
+# Open Claw agent registry
+# Add an entry per coding/AI agent you use. `claw <name>` launches it.
+# Keys: command (required), profile (optional), description (optional)
+
+[claude]
+command = "claude"
+profile = "claude"
+description = "Anthropic Claude Code"
+
+# Example future entries:
+# [hermes]
+# command = "hermes-cli"
+# profile = "ai"
+# description = "Hermes 70B local agent"
+#
+# [aider]
+# command = "aider"
+# profile = "ai"
+# description = "Aider pair-programmer"
+EOF
+        info "Created $AGENTS_TOML with [claude] pre-registered"
+    fi
+}
+
+# Parse a single key from a [section] of agents.toml.
+# Usage: agent_get <section> <key>
+agent_get() {
+    local section="$1" key="$2"
+    awk -v s="[$section]" -v k="$key" '
+        $0 == s        { in_section = 1; next }
+        /^\[/          { in_section = 0 }
+        in_section && $1 == k && $2 == "=" {
+            $1 = $2 = ""
+            sub(/^[ \t]+/, "")
+            gsub(/^"|"$/, "")
+            print
+            exit
+        }
+    ' "$AGENTS_TOML" 2>/dev/null
+}
+
+# List all agent section names.
+agent_list_sections() {
+    awk '/^\[[a-zA-Z0-9_-]+\]$/ { gsub(/^\[|\]$/, ""); print }' "$AGENTS_TOML" 2>/dev/null
+}
+
+# ============================================
+# SUBCOMMANDS
+# ============================================
+
+cmd_help() {
+    cat <<EOF
+  ${c_purple}${c_bold}claw${c_reset} — ${c_dim}Open Claw dispatcher${c_reset}
+
+  ${c_cyan}${c_bold}Workflows${c_reset}
+    ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
+    ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
+    ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc)${c_reset}
+    ${c_white}claw tools${c_reset}            ${c_dim}interactive curated CLI tool refresh${c_reset}
+
+  ${c_green}${c_bold}TUIs${c_reset}
+    ${c_white}claw tun${c_reset}              ${c_dim}SSH tunnel manager${c_reset}
+    ${c_white}claw mcp${c_reset}              ${c_dim}MCP server manager${c_reset}
+    ${c_white}claw homelab${c_reset}          ${c_dim}homelab SSH topology${c_reset}
+    ${c_white}claw toolkit${c_reset}          ${c_dim}Open Claw workflow launcher${c_reset}
+    ${c_white}claw skills${c_reset}           ${c_dim}browse Claude skills${c_reset}
+
+  ${c_orange}${c_bold}Profiles${c_reset}
+    ${c_white}claw load <profile>${c_reset}   ${c_dim}source a profile in current shell${c_reset}
+    ${c_white}claw off${c_reset}              ${c_dim}unset active profile${c_reset}
+
+  ${c_purple}${c_bold}Agents${c_reset}
+    ${c_white}claw <agent>${c_reset}          ${c_dim}launch a registered agent (claude, hermes, …)${c_reset}
+    ${c_white}claw agent list${c_reset}       ${c_dim}list registered agents${c_reset}
+    ${c_white}claw agent add${c_reset}        ${c_dim}claw agent add <name> <command> [profile]${c_reset}
+
+  ${c_red}${c_bold}Install${c_reset}
+    ${c_white}claw install <toolchain>${c_reset}  ${c_dim}opt-in toolchain installer (cloud/security/…)${c_reset}
+
+  ${c_dim}Config: ${AGENTS_TOML}${c_reset}
+EOF
+}
+
+cmd_menu() {
+    # Source the welcome TUI in a child zsh so the FZF menu can drive everything
+    # exactly as it does on shell login.
+    zsh -i -c 'source "$DOTFILES_DIR/shell/welcome-tui.zsh" && claw_welcome_tui' 2>/dev/null || \
+        err "welcome-tui failed — try: source \$DOTFILES_DIR/shell/welcome-tui.zsh && claw_welcome_tui"
+}
+
+cmd_doctor() {
+    printf "\n  ${c_purple}${c_bold}claw doctor${c_reset}  ${c_dim}— %s${c_reset}\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+    printf "  ${c_dim}─────────────────────────────────────${c_reset}\n"
+    [[ -n "$CLAW_ACTIVE_PROFILE" ]] && \
+        ok "active profile: ${c_white}${c_bold}${CLAW_ACTIVE_PROFILE}${c_reset}" || \
+        info "no profile loaded ${c_dim}(default)${c_reset}"
+    info "dotfiles: ${c_dim}${DOTFILES}${c_reset}"
+    info "agents:   ${c_dim}$(agent_list_sections | tr '\n' ' ')${c_reset}"
+
+    printf "\n  ${c_purple}${c_bold}Core CLI${c_reset}\n"
+    for tool in eza bat rg fd fzf zoxide atuin delta btop lazygit yazi starship gum glow tldr fastfetch; do
+        if command -v "$tool" &>/dev/null; then
+            ok "$tool"
+        else
+            err "$tool ${c_dim}— not installed${c_reset}"
+        fi
+    done
+
+    if [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then
+        local check_fn="_${CLAW_ACTIVE_PROFILE}_tool_check"
+        if typeset -f "$check_fn" &>/dev/null; then
+            printf "\n  ${c_purple}${c_bold}${CLAW_ACTIVE_PROFILE^} Profile${c_reset}\n"
+            "$check_fn"
+        fi
+    fi
+    echo ""
+}
+
+cmd_update() {
+    bash "$DOTFILES/scripts/utils/system-update.sh" "$@"
+}
+
+cmd_tools() {
+    bash "$DOTFILES/scripts/utils/tool-updater.sh" --interactive "$@"
+}
+
+cmd_tun() {
+    bash "$DOTFILES/scripts/utils/tunnel-manager.sh" "$@"
+}
+
+cmd_mcp() {
+    bash "$DOTFILES/scripts/utils/mcp-manager.sh" "$@"
+}
+
+cmd_homelab() {
+    bash "$DOTFILES/scripts/utils/homelab.sh" "$@"
+}
+
+cmd_toolkit() {
+    bash "$DOTFILES/scripts/utils/toolkit.sh" "$@"
+}
+
+cmd_skills() {
+    local skills_dir="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
+    if [[ ! -d "$skills_dir" ]]; then
+        err "skills directory not found: $skills_dir"
+        info "set CLAUDE_SKILLS_DIR or install Claude skills"
+        return 1
+    fi
+    if ! command -v fzf &>/dev/null; then
+        err "fzf not installed"; return 1
+    fi
+    local picked
+    picked=$(find "$skills_dir" -maxdepth 3 -name 'SKILL.md' 2>/dev/null | \
+        sed "s|$skills_dir/||; s|/SKILL.md||" | \
+        fzf --prompt="skill ▶ " --height=~30 --reverse \
+            --preview="cat $skills_dir/{}/SKILL.md 2>/dev/null | head -60" \
+            --color="bg+:#161b22,fg+:#c9d1d9,prompt:#bc8cff,header:#8b949e,pointer:#3fb950") || return 0
+    [[ -z "$picked" ]] && return 0
+    if command -v glow &>/dev/null; then
+        glow "$skills_dir/$picked/SKILL.md"
+    else
+        less "$skills_dir/$picked/SKILL.md"
+    fi
+}
+
+cmd_load() {
+    local p="$1"
+    [[ -z "$p" ]] && { err "usage: claw load <profile>"; return 1; }
+    local pfile="$DOTFILES/shell/profiles/$p.zsh"
+    [[ ! -f "$pfile" ]] && { err "profile not found: $p"; info "available: default claude cloud security devops ai research cortex local"; return 1; }
+    info "to load this profile in your CURRENT shell, run:"
+    printf "    ${c_white}export CLAW_ACTIVE_PROFILE=%s && source %s${c_reset}\n" "$p" "$pfile"
+    info "(claw runs in a subshell — it cannot mutate your interactive shell directly)"
+}
+
+cmd_off() {
+    info "to clear the active profile in your CURRENT shell, run:"
+    printf "    ${c_white}unset CLAW_ACTIVE_PROFILE && exec zsh${c_reset}\n"
+}
+
+cmd_install() {
+    local tc="$1"
+    [[ -z "$tc" ]] && { err "usage: claw install <toolchain>"; info "options: cloud security devops ai research cortex"; return 1; }
+    local script="$DOTFILES/scripts/install/${tc}-toolchain.sh"
+    [[ ! -f "$script" ]] && { err "toolchain not found: $tc ($script)"; return 1; }
+    info "running $script (this can take a while)"
+    bash "$script"
+}
+
+cmd_agent() {
+    local sub="$1"; shift || true
+    case "$sub" in
+        list)
+            ensure_agents_toml
+            printf "\n  ${c_purple}${c_bold}registered agents${c_reset}  ${c_dim}(%s)${c_reset}\n\n" "$AGENTS_TOML"
+            local name cmd profile desc
+            for name in $(agent_list_sections); do
+                cmd=$(agent_get "$name" command)
+                profile=$(agent_get "$name" profile)
+                desc=$(agent_get "$name" description)
+                printf "  ${c_green}●${c_reset} ${c_white}${c_bold}%-12s${c_reset} ${c_dim}→ %s${c_reset}" "$name" "$cmd"
+                [[ -n "$profile" ]] && printf "  ${c_dim}[profile: %s]${c_reset}" "$profile"
+                printf "\n"
+                [[ -n "$desc" ]] && printf "    ${c_dim}%s${c_reset}\n" "$desc"
+            done
+            echo ""
+            ;;
+        add)
+            local name="$1" command="$2" profile="$3"
+            [[ -z "$name" || -z "$command" ]] && { err "usage: claw agent add <name> <command> [profile]"; return 1; }
+            ensure_agents_toml
+            if grep -q "^\[$name\]$" "$AGENTS_TOML"; then
+                err "agent already registered: $name (edit $AGENTS_TOML manually to change)"; return 1
+            fi
+            {
+                printf '\n[%s]\n' "$name"
+                printf 'command = "%s"\n' "$command"
+                [[ -n "$profile" ]] && printf 'profile = "%s"\n' "$profile"
+            } >> "$AGENTS_TOML"
+            ok "registered agent: $name → $command"
+            ;;
+        *)
+            err "unknown agent subcommand: $sub"
+            info "try: claw agent list | claw agent add <name> <command> [profile]"
+            return 1
+            ;;
+    esac
+}
+
+cmd_run_agent() {
+    local agent="$1"
+    ensure_agents_toml
+    local cmd profile
+    cmd=$(agent_get "$agent" command)
+    profile=$(agent_get "$agent" profile)
+    if [[ -z "$cmd" ]]; then
+        err "unknown subcommand or agent: $agent"
+        info "try: claw help  |  claw agent list"
+        return 1
+    fi
+    if ! command -v "$cmd" &>/dev/null; then
+        err "agent binary not on PATH: $cmd"
+        info "install it, or update [$agent] in $AGENTS_TOML"
+        return 1
+    fi
+    # Optionally render the profile dashboard before launch
+    if [[ -n "$profile" ]]; then
+        local ff_config="$DOTFILES/config/.config/fastfetch/config-$profile.jsonc"
+        if command -v fastfetch &>/dev/null && [[ -f "$ff_config" ]]; then
+            fastfetch -c "$ff_config" 2>/dev/null || true
+            echo ""
+        fi
+    fi
+    # Hand off — exec replaces the claw process with the agent
+    exec "$cmd"
+}
+
+# ============================================
+# DISPATCH
+# ============================================
+case "${1:-menu}" in
+    ""|menu)        cmd_menu ;;
+    help|-h|--help) cmd_help ;;
+    doctor)         cmd_doctor ;;
+    update)         shift; cmd_update "$@" ;;
+    tools)          shift; cmd_tools "$@" ;;
+    tun|tunnel)     shift; cmd_tun "$@" ;;
+    mcp)            shift; cmd_mcp "$@" ;;
+    homelab)        shift; cmd_homelab "$@" ;;
+    toolkit)        shift; cmd_toolkit "$@" ;;
+    skills)         shift; cmd_skills "$@" ;;
+    load)           shift; cmd_load "$@" ;;
+    off)            cmd_off ;;
+    install)        shift; cmd_install "$@" ;;
+    agent)          shift; cmd_agent "$@" ;;
+    *)              cmd_run_agent "$1" ;;
+esac
