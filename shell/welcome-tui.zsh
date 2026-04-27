@@ -83,7 +83,7 @@ function claw_welcome_tui() {
     choices+="tunnel\t${c_cyan}🔗 SSH Tunnels${c_reset}${c_dim}        Port Forwards · SOCKS${c_reset}\n"
     choices+="ai_tools\t${c_purple}🧠 AI Toolkit${c_reset}${c_dim}         Ollama · Claude · Aider${c_reset}\n"
     choices+="mcp\t${c_cyan}🔌 MCP Manager${c_reset}${c_dim}        Model Context Protocol${c_reset}\n"
-    choices+="claude\t${c_orange}💻 Claude Code${c_reset}\n"
+    choices+="agents\t${c_purple}🧠 Agents${c_reset}${c_dim}             Claude · Hermes · Aider · …${c_reset}\n"
 
     # ── System ──
     choices+="─\t${c_dim}───────────────────────────────────────────────${c_reset}\n"
@@ -162,8 +162,10 @@ function claw_welcome_tui() {
                 echo "${c_red}MCP Manager not found.${c_reset}"
             fi
             ;;
-        claude)
-            if command -v claude &> /dev/null; then claude; else echo "${c_red}Claude Code not found.${c_reset}"; fi
+        agents)
+            "$_d/bin/claw" agent list
+            echo ""
+            printf "  ${c_dim}Run an agent: ${c_white}claw <name>${c_dim} (e.g. claw claude)${c_reset}\n\n"
             ;;
         tmux)
             if command -v tmux &> /dev/null; then
