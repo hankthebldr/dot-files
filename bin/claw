@@ -188,7 +188,8 @@ cmd_skills() {
         err "fzf not installed"; return 1
     fi
     local picked
-    picked=$(find "$skills_dir" -maxdepth 3 -name 'SKILL.md' 2>/dev/null | \
+    # -L follows symlinks (skills are typically symlinked from .agents/skills)
+    picked=$(find -L "$skills_dir" -maxdepth 3 -name 'SKILL.md' 2>/dev/null | \
         sed "s|$skills_dir/||; s|/SKILL.md||" | \
         fzf --prompt="skill ▶ " --height=~30 --reverse \
             --preview="cat $skills_dir/{}/SKILL.md 2>/dev/null | head -60" \
