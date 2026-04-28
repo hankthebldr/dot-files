@@ -2,40 +2,29 @@
 # Loadout for Build, Deploy, Monitoring, and Incident Response
 export CLAW_PROFILE_THEME="devops"
 
-# ==========================================
-# ENVIRONMENT VARIABLES
-# ==========================================
 export DEVOPS_WORKSPACE="$HOME/devops"
-mkdir -p "$DEVOPS_WORKSPACE"
+mkdir -p "$DEVOPS_WORKSPACE" 2>/dev/null
 
 # ==========================================
-# CATEGORIZED ALIASES & PIPELINES
+# ALIASES — short, unprefixed, value-add only
 # ==========================================
+# (de-prefixed 2026-04-28: pure renames like dops-helm=helm dropped.
+#  Compositions get short mnemonics. Use git/docker/kubectl/etc. directly.)
 
-# --- CI/CD & Orchestration ---
-alias dops-git="git status -s"
-alias dops-docker="docker ps --format '{{json .}}' | jq -r '\"\(.ID) \(.Names) \(.Status)\"'"
-alias dops-pod="podman ps"
+# --- Compositions worth keeping ---
+alias dpsj="docker ps --format '{{json .}}' | jq -r '\"\(.ID) \(.Names) \(.Status)\"'"
+alias kpodsj="kubectl get pods -A -o json | jq -r '.items[] | [.metadata.namespace, .metadata.name, .status.phase] | @csv'"
+alias helmj="helm list -A -o json"
+alias tfplan="terraform plan -out=tfplan"
+alias tgplan="terragrunt run-all plan"
 
-# --- Infrastructure as Code ---
-alias dops-tf="terraform plan -out=tfplan"
-alias dops-tg="terragrunt run-all plan"
-alias dops-ans="ansible-playbook"
-alias dops-lint="shellcheck"
-
-# --- Kubernetes ---
-alias dops-k="kubectl get pods -A -o json | jq -r '.items[] | [.metadata.namespace, .metadata.name, .status.phase] | @csv' | csvkit"
-alias dops-helm="helm list -A -o json"
-alias dops-stern="stern"
-
-# --- Observability ---
-alias dops-watch="watch -n 1"
-alias dops-top="btop"
+# Note: btop, watch, stern, podman, ansible-playbook etc. are used by their
+# real binary names. `g`, `gst`, `gco`, `glg` etc. live in shell/aliases.zsh
+# (global) so they're available everywhere, not just under devops.
 
 # ==========================================
-# HELPER FUNCTIONS
+# QUICK REFERENCE
 # ==========================================
-
 devops-help() {
   local green='\e[38;2;63;185;80m'
   local purple='\e[38;2;188;140;255m'
@@ -49,28 +38,24 @@ devops-help() {
   echo -e "  ${purple}│${reset}  ${bold}${green}DEVOPS PROFILE${reset} ${dim}— Quick Reference${reset}                        ${purple}│${reset}"
   echo -e "  ${purple}╰──────────────────────────────────────────────────────────╯${reset}"
   echo ""
-  echo -e "  ${bold}${green}CI/CD & Orchestration${reset}"
-  echo -e "  ${white}dops-git${reset}      ${dim}Git status (short)${reset}"
-  echo -e "  ${white}dops-docker${reset}   ${dim}Docker containers (json/jq)${reset}"
-  echo -e "  ${white}dops-pod${reset}      ${dim}Podman containers${reset}"
+  echo -e "  ${bold}${green}Container & K8s pipelines${reset}"
+  echo -e "  ${white}dpsj${reset}      ${dim}docker ps as parsed JSON line${reset}"
+  echo -e "  ${white}kpodsj${reset}    ${dim}all pods as namespace,name,phase CSV${reset}"
+  echo -e "  ${white}helmj${reset}     ${dim}helm list -A -o json${reset}"
   echo ""
   echo -e "  ${bold}${green}Infrastructure as Code${reset}"
-  echo -e "  ${white}dops-tf${reset}       ${dim}Terraform plan${reset}"
-  echo -e "  ${white}dops-tg${reset}       ${dim}Terragrunt run-all plan${reset}"
-  echo -e "  ${white}dops-ans${reset}      ${dim}Ansible playbook${reset}"
-  echo -e "  ${white}dops-lint${reset}     ${dim}ShellCheck linter${reset}"
+  echo -e "  ${white}tfplan${reset}    ${dim}terraform plan -out=tfplan${reset}"
+  echo -e "  ${white}tgplan${reset}    ${dim}terragrunt run-all plan${reset}"
   echo ""
-  echo -e "  ${bold}${green}Kubernetes${reset}"
-  echo -e "  ${white}dops-k${reset}        ${dim}All pods (json/csv)${reset}"
-  echo -e "  ${white}dops-helm${reset}     ${dim}Helm releases (all namespaces)${reset}"
-  echo -e "  ${white}dops-stern${reset}    ${dim}Stern log tailing${reset}"
-  echo ""
-  echo -e "  ${bold}${green}Observability${reset}"
-  echo -e "  ${white}dops-watch${reset}    ${dim}Watch (1s interval)${reset}"
-  echo -e "  ${white}dops-top${reset}      ${dim}btop system monitor${reset}"
+  echo -e "  ${bold}${green}Use directly${reset} ${dim}(no need for prefix aliases)${reset}"
+  echo -e "  ${dim}docker · podman · kubectl · helm · terraform · ansible-playbook${reset}"
+  echo -e "  ${dim}stern · shellcheck · btop · watch · gh · vault${reset}"
   echo ""
 }
 
+# ==========================================
+# TOOL AVAILABILITY CHECK
+# ==========================================
 _devops_tool_check() {
   local green='\e[38;2;63;185;80m'
   local red='\e[38;2;248;81;73m'
@@ -81,13 +66,11 @@ _devops_tool_check() {
   local reset='\e[0m'
 
   local tools=(docker podman kubectl helm terraform terragrunt ansible shellcheck gh argocd stern vault)
-  local found=0
-  local missing=0
+  local found=0 missing=0
 
   echo ""
   echo -e "  ${bold}${purple}DevOps Toolchain Status${reset}"
   echo -e "  ${dim}──────────────────────────${reset}"
-
   for tool in "${tools[@]}"; do
     if command -v "$tool" &> /dev/null; then
       echo -e "  ${green}●${reset} ${white}${tool}${reset}"
@@ -97,7 +80,6 @@ _devops_tool_check() {
       ((missing++))
     fi
   done
-
   echo -e "  ${dim}──────────────────────────${reset}"
   echo -e "  ${green}${found}${reset} ${dim}found${reset}  ${red}${missing}${reset} ${dim}missing${reset}"
   echo ""
