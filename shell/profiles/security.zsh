@@ -38,7 +38,12 @@ alias gobust="gobuster dir -w \"$WORDLISTS/Discovery/Web-Content/directory-list-
 
 # --- Network capture ---
 # Capture to current dir (NOT a hardcoded engagement dir) — safer.
-alias pcap="sudo tcpdump -i any -w ./capture-$(date +%H%M%S).pcap"
+# Function (not alias) so $(date) re-evaluates per invocation. An alias would
+# bake the load-time timestamp in once, causing every `pcap` call in the same
+# session to overwrite the same file.
+pcap() {
+    sudo tcpdump -i any -w "./capture-$(date +%H%M%S).pcap" "$@"
+}
 
 # Note: nmap, sslyze, whatweb, wafw00f, dirb, wpscan, msfconsole,
 # crackmapexec, bettercap, aircrack-ng, binwalk, foremost, exiftool,

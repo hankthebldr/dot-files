@@ -179,7 +179,10 @@ function claw_welcome_tui() {
             ;;
         update)
             if [[ -f "$_d/scripts/utils/system-update.sh" ]]; then
-                source "$_d/scripts/utils/system-update.sh"
+                # Run as bash, NOT source in zsh — system-update.sh sources
+                # tui-style.sh via ${BASH_SOURCE[0]} which is bash-only.
+                # Sourcing here would break the helper-path resolution.
+                bash "$_d/scripts/utils/system-update.sh"
             else
                 echo "${c_dim}Running brew update & upgrade...${c_reset}"
                 if command -v brew &>/dev/null; then brew update && brew upgrade; elif command -v apt &>/dev/null; then sudo apt update && sudo apt upgrade -y; fi
