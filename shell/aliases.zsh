@@ -193,8 +193,8 @@ alias vs='vault status'
 # Quick status and logs
 alias gs='git status -sb'
 alias gst='git status'
-alias gl='git log --oneline --graph --decorate -20'
-alias gla='git log --oneline --graph --decorate --all -20'
+alias gl='git log --oneline --graph --color --decorate -20'
+alias gla='git log --oneline --graph --color --decorate --all -30'
 alias glp='git log -p'
 alias gll='git log --graph --pretty=format:"%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset" --abbrev-commit'
 alias glog='git log --oneline --graph --decorate --all'
@@ -237,8 +237,8 @@ alias grs='git restore'
 alias grst='git restore --staged'
 alias gsw='git switch'
 alias gswc='git switch -c'
-alias gd='git diff'
-alias gds='git diff --staged'
+alias gd='git diff --color-moved'
+alias gds='git diff --staged --color-moved'
 alias gsh='git stash'
 alias gshp='git stash pop'
 alias gshl='git stash list'
@@ -343,9 +343,9 @@ alias f='fzf --preview "bat --color=always {}"'
 alias fv='vim $(fzf --preview "bat --color=always {}")'
 
 # JSON/YAML processing
-alias json='jq'
+alias json='jq .'
 alias jsonp='jq "."'
-alias jsonc='jq -c'
+alias jsonc='jq -C .'
 alias prettyjson='jq .'
 alias prettyyaml='yq .'
 
@@ -523,8 +523,7 @@ alias weatherfull='curl -s wttr.in'
 cheat() { curl -s "cheat.sh/$1"; }
 
 # JSON pretty printer (pipe-friendly)
-alias json='jq .'
-alias jsonc='jq -C .'
+# json/jsonc aliases defined above (lines ~346-348)
 
 # Word-level diff
 alias diffw='delta --word-diff'
@@ -610,6 +609,7 @@ export FZF_ALT_C_OPTS="--preview 'ls -la {} | head -20'"
 # ============================================
 
 # Quick WIP commit
+unalias gwip 2>/dev/null
 gwip() { git add -A && git commit -m "wip: $(date '+%Y-%m-%d %H:%M')"; }
 
 # Interactive conventional commit (with gum or fallback)
@@ -629,6 +629,7 @@ gcommit() {
 }
 
 # Interactive branch cleanup (delete merged branches)
+unalias gclean 2>/dev/null
 gclean() {
     local branches
     branches=$(git branch --merged | grep -v '\*\|main\|master\|develop' | \
@@ -640,6 +641,7 @@ gclean() {
 }
 
 # Quick PR creation (with gum or fallback)
+unalias gpr 2>/dev/null
 gpr() {
     if ! command -v gh &>/dev/null; then echo "gh CLI required"; return 1; fi
     if command -v gum &>/dev/null; then
@@ -653,11 +655,7 @@ gpr() {
 }
 
 # Git status shortcut with nice format
-alias gs='git status -sb'
-alias gd='git diff --color-moved'
-alias gds='git diff --staged --color-moved'
-alias gl='git log --oneline --graph --color --decorate -20'
-alias gla='git log --oneline --graph --color --decorate --all -30'
+# Git shortcuts defined above (lines ~194-241) — these are intentional overrides with --color-moved
 
 # ============================================
 # SECURITY & SCANNING

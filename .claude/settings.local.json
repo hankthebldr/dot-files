@@ -117,7 +117,14 @@
       "Bash(zsh -n /Users/henry/Github/Github_desktop/dot-files/shell/platform.zsh)",
       "Bash(zsh --no-rcs -c ':*)",
       "Bash(bash -n /Users/henry/Github/Github_desktop/dot-files/scripts/utils/openclaw.sh)",
-      "Bash(zsh -n /Users/henry/Github/Github_desktop/dot-files/shell/profiles/claude.zsh)"
+      "Bash(zsh -n /Users/henry/Github/Github_desktop/dot-files/shell/profiles/claude.zsh)",
+      "Bash(brew cleanup *)",
+      "Bash(npm cache *)",
+      "Bash(fastfetch --list-logos)",
+      "Read(//tmp/**)",
+      "Bash(fastfetch -c config/.config/fastfetch/config.jsonc)",
+      "Bash(fastfetch --version)",
+      "Bash(zsh -n shell/welcome-tui.zsh)"
     ],
     "deny": [],
     "ask": []
