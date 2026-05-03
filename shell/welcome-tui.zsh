@@ -84,6 +84,7 @@ function claw_welcome_tui() {
     choices+="ai_tools\t${c_purple}🧠 AI Toolkit${c_reset}${c_dim}         Ollama · Claude · Aider${c_reset}\n"
     choices+="mcp\t${c_cyan}🔌 MCP Manager${c_reset}${c_dim}        Model Context Protocol${c_reset}\n"
     choices+="agents\t${c_purple}🧠 Agents${c_reset}${c_dim}             Claude · Hermes · Aider · …${c_reset}\n"
+    choices+="vault\t${c_orange}📓 Obsidian Vault${c_reset}${c_dim}     profile-aware vault helpers${c_reset}\n"
 
     # ── System ──
     choices+="─\t${c_dim}───────────────────────────────────────────────${c_reset}\n"
@@ -160,6 +161,20 @@ function claw_welcome_tui() {
                 "$_d/scripts/utils/mcp-manager.sh"
             else
                 echo "${c_red}MCP Manager not found.${c_reset}"
+            fi
+            ;;
+        vault)
+            # Open Obsidian to the active vault (profile-aware via obsidian.zsh)
+            if typeset -f _claw_obsidian_vault &>/dev/null; then
+                local _v="$(_claw_obsidian_vault)"
+                if [[ -d "$_v" ]]; then
+                    claw_open "obsidian://open?vault=$(basename "$_v")"
+                    printf "  ${c_green}✓${c_reset} opened ${c_white}%s${c_reset}  ${c_dim}(profile: ${CLAW_ACTIVE_PROFILE:-default})${c_reset}\n" "$(basename "$_v")"
+                else
+                    echo "  ${c_red}✗${c_reset} vault not found: $_v"
+                fi
+            else
+                echo "  ${c_red}✗${c_reset} obsidian helpers not loaded"
             fi
             ;;
         agents)

@@ -101,6 +101,7 @@ cmd_help() {
     ${c_white}claw homelab${c_reset}          ${c_dim}homelab SSH topology${c_reset}
     ${c_white}claw toolkit${c_reset}          ${c_dim}Open Claw workflow launcher${c_reset}
     ${c_white}claw skills${c_reset}           ${c_dim}browse Claude skills${c_reset}
+    ${c_white}claw obsidian${c_reset}         ${c_dim}vault helpers (profile-aware)${c_reset}
 
   ${c_orange}${c_bold}Profiles${c_reset}
     ${c_white}claw load <profile>${c_reset}   ${c_dim}source a profile in current shell${c_reset}
@@ -179,6 +180,71 @@ cmd_homelab() {
 
 cmd_toolkit() {
     bash "$DOTFILES/scripts/utils/toolkit.sh" "$@"
+}
+
+cmd_obsidian() {
+    # Hand off to the zsh helpers in shell/obsidian.zsh — they need the
+    # array (typeset -gA) and zsh syntax. We invoke an interactive zsh
+    # subshell so the .zshrc-sourced functions are available.
+    local sub="${1:-open}"
+    shift || true
+    case "$sub" in
+        open|"")
+            zsh -ic 'source "$DOTFILES_DIR/shell/obsidian.zsh"; claw_open "obsidian://open?vault=$(basename "$(_claw_obsidian_vault)")"'
+            ;;
+        list|vaults)
+            zsh -ic 'source "$DOTFILES_DIR/shell/obsidian.zsh"; ovaults' 2>/dev/null
+            ;;
+        use)
+            local v="$1"
+            [[ -z "$v" ]] && { err "usage: claw obsidian use <subvault>"; return 1; }
+            info "to switch the sub-vault in your CURRENT shell, run:"
+            printf "    ${c_white}export OBSIDIAN_VAULT_OVERRIDE=%s${c_reset}\n" "$v"
+            info "(persists for this shell only — shell function cannot mutate parent shell)"
+            ;;
+        new)
+            local n="$*"
+            [[ -z "$n" ]] && { err "usage: claw obsidian new <note name>"; return 1; }
+            zsh -ic "source \"\$DOTFILES_DIR/shell/obsidian.zsh\"; on \"$n\""
+            ;;
+        search|find)
+            local q="$*"
+            zsh -ic "source \"\$DOTFILES_DIR/shell/obsidian.zsh\"; os \"$q\""
+            ;;
+        browse)
+            zsh -ic 'source "$DOTFILES_DIR/shell/obsidian.zsh"; ov'
+            ;;
+        today|daily)
+            zsh -ic 'source "$DOTFILES_DIR/shell/obsidian.zsh"; otoday'
+            ;;
+        capture)
+            local t="$*"
+            [[ -z "$t" ]] && { err "usage: claw obsidian capture <text>"; return 1; }
+            zsh -ic "source \"\$DOTFILES_DIR/shell/obsidian.zsh\"; ocapture \"$t\""
+            ;;
+        help|-h|--help)
+            cat <<EOF
+  ${c_purple}${c_bold}claw obsidian${c_reset} — vault helpers (profile-aware)
+
+  ${c_white}claw obsidian${c_reset}              ${c_dim}open active vault in Obsidian${c_reset}
+  ${c_white}claw obsidian list${c_reset}         ${c_dim}list all sub-vaults + active${c_reset}
+  ${c_white}claw obsidian use <name>${c_reset}   ${c_dim}switch active sub-vault${c_reset}
+  ${c_white}claw obsidian new <note>${c_reset}   ${c_dim}create + open a new note${c_reset}
+  ${c_white}claw obsidian search <q>${c_reset}   ${c_dim}ripgrep + fzf in vault${c_reset}
+  ${c_white}claw obsidian browse${c_reset}       ${c_dim}fzf over vault file names${c_reset}
+  ${c_white}claw obsidian today${c_reset}        ${c_dim}open today's daily note${c_reset}
+  ${c_white}claw obsidian capture <t>${c_reset}  ${c_dim}append timestamped line to today's daily${c_reset}
+
+  ${c_dim}Vault routing is profile-aware. Set OBSIDIAN_VAULT_OVERRIDE${c_reset}
+  ${c_dim}per-shell to override.${c_reset}
+EOF
+            ;;
+        *)
+            err "unknown obsidian subcommand: $sub"
+            info "try: claw obsidian help"
+            return 1
+            ;;
+    esac
 }
 
 cmd_skills() {
@@ -317,6 +383,7 @@ case "${1:-menu}" in
     homelab)        shift; cmd_homelab "$@" ;;
     toolkit)        shift; cmd_toolkit "$@" ;;
     skills)         shift; cmd_skills "$@" ;;
+    obsidian|vault) shift; cmd_obsidian "$@" ;;
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
     install)        shift; cmd_install "$@" ;;
