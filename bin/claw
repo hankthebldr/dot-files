@@ -146,7 +146,11 @@ cmd_doctor() {
     if [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then
         local check_fn="_${CLAW_ACTIVE_PROFILE}_tool_check"
         if typeset -f "$check_fn" &>/dev/null; then
-            printf "\n  ${c_purple}${c_bold}${CLAW_ACTIVE_PROFILE^} Profile${c_reset}\n"
+            # Title-case the profile name in a bash-3.2 compatible way (the
+            # ${var^} bashism is bash-4+, missing on stock macOS bash).
+            local _title
+            _title="$(printf '%s' "${CLAW_ACTIVE_PROFILE:0:1}" | tr '[:lower:]' '[:upper:]')${CLAW_ACTIVE_PROFILE:1}"
+            printf "\n  ${c_purple}${c_bold}%s Profile${c_reset}\n" "$_title"
             "$check_fn"
         fi
     fi
