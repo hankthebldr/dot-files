@@ -19,22 +19,22 @@ export WORDLISTS="${WORDLISTS:-/usr/local/share/wordlists/SecLists}"
 #  Pure renames (osint-nmap=nmap, dfir-exif=exiftool, rev-rad=radare2) are
 #  GONE — type the real binary. Compositions kept under short mnemonics.)
 
-# --- Recon (compositions worth keeping) ---
-alias nrecon="nmap -T4 -A -v"                            # full TCP recon scan
-alias nharvest="theHarvester -d"                         # add: nharvest example.com
-alias amasse="amass enum -d"                             # add: amasse example.com
-alias subf="subfinder -d"                                # add: subf example.com
+# --- Recon (compositions worth keeping; guarded — get install hint if missing) ---
+_claw_guard nrecon   nmap          nmap -T4 -A -v
+_claw_guard nharvest theHarvester  theHarvester -d
+_claw_guard amasse   amass         amass enum -d
+_claw_guard subf     subfinder     subfinder -d
 
 # --- Offensive ---
-alias sqli="sqlmap --batch --random-agent"               # add: sqli -u <url>
-alias listen="nc -lvnp"                                  # add: listen 4444
-alias hash0="hashcat -a 0 -m"                            # add: hash0 0 hash.txt wordlist
+_claw_guard sqli     sqlmap        sqlmap --batch --random-agent
+_claw_guard listen   nc            nc -lvnp
+_claw_guard hash0    hashcat       hashcat -a 0 -m
 # hydra wrapper — pre-loads admin/passwords for quick AD spraying. Override with -l/-P.
-alias hydraq="hydra -l admin -P \"$WORDLISTS/Passwords/Common-Credentials/10-million-password-list-top-100000.txt\""
+_claw_guard hydraq   hydra         hydra -l admin -P "$WORDLISTS/Passwords/Common-Credentials/10-million-password-list-top-100000.txt"
 
 # --- Web App fuzzing wrappers (pre-load wordlists) ---
-alias fuzz="ffuf -w \"$WORDLISTS/Discovery/Web-Content/raft-large-directories.txt\" -u"
-alias gobust="gobuster dir -w \"$WORDLISTS/Discovery/Web-Content/directory-list-2.3-medium.txt\" -u"
+_claw_guard fuzz     ffuf          ffuf -w "$WORDLISTS/Discovery/Web-Content/raft-large-directories.txt" -u
+_claw_guard gobust   gobuster      gobuster dir -w "$WORDLISTS/Discovery/Web-Content/directory-list-2.3-medium.txt" -u
 
 # --- Network capture ---
 # Capture to current dir (NOT a hardcoded engagement dir) — safer.
