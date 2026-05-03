@@ -81,6 +81,7 @@ fi
 [[ -f "$DOTFILES_DIR/shell/load-env.zsh" ]] && source "$DOTFILES_DIR/shell/load-env.zsh"
 [[ -f "$DOTFILES_DIR/shell/aliases.zsh" ]] && source "$DOTFILES_DIR/shell/aliases.zsh"
 [[ -f "$DOTFILES_DIR/shell/profile-helpers.zsh" ]] && source "$DOTFILES_DIR/shell/profile-helpers.zsh"
+[[ -f "$DOTFILES_DIR/shell/claw-fn.zsh" ]] && source "$DOTFILES_DIR/shell/claw-fn.zsh"
 [[ -f "$DOTFILES_DIR/shell/security.zsh" ]] && source "$DOTFILES_DIR/shell/security.zsh"
 [[ -f "$DOTFILES_DIR/shell/obsidian.zsh" ]] && source "$DOTFILES_DIR/shell/obsidian.zsh"
 [[ -f ~/hr-vault-main-pa/_agents/shell-aliases.sh ]] && source ~/hr-vault-main-pa/_agents/shell-aliases.sh

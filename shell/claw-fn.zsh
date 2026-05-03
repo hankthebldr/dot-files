@@ -1,0 +1,46 @@
+# shell/claw-fn.zsh
+# Zsh wrapper around bin/claw that handles `load` and `off` natively in the
+# CURRENT shell. The bash binary at bin/claw can't mutate the parent zsh
+# shell's environment, so those two subcommands need a function.
+#
+# All other subcommands pass through to the bash binary.
+
+claw() {
+    case "${1:-}" in
+        load)
+            shift
+            local p="${1:-}"
+            if [[ -z "$p" ]]; then
+                printf "  \e[38;2;255;123;114m✗\e[0m usage: claw load <profile>\n" >&2
+                printf "  \e[38;2;139;148;158mavailable: default claude cloud security devops ai research cortex local\e[0m\n" >&2
+                return 1
+            fi
+            local pfile="${DOTFILES_DIR:-$HOME/.dotfiles}/shell/profiles/$p.zsh"
+            if [[ ! -f "$pfile" ]]; then
+                printf "  \e[38;2;255;123;114m✗\e[0m profile not found: %s\n" "$p" >&2
+                return 1
+            fi
+            export CLAW_ACTIVE_PROFILE="$p"
+            source "$pfile"
+            printf "  \e[38;2;63;185;80m✓\e[0m loaded profile: \e[38;2;201;209;217m%s\e[0m\n" "$p"
+            # Render the profile dashboard inline (skip if non-interactive)
+            if [[ -o interactive ]]; then
+                local _ff="${DOTFILES_DIR:-$HOME/.dotfiles}/config/.config/fastfetch/config-$p.jsonc"
+                command -v fastfetch &>/dev/null && [[ -f "$_ff" ]] && fastfetch -c "$_ff" 2>/dev/null
+            fi
+            ;;
+        off)
+            if [[ -z "${CLAW_ACTIVE_PROFILE:-}" ]]; then
+                printf "  \e[38;2;139;148;158m○ no profile loaded\e[0m\n"
+                return 0
+            fi
+            local _was="$CLAW_ACTIVE_PROFILE"
+            unset CLAW_ACTIVE_PROFILE
+            printf "  \e[38;2;63;185;80m✓\e[0m unloaded profile: \e[38;2;201;209;217m%s\e[0m\n" "$_was"
+            printf "  \e[38;2;139;148;158m  (aliases/exports still defined; \e[38;2;201;209;217mexec zsh\e[38;2;139;148;158m for a clean shell)\e[0m\n"
+            ;;
+        *)
+            command claw "$@"
+            ;;
+    esac
+}

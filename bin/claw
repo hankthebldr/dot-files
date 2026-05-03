@@ -211,13 +211,18 @@ cmd_load() {
     [[ -z "$p" ]] && { err "usage: claw load <profile>"; return 1; }
     local pfile="$DOTFILES/shell/profiles/$p.zsh"
     [[ ! -f "$pfile" ]] && { err "profile not found: $p"; info "available: default claude cloud security devops ai research cortex local"; return 1; }
-    info "to load this profile in your CURRENT shell, run:"
+    # NOTE: this branch is normally shadowed by the `claw()` zsh function in
+    # shell/claw-fn.zsh, which sources the profile in the parent shell. We
+    # only reach here if claw is invoked as `bash bin/claw load` or from a
+    # non-zsh shell — then we can't mutate the caller, so print instructions.
+    info "shell function not loaded — to load in your current shell:"
     printf "    ${c_white}export CLAW_ACTIVE_PROFILE=%s && source %s${c_reset}\n" "$p" "$pfile"
-    info "(claw runs in a subshell — it cannot mutate your interactive shell directly)"
+    info "(or just open a new zsh shell so the claw() function is available)"
 }
 
 cmd_off() {
-    info "to clear the active profile in your CURRENT shell, run:"
+    # Same caveat as cmd_load — normally handled by shell/claw-fn.zsh.
+    info "shell function not loaded — to unload in your current shell:"
     printf "    ${c_white}unset CLAW_ACTIVE_PROFILE && exec zsh${c_reset}\n"
 }
 

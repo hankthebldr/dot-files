@@ -163,9 +163,30 @@ function claw_welcome_tui() {
             fi
             ;;
         agents)
-            "$_d/bin/claw" agent list
-            echo ""
-            printf "  ${c_dim}Run an agent: ${c_white}claw <name>${c_dim} (e.g. claw claude)${c_reset}\n\n"
+            # Show registered agents as an FZF picker; pick one → exec it.
+            if ! command -v fzf &>/dev/null; then
+                "$_d/bin/claw" agent list
+                printf "\n  ${c_dim}fzf not installed — install for picker UX${c_reset}\n"
+                return 0
+            fi
+            local _agents
+            # Strip ANSI escapes first, then extract lines with ● bullet, then
+            # the agent name (first non-whitespace token after ●).
+            _agents=$("$_d/bin/claw" agent list 2>/dev/null | \
+                sed -E 's/\x1b\[[0-9;]*m//g' | \
+                awk '/●/ {print $2}')
+            if [[ -z "$_agents" ]]; then
+                echo "  ${c_dim}no agents registered. add one with: claw agent add <name> <command> [profile]${c_reset}"
+                return 0
+            fi
+            local _pick
+            _pick=$(echo "$_agents" | fzf --reverse --height=~12 --margin=0,0,0,2 \
+                --prompt="agent ▶ " \
+                --header="  ENTER launch · ESC cancel" \
+                --color="bg+:#161b22,fg+:#c9d1d9,prompt:#bc8cff,header:#8b949e,pointer:#3fb950" \
+                | awk '{print $1}')
+            [[ -z "$_pick" ]] && return 0
+            "$_d/bin/claw" "$_pick"
             ;;
         tmux)
             if command -v tmux &> /dev/null; then
