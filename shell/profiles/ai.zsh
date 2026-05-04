@@ -2,62 +2,32 @@
 # Loadout for Model Ops, Embeddings, Local Inference, and AI Workflows
 export CLAW_PROFILE_THEME="ai"
 
-# ==========================================
-# ENVIRONMENT VARIABLES
-# ==========================================
 export AI_WORKSPACE="$HOME/ai_models"
-mkdir -p "$AI_WORKSPACE"
+mkdir -p "$AI_WORKSPACE" 2>/dev/null
 
-# Note: Set API Keys in ~/.zshrc.local or secure vault (e.g. 1Password/AWS Vault)
-# export OPENAI_API_KEY="..."
-# export ANTHROPIC_API_KEY="..."
-# export GOOGLE_API_KEY="..."
-# export GOOGLE_CLOUD_PROJECT="..."
+# Note: Set API Keys in ~/.zshrc.local (e.g. OPENAI_API_KEY, ANTHROPIC_API_KEY)
 
 # ==========================================
-# CATEGORIZED ALIASES & PIPELINES
+# ALIASES — short, unprefixed, value-add only
 # ==========================================
+# (de-prefixed 2026-04-28: pure renames like ai-llama=llama-cpp dropped.
+#  Use the real binary names directly. Compositions get short mnemonics.)
 
-# --- Local & API Models ---
-alias ai-llama="llama-cpp"
-alias ai-gpt4all="gpt4all-cli"
-alias ai-openai="openai api chat.completions.create -m gpt-4o"
-alias ai-claude="anthropic"
-alias ai-serve="ollama serve"
-alias ai-pull="ollama pull"
-alias ai-run="ollama run"
+# --- Ollama (compositions only — `ollama` itself is fine to type) ---
+alias oserve="ollama serve"
+alias opull="ollama pull"
+alias orun="ollama run"
 
-# --- Embeddings & Vector DBs ---
-alias ai-cohere="cohere"
-alias ai-qdrant="qdrant-cli"
-alias ai-pine="pinecone-cli"
+# --- API one-liners ---
+alias oai="openai api chat.completions.create -m gpt-4o"
+alias fab="fabric --pattern"
 
-# --- Audio & Generative ---
-alias ai-whisper="whisper-cpp"
-alias ai-diff="diffusers-cli"
-
-# --- MLOps Pipeline ---
-alias ai-hf="huggingface-cli"
-alias ai-dvc="dvc status"
-alias ai-lang="langchain-cli"
-
-# --- Pair Programming & Shell Native AI ---
-alias aider="aider"
-alias ai-fab="fabric --pattern"
-
-# --- Agent SDKs ---
-alias ai-claude-sdk="claude"
-alias ai-adk="adk"
-alias ai-adk-web="adk web"
-alias ai-adk-run="adk run"
-alias ai-adk-eval="adk eval"
-alias ai-adk-deploy="adk deploy"
+# Note: agents (claude, aider, hermes, etc.) are launched via `claw <agent>`
+# from the registry at ~/.config/claw/agents.toml — not duplicated here.
 
 # ==========================================
-# HELPER FUNCTIONS
+# QUICK REFERENCE
 # ==========================================
-
-# Styled quick-reference card for all ai-* aliases
 ai-help() {
   local purple='\e[38;2;188;140;255m'
   local green='\e[38;2;63;185;80m'
@@ -72,49 +42,29 @@ ai-help() {
   printf "  ${purple}╰──────────────────────────────────────────────────────────╯${reset}\n"
   printf "\n"
 
-  printf "  ${bold}${green}Local & API Models${reset}\n"
-  printf "  ${purple}ai-serve${reset}       ${dim}Start ollama server${reset}\n"
-  printf "  ${purple}ai-pull${reset}        ${dim}Pull an ollama model${reset}\n"
-  printf "  ${purple}ai-run${reset}         ${dim}Run an ollama model${reset}\n"
-  printf "  ${purple}ai-llama${reset}       ${dim}llama-cpp inference${reset}\n"
-  printf "  ${purple}ai-gpt4all${reset}     ${dim}GPT4All CLI${reset}\n"
-  printf "  ${purple}ai-openai${reset}      ${dim}OpenAI GPT-4o chat${reset}\n"
-  printf "  ${purple}ai-claude${reset}      ${dim}Anthropic CLI${reset}\n"
+  printf "  ${bold}${green}Ollama${reset}\n"
+  printf "  ${purple}oserve${reset}    ${dim}ollama serve${reset}\n"
+  printf "  ${purple}opull${reset}     ${dim}ollama pull <model>${reset}\n"
+  printf "  ${purple}orun${reset}      ${dim}ollama run <model>${reset}\n"
   printf "\n"
-
-  printf "  ${bold}${green}Embeddings & Vector DBs${reset}\n"
-  printf "  ${purple}ai-cohere${reset}      ${dim}Cohere CLI${reset}\n"
-  printf "  ${purple}ai-qdrant${reset}      ${dim}Qdrant vector DB CLI${reset}\n"
-  printf "  ${purple}ai-pine${reset}        ${dim}Pinecone CLI${reset}\n"
+  printf "  ${bold}${green}One-liners${reset}\n"
+  printf "  ${purple}oai${reset}       ${dim}openai chat.completions (gpt-4o)${reset}\n"
+  printf "  ${purple}fab${reset}       ${dim}fabric --pattern <name>${reset}\n"
   printf "\n"
-
-  printf "  ${bold}${green}Audio & Generative${reset}\n"
-  printf "  ${purple}ai-whisper${reset}     ${dim}Whisper.cpp transcription${reset}\n"
-  printf "  ${purple}ai-diff${reset}        ${dim}Diffusers CLI${reset}\n"
+  printf "  ${bold}${green}Agents${reset} ${dim}(via claw registry — not aliases)${reset}\n"
+  printf "  ${purple}claw claude${reset}    ${dim}Anthropic Claude Code${reset}\n"
+  printf "  ${purple}claw <name>${reset}    ${dim}any registered agent${reset}\n"
+  printf "  ${purple}claw agent list${reset} ${dim}see all registered agents${reset}\n"
   printf "\n"
-
-  printf "  ${bold}${green}MLOps Pipeline${reset}\n"
-  printf "  ${purple}ai-hf${reset}          ${dim}Hugging Face CLI${reset}\n"
-  printf "  ${purple}ai-dvc${reset}         ${dim}DVC status${reset}\n"
-  printf "  ${purple}ai-lang${reset}        ${dim}LangChain CLI${reset}\n"
-  printf "\n"
-
-  printf "  ${bold}${green}Pair Programming${reset}\n"
-  printf "  ${purple}aider${reset}          ${dim}Aider AI pair programmer${reset}\n"
-  printf "  ${purple}ai-fab${reset}         ${dim}Fabric pattern runner${reset}\n"
-  printf "\n"
-
-  printf "  ${bold}${green}Agent SDKs${reset}\n"
-  printf "  ${purple}ai-claude-sdk${reset}  ${dim}Claude Code CLI${reset}\n"
-  printf "  ${purple}ai-adk${reset}         ${dim}Google ADK${reset}\n"
-  printf "  ${purple}ai-adk-web${reset}     ${dim}ADK web interface${reset}\n"
-  printf "  ${purple}ai-adk-run${reset}     ${dim}ADK run agent${reset}\n"
-  printf "  ${purple}ai-adk-eval${reset}    ${dim}ADK eval${reset}\n"
-  printf "  ${purple}ai-adk-deploy${reset}  ${dim}ADK deploy${reset}\n"
+  printf "  ${bold}${green}Other tools${reset} ${dim}(use real binary names)${reset}\n"
+  printf "  ${dim}llama-cpp · whisper-cpp · huggingface-cli · qdrant-cli · pinecone-cli${reset}\n"
+  printf "  ${dim}langchain-cli · diffusers-cli · gpt4all-cli · cohere · adk · dvc${reset}\n"
   printf "\n"
 }
 
-# Check availability of core AI toolchain binaries
+# ==========================================
+# TOOL AVAILABILITY CHECK
+# ==========================================
 _ai_tool_check() {
   local green='\e[38;2;63;185;80m'
   local red='\e[38;2;248;81;73m'
@@ -122,12 +72,10 @@ _ai_tool_check() {
   local dim='\e[38;2;139;148;158m'
   local bold='\e[1m'
   local reset='\e[0m'
-  local found=0
-  local missing=0
+  local found=0 missing=0
   local tools=(ollama claude aider whisper-cpp python3 pip3 dvc mlflow huggingface-cli adk)
 
   printf "\n  ${bold}${white}AI Toolchain Status${reset}\n\n"
-
   for tool in "${tools[@]}"; do
     if command -v "$tool" &> /dev/null; then
       printf "  ${green}●${reset}  ${white}%-18s${reset} ${dim}found${reset}\n" "$tool"
@@ -137,7 +85,6 @@ _ai_tool_check() {
       ((missing++))
     fi
   done
-
   printf "\n  ${dim}Summary: ${green}${found} installed${reset} ${dim}/ ${red}${missing} missing${reset} ${dim}(${#tools[@]} total)${reset}\n\n"
 }
 

@@ -1,68 +1,70 @@
-# Security Profile (Parrot OS Toolset)
+# Security Profile (Pentesting + DFIR + Reverse Engineering)
 # Loadout for Pentesting, Scanners, and Security Audits
 export CLAW_PROFILE_THEME="security"
 
 # ==========================================
-# ENVIRONMENT VARIABLES
+# ENVIRONMENT
 # ==========================================
 export PENTEST_WORKSPACE="$HOME/pentest"
-export WORDLISTS="/usr/local/share/wordlists/SecLists"
+export WORDLISTS="${WORDLISTS:-/usr/local/share/wordlists/SecLists}"
 
-# Auto-create engagement directory structure
-ENGAGEMENT_NAME=$(date +"%Y-%m-%d_engagement")
-ENGAGEMENT_DIR="$PENTEST_WORKSPACE/$ENGAGEMENT_NAME"
-mkdir -p "$ENGAGEMENT_DIR"/{scans,exploits,loot,evidence}
-
-# Automatically jump to the engagement directory
-cd "$ENGAGEMENT_DIR" || true
+# IMPORTANT: profile load no longer auto-creates an engagement directory or
+# auto-cd's into it (footgun — selecting a profile shouldn't relocate you).
+# Use `sec_engagement` to create + jump on demand. See bottom of file.
 
 # ==========================================
-# CATEGORIZED ALIASES
+# ALIASES — short, unprefixed, value-add only
 # ==========================================
+# (de-prefixed 2026-04-28: dropped osint-/red-/web-/net-/dfir-/rev- prefixes.
+#  Pure renames (osint-nmap=nmap, dfir-exif=exiftool, rev-rad=radare2) are
+#  GONE — type the real binary. Compositions kept under short mnemonics.)
 
-# --- 1. OSINT / Reconnaissance ---
-alias osint-nmap="nmap -T4 -A -v"
-alias osint-recon="theHarvester -d"
-alias osint-amass="amass enum -d"
-alias osint-sub="subfinder -d"
-alias osint-what="whatweb -v"
-alias osint-ssl="sslyze --regular"
+# --- Recon (compositions worth keeping; guarded — get install hint if missing) ---
+_claw_guard nrecon   nmap          nmap -T4 -A -v
+_claw_guard nharvest theHarvester  theHarvester -d
+_claw_guard amasse   amass         amass enum -d
+_claw_guard subf     subfinder     subfinder -d
 
-# --- 2. Red Team / Offensive ---
-alias red-msf="msfconsole"
-alias red-sql="sqlmap --batch --random-agent"
-alias red-cme="crackmapexec"
-alias red-hash="hashcat -a 0 -m"
-alias red-hydra="hydra -l admin -P $WORDLISTS/Passwords/Common-Credentials/10-million-password-list-top-100000.txt"
-alias red-listen="nc -lvnp"
+# --- Offensive ---
+_claw_guard sqli     sqlmap        sqlmap --batch --random-agent
+_claw_guard listen   nc            nc -lvnp
+_claw_guard hash0    hashcat       hashcat -a 0 -m
+# hydra wrapper — pre-loads admin/passwords for quick AD spraying. Override with -l/-P.
+_claw_guard hydraq   hydra         hydra -l admin -P "$WORDLISTS/Passwords/Common-Credentials/10-million-password-list-top-100000.txt"
 
-# --- 3. Web App Interrogation ---
-alias web-ffuf="ffuf -w $WORDLISTS/Discovery/Web-Content/raft-large-directories.txt -u"
-alias web-go="gobuster dir -w $WORDLISTS/Discovery/Web-Content/directory-list-2.3-medium.txt -u"
-alias web-dir="dirb"
-alias web-wp="wpscan --url"
-alias web-waf="wafw00f"
+# --- Web App fuzzing wrappers (pre-load wordlists) ---
+_claw_guard fuzz     ffuf          ffuf -w "$WORDLISTS/Discovery/Web-Content/raft-large-directories.txt" -u
+_claw_guard gobust   gobuster      gobuster dir -w "$WORDLISTS/Discovery/Web-Content/directory-list-2.3-medium.txt" -u
 
-# --- 4. Network & Spoofing ---
-alias net-dump="sudo tcpdump -i any -w $ENGAGEMENT_DIR/loot/capture.pcap"
-alias net-better="sudo bettercap"
-alias net-air="sudo aircrack-ng"
+# --- Network capture ---
+# Capture to current dir (NOT a hardcoded engagement dir) — safer.
+# Function (not alias) so $(date) re-evaluates per invocation. An alias would
+# bake the load-time timestamp in once, causing every `pcap` call in the same
+# session to overwrite the same file.
+pcap() {
+    sudo tcpdump -i any -w "./capture-$(date +%H%M%S).pcap" "$@"
+}
 
-# --- 5. Digital Forensics ---
-alias dfir-bin="binwalk -e"
-alias dfir-fore="foremost -i"
-alias dfir-exif="exiftool"
-alias dfir-vol="volatility -f"
-
-# --- 6. Reverse Engineering ---
-alias rev-rad="radare2"
-alias rev-cap="cstool"
+# Note: nmap, sslyze, whatweb, wafw00f, dirb, wpscan, msfconsole,
+# crackmapexec, bettercap, aircrack-ng, binwalk, foremost, exiftool,
+# volatility, radare2, cstool — type the real binary.
 
 # ==========================================
-# HELPER FUNCTIONS
+# ENGAGEMENT WORKSPACE (on-demand)
 # ==========================================
+sec_engagement() {
+  local name="${1:-$(date +%Y-%m-%d)_engagement}"
+  local dir="$PENTEST_WORKSPACE/$name"
+  mkdir -p "$dir"/{scans,exploits,loot,evidence}
+  cd "$dir" || return 1
+  export ENGAGEMENT_DIR="$dir"
+  printf "  \e[38;2;63;185;80m✓\e[0m engagement workspace: %s\n" "$dir"
+  printf "  \e[38;2;139;148;158m  scans/ exploits/ loot/ evidence/\e[0m\n"
+}
 
-# Styled quick-reference card for all security aliases
+# ==========================================
+# QUICK REFERENCE
+# ==========================================
 sec-help() {
   local red='\e[38;2;255;123;114m'
   local purple='\e[38;2;188;140;255m'
@@ -77,53 +79,40 @@ sec-help() {
   printf "  ${purple}╰──────────────────────────────────────────────────────────╯${reset}\n"
   printf "\n"
 
-  printf "  ${bold}${red}1. OSINT / Reconnaissance${reset}\n"
-  printf "  ${white}osint-nmap${reset}    ${dim}nmap -T4 -A -v${reset}\n"
-  printf "  ${white}osint-recon${reset}   ${dim}theHarvester -d${reset}\n"
-  printf "  ${white}osint-amass${reset}   ${dim}amass enum -d${reset}\n"
-  printf "  ${white}osint-sub${reset}     ${dim}subfinder -d${reset}\n"
-  printf "  ${white}osint-what${reset}    ${dim}whatweb -v${reset}\n"
-  printf "  ${white}osint-ssl${reset}     ${dim}sslyze --regular${reset}\n"
+  printf "  ${bold}${red}Recon (composition wrappers)${reset}\n"
+  printf "  ${white}nrecon${reset}    ${dim}nmap -T4 -A -v <target>${reset}\n"
+  printf "  ${white}nharvest${reset}  ${dim}theHarvester -d <domain>${reset}\n"
+  printf "  ${white}amasse${reset}    ${dim}amass enum -d <domain>${reset}\n"
+  printf "  ${white}subf${reset}      ${dim}subfinder -d <domain>${reset}\n"
   printf "\n"
-
-  printf "  ${bold}${red}2. Red Team / Offensive${reset}\n"
-  printf "  ${white}red-msf${reset}       ${dim}msfconsole${reset}\n"
-  printf "  ${white}red-sql${reset}       ${dim}sqlmap --batch --random-agent${reset}\n"
-  printf "  ${white}red-cme${reset}       ${dim}crackmapexec${reset}\n"
-  printf "  ${white}red-hash${reset}      ${dim}hashcat -a 0 -m${reset}\n"
-  printf "  ${white}red-hydra${reset}     ${dim}hydra brute-force${reset}\n"
-  printf "  ${white}red-listen${reset}    ${dim}nc -lvnp${reset}\n"
+  printf "  ${bold}${red}Offensive${reset}\n"
+  printf "  ${white}sqli${reset}      ${dim}sqlmap --batch --random-agent -u <url>${reset}\n"
+  printf "  ${white}hash0${reset}     ${dim}hashcat -a 0 -m <mode> <hash> <wordlist>${reset}\n"
+  printf "  ${white}hydraq${reset}    ${dim}hydra w/ admin + top-100k passwords${reset}\n"
+  printf "  ${white}listen${reset}    ${dim}nc -lvnp <port>${reset}\n"
   printf "\n"
-
-  printf "  ${bold}${red}3. Web App Interrogation${reset}\n"
-  printf "  ${white}web-ffuf${reset}      ${dim}ffuf directory fuzzing${reset}\n"
-  printf "  ${white}web-go${reset}        ${dim}gobuster directory brute${reset}\n"
-  printf "  ${white}web-dir${reset}       ${dim}dirb${reset}\n"
-  printf "  ${white}web-wp${reset}        ${dim}wpscan --url${reset}\n"
-  printf "  ${white}web-waf${reset}       ${dim}wafw00f${reset}\n"
+  printf "  ${bold}${red}Web fuzzing${reset}\n"
+  printf "  ${white}fuzz${reset}      ${dim}ffuf w/ raft-large-directories${reset}\n"
+  printf "  ${white}gobust${reset}    ${dim}gobuster dir w/ medium-directory-list${reset}\n"
   printf "\n"
-
-  printf "  ${bold}${red}4. Network & Spoofing${reset}\n"
-  printf "  ${white}net-dump${reset}      ${dim}tcpdump capture to pcap${reset}\n"
-  printf "  ${white}net-better${reset}    ${dim}bettercap${reset}\n"
-  printf "  ${white}net-air${reset}       ${dim}aircrack-ng${reset}\n"
+  printf "  ${bold}${red}Capture${reset}\n"
+  printf "  ${white}pcap${reset}      ${dim}sudo tcpdump → ./capture-HHMMSS.pcap${reset}\n"
   printf "\n"
-
-  printf "  ${bold}${red}5. Digital Forensics${reset}\n"
-  printf "  ${white}dfir-bin${reset}      ${dim}binwalk -e${reset}\n"
-  printf "  ${white}dfir-fore${reset}     ${dim}foremost -i${reset}\n"
-  printf "  ${white}dfir-exif${reset}     ${dim}exiftool${reset}\n"
-  printf "  ${white}dfir-vol${reset}      ${dim}volatility -f${reset}\n"
+  printf "  ${bold}${red}Workspace${reset}\n"
+  printf "  ${white}sec_engagement${reset}  ${dim}create + cd into engagement dir${reset}\n"
+  printf "                  ${dim}(NOT auto-loaded; explicit only)${reset}\n"
   printf "\n"
-
-  printf "  ${bold}${red}6. Reverse Engineering${reset}\n"
-  printf "  ${white}rev-rad${reset}       ${dim}radare2${reset}\n"
-  printf "  ${white}rev-cap${reset}       ${dim}cstool${reset}\n"
+  printf "  ${bold}${red}Use directly${reset}  ${dim}(no profile prefix)${reset}\n"
+  printf "  ${dim}nmap · sslyze · whatweb · wafw00f · dirb · wpscan · msfconsole${reset}\n"
+  printf "  ${dim}crackmapexec · bettercap · aircrack-ng · binwalk · foremost${reset}\n"
+  printf "  ${dim}exiftool · volatility · radare2 · cstool${reset}\n"
   printf "\n"
 }
 
-# Check availability of core security tools
-_sec_tool_check() {
+# ==========================================
+# TOOL AVAILABILITY CHECK
+# ==========================================
+_security_tool_check() {
   local green='\e[38;2;63;185;80m'
   local red='\e[38;2;255;123;114m'
   local white='\e[38;2;201;209;217m'
@@ -132,26 +121,15 @@ _sec_tool_check() {
   local reset='\e[0m'
 
   local -a tools=(
-    "nmap:nmap"
-    "metasploit:msfconsole"
-    "sqlmap:sqlmap"
-    "hashcat:hashcat"
-    "hydra:hydra"
-    "ffuf:ffuf"
-    "gobuster:gobuster"
-    "wireshark:tshark"
-    "trivy:trivy"
-    "grype:grype"
-    "nikto:nikto"
+    "nmap:nmap" "metasploit:msfconsole" "sqlmap:sqlmap"
+    "hashcat:hashcat" "hydra:hydra" "ffuf:ffuf" "gobuster:gobuster"
+    "wireshark:tshark" "trivy:trivy" "grype:grype" "nikto:nikto"
   )
-
-  local found=0
-  local missing=0
+  local found=0 missing=0
   local total=${#tools[@]}
 
   printf "\n  ${bold}${white}Security Toolchain Status${reset}\n"
   printf "  ${dim}─────────────────────────${reset}\n"
-
   for entry in "${tools[@]}"; do
     local label="${entry%%:*}"
     local cmd="${entry##*:}"
@@ -163,12 +141,14 @@ _sec_tool_check() {
       ((missing++))
     fi
   done
-
   printf "\n  ${dim}${found}/${total} tools available"
   if (( missing > 0 )); then
     printf " ${red}(${missing} missing)${reset}"
   fi
   printf "${reset}\n\n"
 }
+
+# Backwards-compat alias (old name → new)
+alias _sec_tool_check=_security_tool_check
 
 # Profile banner handled by fastfetch (config-security.jsonc)

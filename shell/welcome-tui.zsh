@@ -14,8 +14,11 @@ function claw_welcome_tui() {
     # Use $DOTFILES_DIR set by .zshrc
     local _d="$DOTFILES_DIR"
 
-    # Trigger background tool updater silently
-    ( "$_d/scripts/utils/tool-updater.sh" ) &> /dev/null &
+    # Trigger background tool updater silently.
+    # NOTE: `&!` is zsh's background-and-disown — it prevents the `[N] + done`
+    # job-control notification from bleeding over the fastfetch logo when the
+    # wrapper subshell exits a few ms later (the script itself self-backgrounds).
+    "$_d/scripts/utils/tool-updater.sh" &>/dev/null &!
 
     # Modern GitHub macOS Dark Theme (True Colors)
     local c_reset=$'\e[0m'
@@ -80,7 +83,8 @@ function claw_welcome_tui() {
     choices+="tunnel\t${c_cyan}🔗 SSH Tunnels${c_reset}${c_dim}        Port Forwards · SOCKS${c_reset}\n"
     choices+="ai_tools\t${c_purple}🧠 AI Toolkit${c_reset}${c_dim}         Ollama · Claude · Aider${c_reset}\n"
     choices+="mcp\t${c_cyan}🔌 MCP Manager${c_reset}${c_dim}        Model Context Protocol${c_reset}\n"
-    choices+="claude\t${c_orange}💻 Claude Code${c_reset}\n"
+    choices+="agents\t${c_purple}🧠 Agents${c_reset}${c_dim}             Claude · Hermes · Aider · …${c_reset}\n"
+    choices+="vault\t${c_orange}📓 Obsidian Vault${c_reset}${c_dim}     profile-aware vault helpers${c_reset}\n"
 
     # ── System ──
     choices+="─\t${c_dim}───────────────────────────────────────────────${c_reset}\n"
@@ -159,8 +163,45 @@ function claw_welcome_tui() {
                 echo "${c_red}MCP Manager not found.${c_reset}"
             fi
             ;;
-        claude)
-            if command -v claude &> /dev/null; then claude; else echo "${c_red}Claude Code not found.${c_reset}"; fi
+        vault)
+            # Open Obsidian to the active vault (profile-aware via obsidian.zsh)
+            if typeset -f _claw_obsidian_vault &>/dev/null; then
+                local _v="$(_claw_obsidian_vault)"
+                if [[ -d "$_v" ]]; then
+                    claw_open "obsidian://open?vault=$(basename "$_v")"
+                    printf "  ${c_green}✓${c_reset} opened ${c_white}%s${c_reset}  ${c_dim}(profile: ${CLAW_ACTIVE_PROFILE:-default})${c_reset}\n" "$(basename "$_v")"
+                else
+                    echo "  ${c_red}✗${c_reset} vault not found: $_v"
+                fi
+            else
+                echo "  ${c_red}✗${c_reset} obsidian helpers not loaded"
+            fi
+            ;;
+        agents)
+            # Show registered agents as an FZF picker; pick one → exec it.
+            if ! command -v fzf &>/dev/null; then
+                "$_d/bin/claw" agent list
+                printf "\n  ${c_dim}fzf not installed — install for picker UX${c_reset}\n"
+                return 0
+            fi
+            local _agents
+            # Strip ANSI escapes first, then extract lines with ● bullet, then
+            # the agent name (first non-whitespace token after ●).
+            _agents=$("$_d/bin/claw" agent list 2>/dev/null | \
+                sed -E 's/\x1b\[[0-9;]*m//g' | \
+                awk '/●/ {print $2}')
+            if [[ -z "$_agents" ]]; then
+                echo "  ${c_dim}no agents registered. add one with: claw agent add <name> <command> [profile]${c_reset}"
+                return 0
+            fi
+            local _pick
+            _pick=$(echo "$_agents" | fzf --reverse --height=~12 --margin=0,0,0,2 \
+                --prompt="agent ▶ " \
+                --header="  ENTER launch · ESC cancel" \
+                --color="bg+:#161b22,fg+:#c9d1d9,prompt:#bc8cff,header:#8b949e,pointer:#3fb950" \
+                | awk '{print $1}')
+            [[ -z "$_pick" ]] && return 0
+            "$_d/bin/claw" "$_pick"
             ;;
         tmux)
             if command -v tmux &> /dev/null; then
@@ -174,7 +215,10 @@ function claw_welcome_tui() {
             ;;
         update)
             if [[ -f "$_d/scripts/utils/system-update.sh" ]]; then
-                source "$_d/scripts/utils/system-update.sh"
+                # Run as bash, NOT source in zsh — system-update.sh sources
+                # tui-style.sh via ${BASH_SOURCE[0]} which is bash-only.
+                # Sourcing here would break the helper-path resolution.
+                bash "$_d/scripts/utils/system-update.sh"
             else
                 echo "${c_dim}Running brew update & upgrade...${c_reset}"
                 if command -v brew &>/dev/null; then brew update && brew upgrade; elif command -v apt &>/dev/null; then sudo apt update && sudo apt upgrade -y; fi

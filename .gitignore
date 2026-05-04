@@ -64,7 +64,9 @@ cython_debug/
 
 # Virtual Environments
 pyvenv.cfg
-bin/
+# NOTE: do not blanket-ignore bin/ — top-level bin/ holds the `claw` dispatcher.
+# Python venv bin/ dirs are caught by the venv/ env/ .venv/ patterns below instead.
+**/site-packages/
 lib/
 include/
 pip-selfcheck.json

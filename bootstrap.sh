@@ -292,6 +292,21 @@ main() {
     source "$SCRIPT_DIR/scripts/setup/symlinks.sh"
     stow_modules
 
+    # ── Step 8b: Ensure claw dispatcher + helpers are executable ──
+    # Git tracks the executable bit but a fresh clone over a different
+    # umask (or a bad mirror) can drop it. Belt-and-suspenders.
+    log_info "Setting executable bits on bin/ + scripts/"
+    chmod +x "$SCRIPT_DIR/bin/claw" 2>/dev/null || true
+    find "$SCRIPT_DIR/scripts" -type f -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
+    log_success "claw + scripts marked executable"
+
+    # Verify claw is reachable after a synthetic PATH refresh
+    if [[ -x "$SCRIPT_DIR/bin/claw" ]] && "$SCRIPT_DIR/bin/claw" help &>/dev/null; then
+        log_success "claw dispatcher verified at $SCRIPT_DIR/bin/claw"
+    else
+        log_warning "claw dispatcher not running cleanly — check $SCRIPT_DIR/bin/claw manually"
+    fi
+
     # ── Step 9: Full mode extras ─────────────────────────
     step "Finalizing"
     if [[ "$INSTALL_MODE" == "full" ]]; then
@@ -323,6 +338,7 @@ main() {
     echo "  │     1. Restart your terminal:  exec zsh              │"
     echo "  │     2. Set terminal font to a Nerd Font              │"
     echo "  │     3. Run  p10k configure  for prompt setup         │"
+    echo "  │     4. Try:  claw help   (single command surface)    │"
     echo "  │                                                      │"
     if [[ "$SECURITY_MODE" == "true" ]]; then
     echo "  │   Security tools:                                    │"

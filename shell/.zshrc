@@ -80,6 +80,8 @@ fi
 [[ -f "$DOTFILES_DIR/shell/exports.zsh" ]] && source "$DOTFILES_DIR/shell/exports.zsh"
 [[ -f "$DOTFILES_DIR/shell/load-env.zsh" ]] && source "$DOTFILES_DIR/shell/load-env.zsh"
 [[ -f "$DOTFILES_DIR/shell/aliases.zsh" ]] && source "$DOTFILES_DIR/shell/aliases.zsh"
+[[ -f "$DOTFILES_DIR/shell/profile-helpers.zsh" ]] && source "$DOTFILES_DIR/shell/profile-helpers.zsh"
+[[ -f "$DOTFILES_DIR/shell/claw-fn.zsh" ]] && source "$DOTFILES_DIR/shell/claw-fn.zsh"
 [[ -f "$DOTFILES_DIR/shell/security.zsh" ]] && source "$DOTFILES_DIR/shell/security.zsh"
 [[ -f "$DOTFILES_DIR/shell/obsidian.zsh" ]] && source "$DOTFILES_DIR/shell/obsidian.zsh"
 [[ -f ~/hr-vault-main-pa/_agents/shell-aliases.sh ]] && source ~/hr-vault-main-pa/_agents/shell-aliases.sh
@@ -88,7 +90,10 @@ fi
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
 command -v atuin &>/dev/null && eval "$(atuin init zsh)"
-command -v thefuck &>/dev/null && eval $(thefuck --alias)
+# TheFuck — lazy-loaded (thefuck --alias is slow, ~400ms)
+if command -v thefuck &>/dev/null; then
+    fuck() { unfunction fuck; eval $(thefuck --alias); fuck "$@"; }
+fi
 
 if command -v eza &>/dev/null; then
     alias ls='eza --icons --group-directories-first'
@@ -167,6 +172,22 @@ fi
 alias zshconfig="${EDITOR:-vim} ~/.zshrc"
 alias ohmyzsh="${EDITOR:-vim} ~/.oh-my-zsh"
 
+# ── FZF Keybindings (Ctrl+T, Alt+C, Ctrl+R override) ────
+for _fzf_init in \
+    "$HOME/.fzf.zsh" \
+    "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/fzf/shell/key-bindings.zsh" \
+    "/usr/share/doc/fzf/examples/key-bindings.zsh" \
+    "/usr/share/fzf/key-bindings.zsh"; do
+    if [[ -f "$_fzf_init" ]]; then source "$_fzf_init"; break; fi
+done
+unset _fzf_init
+
+# ── Local Overrides (not tracked in git) ────────────────
+[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
+
 # ── Appended PATH (external tools) ──────────────────────
 [[ -d "$HOME/.antigravity/antigravity/bin" ]] && export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
 [[ -d "$HOME/.lmstudio/bin" ]] && export PATH="$PATH:$HOME/.lmstudio/bin"
+
+# Ollama: store models on LACIE HD (8TB external)
+export OLLAMA_MODELS="/Volumes/LacieDrive/ollama-models"
