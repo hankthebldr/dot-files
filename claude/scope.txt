@@ -1,0 +1,21 @@
+# ~/.claude/scope.txt — Authorized targets for active recon/scan tools.
+#
+# One target per line. Comments start with #. Empty lines ignored.
+# Targets may be:
+#   - Domains:    example.com, *.lab.example.com (glob suffix)
+#   - IPv4:       192.0.2.45
+#   - CIDR:       10.10.0.0/24
+#   - Hostnames:  internal-host.lab
+#
+# The pre_tool_use.py hook validates EVERY active recon command
+# (nmap, masscan, nuclei, ffuf, gobuster, sqlmap, subfinder, hydra, ...)
+# against this file. Anything not listed is denied.
+#
+# Add via the /scope slash command — confirms before append.
+# Default-deny is enforced. No silent expansion.
+
+# --- Authorized lab / homelab ---
+*.lab.example.com
+192.0.2.0/24
+
+# --- Add engagement scopes below this line ---

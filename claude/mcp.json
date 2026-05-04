@@ -1,0 +1,5 @@
+{
+  "_comment": "MCP server registry for Claude Code. Source of truth for ~/.claude/mcp.json. Phase 4 will populate the foundational tier (filesystem, git, memory, fetch, smart-connections); Phase 6 the OSINT tier (shodan, osint-37, security-hub). Secrets reference env vars by name only — never inline values.",
+  "_spec": "ADR-002-mcp-server-selection.md",
+  "mcpServers": {}
+}
