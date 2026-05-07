@@ -98,7 +98,7 @@ function claw_welcome_tui() {
     # Launch fzf menu
     local selection
     selection=$(echo -e "$choices" | column -s $'\t' -t | fzf \
-        --height=~24 --reverse --margin=0,0,0,4 \
+        --height=~30 --reverse --margin=0,0,0,4 \
         --prompt="▶ " \
         --header="  ENTER default · ↑/↓ navigate · ESC shell" \
         --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff" \

@@ -50,6 +50,10 @@ fi
 # ── 5. Oh-My-Zsh Framework ─────────────────────────────
 export ZSH="$HOME/.oh-my-zsh"
 
+# Skip compaudit's insecure-directory check — Homebrew's site-functions are
+# group-writable on macOS and trigger spurious warnings on every shell start.
+ZSH_DISABLE_COMPFIX="true"
+
 if [[ -d "$ZSH" ]]; then
     ZSH_THEME="powerlevel10k/powerlevel10k"
 
