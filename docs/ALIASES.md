@@ -7,3 +7,5 @@
 | `catn` | `bat --style=plain` | No decorations |
 | `gi` | `rg -i` | Case insensitive |
 | `rga` | `rg --hidden --no-ignore` | Search all files |
+| `klogs` | `stern` | Multi-pod logs |
+| `localip` | `local_ip` | cross-platform via platform.zsh |

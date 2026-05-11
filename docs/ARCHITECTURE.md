@@ -9,6 +9,7 @@ graph TD
     UI --> TK[Interactive Toolkit Menu]
 
     P --> P_ai(ai Profile)
+    P --> P_claude(claude Profile)
     P --> P_cloud(cloud Profile)
     P --> P_cortex(cortex Profile)
     P --> P_default(default Profile)
