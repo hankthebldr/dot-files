@@ -10,6 +10,8 @@ set -e
 DOTFILES="${DOTFILES_DIR:-$HOME/.dotfiles}"
 CLAW_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claw"
 AGENTS_TOML="$CLAW_CONFIG_DIR/agents.toml"
+CLAW_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
+CLAW_USAGE_LOG="$CLAW_CACHE_DIR/usage.tsv"
 
 # ============================================
 # THEME (GitHub Dark — matches system-update.sh)
@@ -27,6 +29,24 @@ c_bold=$'\e[1m'
 err()  { printf "  ${c_red}✗${c_reset} %s\n" "$*" >&2; }
 info() { printf "  ${c_cyan}●${c_reset} %s\n" "$*"; }
 ok()   { printf "  ${c_green}✓${c_reset} %s\n" "$*"; }
+
+# ============================================
+# USAGE LOGGER
+# ============================================
+# Append-only TSV: ISO timestamp \t subcommand \t arg-count \t profile
+# Disable with CLAW_NO_LOG=1. Errors are swallowed — must never block dispatch.
+log_usage() {
+    [[ "$CLAW_NO_LOG" = "1" ]] && return 0
+    {
+        mkdir -p "$CLAW_CACHE_DIR" 2>/dev/null
+        printf '%s\t%s\t%s\t%s\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${1:-menu}" \
+            "$(( $# > 0 ? $# - 1 : 0 ))" \
+            "${CLAW_ACTIVE_PROFILE:-none}" \
+            >> "$CLAW_USAGE_LOG"
+    } 2>/dev/null || true
+}
 
 # ============================================
 # AGENTS REGISTRY
@@ -92,6 +112,7 @@ cmd_help() {
   ${c_cyan}${c_bold}Workflows${c_reset}
     ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
     ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
+    ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc)${c_reset}
     ${c_white}claw tools${c_reset}            ${c_dim}interactive curated CLI tool refresh${c_reset}
 
@@ -124,6 +145,28 @@ cmd_menu() {
     # exactly as it does on shell login.
     zsh -i -c 'source "$DOTFILES_DIR/shell/welcome-tui.zsh" && claw_welcome_tui' 2>/dev/null || \
         err "welcome-tui failed — try: source \$DOTFILES_DIR/shell/welcome-tui.zsh && claw_welcome_tui"
+}
+
+cmd_stats() {
+    if [[ ! -s "$CLAW_USAGE_LOG" ]]; then
+        info "no usage logged yet ${c_dim}($CLAW_USAGE_LOG)${c_reset}"
+        info "use claw normally for a few days, then re-run claw stats"
+        return 0
+    fi
+    local total since
+    total=$(wc -l < "$CLAW_USAGE_LOG" | tr -d ' ')
+    since=$(head -1 "$CLAW_USAGE_LOG" | cut -f1)
+    printf "\n  ${c_purple}${c_bold}claw stats${c_reset}  ${c_dim}— %s invocations since %s${c_reset}\n" "$total" "$since"
+    printf "  ${c_dim}─────────────────────────────────────${c_reset}\n\n"
+    printf "  ${c_cyan}${c_bold}By subcommand${c_reset}\n"
+    cut -f2 "$CLAW_USAGE_LOG" | sort | uniq -c | sort -rn | \
+        awk -v g=$'\e[38;2;63;185;80m' -v d=$'\e[38;2;139;148;158m' -v r=$'\e[0m' \
+            '{ printf "    %s%4d%s  %s%s%s\n", g, $1, r, d, $2, r }'
+    printf "\n  ${c_cyan}${c_bold}By profile${c_reset}\n"
+    cut -f4 "$CLAW_USAGE_LOG" | sort | uniq -c | sort -rn | \
+        awk -v g=$'\e[38;2;188;140;255m' -v d=$'\e[38;2;139;148;158m' -v r=$'\e[0m' \
+            '{ printf "    %s%4d%s  %s%s%s\n", g, $1, r, d, $2, r }'
+    printf "\n  ${c_dim}log: %s${c_reset}\n\n" "$CLAW_USAGE_LOG"
 }
 
 cmd_doctor() {
@@ -372,10 +415,12 @@ cmd_run_agent() {
 # ============================================
 # DISPATCH
 # ============================================
+log_usage "${1:-menu}" "$@"
 case "${1:-menu}" in
     ""|menu)        cmd_menu ;;
     help|-h|--help) cmd_help ;;
     doctor)         cmd_doctor ;;
+    stats)          cmd_stats ;;
     update)         shift; cmd_update "$@" ;;
     tools)          shift; cmd_tools "$@" ;;
     tun|tunnel)     shift; cmd_tun "$@" ;;
