@@ -22,6 +22,13 @@ cd ~/.dotfiles && ./bootstrap.sh
 ./bootstrap.sh --dry-run    # Preview without changes
 ```
 
+### Documentation
+
+- **[User Guide](docs/claw.md)** — single-page reference for the `claw` command (profile loading, agents, doctor)
+- **[Architecture](docs/ARCHITECTURE.md)** — system topology and module map (auto-generated)
+- **[Aliases](docs/ALIASES.md)** — full alias reference (auto-generated)
+- **[Changelog](CHANGELOG.md)** — release notes
+
 ### What Bootstrap Does
 
 | Step | What | macOS | Ubuntu |
