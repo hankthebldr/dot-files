@@ -123,6 +123,8 @@ cmd_help() {
     ${c_white}claw toolkit${c_reset}          ${c_dim}Open Claw workflow launcher${c_reset}
     ${c_white}claw skills${c_reset}           ${c_dim}browse Claude skills${c_reset}
     ${c_white}claw obsidian${c_reset}         ${c_dim}vault helpers (profile-aware)${c_reset}
+    ${c_white}claw onboard${c_reset}          ${c_dim}80s arcade onboarding · picks your profile${c_reset}
+    ${c_white}claw integrity${c_reset}        ${c_dim}tamper-check + install verification${c_reset}
 
   ${c_orange}${c_bold}Profiles${c_reset}
     ${c_white}claw load <profile>${c_reset}   ${c_dim}source a profile in current shell${c_reset}
@@ -290,6 +292,14 @@ EOF
     esac
 }
 
+cmd_onboard() {
+    bash "$DOTFILES/scripts/utils/onboarding.sh" "$@"
+}
+
+cmd_integrity() {
+    bash "$DOTFILES/scripts/utils/integrity.sh" "$@"
+}
+
 cmd_skills() {
     local skills_dir="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
     if [[ ! -d "$skills_dir" ]]; then
@@ -429,6 +439,8 @@ case "${1:-menu}" in
     toolkit)        shift; cmd_toolkit "$@" ;;
     skills)         shift; cmd_skills "$@" ;;
     obsidian|vault) shift; cmd_obsidian "$@" ;;
+    onboard|onboarding|character) shift; cmd_onboard "$@" ;;
+    integrity|verify|check) shift; cmd_integrity "$@" ;;
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
     install)        shift; cmd_install "$@" ;;

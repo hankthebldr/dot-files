@@ -88,6 +88,8 @@ function claw_welcome_tui() {
 
     # ── System ──
     choices+="─\t${c_dim}───────────────────────────────────────────────${c_reset}\n"
+    choices+="onboard\t${c_pink}🕹  Onboarding${c_reset}${c_dim}        80s arcade · picks your profile${c_reset}\n"
+    choices+="integrity\t${c_green}🛡  Integrity Check${c_reset}${c_dim}   verify install · tamper-check${c_reset}\n"
     choices+="tmux\t${c_green}🪟 TMUX${c_reset}${c_dim}               Attach or New Session${c_reset}\n"
     choices+="yazi\t${c_cyan}📂 Yazi${c_reset}${c_dim}               File Browser${c_reset}\n"
     choices+="update\t${c_yellow}🔧 System Update${c_reset}${c_dim}      Brew · NPM · Pip${c_reset}\n"
@@ -175,6 +177,20 @@ function claw_welcome_tui() {
                 fi
             else
                 echo "  ${c_red}✗${c_reset} obsidian helpers not loaded"
+            fi
+            ;;
+        onboard)
+            if [[ -f "$_d/scripts/utils/onboarding.sh" ]]; then
+                bash "$_d/scripts/utils/onboarding.sh"
+            else
+                echo "${c_red}Onboarding script not found.${c_reset}"
+            fi
+            ;;
+        integrity)
+            if [[ -f "$_d/scripts/utils/integrity.sh" ]]; then
+                bash "$_d/scripts/utils/integrity.sh" audit
+            else
+                echo "${c_red}Integrity script not found.${c_reset}"
             fi
             ;;
         agents)

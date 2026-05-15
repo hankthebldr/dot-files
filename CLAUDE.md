@@ -82,6 +82,16 @@ Each profile provides:
 - Logo variants: same OPEN CLAW geometry, different color palettes and banner text per profile
 - Default profile uses Apple-inspired logo instead of OPEN CLAW face
 
+### Gamified Onboarding & Integrity Check
+
+`scripts/utils/onboarding.sh` — 80s arcade-themed character-creation flow that asks 6 personality questions (work hours, weapon of choice, prod-incident style, dream homelab, etc.), tallies points against the 8 workflow profiles, announces an RPG-style "class" (e.g. `SKYSURFER` for cloud, `NIGHTHACKER` for security, `NEUROMANCER` for ai), and offers to install the matching toolchain + activate the profile. Surfaced via `claw onboard`, the welcome TUI ("Onboarding" entry), and the bootstrap end-of-install banner. Visual palette: hot pink / neon cyan / synthwave purple. Uses gum if available, falls back to plain `read`.
+
+`scripts/utils/integrity.sh` — SHA-256 manifest generator and verifier for the entire dotfiles tree. Run after install/pull to detect tampering or partial installs:
+- `claw integrity generate` — writes `config/integrity/manifest.sha256`, sorted byte-wise for deterministic output. Honors `config/integrity/.integrityignore` (gitignore-style globs; auto-created with sane defaults).
+- `claw integrity verify` — diffs on-disk hashes against the manifest, reports `CHANGED` / `MISSING` / `EXTRA` paths, exits 1 on drift.
+- `claw integrity audit` — verify plus provenance: git commit/branch, manifest age, hasher version.
+- Auto-generated at the end of `bootstrap.sh` as Step 9b. Portable across macOS (`shasum -a 256`) and Linux (`sha256sum`).
+
 ### SSH Tunnel Manager
 
 `scripts/utils/tunnel-manager.sh` — Interactive FZF-based tunnel manager:

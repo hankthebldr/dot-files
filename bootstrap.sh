@@ -328,6 +328,17 @@ main() {
         log_warning "No clipboard tool found. Install: sudo apt install xclip"
     fi
 
+    # ── Step 9b: Generate integrity manifest ───────────────
+    # Captures the SHA-256 of every shell script / config / profile we
+    # just deployed so the user (or a CI job) can detect tampering or a
+    # partial install later via `claw integrity verify`.
+    if [[ -x "$SCRIPT_DIR/scripts/utils/integrity.sh" ]]; then
+        log_info "Recording install integrity manifest..."
+        bash "$SCRIPT_DIR/scripts/utils/integrity.sh" generate >/dev/null 2>&1 && \
+            log_success "Integrity manifest saved (run: claw integrity verify)" || \
+            log_warning "Integrity manifest generation failed (non-fatal)"
+    fi
+
     # ── Done ─────────────────────────────────────────────
     echo ""
     echo "  ╭──────────────────────────────────────────────────────╮"
@@ -346,8 +357,9 @@ main() {
     echo "  │                                                      │"
     fi
     echo "  │   Quick start:                                       │"
+    echo "  │     claw onboard   ▶ pick a profile (80s arcade)     │"
+    echo "  │     claw integrity verify   tamper-check your install │"
     echo "  │     default-help   show all commands                 │"
-    echo "  │     netcheck       network diagnostics               │"
     echo "  │     tun            SSH tunnel manager                │"
     echo "  │                                                      │"
     echo "  ╰──────────────────────────────────────────────────────╯"
