@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# hermes — local Hermes agent via Ollama
+#
+# Usage:
+#   hermes                    # interactive REPL
+#   hermes "your prompt"      # one-shot inference
+#
+# Model is configurable: export CLAW_HERMES_MODEL=hermes3:70b
+# Defaults to hermes3:8b (~5GB, runs comfortably on CPU).
+
+set -e
+
+MODEL="${CLAW_HERMES_MODEL:-hermes3:8b}"
+
+# Ensure ollama is on PATH
+if ! command -v ollama &>/dev/null; then
+    echo "hermes: ollama not installed" >&2
+    echo "        run: claw install ai   (or: bash \$DOTFILES_DIR/scripts/install/hermes.sh)" >&2
+    exit 1
+fi
+
+# Probe daemon (3s timeout)
+if ! curl -fsS --max-time 3 http://localhost:11434/api/tags &>/dev/null; then
+    echo "hermes: ollama daemon not reachable at :11434" >&2
+    if command -v systemctl &>/dev/null; then
+        echo "        start with: sudo systemctl start ollama" >&2
+    else
+        echo "        start with: ollama serve   (or: brew services start ollama)" >&2
+    fi
+    exit 1
+fi
+
+# Verify model is pulled
+if ! ollama list 2>/dev/null | awk 'NR>1 {print $1}' | grep -Fxq "$MODEL"; then
+    echo "hermes: model not pulled: $MODEL" >&2
+    echo "        run: ollama pull $MODEL   (or: claw install ai)" >&2
+    exit 1
+fi
+
+if [[ $# -eq 0 ]]; then
+    exec ollama run "$MODEL"
+else
+    exec ollama run "$MODEL" "$*"
+fi

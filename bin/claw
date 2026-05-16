@@ -200,6 +200,40 @@ cmd_doctor() {
             "$check_fn"
         fi
     fi
+
+    # AI agents (Hermes + OpenRouter) — independent checks, none fatal.
+    printf "\n  ${c_purple}${c_bold}AI Agents${c_reset}\n"
+    if command -v ollama &>/dev/null; then
+        ok "ollama ${c_dim}($(ollama --version 2>/dev/null | head -1))${c_reset}"
+        if curl -fsS --max-time 2 http://localhost:11434/api/tags &>/dev/null; then
+            ok "ollama daemon ${c_dim}reachable at :11434${c_reset}"
+            local _hm="${CLAW_HERMES_MODEL:-hermes3:8b}"
+            if ollama list 2>/dev/null | awk 'NR>1 {print $1}' | grep -Fxq "$_hm"; then
+                ok "hermes model ${c_dim}$_hm${c_reset}"
+            else
+                err "hermes model ${c_dim}$_hm — not pulled (run: claw install ai)${c_reset}"
+            fi
+        else
+            err "ollama daemon ${c_dim}— not reachable at :11434${c_reset}"
+        fi
+    else
+        err "ollama ${c_dim}— not installed (run: claw install ai)${c_reset}"
+    fi
+    if command -v aichat &>/dev/null; then
+        ok "aichat ${c_dim}($(aichat --version 2>/dev/null))${c_reset}"
+    else
+        err "aichat ${c_dim}— not installed (run: claw install ai)${c_reset}"
+    fi
+    if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
+        if [[ "$OPENROUTER_API_KEY" == op://* ]]; then
+            err "OPENROUTER_API_KEY ${c_dim}— op:// not resolved (install 1Password CLI: brew install 1password-cli)${c_reset}"
+        else
+            ok "OPENROUTER_API_KEY ${c_dim}set${c_reset}"
+        fi
+    else
+        err "OPENROUTER_API_KEY ${c_dim}— not set (add to ~/.dotfiles/.env)${c_reset}"
+    fi
+
     echo ""
 }
 

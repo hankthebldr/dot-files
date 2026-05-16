@@ -1,5 +1,6 @@
 # shell/load-env.zsh
-# Loads environment variables from .env file
+# Loads environment variables from .env file.
+# Optional: resolves op:// references via 1Password CLI when `op` is on PATH.
 
 # Function to load .env file
 load_env() {
@@ -15,7 +16,26 @@ load_env() {
     fi
 }
 
-# Auto-load .env if it exists
+# Resolve op://vault/item/field references via 1Password CLI when available.
+# Sustainable + opt-in: no `op` dependency. If `op` is missing the value is
+# left literal (and the consumer script will surface a clear error).
+#
+# Pattern: any env var whose value starts with `op://` is resolved in-place.
+_claw_resolve_op_refs() {
+    command -v op &>/dev/null || return 0
+    local var val
+    for var in OPENROUTER_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY \
+               GOOGLE_API_KEY HUGGINGFACE_TOKEN; do
+        val="${(P)var}"
+        if [[ "$val" == op://* ]]; then
+            local resolved
+            resolved=$(op read "$val" 2>/dev/null) && export "$var=$resolved"
+        fi
+    done
+}
+
+# Auto-load .env if it exists, then resolve op:// refs (best-effort, silent)
 if [[ -f "${DOTFILES_DIR:-$HOME/Github/Github_desktop/dot-files}/.env" ]]; then
     load_env
+    _claw_resolve_op_refs 2>/dev/null
 fi

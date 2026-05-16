@@ -82,21 +82,38 @@ profile = "claude"        # optional — auto-load this profile before launch
 description = "Anthropic Claude Code"
 ```
 
+### Pre-built agents
+
+`claw install ai` (see Toolchain installers below) installs and registers two
+agents out of the box:
+
+| Agent | Backed by | Default model | Override env var |
+|---|---|---|---|
+| `claw hermes` | Local Ollama | `hermes3:8b` | `CLAW_HERMES_MODEL` |
+| `claw openrouter` | [`aichat`](https://github.com/sigoden/aichat) → OpenRouter | `anthropic/claude-sonnet-4.6` | `CLAW_OPENROUTER_MODEL` |
+
+Both work as REPLs (`claw hermes`) or one-shots (`claw hermes "explain X"`).
+
+`claw openrouter` requires `OPENROUTER_API_KEY` in `~/.dotfiles/.env`. The
+key may be a literal or a `op://Vault/Item/field` reference resolved via
+1Password CLI when `op` is on PATH (see `shell/load-env.zsh`).
+
+`claw doctor` reports status of all four AI components (ollama daemon,
+hermes model, aichat, key) — independent checks, none fatal.
+
 ### Adding a new agent
 
 Either edit the TOML directly or use:
 
 ```bash
-claw agent add hermes hermes-cli ai
-claw agent add aider  aider     ai
-claw agent add gemini gemini    ai
+claw agent add aider   aider    ai
+claw agent add gemini  gemini   ai
 ```
 
 Then launch:
 
 ```bash
-claw hermes        # loads ai profile dashboard, then exec hermes-cli
-claw aider         # same pattern
+claw aider         # loads ai profile dashboard, then exec aider
 ```
 
 ### Listing
