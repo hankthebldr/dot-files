@@ -137,6 +137,9 @@ cmd_help() {
 
   ${c_red}${c_bold}Install${c_reset}
     ${c_white}claw install <toolchain>${c_reset}  ${c_dim}opt-in toolchain installer (cloud/security/…)${c_reset}
+    ${c_white}claw claude-sync snapshot${c_reset} ${c_dim}capture Mac Claude state → manifests${c_reset}
+    ${c_white}claw claude-sync sync${c_reset}     ${c_dim}replay manifests on this machine (BD790i etc.)${c_reset}
+    ${c_white}claw claude-sync status${c_reset}   ${c_dim}diff live state vs manifests · (alias: csync)${c_reset}
 
   ${c_dim}Config: ${AGENTS_TOML}${c_reset}
 EOF
@@ -388,6 +391,59 @@ cmd_install() {
     bash "$script"
 }
 
+cmd_claude() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        snapshot)
+            DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/claude-snapshot.sh" "$@"
+            ;;
+        sync)
+            DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/install/claude-sync.sh" "$@"
+            ;;
+        status)
+            local mdir="$DOTFILES/claude/manifests"
+            if [[ ! -d "$mdir" ]]; then
+                err "no manifests yet — run: claw claude snapshot"; return 1
+            fi
+            printf "\n  ${c_purple}${c_bold}claude state${c_reset}  ${c_dim}vs ${mdir}${c_reset}\n\n"
+            if [[ -f "$mdir/SNAPSHOT.json" ]] && command -v jq &>/dev/null; then
+                info "last snapshot: ${c_dim}$(jq -r '.snapshotAt' "$mdir/SNAPSHOT.json") on $(jq -r '.hostname' "$mdir/SNAPSHOT.json")${c_reset}"
+            fi
+            local m_plugins live_plugins
+            m_plugins=$(wc -l < "$mdir/plugins.txt" 2>/dev/null | tr -d ' ' || echo 0)
+            live_plugins=$(claude plugin list 2>/dev/null | grep -c '❯ .*@' || echo 0)
+            info "plugins: ${c_white}$live_plugins${c_reset} live · ${c_white}$m_plugins${c_reset} in manifest"
+            if (( m_plugins != live_plugins )); then
+                err "drift detected — run claw claude-sync snapshot (or sync)"
+            else
+                ok "in sync"
+            fi
+            echo ""
+            ;;
+        help|-h|--help|"")
+            cat <<EOF
+  ${c_purple}${c_bold}claw claude-sync${c_reset} — sync Claude Code state across machines  ${c_dim}(alias: csync)${c_reset}
+
+  ${c_white}claw claude-sync snapshot${c_reset}  ${c_dim}capture this machine's plugins/skills/marketplaces${c_reset}
+  ${c_white}claw claude-sync sync${c_reset}      ${c_dim}install everything from the manifest on this machine${c_reset}
+  ${c_white}claw claude-sync status${c_reset}    ${c_dim}diff live state vs manifest${c_reset}
+
+  ${c_dim}Env overrides for sync:${c_reset}
+    ${c_dim}CLAUDE_SYNC_DRY_RUN=1${c_reset}  ${c_dim}print actions only${c_reset}
+    ${c_dim}CLAUDE_SYNC_FORCE=1${c_reset}    ${c_dim}reinstall even if already present${c_reset}
+
+  ${c_dim}Manifests live in ${DOTFILES}/claude/manifests/${c_reset}
+  ${c_dim}Workflow: snapshot on Mac → commit → git pull on BD790i → sync${c_reset}
+EOF
+            ;;
+        *)
+            err "unknown claude subcommand: $sub"
+            info "try: claw claude help"
+            return 1
+            ;;
+    esac
+}
+
 cmd_agent() {
     local sub="$1"; shift || true
     case "$sub" in
@@ -478,6 +534,7 @@ case "${1:-menu}" in
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
     install)        shift; cmd_install "$@" ;;
+    claude-sync|csync) shift; cmd_claude "$@" ;;
     agent)          shift; cmd_agent "$@" ;;
     *)              cmd_run_agent "$1" ;;
 esac
