@@ -22,6 +22,30 @@ alias orun="ollama run"
 alias oai="openai api chat.completions.create -m gpt-4o"
 alias fab="fabric --pattern"
 
+# --- LiteLLM proxy + Aider (2026 SOTA) ---
+alias llmproxy="litellm --config ~/.litellm/config.yaml"
+alias mar="marimo new"
+alias mart="marimo tutorial"
+
+# --- GPU / Blackwell workstation ---
+# nvidia-smi shortcut + watch mode
+alias smi="nvidia-smi"
+alias smiw="nvidia-smi -l 2"                                          # refresh every 2s
+alias gpus="nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu --format=csv,noheader,nounits"
+# Interactive monitors (auto-fall back if not installed)
+alias gtop="nvtop"                                                    # apt: nvtop
+alias gtop2="nvitop"                                                  # pipx: nvitop (richer UI)
+alias gprof='py-spy top --pid'                                        # py-spy top --pid <pid>
+# Container GPU smoke test
+alias gpudock="docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi"
+# K3s GPU check
+alias gpuk8s="kubectl describe node | grep -E 'nvidia.com/gpu|Allocated|Capacity:' | head -20"
+
+# --- Quick venv activators (created by ai-skills.sh tier 6) ---
+alias venv-training='source ~/.ai/training/bin/activate'
+alias venv-unsloth='source ~/.ai/unsloth/bin/activate'
+alias venv-vllm='source ~/.ai/vllm/bin/activate'
+
 # Note: agents (claude, aider, hermes, etc.) are launched via `claw <agent>`
 # from the registry at ~/.config/claw/agents.toml — not duplicated here.
 
@@ -60,6 +84,25 @@ ai-help() {
   printf "  ${dim}llama-cpp · whisper-cpp · huggingface-cli · qdrant-cli · pinecone-cli${reset}\n"
   printf "  ${dim}langchain-cli · diffusers-cli · gpt4all-cli · cohere · adk · dvc${reset}\n"
   printf "\n"
+
+  printf "  ${bold}${green}GPU / Blackwell${reset}\n"
+  printf "  ${purple}smi${reset}      ${dim}nvidia-smi (one-shot)${reset}\n"
+  printf "  ${purple}smiw${reset}     ${dim}nvidia-smi -l 2 (live)${reset}\n"
+  printf "  ${purple}gpus${reset}     ${dim}terse one-line GPU stats${reset}\n"
+  printf "  ${purple}gtop${reset}     ${dim}nvtop (htop-style)${reset}\n"
+  printf "  ${purple}gtop2${reset}    ${dim}nvitop (richer UI)${reset}\n"
+  printf "  ${purple}gpudock${reset}  ${dim}docker GPU smoke test${reset}\n"
+  printf "  ${purple}gpuk8s${reset}   ${dim}kubectl GPU resource view${reset}\n"
+  printf "\n"
+
+  printf "  ${bold}${green}2026 SOTA${reset} ${dim}(installed via: claw install ai-skills)${reset}\n"
+  printf "  ${purple}aider${reset}        ${dim}terminal AI pair programmer${reset}\n"
+  printf "  ${purple}llmproxy${reset}     ${dim}LiteLLM multi-provider proxy${reset}\n"
+  printf "  ${purple}mar${reset}          ${dim}marimo (reactive notebooks)${reset}\n"
+  printf "  ${purple}langgraph${reset}    ${dim}graph-based agent orchestration${reset}\n"
+  printf "  ${purple}inspect${reset}      ${dim}Inspect AI (eval framework)${reset}\n"
+  printf "  ${purple}phoenix${reset}      ${dim}Arize Phoenix (observability)${reset}\n"
+  printf "\n"
 }
 
 # ==========================================
@@ -73,7 +116,13 @@ _ai_tool_check() {
   local bold='\e[1m'
   local reset='\e[0m'
   local found=0 missing=0
-  local tools=(ollama claude aider whisper-cpp python3 pip3 dvc mlflow huggingface-cli adk)
+  local tools=(
+    ollama claude aider whisper-cpp python3 pip3 dvc mlflow huggingface-cli adk
+    # 2026 SOTA additions
+    uv litellm marimo langgraph instructor inspect phoenix
+    # Blackwell / GPU
+    nvidia-smi nvcc nvtop nvitop nvidia-ctk
+  )
 
   printf "\n  ${bold}${white}AI Toolchain Status${reset}\n\n"
   for tool in "${tools[@]}"; do
