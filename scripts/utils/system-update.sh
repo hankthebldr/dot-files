@@ -15,7 +15,7 @@ INTERACTIVE=1
 
 count_managers() {
     local count=0
-    for cmd in brew npm yarn pnpm uv pipx pip3 gem rustup go; do
+    for cmd in brew apt-get dnf pacman snap flatpak npm yarn pnpm uv pipx pip3 gem rustup go; do
         command -v "$cmd" &>/dev/null && ((count++))
     done
     echo "$count"
@@ -28,7 +28,46 @@ total=$(count_managers)
 tui_header "🔄 SYSTEM UPDATE" "Updating ${total} package managers across all ecosystems"
 
 # ============================================
-# 1. HOMEBREW
+# 0. SYSTEM PACKAGES (Linux only — apt / dnf / pacman)
+# ============================================
+# Foundational layer — runs before brew so kernel/libc/etc come up first.
+# `apt update` is verbose by default; pipe to /dev/null inside tui_run_step.
+if command -v apt-get &>/dev/null; then
+    tui_section "APT (system)"
+    tui_run_step "Refreshing apt cache..."        "sudo apt-get update -qq"
+    tui_run_step "Upgrading apt packages..."      "sudo apt-get upgrade -y"
+    tui_run_step "Removing obsolete packages..."  "sudo apt-get autoremove -y"
+    tui_run_step "Cleaning apt archives..."       "sudo apt-get autoclean -y"
+elif command -v dnf &>/dev/null; then
+    tui_section "DNF (system)"
+    tui_run_step "Upgrading dnf packages..." "sudo dnf upgrade -y"
+    tui_run_step "Removing orphans..."       "sudo dnf autoremove -y"
+elif command -v pacman &>/dev/null; then
+    tui_section "Pacman (system)"
+    tui_run_step "Syncing pacman..." "sudo pacman -Syu --noconfirm"
+fi
+
+# Snap (Ubuntu, some Debian)
+if command -v snap &>/dev/null; then
+    tui_section "Snap"
+    tui_run_step "Refreshing snap packages..." "sudo snap refresh"
+fi
+
+# Flatpak (Fedora, some Ubuntu)
+if command -v flatpak &>/dev/null; then
+    tui_section "Flatpak"
+    tui_run_step "Updating flatpak packages..." "flatpak update -y --noninteractive"
+fi
+
+# Firmware updates (Linux laptops/desktops with fwupd)
+if command -v fwupdmgr &>/dev/null; then
+    tui_section "Firmware"
+    tui_run_step "Refreshing fwupd metadata..." "fwupdmgr refresh --force 2>/dev/null || true"
+    tui_run_step "Applying firmware updates..." "fwupdmgr update -y 2>/dev/null || true"
+fi
+
+# ============================================
+# 1. HOMEBREW (macOS + Linuxbrew)
 # ============================================
 tui_section "Homebrew"
 if command -v brew &>/dev/null; then

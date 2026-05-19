@@ -137,6 +137,7 @@ cmd_help() {
 
   ${c_red}${c_bold}Install${c_reset}
     ${c_white}claw install <toolchain>${c_reset}  ${c_dim}opt-in toolchain installer (cloud/security/…)${c_reset}
+    ${c_white}claw uninstall${c_reset}            ${c_dim}reverse bootstrap (soft scope · --dry-run --yes)${c_reset}
     ${c_white}claw claude-sync snapshot${c_reset} ${c_dim}capture Mac Claude state → manifests${c_reset}
     ${c_white}claw claude-sync sync${c_reset}     ${c_dim}replay manifests on this machine (BD790i etc.)${c_reset}
     ${c_white}claw claude-sync status${c_reset}   ${c_dim}diff live state vs manifests · (alias: csync)${c_reset}
@@ -201,6 +202,49 @@ cmd_doctor() {
             _title="$(printf '%s' "${CLAW_ACTIVE_PROFILE:0:1}" | tr '[:lower:]' '[:upper:]')${CLAW_ACTIVE_PROFILE:1}"
             printf "\n  ${c_purple}${c_bold}%s Profile${c_reset}\n" "$_title"
             "$check_fn"
+        fi
+    fi
+
+    # GPU / Blackwell — only relevant on Linux with NVIDIA card present.
+    # Cheap probes: command -v before nvidia-smi, never block on missing tools.
+    if command -v nvidia-smi &>/dev/null; then
+        printf "\n  ${c_purple}${c_bold}GPU / CUDA${c_reset}\n"
+        local _gpu_name _gpu_drv _gpu_cap
+        _gpu_name=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
+        _gpu_drv=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)
+        _gpu_cap=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1)
+        if [[ -n "$_gpu_name" ]]; then
+            ok "GPU: ${c_white}${_gpu_name}${c_reset} ${c_dim}(driver ${_gpu_drv}, sm_${_gpu_cap//./})${c_reset}"
+            # Blackwell = compute capability 10.x or 12.x
+            case "$_gpu_cap" in
+                10.*|12.*) ok "Blackwell architecture detected ${c_dim}(FP4 + 5th-gen Tensor cores)${c_reset}" ;;
+                9.*)       info "Hopper architecture ${c_dim}(H100-class)${c_reset}" ;;
+                8.9)       info "Ada Lovelace ${c_dim}(RTX 40-series / L40)${c_reset}" ;;
+                *)         info "compute capability $_gpu_cap" ;;
+            esac
+        else
+            err "nvidia-smi installed but no GPU enumerated ${c_dim}— driver or hardware issue${c_reset}"
+        fi
+        if command -v nvcc &>/dev/null; then
+            ok "nvcc ${c_dim}$(nvcc --version | grep release | sed 's/.*release \([0-9.]*\).*/\1/')${c_reset}"
+        else
+            err "nvcc ${c_dim}— CUDA toolkit missing (run: claw install ai-workstation)${c_reset}"
+        fi
+        if command -v nvidia-ctk &>/dev/null; then
+            ok "nvidia-container-toolkit ${c_dim}$(nvidia-ctk --version 2>&1 | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)${c_reset}"
+        else
+            err "nvidia-container-toolkit ${c_dim}— required for docker/K3s GPU pass-through${c_reset}"
+        fi
+        # K3s GPU resource check — only if both kubectl and a kubeconfig exist
+        if command -v kubectl &>/dev/null && [[ -r "${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}" ]]; then
+            local _k_gpu
+            _k_gpu=$(KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}" \
+                kubectl get nodes -o jsonpath='{.items[*].status.capacity.nvidia\.com/gpu}' 2>/dev/null | tr -d ' ')
+            if [[ -n "$_k_gpu" ]]; then
+                ok "K3s GPU resources ${c_dim}(nvidia.com/gpu = ${_k_gpu})${c_reset}"
+            else
+                err "K3s GPU device plugin not advertising ${c_dim}— apply: $DOTFILES/config/k3s/gpu/${c_reset}"
+            fi
         fi
     fi
 
@@ -384,11 +428,19 @@ cmd_off() {
 
 cmd_install() {
     local tc="$1"
-    [[ -z "$tc" ]] && { err "usage: claw install <toolchain>"; info "options: cloud security devops ai research cortex"; return 1; }
+    [[ -z "$tc" ]] && { err "usage: claw install <toolchain> [-- extra-args]"; info "options: cloud security devops ai ai-workstation ai-skills research cortex homelab"; return 1; }
     local script="$DOTFILES/scripts/install/${tc}-toolchain.sh"
     [[ ! -f "$script" ]] && { err "toolchain not found: $tc ($script)"; return 1; }
+    shift
     info "running $script (this can take a while)"
-    bash "$script"
+    DOTFILES_DIR="$DOTFILES" bash "$script" "$@"
+}
+
+cmd_uninstall() {
+    # Soft uninstall — reverses bootstrap deployment without removing
+    # CLI packages, OMZ, P10k, or fonts. See scripts/utils/uninstall.sh
+    # header for full scope. Flags: --dry-run --yes --keep-backup --help
+    bash "$DOTFILES/scripts/utils/uninstall.sh" "$@"
 }
 
 cmd_claude() {
@@ -534,6 +586,7 @@ case "${1:-menu}" in
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
     install)        shift; cmd_install "$@" ;;
+    uninstall|remove) shift; cmd_uninstall "$@" ;;
     claude-sync|csync) shift; cmd_claude "$@" ;;
     agent)          shift; cmd_agent "$@" ;;
     *)              cmd_run_agent "$1" ;;

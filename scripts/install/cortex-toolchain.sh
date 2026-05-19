@@ -1,75 +1,99 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ################################################################################
 # Cortex Toolchain Installer (Palo Alto Networks Curriculum)
-# Description: Automated installation of Cortex CLI, panos-cli, demisto-sdk, 
-#              and pan-os-python for macOS.
+# Description: demisto-sdk, pan-os-python, panapi, panos-cli, Cortex CLI hint.
+# Cross-platform: macOS (brew) + Linux (apt + pipx + Go).
 ################################################################################
 
 set -e
-set -u
+# Note: NOT using `set -u` — some upstream tool init uses unset vars.
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+source "$DOTFILES_DIR/scripts/utils/logger.sh"
+source "$DOTFILES_DIR/scripts/utils/detect-os.sh"
+detect_os
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-
-if ! command -v brew &> /dev/null; then
-    log_error "Homebrew is required. Please install it first."
-    exit 1
-fi
+log_info "── Cortex Toolchain install (OS: $OS_TYPE, pkg: $PKG_MANAGER) ──"
 
 CORTEX_WORKSPACE="$HOME/.cortex"
 mkdir -p "$CORTEX_WORKSPACE"
 
-# 1. Install pipx if missing (preferred for global python CLI tools on macOS)
-if ! command -v pipx &> /dev/null; then
-    log_info "Installing pipx for Python CLI tool management..."
-    brew install pipx
-    pipx ensurepath
+# ─────────────────────────────────────────────
+# 1. pipx — preferred for global Python CLI tools on either platform
+# ─────────────────────────────────────────────
+if ! command -v pipx &>/dev/null; then
+    log_info "Installing pipx..."
+    case "$PKG_MANAGER" in
+        brew) brew install pipx ;;
+        apt)  sudo apt-get update -qq && sudo apt-get install -y pipx || python3 -m pip install --user pipx ;;
+        dnf)  sudo dnf install -y pipx || python3 -m pip install --user pipx ;;
+        *)    python3 -m pip install --user pipx || log_error "pipx install failed" ;;
+    esac
+    command -v pipx &>/dev/null && pipx ensurepath
 fi
 
-# 2. Install Python SDKs and CLI tools (demisto-sdk, panapi)
-log_info "Installing Cortex XSOAR demisto-sdk..."
-pipx install demisto-sdk || log_warning "Failed to install demisto-sdk via pipx"
+# Ensure python3 + venv are present on Linux (apt splits venv into its own pkg).
+if [[ "$PKG_MANAGER" == "apt" ]]; then
+    sudo apt-get install -y python3 python3-venv python3-pip 2>/dev/null || true
+fi
 
-log_info "Setting up local Python venv for pan-os-python..."
-if [ ! -d "$CORTEX_WORKSPACE/venv" ]; then
+# ─────────────────────────────────────────────
+# 2. demisto-sdk + pan-os-python venv
+# ─────────────────────────────────────────────
+log_info "Installing demisto-sdk via pipx..."
+pipx install demisto-sdk 2>/dev/null || pipx upgrade demisto-sdk 2>/dev/null \
+    || log_warning "demisto-sdk install/upgrade failed"
+
+log_info "Setting up pan-os-python venv at $CORTEX_WORKSPACE/venv..."
+if [[ ! -d "$CORTEX_WORKSPACE/venv" ]]; then
     python3 -m venv "$CORTEX_WORKSPACE/venv"
     "$CORTEX_WORKSPACE/venv/bin/pip" install --upgrade pip
-    "$CORTEX_WORKSPACE/venv/bin/pip" install pan-os-python panapi
-    log_success "PAN-OS Python venv created at $CORTEX_WORKSPACE/venv"
+    "$CORTEX_WORKSPACE/venv/bin/pip" install pan-os-python panapi \
+        || log_warning "pan-os-python / panapi install failed"
+    log_success "PAN-OS Python venv ready"
 else
-    log_info "PAN-OS Python venv already exists."
+    log_info "PAN-OS Python venv already exists. (delete $CORTEX_WORKSPACE/venv to recreate)"
 fi
 
-# 3. Install panos-cli (Go-based tool)
-log_info "Installing panos-cli (Go-based)..."
-if command -v go &> /dev/null; then
-    # Use go install if go is available
-    go install github.com/PaloAltoNetworks/panos-cli@latest || log_warning "Failed to install panos-cli"
-    # Ensure Go bin is in path for this session if it isn't
+# ─────────────────────────────────────────────
+# 3. Go-based panos-cli
+# ─────────────────────────────────────────────
+# Ensure Go is available before attempting. On Linux, apt's golang is often
+# acceptable for `go install`; for newer versions, prefer the binary tarball
+# from go.dev (manual). On macOS, brew install go.
+if ! command -v go &>/dev/null; then
+    log_info "Go not found — attempting install..."
+    case "$PKG_MANAGER" in
+        brew) brew install go ;;
+        apt)  sudo apt-get install -y golang ;;
+        *)    log_warning "Cannot auto-install Go for $PKG_MANAGER — skipping panos-cli" ;;
+    esac
+fi
+
+if command -v go &>/dev/null; then
+    log_info "Installing panos-cli via go install..."
+    go install github.com/PaloAltoNetworks/panos-cli@latest \
+        || log_warning "panos-cli install failed"
+    # Surface GOPATH/bin for this session so the next log line can find it.
     GOPATH_BIN="$(go env GOPATH)/bin"
     export PATH="$PATH:$GOPATH_BIN"
+    if [[ -x "$GOPATH_BIN/panos-cli" ]]; then
+        log_success "panos-cli installed at $GOPATH_BIN/panos-cli"
+    fi
 else
-    log_warning "Go is not installed. Skipping panos-cli installation."
+    log_warning "Go unavailable — skipping panos-cli"
 fi
 
-# 4. Install Cortex CLI
-log_info "Installing Cortex CLI..."
-if ! command -v cortexcli &> /dev/null; then
-    log_warning "Cortex CLI typically requires downloading the binary specifically for your tenant from the Prisma Cloud / Cortex console."
-    log_warning "Please run the standard curl command provided in your Cortex Interface (e.g. Settings > Code Security > Integrations > Cortex CLI)."
-    # Optional fallback to known public release pattern could be placed here:
-    # curl -sL "https://pan.dev/cortex-cli/download" -o /usr/local/bin/cortexcli && chmod +x /usr/local/bin/cortexcli
+# ─────────────────────────────────────────────
+# 4. Cortex CLI — tenant-specific download
+# ─────────────────────────────────────────────
+log_info "Cortex CLI..."
+if command -v cortexcli &>/dev/null; then
+    log_info "Cortex CLI already installed: $(cortexcli -v 2>/dev/null || echo 'present')"
 else
-    log_info "Cortex CLI is already installed: $(cortexcli -v 2>/dev/null || echo 'installed')"
+    log_warning "Cortex CLI requires a tenant-specific binary."
+    log_warning "Grab it from: Cortex console → Settings → Code Security → Integrations → Cortex CLI"
 fi
 
-log_success "Cortex Toolchain Installation Complete!"
+log_success "Cortex Toolchain install complete."
