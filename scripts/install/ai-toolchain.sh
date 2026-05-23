@@ -1,146 +1,175 @@
 #!/usr/bin/env bash
-
 ################################################################################
-# AI / LLM Toolchain Installer
-# Installs GenAI models, vector dbs, inference CLIs and orchestrators.
-# Cross-platform: macOS (brew) + Linux (apt + curl-based fallbacks).
+# AI / LLM Toolchain — Cross-Platform
+#
+# Local inference (llama.cpp, ollama), vector DBs, transcription, GenAI SDKs
+# (Anthropic / OpenAI / Cohere / HuggingFace), agentic frameworks (langchain,
+# aider, ADK), and the Claude Agent SDK. Many tools have heterogeneous install
+# paths — system pkg, pipx, npm, vendor curl scripts. The lib + extras hybrid
+# handles all four cleanly.
+#
 # Spec: docs/superpowers/specs/2026-05-06-hermes-openrouter-design.md
 ################################################################################
 
 set -e
-# Note: NOT using `set -u` here — some upstream tool init scripts use unset vars.
 
-DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-source "$DOTFILES_DIR/scripts/utils/logger.sh"
-source "$DOTFILES_DIR/scripts/utils/detect-os.sh"
-detect_os
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/toolchain-runner.sh"
 
-log_info "── AI Toolchain install (OS: $OS_TYPE, pkg: $PKG_MANAGER) ──"
+TOOLCHAIN_TITLE="AI  TOOLCHAIN"
+TOOLCHAIN_CLASS="NEUROMANCER  LOADOUT"
+TOOLCHAIN_TAG="prompted their way out of a parking ticket · 70B model on a thumb drive"
 
-# ─────────────────────────────────────────────
-# Native packages
-# ─────────────────────────────────────────────
-case "$PKG_MANAGER" in
-    brew)
-        brew_tools=(
-            "llama.cpp"
-            "whisper-cpp"
-            "ffmpeg"
-            "qdrant-cli"
-            "ollama"
-            "cliclick"
-            "jq"
-            "yq"
-            "dasel"
-            "aichat"
-        )
-        for tool in "${brew_tools[@]}"; do
-            if brew list "$tool" &>/dev/null; then
-                log_info "$tool already installed."
-            else
-                log_info "Installing $tool..."
-                brew install "$tool" || log_error "Failed to install $tool"
-            fi
-        done
-        ;;
-    apt)
-        # Linux: ollama + aichat handled by their dedicated install scripts below.
-        # Here we just install what apt has natively.
-        apt_tools=(
-            ffmpeg
-            jq
-            curl
-            build-essential
-        )
-        log_info "Refreshing apt cache..."
-        sudo apt-get update -qq || log_warning "apt update failed (continuing)"
-        for tool in "${apt_tools[@]}"; do
-            if dpkg -s "$tool" &>/dev/null; then
-                log_info "$tool already installed."
-            else
-                log_info "Installing $tool..."
-                sudo apt-get install -y "$tool" || log_error "Failed to install $tool"
-            fi
-        done
-
-        # yq via snap or direct binary (apt's yq is a different tool on some distros)
-        if ! command -v yq &>/dev/null; then
-            log_info "Installing yq from GitHub releases..."
-            local_arch=$(uname -m); yq_arch="amd64"
-            [[ "$local_arch" == "aarch64" || "$local_arch" == "arm64" ]] && yq_arch="arm64"
-            sudo curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${yq_arch}" \
-                -o /usr/local/bin/yq && sudo chmod +x /usr/local/bin/yq \
-                || log_warning "yq install failed"
-        fi
-
-        # whisper.cpp / llama.cpp / qdrant-cli aren't in apt — recommend manual
-        # build from source if needed; out of scope for the default install.
-        log_info "Skipped: llama.cpp, whisper-cpp, qdrant-cli (build from source if needed)"
-        ;;
-    *)
-        log_warning "Unknown package manager ($PKG_MANAGER); skipping native packages"
-        ;;
+case "$(uname -m)" in
+    x86_64|amd64) _arch="amd64" ;;
+    aarch64|arm64) _arch="arm64" ;;
+    *) _arch="amd64" ;;
 esac
 
-# ─────────────────────────────────────────────
-# pipx (cross-platform Python tooling)
-# ─────────────────────────────────────────────
-if ! command -v pipx &>/dev/null; then
-    log_info "Installing pipx..."
-    case "$PKG_MANAGER" in
-        brew) brew install pipx ;;
-        apt)  sudo apt-get install -y pipx || python3 -m pip install --user pipx ;;
-        *)    python3 -m pip install --user pipx || log_error "pipx install failed" ;;
-    esac
-    command -v pipx &>/dev/null && pipx ensurepath
-fi
+# ── TOOL MAPPING ───────────────────────────────────────────────────────────
+# >>> HENRY: ollama on Linux is `curl https://ollama.com/install.sh | sh` —
+#     the lib's curl: fallback would download the script as a binary, which
+#     is wrong. Kept as manual: so you decide whether to trust the pipe. If
+#     you want auto-install, switch to toolchain_extras and run the curl-sh
+#     pattern there.
+TOOLCHAIN_MAP=(
+    # ── 01. Local Inference ────────────────────────────────────────────────
+    "llama-cli|llama.cpp|?|manual:https://github.com/ggerganov/llama.cpp#build|local LLM inference (apt: build from source)"
+    "whisper-cli|whisper-cpp|?|manual:https://github.com/ggerganov/whisper.cpp#quick-start|speech-to-text (apt: build from source)"
+    "ollama|ollama|?|manual:https://ollama.com/install.sh|local LLM runtime — Linux: curl install.sh | sh"
 
-if command -v pipx &>/dev/null; then
-    pipx_tools=(
-        "openai"
-        "anthropic"
-        "cohere"
-        "huggingface-hub"
-        "langchain-cli"
-        "dvc"
-        "mlflow"
-        "aider-chat"
-        "google-adk"
-    )
-    for tool in "${pipx_tools[@]}"; do
-        log_info "Ensuring pipx install for $tool..."
-        pipx install "$tool" 2>/dev/null || pipx upgrade "$tool" 2>/dev/null \
-            || log_warning "Failed to install/upgrade $tool via pipx"
-    done
-fi
+    # ── 02. Vector / Storage ───────────────────────────────────────────────
+    "qdrant|qdrant-cli|?|manual:https://qdrant.tech/documentation/cloud/quickstart-cloud/|vector DB CLI"
 
-# ─────────────────────────────────────────────
-# Node-based AI tools (Claude Agent SDK)
-# ─────────────────────────────────────────────
-if command -v npm &>/dev/null; then
-    log_info "Installing Node AI Tools..."
-    for pkg in "@anthropic-ai/claude-agent-sdk"; do
+    # ── 03. Media / Audio ──────────────────────────────────────────────────
+    "ffmpeg|ffmpeg|ffmpeg|none|video/audio toolkit"
+
+    # ── 04. Data Utilities ─────────────────────────────────────────────────
+    "jq|jq|jq|none|JSON swiss army knife"
+    "yq|yq|?|curl:https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${_arch}|YAML jq"
+    "dasel|dasel|?|go:github.com/tomwright/dasel/v2/cmd/dasel|JSON/YAML/XML/TOML parser"
+
+    # ── 05. Terminal Chat ──────────────────────────────────────────────────
+    "aichat|aichat|?|cargo|multi-provider terminal chat client"
+
+    # ── 06. macOS-only ─────────────────────────────────────────────────────
+    "cliclick|cliclick|?|skip-linux|macOS-only mouse/keyboard automation"
+
+    # ── 07. Build Toolchain (Linux) ────────────────────────────────────────
+    "gcc|?|build-essential|none|compiler — required for llama.cpp/whisper.cpp builds"
+)
+
+declare -A TOOLCHAIN_SECTIONS=(
+    [0]="01|Local  Inference"
+    [3]="02|Vector  /  Storage"
+    [4]="03|Media  /  Audio"
+    [5]="04|Data  Utilities"
+    [8]="05|Terminal  Chat"
+    [9]="06|macOS-only  Helpers"
+    [10]="07|Build  Toolchain"
+)
+
+# ── Pre-install hook: ensure pipx is available (heavy pipx use in extras) ─
+toolchain_preflight_extras() {
+    if ! command -v pipx &>/dev/null; then
+        log_info "installing pipx (required for AI SDK installs)"
+        case "$PKG_MANAGER" in
+            brew) brew install pipx && pipx ensurepath ;;
+            apt)
+                sudo apt-get install -y pipx 2>/dev/null \
+                    || python3 -m pip install --user pipx
+                command -v pipx &>/dev/null && pipx ensurepath
+                ;;
+            *) python3 -m pip install --user pipx ;;
+        esac
+    fi
+}
+
+# ── Post-install: pipx SDKs, npm SDKs, hermes, openrouter ────────────────
+toolchain_extras() {
+    # ── pipx SDKs ──────────────────────────────────────────────────────────
+    _section 8 "Python  AI  SDKs  (pipx)"
+    if ! command -v pipx &>/dev/null; then
+        log_error "pipx not available — skipping Python SDKs"
+        RESULT_FAILED+=("python-sdks")
+    else
+        local pipx_tools=(
+            "openai"
+            "anthropic"
+            "cohere"
+            "huggingface-hub"
+            "langchain-cli"
+            "dvc"
+            "mlflow"
+            "aider-chat"
+            "google-adk"
+        )
+        local tool
+        for tool in "${pipx_tools[@]}"; do
+            if pipx list 2>/dev/null | grep -q "package $tool "; then
+                log_skip "$tool — already installed via pipx"
+                RESULT_SKIPPED+=("$tool")
+            else
+                log_info "pipx install $tool"
+                if pipx install "$tool" 2>/dev/null || pipx upgrade "$tool" 2>/dev/null; then
+                    RESULT_INSTALLED+=("$tool (pipx)")
+                else
+                    log_warning "failed: $tool"
+                    RESULT_FAILED+=("$tool")
+                fi
+            fi
+        done
+    fi
+
+    # ── Claude Agent SDK (npm) ────────────────────────────────────────────
+    _section 9 "Claude  Agent  SDK  (npm)"
+    if ! command -v npm &>/dev/null; then
+        log_warning "npm not found — skipping Claude Agent SDK (install Node.js first)"
+        RESULT_SKIPPED+=("claude-agent-sdk (no npm)")
+    else
+        local pkg="@anthropic-ai/claude-agent-sdk"
         if npm list -g "$pkg" &>/dev/null 2>&1; then
-            log_info "$pkg already installed globally."
+            log_skip "$pkg already installed globally"
+            RESULT_SKIPPED+=("claude-agent-sdk")
         else
-            log_info "Installing $pkg globally..."
-            npm install -g "$pkg" || log_error "Failed to install $pkg"
+            log_info "npm install -g $pkg"
+            if npm install -g "$pkg"; then
+                RESULT_INSTALLED+=("claude-agent-sdk")
+            else
+                RESULT_FAILED+=("claude-agent-sdk")
+            fi
         fi
-    done
-else
-    log_warning "npm not found — skipping Node AI tools (install Node.js first)"
-fi
+    fi
 
-# ─────────────────────────────────────────────
-# Hermes agent (local Ollama-backed)
-# ─────────────────────────────────────────────
-log_info "→ Hermes agent"
-bash "$DOTFILES_DIR/scripts/install/hermes.sh" || log_warning "hermes install reported errors"
+    # ── Hermes + OpenRouter (local installers) ────────────────────────────
+    _section 10 "Hermes  +  OpenRouter"
+    local hermes="$SCRIPT_DIR/hermes.sh"
+    local openrouter="$SCRIPT_DIR/openrouter.sh"
 
-# ─────────────────────────────────────────────
-# OpenRouter (aichat-backed)
-# ─────────────────────────────────────────────
-log_info "→ OpenRouter (aichat)"
-bash "$DOTFILES_DIR/scripts/install/openrouter.sh" || log_warning "openrouter install reported errors"
+    if [[ -f "$hermes" ]]; then
+        log_info "→ running hermes.sh"
+        if bash "$hermes"; then
+            RESULT_INSTALLED+=("hermes")
+        else
+            log_warning "hermes install reported errors"
+            RESULT_FAILED+=("hermes")
+        fi
+    else
+        log_skip "hermes.sh not found — skipping"
+    fi
 
-log_success "AI Toolchain installed."
+    if [[ -f "$openrouter" ]]; then
+        log_info "→ running openrouter.sh"
+        if bash "$openrouter"; then
+            RESULT_INSTALLED+=("openrouter")
+        else
+            log_warning "openrouter install reported errors"
+            RESULT_FAILED+=("openrouter")
+        fi
+    else
+        log_skip "openrouter.sh not found — skipping"
+    fi
+}
+
+toolchain_run

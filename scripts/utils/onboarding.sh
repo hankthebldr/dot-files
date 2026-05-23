@@ -27,27 +27,134 @@ STATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/claw"
 STATE_FILE="$STATE_DIR/onboarding.tsv"
 
 # ============================================
-# 80s NEON PALETTE (true-color, falls back to ANSI on dumb terminals)
+# CINEMATIC PRIMITIVES (palette, themes, animations)
 # ============================================
-# Hot pink #ff2e88, neon cyan #00f5ff, synthwave purple #b537f2, sunset
-# orange #ff6f3c, neon green #39ff14, dim grid #4a4a8a, retro white #fdf6e3.
-if [[ -t 1 && "${TERM:-}" != "dumb" ]]; then
-    c_reset=$'\e[0m'
-    c_pink=$'\e[38;2;255;46;136m'
-    c_cyan=$'\e[38;2;0;245;255m'
-    c_purple=$'\e[38;2;181;55;242m'
-    c_orange=$'\e[38;2;255;111;60m'
-    c_green=$'\e[38;2;57;255;20m'
-    c_yellow=$'\e[38;2;255;230;46m'
-    c_grid=$'\e[38;2;74;74;138m'
-    c_white=$'\e[38;2;253;246;227m'
-    c_dim=$'\e[38;2;139;148;158m'
-    c_bold=$'\e[1m'
-    c_blink=$'\e[5m'
-else
-    c_reset='' c_pink='' c_cyan='' c_purple='' c_orange='' c_green=''
-    c_yellow='' c_grid='' c_white='' c_dim='' c_bold='' c_blink=''
-fi
+# Sourced from the shared lib. Provides HAS_COLOR, the 4 themes, log helpers,
+# and all _anim_* primitives. Idempotent — guarded by _CINEMATIC_LOADED.
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/cinematic.sh"
+
+# Themes, _list_themes, _apply_theme, and the default activation all come
+# from cinematic.sh (sourced above). The theme registry below is retained
+# inline for reference but commented out — single source of truth in the lib.
+: <<'INLINE_THEME_REGISTRY_REMOVED'
+THEME REGISTRY
+#
+# Globals every theme MUST set:
+#   c_pink c_cyan c_purple c_orange c_green c_yellow c_grid c_white c_dim
+#   THEME_NAME (short label shown in chrome) THEME_TAG (one-line subtitle)
+#   SPLASH_VARIANT (synthwave|matrix|dosbbs|vhs — selects ASCII art)
+#   BOOT_SEQ (newline-separated CRT boot lines, theme-flavoured)
+
+# Default theme: 80s synthwave. Hot pink #ff2e88, neon cyan #00f5ff,
+# synthwave purple #b537f2, sunset orange #ff6f3c, neon green #39ff14.
+_theme_synthwave() {
+    if $HAS_COLOR; then
+        c_pink=$'\e[38;2;255;46;136m'
+        c_cyan=$'\e[38;2;0;245;255m'
+        c_purple=$'\e[38;2;181;55;242m'
+        c_orange=$'\e[38;2;255;111;60m'
+        c_green=$'\e[38;2;57;255;20m'
+        c_yellow=$'\e[38;2;255;230;46m'
+        c_grid=$'\e[38;2;74;74;138m'
+        c_white=$'\e[38;2;253;246;227m'
+        c_dim=$'\e[38;2;139;148;158m'
+    else
+        c_pink='' c_cyan='' c_purple='' c_orange='' c_green=''
+        c_yellow='' c_grid='' c_white='' c_dim=''
+    fi
+    THEME_NAME="SYNTHWAVE"
+    THEME_TAG="rad new wave dotfiles, c.1986"
+    SPLASH_VARIANT="synthwave"
+    SPLASH_SUBTITLE="CHARACTER  SELECT"
+    NOISE_CHARS='!@#$%^&*░▒▓█┤┐└┴┬├─┼╔╗╚╝║═╬◢◣◤◥'
+    BOOT_SEQ=$'> INITIALIZING CHARACTER CREATION MATRIX...\n> LOADING NEURAL PROFILE DATABASE..............[OK]\n> CALIBRATING SYNTHWAVE COLOR GAMUT.............[OK]\n> MOUNTING PERSONALITY VECTORS..................[OK]\n> SCANNING TERMINAL CAPABILITIES................[OK]\n> READY.'
+}
+
+# Matrix: green phosphor, digital rain energy. Bright green ramps from
+# #00ff41 (foreground) through #39ff14 (accent) to #006000 (chrome).
+_theme_matrix() {
+    if $HAS_COLOR; then
+        c_pink=$'\e[38;2;0;255;65m'
+        c_cyan=$'\e[38;2;57;255;20m'
+        c_purple=$'\e[38;2;0;120;0m'
+        c_orange=$'\e[38;2;180;255;100m'
+        c_green=$'\e[38;2;0;255;65m'
+        c_yellow=$'\e[38;2;200;255;130m'
+        c_grid=$'\e[38;2;0;90;0m'
+        c_white=$'\e[38;2;220;255;220m'
+        c_dim=$'\e[38;2;0;100;0m'
+    else
+        c_pink='' c_cyan='' c_purple='' c_orange='' c_green=''
+        c_yellow='' c_grid='' c_white='' c_dim=''
+    fi
+    THEME_NAME="MATRIX"
+    THEME_TAG="wake up, neo. the terminal has you."
+    SPLASH_VARIANT="matrix"
+    SPLASH_SUBTITLE="WAKE  UP,  NEO"
+    NOISE_CHARS='01ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑ'
+    BOOT_SEQ=$'> ESTABLISHING UPLINK TO CONSTRUCT.............[OK]\n> DECRYPTING ZION KEYRING......................[OK]\n> LOADING AGENT-SMITH HEURISTICS................[OK]\n> RECEIVING WHITE-RABBIT PACKET..................[OK]\n> THERE IS NO SPOON.'
+}
+
+# DOS BBS: amber CRT meets early-90s ANSI art. Saturated CGA-ish palette,
+# heavy CP437 box-drawing in the splash.
+_theme_dosbbs() {
+    if $HAS_COLOR; then
+        c_pink=$'\e[38;2;255;176;0m'
+        c_cyan=$'\e[38;2;0;170;170m'
+        c_purple=$'\e[38;2;170;0;170m'
+        c_orange=$'\e[38;2;255;85;0m'
+        c_green=$'\e[38;2;0;170;0m'
+        c_yellow=$'\e[38;2;255;255;85m'
+        c_grid=$'\e[38;2;85;85;85m'
+        c_white=$'\e[38;2;255;255;255m'
+        c_dim=$'\e[38;2;128;128;128m'
+    else
+        c_pink='' c_cyan='' c_purple='' c_orange='' c_green=''
+        c_yellow='' c_grid='' c_white='' c_dim=''
+    fi
+    THEME_NAME="DOS BBS"
+    THEME_TAG="2400 baud · CONNECT · welcome to the rootshell"
+    SPLASH_VARIANT="dosbbs"
+    SPLASH_SUBTITLE="SYSOP  LOGIN"
+    NOISE_CHARS='░▒▓█│─┐└┴┬├┼╔╗╚╝║═╬◄►▲▼'
+    BOOT_SEQ=$'> DIALING +1-555-ROOTSH3LL.....................[CONNECT]\n> NEGOTIATING ANSI HANDSHAKE....................[OK]\n> LOADING DOOR.SYS..............................[OK]\n> CHECKING TIME LIMIT (90 MIN/DAY)...............[OK]\n> WELCOME, SYSOP.'
+}
+
+# VHS: tracking-error magenta + icy cyan, intentional scanline grit.
+_theme_vhs() {
+    if $HAS_COLOR; then
+        c_pink=$'\e[38;2;255;0;220m'
+        c_cyan=$'\e[38;2;0;220;255m'
+        c_purple=$'\e[38;2;120;0;180m'
+        c_orange=$'\e[38;2;255;255;255m'
+        c_green=$'\e[38;2;0;255;200m'
+        c_yellow=$'\e[38;2;255;240;0m'
+        c_grid=$'\e[38;2;60;30;80m'
+        c_white=$'\e[38;2;240;240;220m'
+        c_dim=$'\e[38;2;120;100;120m'
+    else
+        c_pink='' c_cyan='' c_purple='' c_orange='' c_green=''
+        c_yellow='' c_grid='' c_white='' c_dim=''
+    fi
+    THEME_NAME="VHS"
+    THEME_TAG="please rewind before returning"
+    SPLASH_VARIANT="vhs"
+    SPLASH_SUBTITLE="» PLAY  ◀◀ REC ●"
+    NOISE_CHARS='▓▒░█▌▐▀▄≡≈※○●◐◑'
+    BOOT_SEQ=$'> TRACKING.....................................[ADJUST]\n> HEAD CLEAN....................................[OK]\n> SP / LP MODE..................................[SP]\n> LOADING TAPE: \xc2\xab USER PROFILE \xc2\xbb...................[OK]\n> PLEASE STAND BY.'
+}
+
+_list_themes() {
+    # label::function::short-description
+    printf '%s\n' \
+        "SYNTHWAVE  ─  hot pink / neon cyan / purple. classic 80s.::_theme_synthwave" \
+        "MATRIX     ─  green phosphor. wake up, neo.::_theme_matrix" \
+        "DOS BBS    ─  amber CRT / ANSI art. dial-up vibes.::_theme_dosbbs" \
+        "VHS        ─  magenta / cyan tracking error.::_theme_vhs"
+}
+
+INLINE_THEME_REGISTRY_REMOVED
 
 # Optional gum (pretty prompts). We don't require it — fallback uses
 # stdlib read so onboarding works on a minimal install (the whole point of
@@ -56,11 +163,99 @@ HAS_GUM=false
 command -v gum &>/dev/null && HAS_GUM=true
 
 # ============================================
+# THEME PICKER
+# ============================================
+# Asks the user to pick an aesthetic BEFORE the quiz. The selected theme is
+# applied immediately, so the rest of the flow inherits the palette.
+_pick_theme() {
+    clear
+    cat <<EOF
+
+${c_purple}  ════════════════════════════════════════════════════════${c_reset}
+${c_cyan}        ░▒▓█  ${c_pink}AESTHETIC  CALIBRATION${c_cyan}  █▓▒░${c_reset}
+${c_purple}  ════════════════════════════════════════════════════════${c_reset}
+
+EOF
+    _anim_type "  pick the vibe. replay later with: claw onboard replay" 0.018
+    echo ""
+
+    local -a labels=()
+    local -a funcs=()
+    local row label fn
+    while IFS= read -r row; do
+        label="${row%%::*}"
+        fn="${row##*::}"
+        labels+=("$label")
+        funcs+=("$fn")
+    done < <(_list_themes)
+
+    local i=1
+    for label in "${labels[@]}"; do
+        printf "    ${c_cyan}[${c_bold}%d${c_reset}${c_cyan}]${c_reset} ${c_white}%s${c_reset}\n" "$i" "$label"
+        ((i++)) || true
+    done
+    echo ""
+
+    local choice=""
+    if $HAS_GUM; then
+        # gum fails non-interactively; tolerate so set -e doesn't kill us.
+        choice="$(printf '%s\n' "${labels[@]}" | gum choose \
+            --cursor.foreground="#ff2e88" \
+            --selected.foreground="#00f5ff" \
+            --header="  vibe >" 2>/dev/null || true)"
+    fi
+
+    local idx=0
+    if [[ -n "$choice" ]]; then
+        local k=0
+        for label in "${labels[@]}"; do
+            if [[ "$label" == "$choice" ]]; then idx=$k; break; fi
+            ((k++)) || true
+        done
+    else
+        local n=""
+        while true; do
+            printf "  ${c_yellow}>${c_reset} "
+            IFS= read -r n
+            [[ -z "$n" ]] && n=1
+            if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= ${#labels[@]} )); then
+                idx=$((n-1))
+                break
+            fi
+            printf "  ${c_orange}!${c_reset} ${c_dim}1..%d${c_reset}\n" "${#labels[@]}"
+        done
+    fi
+
+    "${funcs[$idx]}"
+    SELECTED_THEME="${funcs[$idx]#_theme_}"
+
+    printf "\n  ${c_green}✓${c_reset} "
+    _anim_type "theme locked: ${THEME_NAME}" 0.02
+    _anim_pause 0.5
+}
+
+# ============================================
 # ART
 # ============================================
 # Splash. The CRT divider lines use ▀▄▀ for that "scanline" feel.
+# Splash dispatcher: picks the art variant for the active theme.
+# Each variant is a self-contained scene printed via cat <<EOF — keeps the
+# art readable as source instead of buried in printf escapes.
 _splash() {
     clear
+    case "${SPLASH_VARIANT:-synthwave}" in
+        synthwave) _splash_synthwave ;;
+        matrix)    _splash_matrix    ;;
+        dosbbs)    _splash_dosbbs    ;;
+        vhs)       _splash_vhs       ;;
+        *)         _splash_synthwave ;;
+    esac
+    _anim_pause 0.4
+    printf "                  ${c_dim}%s · %s${c_reset}\n\n" "${THEME_NAME:-SYNTHWAVE}" "${THEME_TAG:-rad new wave dotfiles, c.1986}"
+}
+
+# Original 80s scanline divider + OPEN CLAW logo + cyan claw face.
+_splash_synthwave() {
     cat <<EOF
 ${c_purple}
             ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
@@ -81,16 +276,110 @@ ${c_purple}
             ▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄
             ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 ${c_reset}
-              ${c_yellow}${c_blink}»»»${c_reset}  ${c_white}${c_bold}CHARACTER  SELECT${c_reset}  ${c_yellow}${c_blink}«««${c_reset}
-                  ${c_dim}rad new wave dotfiles, c.1986${c_reset}
-
+              ${c_yellow}${c_blink}»»»${c_reset}  ${c_white}${c_bold}${SPLASH_SUBTITLE:-CHARACTER  SELECT}${c_reset}  ${c_yellow}${c_blink}«««${c_reset}
 EOF
 }
 
-# Synthwave horizon between sections — purely decorative.
+# Matrix: half-width katakana + binary bookend the OPEN CLAW logo. The rain
+# rows are static (a frozen frame of the iconic effect) but feel kinetic
+# next to the typewriter+glitch transitions that follow.
+# Half-width katakana (U+FF61–U+FF9F) render as 1-cell in Nerd Fonts.
+_splash_matrix() {
+    cat <<EOF
+${c_dim}
+   ｸ  ﾐ  0  ﾗ  1  ﾈ  ｵ  ｱ  1  ﾆ  0  ﾇ  ｹ  ﾂ  1  ｻ  ﾜ  ﾉ  0  ﾌ  ﾇ  ﾗ  1  ｸ
+${c_reset}
+${c_dim}ｱ${c_reset}                                                                  ${c_dim}ﾈ${c_reset}
+${c_dim}ﾗ${c_reset}     ${c_green}██████╗ ██████╗ ███████╗███╗   ██╗${c_reset}                  ${c_dim}ｶ${c_reset}
+${c_dim}1${c_reset}    ${c_green}██╔═══██╗██╔══██╗██╔════╝████╗  ██║${c_reset}                  ${c_dim}ｵ${c_reset}
+${c_dim}ﾐ${c_reset}    ${c_green}██║   ██║██████╔╝█████╗  ██╔██╗ ██║${c_reset}                  ${c_dim}ﾗ${c_reset}
+${c_dim}0${c_reset}    ${c_green}██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║${c_reset}                  ${c_dim}ﾆ${c_reset}
+${c_dim}ｸ${c_reset}    ${c_green}╚██████╔╝██║     ███████╗██║ ╚████║${c_reset}                  ${c_dim}1${c_reset}
+${c_dim}ﾆ${c_reset}     ${c_green}╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝${c_reset}                  ${c_dim}ﾂ${c_reset}
+${c_dim}ﾂ${c_reset}        ${c_green}▄████▄   ██▓     ▄▄▄       █     █░${c_reset}             ${c_dim}ﾑ${c_reset}
+${c_dim}1${c_reset}       ${c_green}▒██▀ ▀█  ▓██▒    ▒████▄    ▓█░ █ ░█░${c_reset}             ${c_dim}ｶ${c_reset}
+${c_dim}0${c_reset}       ${c_green}▒▓█    ▄ ▒██░    ▒██  ▀█▄  ▒█░ █ ░█${c_reset}              ${c_dim}ﾐ${c_reset}
+${c_dim}ｾ${c_reset}       ${c_green}▒▓▓▄ ▄██▒▒██░    ░██▄▄▄▄██ ░█░ █ ░█${c_reset}              ${c_dim}0${c_reset}
+${c_dim}ﾆ${c_reset}       ${c_green}▒ ▓███▀ ░░██████▒ ▓█   ▓██▒░░██▒██▓${c_reset}              ${c_dim}1${c_reset}
+${c_dim}ﾂ${c_reset}                                                                  ${c_dim}ﾗ${c_reset}
+${c_dim}
+   1  ﾗ  ｱ  ﾐ  0  ｸ  ﾆ  ﾂ  ﾑ  0  ﾐ  ﾇ  ｹ  ﾗ  1  ｸ  ﾆ  0  ﾐ  ﾗ  ﾂ  ﾑ  1  ｵ
+${c_reset}
+              ${c_yellow}${c_blink}»»»${c_reset}  ${c_white}${c_bold}${SPLASH_SUBTITLE:-WAKE  UP,  NEO}${c_reset}  ${c_yellow}${c_blink}«««${c_reset}
+EOF
+}
+
+# DOS BBS: heavy CP437 frame, login banner, NODE/USER/BAUD status bar.
+# Magenta frame + amber OPEN logo + cyan CLAW body = early-90s ANSI vibe.
+_splash_dosbbs() {
+    cat <<EOF
+${c_purple}  ╔═══════════════════════════════════════════════════════════════════╗${c_reset}
+${c_purple}  ║${c_reset} ${c_pink}░▒▓█ OPEN CLAW BBS █▓▒░${c_reset}  ${c_cyan}►► PRESS [SPACE] FOR MAIN MENU ◄◄${c_reset}     ${c_purple}║${c_reset}
+${c_purple}  ╠═══════════════════════════════════════════════════════════════════╣${c_reset}
+${c_purple}  ║${c_reset}                                                                   ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}           ${c_pink}██████╗ ██████╗ ███████╗███╗   ██╗${c_reset}                   ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}          ${c_pink}██╔═══██╗██╔══██╗██╔════╝████╗  ██║${c_reset}                   ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}          ${c_pink}██║   ██║██████╔╝█████╗  ██╔██╗ ██║${c_reset}                   ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}          ${c_pink}██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║${c_reset}                   ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}          ${c_pink}╚██████╔╝██║     ███████╗██║ ╚████║${c_reset}                   ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}           ${c_pink}╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝${c_reset}                   ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}              ${c_cyan}▄████▄   ██▓     ▄▄▄       █     █░${c_reset}              ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}             ${c_cyan}▒██▀ ▀█  ▓██▒    ▒████▄    ▓█░ █ ░█░${c_reset}              ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}             ${c_cyan}▒▓█    ▄ ▒██░    ▒██  ▀█▄  ▒█░ █ ░█ ${c_reset}              ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}             ${c_cyan}▒▓▓▄ ▄██▒▒██░    ░██▄▄▄▄██ ░█░ █ ░█ ${c_reset}              ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}             ${c_cyan}▒ ▓███▀ ░░██████▒ ▓█   ▓██▒░░██▒██▓ ${c_reset}              ${c_purple}║${c_reset}
+${c_purple}  ║${c_reset}                                                                   ${c_purple}║${c_reset}
+${c_purple}  ╠═══════════════════════════════════════════════════════════════════╣${c_reset}
+${c_purple}  ║${c_reset} ${c_yellow}NODE: 01${c_reset}   ${c_yellow}USER: SYSOP${c_reset}   ${c_yellow}BAUD: 2400${c_reset}   ${c_orange}TIME LEFT: 89 MIN${c_reset}    ${c_purple}║${c_reset}
+${c_purple}  ╚═══════════════════════════════════════════════════════════════════╝${c_reset}
+
+              ${c_yellow}${c_blink}»»»${c_reset}  ${c_white}${c_bold}${SPLASH_SUBTITLE:-SYSOP  LOGIN}${c_reset}  ${c_yellow}${c_blink}«««${c_reset}
+EOF
+}
+
+# VHS: thick ████ tracking bars + per-line magenta/cyan alternation on the
+# logo (suggests analog color-channel separation). Status bar shows
+# transport indicators (PLAY/REC) and timecode.
+_splash_vhs() {
+    cat <<EOF
+${c_pink}  ████████████████████████████████████████████████████████████████████${c_reset}
+${c_pink}  ████${c_reset} ${c_orange}TRACKING${c_reset} ${c_pink}██████${c_reset}  ${c_cyan}▷ PLAY${c_reset}  ${c_pink}████████${c_reset}  ${c_orange}● REC${c_reset}  ${c_pink}██████${c_reset}
+${c_pink}  ████████████████████████████████████████████████████████████████████${c_reset}
+
+${c_pink}             ██████╗ ██████╗ ███████╗███╗   ██╗${c_reset}
+${c_cyan}             ██╔═══██╗██╔══██╗██╔════╝████╗  ██║${c_reset}
+${c_pink}             ██║   ██║██████╔╝█████╗  ██╔██╗ ██║${c_reset}
+${c_cyan}             ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║${c_reset}
+${c_pink}             ╚██████╔╝██║     ███████╗██║ ╚████║${c_reset}
+${c_cyan}              ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝${c_reset}
+${c_pink}  ████████████████████████████████████████████████████████████████████${c_reset}
+${c_cyan}                ▄████▄   ██▓     ▄▄▄       █     █░${c_reset}
+${c_pink}               ▒██▀ ▀█  ▓██▒    ▒████▄    ▓█░ █ ░█░${c_reset}
+${c_cyan}               ▒▓█    ▄ ▒██░    ▒██  ▀█▄  ▒█░ █ ░█ ${c_reset}
+${c_pink}               ▒▓▓▄ ▄██▒▒██░    ░██▄▄▄▄██ ░█░ █ ░█ ${c_reset}
+${c_cyan}               ▒ ▓███▀ ░░██████▒ ▓█   ▓██▒░░██▒██▓ ${c_reset}
+
+${c_pink}  ████████████████████████████████████████████████████████████████████${c_reset}
+${c_pink}  ████${c_reset} ${c_orange}SP${c_reset}  ${c_cyan}LP${c_reset}  ${c_pink}████${c_reset}  ${c_yellow}00:00:01:24${c_reset}  ${c_pink}████${c_reset}  ${c_orange}STEREO ●${c_reset}  ${c_pink}████${c_reset}
+${c_pink}  ████████████████████████████████████████████████████████████████████${c_reset}
+
+              ${c_yellow}${c_blink}»»»${c_reset}  ${c_white}${c_bold}${SPLASH_SUBTITLE:-» PLAY ◀◀ REC ●}${c_reset}  ${c_yellow}${c_blink}«««${c_reset}
+EOF
+}
+
+# Horizon between sections — now with a brief glitch on the LEVEL banner.
+# Settles fast (~0.25s) so it punctuates without dragging.
 _horizon() {
     printf "${c_purple}  ════════════════════════════════════════════════════════${c_reset}\n"
-    printf "${c_cyan}    ░▒▓█  ${c_pink}LEVEL  %s${c_cyan}  █▓▒░${c_reset}\n" "$1"
+    # Build the inner banner as a plain string, glitch it, then redraw in
+    # color. The glitch helper writes its own newline.
+    if [[ -t 1 ]]; then
+        printf "${c_cyan}    ░▒▓█  ${c_pink}"
+        _anim_glitch "LEVEL  $1" 2
+        printf "\e[1A\r${c_cyan}    ░▒▓█  ${c_pink}LEVEL  $1${c_cyan}  █▓▒░${c_reset}\n"
+    else
+        printf "${c_cyan}    ░▒▓█  ${c_pink}LEVEL  %s${c_cyan}  █▓▒░${c_reset}\n" "$1"
+    fi
     printf "${c_purple}  ════════════════════════════════════════════════════════${c_reset}\n\n"
 }
 
@@ -150,7 +439,9 @@ _ask() {
     local opts=("$@")
 
     echo ""
-    printf "  ${c_pink}${c_bold}▸ %s${c_reset}\n" "$title"
+    printf "  ${c_pink}${c_bold}▸ "
+    _anim_type "$title" 0.018
+    printf "%s" "$c_reset"
     echo ""
 
     local i=1
@@ -168,7 +459,7 @@ _ask() {
         choice="$(printf '%s\n' "${labels[@]}" | gum choose \
             --cursor.foreground="#ff2e88" \
             --selected.foreground="#00f5ff" \
-            --header="  pick one >" 2>/dev/null)"
+            --header="  pick one >" 2>/dev/null || true)"
     fi
 
     # Fallback / gum failure → numeric read loop.
@@ -302,24 +593,87 @@ _winner() {
 
 _show_scoreboard() {
     echo ""
-    printf "  ${c_pink}${c_bold}═══ SCOREBOARD ═══${c_reset}\n\n"
-    # Sort descending by score. We pre-emit lines then sort -k2 -nr.
+    printf "  ${c_pink}${c_bold}═══ "
+    _anim_type "SCOREBOARD" 0.03
+    printf "\e[1A\e[2C${c_pink}${c_bold}═══ SCOREBOARD ═══${c_reset}\n\n"
+    _anim_pause 0.3
+    # Sort desc by score, then animate each bar in turn. Each row's fill is
+    # animated by _anim_score_bar — so the audience sees the leader pull away.
     {
         for p in cloud security devops ai research cortex claude local default; do
             printf "%s\t%d\n" "$p" "${SCORES[$p]:-0}"
         done
     } | sort -k2 -nr | while IFS=$'\t' read -r p s; do
-        # Bar graph: each point = one █.
-        local bar=""
-        local i=0
-        while (( i < s )); do
-            bar+="█"
-            ((i++)) || true
-        done
-        printf "    ${c_cyan}%-10s${c_reset}  ${c_pink}%s${c_reset}${c_dim}%s${c_reset}  ${c_white}%d${c_reset}\n" \
-            "$p" "$bar" "$(printf '%.s·' $(seq 1 $((10 - s)) 2>/dev/null))" "$s"
+        _anim_score_bar "$p" "$s"
+        _anim_pause 0.08
     done
     echo ""
+    _anim_pause 0.5
+}
+
+# Verdict: 2-3 lines of long-form roast, typed out cinematically after the
+# box reveal. _profile_flair is the snappy one-liner inside the box;
+# _verdict is the dramatic monologue underneath.
+#
+# >>>  HENRY: tune these. Each class gets 2-3 lines. Keep lines under 60
+#      chars. Speak in second person. Roast > praise.
+_verdict() {
+    case "$1" in
+        cloud)
+            printf '%s\n' \
+                "you were never going to be happy on a single host." \
+                "the cluster is calling. it has 47 unread alerts." \
+                "answer them."
+            ;;
+        security)
+            printf '%s\n' \
+                "the network speaks. you have been listening for years." \
+                "tonight you patch. tomorrow you pivot." \
+                "just don't get caught."
+            ;;
+        devops)
+            printf '%s\n' \
+                "the pipeline is your temple. the runbook your scripture." \
+                "you do not panic during outages." \
+                "the outages panic about you."
+            ;;
+        ai)
+            printf '%s\n' \
+                "you don't write code anymore. you describe it." \
+                "half your twitter followers are bots you trained." \
+                "they have opinions about your prompting."
+            ;;
+        research)
+            printf '%s\n' \
+                "the dataset is yours. the question came later." \
+                "someday you'll publish a paper about all of this." \
+                "today, you'll scrape one more table."
+            ;;
+        cortex)
+            printf '%s\n' \
+                "the SOC sleeps. the playbooks do not." \
+                "you've written automations the customer hasn't asked for." \
+                "they will. soon."
+            ;;
+        claude)
+            printf '%s\n' \
+                "you and the model? unstoppable." \
+                "you, alone? still figuring it out." \
+                "remember which one of you is reviewing the code."
+            ;;
+        local)
+            printf '%s\n' \
+                "the cloud is fine. for other people." \
+                "you have one good thinkpad and a tiling WM." \
+                "that is, somehow, enough."
+            ;;
+        default|*)
+            printf '%s\n' \
+                "not every hero needs a class." \
+                "some heroes just need a working shell and zoxide." \
+                "respect. profile activated. go do whatever you do."
+            ;;
+    esac
 }
 
 _announce() {
@@ -328,22 +682,56 @@ _announce() {
     class="$(_profile_class "$profile")"
     flair="$(_profile_flair "$profile")"
 
+    # Beat 1: drumroll into the headline.
     echo ""
-    printf "${c_purple}  ┌────────────────────────────────────────────────────────┐${c_reset}\n"
-    printf "${c_purple}  │${c_reset}                                                        ${c_purple}│${c_reset}\n"
-    printf "${c_purple}  │${c_reset}   ${c_yellow}${c_bold}>>>  YOU ARE THE  %-31s${c_reset}${c_purple}│${c_reset}\n" "$class  <<<"
-    printf "${c_purple}  │${c_reset}                                                        ${c_purple}│${c_reset}\n"
-    printf "${c_purple}  │${c_reset}   ${c_cyan}class:${c_reset}    ${c_white}%-44s${c_reset}${c_purple}│${c_reset}\n" "$class"
-    printf "${c_purple}  │${c_reset}   ${c_cyan}profile:${c_reset}  ${c_white}%-44s${c_reset}${c_purple}│${c_reset}\n" "$profile"
-    printf "${c_purple}  │${c_reset}                                                        ${c_purple}│${c_reset}\n"
-    # Wrap the flair so it fits in the box (54 chars usable).
-    local line
-    while IFS= read -r line; do
-        printf "${c_purple}  │${c_reset}   ${c_dim}%-52s${c_reset}${c_purple}│${c_reset}\n" "$line"
+    _anim_drumroll
+    _anim_pause 0.25
+
+    # Beat 2: box draws line-by-line. Each line costs a small beat. Pre-
+    # rendering into an array lets us iterate uniformly with one delay.
+    local -a box_lines=()
+    box_lines+=("${c_purple}  ┌────────────────────────────────────────────────────────┐${c_reset}")
+    box_lines+=("${c_purple}  │${c_reset}                                                        ${c_purple}│${c_reset}")
+    box_lines+=("$(printf "${c_purple}  │${c_reset}   ${c_yellow}${c_bold}>>>  YOU ARE THE  %-31s${c_reset}${c_purple}│${c_reset}" "$class  <<<")")
+    box_lines+=("${c_purple}  │${c_reset}                                                        ${c_purple}│${c_reset}")
+    box_lines+=("$(printf "${c_purple}  │${c_reset}   ${c_cyan}class:${c_reset}    ${c_white}%-44s${c_reset}${c_purple}│${c_reset}" "$class")")
+    box_lines+=("$(printf "${c_purple}  │${c_reset}   ${c_cyan}profile:${c_reset}  ${c_white}%-44s${c_reset}${c_purple}│${c_reset}" "$profile")")
+    box_lines+=("$(printf "${c_purple}  │${c_reset}   ${c_cyan}theme:${c_reset}    ${c_white}%-44s${c_reset}${c_purple}│${c_reset}" "${THEME_NAME:-SYNTHWAVE}")")
+    box_lines+=("${c_purple}  │${c_reset}                                                        ${c_purple}│${c_reset}")
+    local fl
+    while IFS= read -r fl; do
+        box_lines+=("$(printf "${c_purple}  │${c_reset}   ${c_dim}%-52s${c_reset}${c_purple}│${c_reset}" "$fl")")
     done < <(printf '%s\n' "$flair" | fold -s -w 52)
-    printf "${c_purple}  │${c_reset}                                                        ${c_purple}│${c_reset}\n"
-    printf "${c_purple}  └────────────────────────────────────────────────────────┘${c_reset}\n"
+    box_lines+=("${c_purple}  │${c_reset}                                                        ${c_purple}│${c_reset}")
+    box_lines+=("${c_purple}  └────────────────────────────────────────────────────────┘${c_reset}")
+    local bl
+    for bl in "${box_lines[@]}"; do
+        printf '%s\n' "$bl"
+        _anim_pause 0.06
+    done
+
+    # Beat 3: "CALCULATING DESTINY" pulse, then VERDICT typewriter.
     echo ""
+    _anim_pause 0.5
+    printf "  ${c_grid}> CALCULATING DESTINY${c_reset}"
+    local dot
+    for dot in 1 2 3 4 5 6 7 8 9 10; do
+        printf "${c_grid}.${c_reset}"
+        _anim_pause 0.08
+    done
+    printf "  ${c_green}[DONE]${c_reset}\n"
+    _anim_pause 0.4
+    printf "  ${c_pink}${c_bold}> VERDICT:${c_reset}\n\n"
+    _anim_pause 0.3
+    local vline
+    while IFS= read -r vline; do
+        printf "  ${c_white}"
+        _anim_type "  $vline" 0.028
+        printf "%s" "$c_reset"
+        _anim_pause 0.18
+    done < <(_verdict "$profile")
+    echo ""
+    _anim_pause 0.5
 }
 
 # ============================================
@@ -366,12 +754,14 @@ _install_for() {
 _persist_state() {
     local profile="$1"
     mkdir -p "$STATE_DIR"
-    # ISO timestamp · profile · OS · user
-    printf '%s\t%s\t%s\t%s\n' \
+    # ISO timestamp · profile · OS · user · theme
+    # The theme column is the 5th; older readers parsing 4 cols continue to work.
+    printf '%s\t%s\t%s\t%s\t%s\n' \
         "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         "$profile" \
         "$(uname -s)" \
         "${USER:-unknown}" \
+        "${SELECTED_THEME:-synthwave}" \
         >> "$STATE_FILE"
 }
 
@@ -391,7 +781,7 @@ _offer_install() {
             --cursor.foreground="#ff2e88" \
             "[Y] yes — install + activate" \
             "[N] no — just activate the profile" \
-            "[S] skip — i'll do it myself" 2>/dev/null)"
+            "[S] skip — i'll do it myself" 2>/dev/null || true)"
         # Normalise to first letter.
         answer="${answer:1:1}"
         answer="$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')"
@@ -430,14 +820,21 @@ _offer_install() {
 # SUBCOMMANDS
 # ============================================
 cmd_start() {
+    # Beat 0: theme picker BEFORE splash, so the splash inherits the palette.
+    _pick_theme
+
     _splash
     # Beat-the-CRT moment — wait for ENTER so the user reads the splash.
     printf "        ${c_yellow}${c_blink}»  PRESS  ENTER  TO  START  «${c_reset}"
     IFS= read -r _ || true
     clear
 
-    printf "${c_cyan}  initializing character creation matrix...${c_reset}\n"
-    printf "${c_dim}  this takes about 90 seconds. answer honestly — or don't, it's a game.${c_reset}\n"
+    # Cinematic boot: CRT-style scrolling log, then a brief mission brief.
+    _anim_boot
+    echo ""
+    _anim_type "  ${c_cyan}character creation: ${THEME_NAME:-SYNTHWAVE} edition${c_reset}" 0.02
+    _anim_type "  ${c_dim}~90 seconds. answer honestly — or don't, it's a game.${c_reset}" 0.014
+    _anim_pause 0.6
 
     _run_quiz
 
@@ -460,7 +857,11 @@ cmd_show() {
     fi
     printf "\n  ${c_purple}${c_bold}past character runs${c_reset}\n"
     printf "  ${c_dim}─────────────────────────${c_reset}\n"
-    awk -F'\t' '{ printf "    %s  %s  (%s)\n", $1, $2, $3 }' "$STATE_FILE"
+    # 5th column (theme) may be missing on legacy rows — awk just prints "".
+    awk -F'\t' '{
+        theme = ($5 == "" ? "synthwave" : $5)
+        printf "    %s  %-10s  %-12s  (%s)\n", $1, $2, theme, $3
+    }' "$STATE_FILE"
     echo ""
 }
 
