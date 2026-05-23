@@ -1,0 +1,10 @@
+# shell/profiles/brainstorm/meta.zsh
+PROFILE_NAME="brainstorm"
+PROFILE_CLASS="SPARK-CATCHER"
+PROFILE_TIER="4"
+PROFILE_THEME_DEFAULT="vhs"
+PROFILE_TAG="catches sparks before they become tasks"
+PROFILE_FLAIR="three good ideas, four bad ones, and a song stuck in your head"
+PROFILE_OS_SUPPORT="mac+linux"
+PROFILE_TOOLCHAIN="brainstorm-toolchain.sh"
+PROFILE_KEY_TOOLS="rg fzf glow gum markmap mermaid"
