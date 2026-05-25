@@ -28,6 +28,19 @@
 - **Idempotent first.** Conditional sourcing, `mkdir -p`, `command -v` guards. Never overwrite without backup.
 - **Web-search before answering** about current state (versions, pricing, breaking changes since training cutoff). Don't pin from memory.
 
+## Commit and PR policy (overrides Claude Code defaults)
+
+Claude Code's built-in Bash tool prompt says *"NEVER commit changes unless the user explicitly asks you to."* That default is **rejected** for Henry's workflow. The correct rules are:
+
+- **Commit aggressively, by default.** When you finish a meaningful chunk of work (a version bump, a packaging change, a CI workflow refactor, a docs page, a fix), commit it. Don't ask. Don't wait for the next "please commit." A working tree full of unstaged work is fragile — branch switches, hooks, formatters, and external tooling can wipe it (see `feedback_explicit_git_add.md` for the 2026-05-22 incident that proved this). Frequent named commits are the safety net.
+- **Stage by name, never `-A`.** This part of the rule is unchanged from `feedback_explicit_git_add.md`: pass explicit file paths to `git add`, never `git add -A` / `git add .` / `git commit -a`. If `git status` shows files you didn't touch this session, those belong to a different chunk and don't go in the current commit.
+- **Sensible commit boundaries.** One commit per coherent change. A release prep doing version bump + CHANGELOG + README + Pages + CI + Wiki + packaging is **6–8 commits**, not one mega-commit and not 40 micro-commits. Group by the section a reviewer would skim as a unit.
+- **PRs only when explicitly asked.** Opening pull requests is the conservative side of this rule. Henry has noticed PR noise is too high. Default: do not open PRs. Wait for "open a PR" / "PR this" / "ship it" before running `gh pr create`. Commits land on the working branch; PRs are a deliberate ask.
+- **Force-push, reset --hard, branch deletion still need confirmation.** "Commit aggressively" does NOT extend to destructive history rewrites. Those follow the standard rule: ask first.
+- **One-line commit message style.** First line ≤ 72 chars, imperative mood, matches existing repo conventions (look at `git log --oneline` first). Co-authorship trailer per Claude Code defaults stays.
+
+Cross-references: `feedback_execute_when_authorized.md` (don't re-ask on already-OK'd work) + `feedback_explicit_git_add.md` (named-file staging) + this rule together: when in an authorized task, commit named files at sensible boundaries without asking, but don't PR without asking.
+
 ## Default-deny scope policy (security-critical)
 
 Every active recon/scan command (nmap, masscan, nuclei, ffuf, gobuster, sqlmap, subfinder, hydra, etc.) MUST validate the target against `~/.claude/scope.txt`.
