@@ -13,15 +13,19 @@ export OBSIDIAN_ROOT="${OBSIDIAN_ROOT:-$HOME/vault-main}"
 # OBSIDIAN_VAULT_OVERRIDE=<full-path-or-subdir-name>.
 typeset -gA _CLAW_OBSIDIAN_VAULTS
 _CLAW_OBSIDIAN_VAULTS=(
-    cortex   "cortex-obsidian-vault"
-    security "_working"
-    devops   "_working"
-    cloud    "_working"
-    ai       "_working"
-    research "000_master_vault"
-    claude   "_working"
-    local    "000_master_vault"
-    default  "000_master_vault"
+    cortex     "cortex-obsidian-vault"
+    security   "_working"
+    devops     "_working"
+    cloud      "_working"
+    ai         "_working"
+    research   "000_master_vault"
+    claude     "_working"
+    local      "000_master_vault"
+    default    "000_master_vault"
+    # Phase B1 additions:
+    vault      "000_master_vault"
+    brainstorm "000_master_vault"
+    pmo        "_working"
 )
 
 # Resolve the active vault path. Order:

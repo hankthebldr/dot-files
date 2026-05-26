@@ -10,6 +10,15 @@ elif [[ -f /etc/os-release ]]; then
     CLAW_OS="linux"
 fi
 
+# OS_FAMILY: short-form alias used by profile dispatchers to select the
+# matching per-OS sub-file (shell/profiles/<name>/{mac,linux,generic}.zsh).
+# Values intentionally shorter than CLAW_OS to keep profile filenames compact.
+export OS_FAMILY="generic"
+case "$CLAW_OS" in
+    macos)   OS_FAMILY="mac" ;;
+    linux)   OS_FAMILY="linux" ;;
+esac
+
 # ── Homebrew Prefix ──────────────────────────────────────
 # Resolves to the correct brew prefix on macOS (Intel/ARM) and Linux
 if command -v brew &>/dev/null; then
