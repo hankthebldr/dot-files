@@ -142,12 +142,25 @@ main() {
             build-essential curl git wget unzip tar \
             software-properties-common apt-transport-https \
             ca-certificates gnupg lsb-release \
-            xclip xsel \
+            xclip xsel wl-clipboard \
+            libnotify-bin \
             python3 python3-pip python3-venv \
             net-tools dnsutils iproute2 traceroute \
             2>/dev/null || true
     fi
     source "$SCRIPT_DIR/scripts/install/brew.sh"
+
+    # Make brew visible to the rest of this bootstrap session. brew.sh runs
+    # `eval "$(brew shellenv)"` in its own subshell, which doesn't bleed back
+    # up to us — without this, step 6's `brew_extras` block is silently
+    # skipped on a fresh Linux install.
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [[ -x /usr/local/bin/brew ]]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+    elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
 
     # On Ubuntu, also install tools available via apt that brew may not have
     if [[ "$PKG_MANAGER" == "apt" ]]; then
