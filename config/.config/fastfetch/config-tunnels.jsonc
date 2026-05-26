@@ -1,0 +1,31 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "source": "~/.dotfiles/shell/profiles/tunnels/logo.txt",
+    "type": "file-raw",
+    "padding": { "top": 1, "left": 2, "right": 3 }
+  },
+  "display": {
+    "separator": "  ",
+    "color": {
+      "keys": "38;2;0;255;65",
+      "title": "38;2;57;255;20"
+    }
+  },
+  "modules": [
+    { "type": "title", "format": "{user-name}@{host-name}", "key": " " },
+    { "type": "separator", "string": "─────────────────────────" },
+    { "type": "os",      "key": "  OS" },
+    { "type": "localip", "key": "  IP" },
+    { "type": "uptime",  "key": "  UP" },
+    { "type": "separator", "string": "── Routing ──────────────" },
+    { "type": "command", "key": "  Tailscale",
+      "text": "command -v tailscale >/dev/null && tailscale ip -4 2>/dev/null | head -1 || echo 'not installed'" },
+    { "type": "command", "key": "  Tunnels",
+      "text": "pgrep -af 'ssh.*(-L|-R|-D)' 2>/dev/null | wc -l | tr -d ' ' | xargs -I {} echo '{} active'" },
+    { "type": "command", "key": "  Sockets",
+      "text": "ls ${TUNNEL_CONTROL_DIR:-/tmp/ssh-tunnels}/ 2>/dev/null | wc -l | tr -d ' '" },
+    { "type": "separator", "string": "─────────────────────────" },
+    { "type": "colors", "paddingLeft": 2, "symbol": "circle" }
+  ]
+}
