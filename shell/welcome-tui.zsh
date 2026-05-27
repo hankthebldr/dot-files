@@ -64,27 +64,49 @@ function claw_welcome_tui() {
     # Build Interactive Menu Choices — grouped by category
     local choices=""
 
-    # ── Daily Driver (top, highlighted) ──
+    # ── Tier 1: Daily Driver ──
     choices+="default\t${c_green}${c_bold}⚙️  Default Shell${c_reset}${c_dim}      Standard Dev · daily driver${c_reset}\n"
-
-    # ── Workflow Profiles ──
-    choices+="security\t${c_pink}🔐 Security${c_reset}${c_dim}           Pentesting · Scanners · OSINT${c_reset}\n"
-    choices+="cloud\t${c_cyan}☁️  Cloud${c_reset}${c_dim}              AWS · K8s · Terraform${c_reset}\n"
-    choices+="devops\t${c_green}🏗️  DevOps${c_reset}${c_dim}             CI/CD · Monitoring · IaC${c_reset}\n"
-    choices+="ai\t${c_purple}🤖 AI${c_reset}${c_dim}                 LLMs · Embeddings · MLOps${c_reset}\n"
-    choices+="research\t${c_orange}🔬 Research${c_reset}${c_dim}           Datasets · Scraping · NLP${c_reset}\n"
-    choices+="cortex\t${c_pink}🛡️  Cortex${c_reset}${c_dim}             XSOAR · XSIAM · PAN-OS${c_reset}\n"
-    choices+="claude\t${c_orange}🧡 Claude Code${c_reset}${c_dim}        Agent SDK · MCP · AI Dev${c_reset}\n"
     choices+="local\t${c_green}🛠️  Local${c_reset}${c_dim}              Custom Built CLI Tools${c_reset}\n"
 
-    # ── Tools ──
-    choices+="─\t${c_dim}───────────────────────────────────────────────${c_reset}\n"
-    choices+="homelab\t${c_orange}📡 HomeLab${c_reset}${c_dim}            SSH Topology Manager${c_reset}\n"
-    choices+="tunnel\t${c_cyan}🔗 SSH Tunnels${c_reset}${c_dim}        Port Forwards · SOCKS${c_reset}\n"
+    # ── Tier 2: Domain Expertise ──
+    choices+="─\t${c_dim}── domain expertise ──────────────────────────${c_reset}\n"
+    choices+="cloud\t${c_cyan}☁️  Cloud${c_reset}${c_dim}              AWS · K8s · Terraform · SKYSURFER${c_reset}\n"
+    choices+="devops\t${c_green}🏗️  DevOps${c_reset}${c_dim}             CI/CD · Monitoring · IaC · WRENCH-MAGE${c_reset}\n"
+    choices+="security\t${c_pink}🔐 Security${c_reset}${c_dim}           Pentest · OSINT · Forensics · NIGHTHACKER${c_reset}\n"
+    choices+="cortex\t${c_pink}🛡️  Cortex${c_reset}${c_dim}             XSOAR · XSIAM · PAN-OS · GHOST-IN-THE-XSIAM${c_reset}\n"
+    choices+="ai\t${c_purple}🤖 AI${c_reset}${c_dim}                 LLMs · Embeddings · MLOps · NEUROMANCER${c_reset}\n"
+    choices+="research\t${c_orange}🔬 Research${c_reset}${c_dim}           Datasets · Scraping · NLP · DATA-DJ${c_reset}\n"
+
+    # ── Tier 3: Agent / IDE ──
+    choices+="─\t${c_dim}── agent / IDE ───────────────────────────────${c_reset}\n"
+    choices+="claude\t${c_orange}🧡 Claude Code${c_reset}${c_dim}        Agent SDK · MCP · PROMPT-RIDER${c_reset}\n"
+
+    # ── Tier 4: Knowledge & Ideation ──
+    choices+="─\t${c_dim}── knowledge & ideation ──────────────────────${c_reset}\n"
+    choices+="vault\t${c_orange}📓 Vault${c_reset}${c_dim}              Obsidian · notes · KNOWLEDGE-KEEPER${c_reset}\n"
+    choices+="brainstorm\t${c_pink}💡 Brainstorm${c_reset}${c_dim}         Ideation · mind maps · SPARK-CATCHER${c_reset}\n"
+    choices+="pmo\t${c_cyan}📋 PMO${c_reset}${c_dim}                Things 3 · planning · SCRIBE-OPERATOR${c_reset}\n"
+
+    # ── Tier 5: Customer-Facing & Visual ──
+    choices+="─\t${c_dim}── customer-facing & visual ──────────────────${c_reset}\n"
+    choices+="deck\t${c_green}📊 Deck${c_reset}${c_dim}               Cortex slides · DECK-SMITH${c_reset}\n"
+    choices+="design\t${c_purple}🎨 Design${c_reset}${c_dim}             Diagrams · palettes · FRAME-SMITH${c_reset}\n"
+    choices+="demo\t${c_pink}🎬 Demo${c_reset}${c_dim}               Presales mode · SHOW-RUNNER${c_reset}\n"
+
+    # ── Tier 6: Hardware & Ops ──
+    choices+="─\t${c_dim}── hardware & ops ────────────────────────────${c_reset}\n"
+    choices+="homelab\t${c_orange}📡 Homelab${c_reset}${c_dim}            BD790i ops · RACK-WIZARD${c_reset}\n"
+    choices+="blackwell\t${c_green}🧠 Blackwell${c_reset}${c_dim}          GPU/ML · CUDA · PHOSPHOR-GHOST${c_reset}\n"
+    choices+="tunnels\t${c_cyan}🔗 Tunnels${c_reset}${c_dim}            SSH · Tailscale · PORT-RUNNER${c_reset}\n"
+
+    # ── Direct Tools (action shortcuts, not profile loads) ──
+    choices+="─\t${c_dim}── direct actions ────────────────────────────${c_reset}\n"
     choices+="ai_tools\t${c_purple}🧠 AI Toolkit${c_reset}${c_dim}         Ollama · Claude · Aider${c_reset}\n"
     choices+="mcp\t${c_cyan}🔌 MCP Manager${c_reset}${c_dim}        Model Context Protocol${c_reset}\n"
     choices+="agents\t${c_purple}🧠 Agents${c_reset}${c_dim}             Claude · Hermes · Aider · …${c_reset}\n"
-    choices+="vault\t${c_orange}📓 Obsidian Vault${c_reset}${c_dim}     profile-aware vault helpers${c_reset}\n"
+    choices+="homelab_ssh\t${c_orange}📡 Homelab SSH${c_reset}${c_dim}        Direct topology launcher${c_reset}\n"
+    choices+="tunnel_mgr\t${c_cyan}🔗 Tunnel Manager${c_reset}${c_dim}     Direct FZF tunnel TUI${c_reset}\n"
+    choices+="vault_open\t${c_orange}📓 Open Vault${c_reset}${c_dim}         Launch Obsidian directly${c_reset}\n"
 
     # ── System ──
     choices+="─\t${c_dim}───────────────────────────────────────────────${c_reset}\n"
@@ -120,7 +142,7 @@ function claw_welcome_tui() {
         skip)
             # Exit to bare shell — no profile loaded
             ;;
-        default|security|cloud|devops|research|ai|cortex|claude|local)
+        default|security|cloud|devops|research|ai|cortex|claude|local|vault|brainstorm|pmo|deck|design|demo|homelab|blackwell|tunnels)
             export CLAW_ACTIVE_PROFILE="$key"
             local _profile="$_d/shell/profiles/${key}.zsh"
             if [[ -f "$_profile" ]]; then
@@ -139,14 +161,18 @@ function claw_welcome_tui() {
                 _claw_default_quickref
             fi
             ;;
-        homelab)
+        homelab_ssh)
+            # Direct action — bypasses the profile, just launches the SSH topology TUI.
+            # The `homelab` profile load (above) is the preferred entry point.
             if [[ -f "$_d/scripts/utils/homelab.sh" ]]; then
                 "$_d/scripts/utils/homelab.sh"
             else
                 echo "${c_red}Homelab connector not found.${c_reset}"
             fi
             ;;
-        tunnel)
+        tunnel_mgr)
+            # Direct action — bypasses the profile, just launches the tunnel TUI.
+            # The `tunnels` profile load (above) is the preferred entry point.
             if [[ -f "$_d/scripts/utils/tunnel-manager.sh" ]]; then
                 "$_d/scripts/utils/tunnel-manager.sh"
             else
@@ -165,8 +191,10 @@ function claw_welcome_tui() {
                 echo "${c_red}MCP Manager not found.${c_reset}"
             fi
             ;;
-        vault)
-            # Open Obsidian to the active vault (profile-aware via obsidian.zsh)
+        vault_open)
+            # Direct action — open Obsidian to the active vault. The `vault`
+            # profile load (above) is the preferred entry point and also
+            # exposes oo/oon/oos/ov as in-shell aliases.
             if typeset -f _claw_obsidian_vault &>/dev/null; then
                 local _v="$(_claw_obsidian_vault)"
                 if [[ -d "$_v" ]]; then

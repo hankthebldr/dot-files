@@ -1,0 +1,32 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "source": "~/.dotfiles/shell/profiles/deck/logo.txt",
+    "type": "file-raw",
+    "padding": { "top": 1, "left": 2, "right": 3 }
+  },
+  "display": {
+    "separator": "  ",
+    "color": {
+      "keys": "38;2;255;0;220",
+      "title": "38;2;0;220;255"
+    }
+  },
+  "modules": [
+    { "type": "title", "format": "{user-name}@{host-name}", "key": " " },
+    { "type": "separator", "string": "─────────────────────────" },
+    { "type": "os",     "key": "  OS" },
+    { "type": "cpu",    "key": "  CPU" },
+    { "type": "memory", "key": "  MEM" },
+    { "type": "disk",   "key": "  DSK", "folders": "/" },
+    { "type": "separator", "string": "── Deck Tooling ─────────" },
+    { "type": "command", "key": "  marp",
+      "text": "command -v marp >/dev/null && marp --version 2>/dev/null | head -1 || echo '(install)'" },
+    { "type": "command", "key": "  gifski",
+      "text": "command -v gifski >/dev/null && gifski --version 2>/dev/null | head -1 | awk '{print $NF}' || echo '(install)'" },
+    { "type": "command", "key": "  Decks",
+      "text": "ls -d ${DECK_HOME:-$HOME/Decks}/*/ 2>/dev/null | wc -l | tr -d ' '" },
+    { "type": "separator", "string": "─────────────────────────" },
+    { "type": "colors", "paddingLeft": 2, "symbol": "circle" }
+  ]
+}

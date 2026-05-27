@@ -1,0 +1,70 @@
+{
+  "Profiles": [
+    {
+      "Name": "Open Claw",
+      "Guid": "open-claw-github-dark",
+      "Dynamic Profile Parent Name": "Default",
+      "Description": "Open Claw — GitHub Dark · 160×50 · JetBrainsMono Nerd Font",
+
+      "Columns": 160,
+      "Rows": 50,
+      "Horizontal Spacing": 1.0,
+      "Vertical Spacing": 1.0,
+
+      "Normal Font": "JetBrainsMonoNerdFontMono-Regular 13",
+      "Non Ascii Font": "JetBrainsMonoNerdFontMono-Regular 13",
+      "Use Non-ASCII Font": false,
+      "Disable Window Resizing": false,
+
+      "Transparency": 0.05,
+      "Blur": true,
+      "Blur Radius": 20,
+      "Window Type": 0,
+      "Hide After Opening": false,
+
+      "Custom Window Title": "Open Claw",
+      "Sync Title": true,
+      "Allow Title Reporting": false,
+      "Allow Title Setting": true,
+
+      "Option Key Sends": 0,
+      "Right Option Key Sends": 0,
+
+      "Foreground Color": { "Red Component": 0.788, "Green Component": 0.820, "Blue Component": 0.851, "Alpha Component": 1.0 },
+      "Background Color": { "Red Component": 0.051, "Green Component": 0.067, "Blue Component": 0.090, "Alpha Component": 1.0 },
+      "Cursor Color":     { "Red Component": 0.345, "Green Component": 0.651, "Blue Component": 1.0,   "Alpha Component": 1.0 },
+      "Cursor Text Color":{ "Red Component": 0.051, "Green Component": 0.067, "Blue Component": 0.090, "Alpha Component": 1.0 },
+      "Selection Color":  { "Red Component": 0.345, "Green Component": 0.651, "Blue Component": 1.0,   "Alpha Component": 1.0 },
+      "Selected Text Color":{ "Red Component": 0.051, "Green Component": 0.067, "Blue Component": 0.090, "Alpha Component": 1.0 },
+
+      "Ansi 0 Color":  { "Red Component": 0.282, "Green Component": 0.310, "Blue Component": 0.345, "Alpha Component": 1.0 },
+      "Ansi 1 Color":  { "Red Component": 1.0,   "Green Component": 0.482, "Blue Component": 0.447, "Alpha Component": 1.0 },
+      "Ansi 2 Color":  { "Red Component": 0.247, "Green Component": 0.725, "Blue Component": 0.314, "Alpha Component": 1.0 },
+      "Ansi 3 Color":  { "Red Component": 0.824, "Green Component": 0.600, "Blue Component": 0.133, "Alpha Component": 1.0 },
+      "Ansi 4 Color":  { "Red Component": 0.345, "Green Component": 0.651, "Blue Component": 1.0,   "Alpha Component": 1.0 },
+      "Ansi 5 Color":  { "Red Component": 0.737, "Green Component": 0.549, "Blue Component": 1.0,   "Alpha Component": 1.0 },
+      "Ansi 6 Color":  { "Red Component": 0.224, "Green Component": 0.773, "Blue Component": 0.812, "Alpha Component": 1.0 },
+      "Ansi 7 Color":  { "Red Component": 0.694, "Green Component": 0.729, "Blue Component": 0.769, "Alpha Component": 1.0 },
+      "Ansi 8 Color":  { "Red Component": 0.431, "Green Component": 0.463, "Blue Component": 0.506, "Alpha Component": 1.0 },
+      "Ansi 9 Color":  { "Red Component": 1.0,   "Green Component": 0.631, "Blue Component": 0.596, "Alpha Component": 1.0 },
+      "Ansi 10 Color": { "Red Component": 0.337, "Green Component": 0.827, "Blue Component": 0.392, "Alpha Component": 1.0 },
+      "Ansi 11 Color": { "Red Component": 0.890, "Green Component": 0.702, "Blue Component": 0.255, "Alpha Component": 1.0 },
+      "Ansi 12 Color": { "Red Component": 0.475, "Green Component": 0.753, "Blue Component": 1.0,   "Alpha Component": 1.0 },
+      "Ansi 13 Color": { "Red Component": 0.824, "Green Component": 0.659, "Blue Component": 1.0,   "Alpha Component": 1.0 },
+      "Ansi 14 Color": { "Red Component": 0.337, "Green Component": 0.831, "Blue Component": 0.867, "Alpha Component": 1.0 },
+      "Ansi 15 Color": { "Red Component": 0.941, "Green Component": 0.965, "Blue Component": 0.988, "Alpha Component": 1.0 },
+
+      "Mouse Reporting": true,
+      "Scrollback Lines": 10000,
+      "Unlimited Scrollback": false,
+      "Terminal Type": "xterm-256color",
+      "Silence Bell": true,
+      "Visual Bell": false,
+      "Flashing Bell": false,
+      "Cursor Type": 0,
+      "Blinking Cursor": true,
+      "Use Bold Font": true,
+      "Show Status Bar": false
+    }
+  ]
+}

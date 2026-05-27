@@ -391,29 +391,56 @@ _horizon() {
 # names are deliberately tongue-in-cheek.
 _profile_class() {
     case "$1" in
-        cloud)    echo "SKYSURFER" ;;
-        security) echo "NIGHTHACKER" ;;
-        devops)   echo "WRENCH-MAGE" ;;
-        ai)       echo "NEUROMANCER" ;;
-        research) echo "DATA-DJ" ;;
-        cortex)   echo "GHOST-IN-THE-XSIAM" ;;
-        claude)   echo "PROMPT-RIDER" ;;
-        local)    echo "GARAGE-HACKER" ;;
-        default)  echo "PIXEL-DRIFTER" ;;
-        *)        echo "UNKNOWN-WANDERER" ;;
+        # Tier 1: general
+        default)    echo "PIXEL-DRIFTER" ;;
+        local)      echo "GARAGE-HACKER" ;;
+        # Tier 2: domain
+        cloud)      echo "SKYSURFER" ;;
+        devops)     echo "WRENCH-MAGE" ;;
+        security)   echo "NIGHTHACKER" ;;
+        cortex)     echo "GHOST-IN-THE-XSIAM" ;;
+        ai)         echo "NEUROMANCER" ;;
+        research)   echo "DATA-DJ" ;;
+        # Tier 3: agent/IDE
+        claude)     echo "PROMPT-RIDER" ;;
+        # Tier 4: knowledge & ideation (NEW)
+        vault)      echo "KNOWLEDGE-KEEPER" ;;
+        brainstorm) echo "SPARK-CATCHER" ;;
+        pmo)        echo "SCRIBE-OPERATOR" ;;
+        # Tier 5: customer-facing & visual (NEW)
+        deck)       echo "DECK-SMITH" ;;
+        design)     echo "FRAME-SMITH" ;;
+        demo)       echo "SHOW-RUNNER" ;;
+        # Tier 6: hardware & ops (NEW)
+        homelab)    echo "RACK-WIZARD" ;;
+        blackwell)  echo "PHOSPHOR-GHOST" ;;
+        tunnels)    echo "PORT-RUNNER" ;;
+        *)          echo "UNKNOWN-WANDERER" ;;
     esac
 }
 _profile_flair() {
     case "$1" in
-        cloud)    echo "boots up clusters before breakfast. owns 4 TLDs you've never heard of." ;;
-        security) echo "thinks your password is cute. has been in your router since Tuesday." ;;
-        devops)   echo "speaks fluent YAML. has opinions about Kubernetes. strong opinions." ;;
-        ai)       echo "prompted their way out of a parking ticket. has a 70B model on a thumb drive." ;;
-        research) echo "scraped the entire internet last weekend. now organizing it by vibe." ;;
-        cortex)   echo "knows what XSOAR stands for. actually likes it." ;;
-        claude)   echo "talks to AI more than humans. their git history is 90 percent agent commits." ;;
-        local)    echo "compiles everything from source. owns 11 unfinished CLI tools." ;;
-        default)  echo "the chill one. just wants a nice prompt and \`z\` to work." ;;
+        cloud)      echo "boots up clusters before breakfast. owns 4 TLDs you've never heard of." ;;
+        security)   echo "thinks your password is cute. has been in your router since Tuesday." ;;
+        devops)     echo "speaks fluent YAML. has opinions about Kubernetes. strong opinions." ;;
+        ai)         echo "prompted their way out of a parking ticket. has a 70B model on a thumb drive." ;;
+        research)   echo "scraped the entire internet last weekend. now organizing it by vibe." ;;
+        cortex)     echo "knows what XSOAR stands for. actually likes it." ;;
+        claude)     echo "talks to AI more than humans. their git history is 90 percent agent commits." ;;
+        local)      echo "compiles everything from source. owns 11 unfinished CLI tools." ;;
+        default)    echo "the chill one. just wants a nice prompt and \`z\` to work." ;;
+        # Tier 4 — knowledge & ideation
+        vault)      echo "scraped your second brain and organized it by vibe. every note links to three others." ;;
+        brainstorm) echo "captures shower thoughts at 3 AM. has a parking lot tag for ideas with no home yet." ;;
+        pmo)        echo "Things 3 inbox at zero by Friday. weekly review on Sunday with espresso." ;;
+        # Tier 5 — customer-facing & visual
+        deck)       echo "ships customer artifacts on a 6-hour deadline. every screenshot crops itself." ;;
+        design)     echo "every diagram tells the same story, just better. pixel-grid alignment is not negotiable." ;;
+        demo)       echo "never accidentally leaks a secret on screen-share. big font, DND on, history scrubbed." ;;
+        # Tier 6 — hardware & ops
+        homelab)    echo "owns the BD790i and its 47 unread alerts. k3s · tailscale · gitea · n8n · ollama." ;;
+        blackwell)  echo "FP4 enabled, 24GB VRAM, Tensor cores warm. has a 70B model running in the basement." ;;
+        tunnels)    echo "every host is one port-forward away. ControlMaster sockets warm, multi-hop chains tested." ;;
     esac
 }
 
@@ -429,7 +456,7 @@ _profile_flair() {
 #   OPTS=("label::profile1 profile2 weight" ...)
 #   weight is omitted → 1; if present, it adds N to the named profiles.
 declare -A SCORES
-for p in cloud security devops ai research cortex claude local default; do
+for p in cloud security devops ai research cortex claude local default vault brainstorm pmo deck design demo homelab blackwell tunnels; do
     SCORES[$p]=0
 done
 
@@ -581,7 +608,7 @@ _winner() {
     local best="default"
     local best_score=-1
     # zsh-vs-bash safe iteration: list keys explicitly.
-    for p in cloud security devops ai research cortex claude local default; do
+    for p in cloud security devops ai research cortex claude local default vault brainstorm pmo deck design demo homelab blackwell tunnels; do
         local s=${SCORES[$p]:-0}
         if (( s > best_score )); then
             best_score=$s
@@ -600,7 +627,7 @@ _show_scoreboard() {
     # Sort desc by score, then animate each bar in turn. Each row's fill is
     # animated by _anim_score_bar — so the audience sees the leader pull away.
     {
-        for p in cloud security devops ai research cortex claude local default; do
+        for p in cloud security devops ai research cortex claude local default vault brainstorm pmo deck design demo homelab blackwell tunnels; do
             printf "%s\t%d\n" "$p" "${SCORES[$p]:-0}"
         done
     } | sort -k2 -nr | while IFS=$'\t' read -r p s; do
