@@ -10,6 +10,8 @@ set -e
 DOTFILES="${DOTFILES_DIR:-$HOME/.dotfiles}"
 CLAW_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claw"
 AGENTS_TOML="$CLAW_CONFIG_DIR/agents.toml"
+CLAW_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
+CLAW_USAGE_LOG="$CLAW_CACHE_DIR/usage.tsv"
 
 # ============================================
 # THEME (GitHub Dark — matches system-update.sh)
@@ -27,6 +29,24 @@ c_bold=$'\e[1m'
 err()  { printf "  ${c_red}✗${c_reset} %s\n" "$*" >&2; }
 info() { printf "  ${c_cyan}●${c_reset} %s\n" "$*"; }
 ok()   { printf "  ${c_green}✓${c_reset} %s\n" "$*"; }
+
+# ============================================
+# USAGE LOGGER
+# ============================================
+# Append-only TSV: ISO timestamp \t subcommand \t arg-count \t profile
+# Disable with CLAW_NO_LOG=1. Errors are swallowed — must never block dispatch.
+log_usage() {
+    [[ "$CLAW_NO_LOG" = "1" ]] && return 0
+    {
+        mkdir -p "$CLAW_CACHE_DIR" 2>/dev/null
+        printf '%s\t%s\t%s\t%s\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${1:-menu}" \
+            "$(( $# > 0 ? $# - 1 : 0 ))" \
+            "${CLAW_ACTIVE_PROFILE:-none}" \
+            >> "$CLAW_USAGE_LOG"
+    } 2>/dev/null || true
+}
 
 # ============================================
 # AGENTS REGISTRY
@@ -92,6 +112,7 @@ cmd_help() {
   ${c_cyan}${c_bold}Workflows${c_reset}
     ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
     ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
+    ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc)${c_reset}
     ${c_white}claw tools${c_reset}            ${c_dim}interactive curated CLI tool refresh${c_reset}
 
@@ -102,6 +123,8 @@ cmd_help() {
     ${c_white}claw toolkit${c_reset}          ${c_dim}Open Claw workflow launcher${c_reset}
     ${c_white}claw skills${c_reset}           ${c_dim}browse Claude skills${c_reset}
     ${c_white}claw obsidian${c_reset}         ${c_dim}vault helpers (profile-aware)${c_reset}
+    ${c_white}claw onboard${c_reset}          ${c_dim}80s arcade onboarding · picks your profile${c_reset}
+    ${c_white}claw integrity${c_reset}        ${c_dim}tamper-check + install verification${c_reset}
 
   ${c_orange}${c_bold}Profiles${c_reset}
     ${c_white}claw load <profile>${c_reset}   ${c_dim}source a profile in current shell${c_reset}
@@ -114,6 +137,10 @@ cmd_help() {
 
   ${c_red}${c_bold}Install${c_reset}
     ${c_white}claw install <toolchain>${c_reset}  ${c_dim}opt-in toolchain installer (cloud/security/…)${c_reset}
+    ${c_white}claw uninstall${c_reset}            ${c_dim}reverse bootstrap (soft scope · --dry-run --yes)${c_reset}
+    ${c_white}claw claude-sync snapshot${c_reset} ${c_dim}capture Mac Claude state → manifests${c_reset}
+    ${c_white}claw claude-sync sync${c_reset}     ${c_dim}replay manifests on this machine (BD790i etc.)${c_reset}
+    ${c_white}claw claude-sync status${c_reset}   ${c_dim}diff live state vs manifests · (alias: csync)${c_reset}
 
   ${c_dim}Config: ${AGENTS_TOML}${c_reset}
 EOF
@@ -124,6 +151,28 @@ cmd_menu() {
     # exactly as it does on shell login.
     zsh -i -c 'source "$DOTFILES_DIR/shell/welcome-tui.zsh" && claw_welcome_tui' 2>/dev/null || \
         err "welcome-tui failed — try: source \$DOTFILES_DIR/shell/welcome-tui.zsh && claw_welcome_tui"
+}
+
+cmd_stats() {
+    if [[ ! -s "$CLAW_USAGE_LOG" ]]; then
+        info "no usage logged yet ${c_dim}($CLAW_USAGE_LOG)${c_reset}"
+        info "use claw normally for a few days, then re-run claw stats"
+        return 0
+    fi
+    local total since
+    total=$(wc -l < "$CLAW_USAGE_LOG" | tr -d ' ')
+    since=$(head -1 "$CLAW_USAGE_LOG" | cut -f1)
+    printf "\n  ${c_purple}${c_bold}claw stats${c_reset}  ${c_dim}— %s invocations since %s${c_reset}\n" "$total" "$since"
+    printf "  ${c_dim}─────────────────────────────────────${c_reset}\n\n"
+    printf "  ${c_cyan}${c_bold}By subcommand${c_reset}\n"
+    cut -f2 "$CLAW_USAGE_LOG" | sort | uniq -c | sort -rn | \
+        awk -v g=$'\e[38;2;63;185;80m' -v d=$'\e[38;2;139;148;158m' -v r=$'\e[0m' \
+            '{ printf "    %s%4d%s  %s%s%s\n", g, $1, r, d, $2, r }'
+    printf "\n  ${c_cyan}${c_bold}By profile${c_reset}\n"
+    cut -f4 "$CLAW_USAGE_LOG" | sort | uniq -c | sort -rn | \
+        awk -v g=$'\e[38;2;188;140;255m' -v d=$'\e[38;2;139;148;158m' -v r=$'\e[0m' \
+            '{ printf "    %s%4d%s  %s%s%s\n", g, $1, r, d, $2, r }'
+    printf "\n  ${c_dim}log: %s${c_reset}\n\n" "$CLAW_USAGE_LOG"
 }
 
 cmd_doctor() {
@@ -155,6 +204,83 @@ cmd_doctor() {
             "$check_fn"
         fi
     fi
+
+    # GPU / Blackwell — only relevant on Linux with NVIDIA card present.
+    # Cheap probes: command -v before nvidia-smi, never block on missing tools.
+    if command -v nvidia-smi &>/dev/null; then
+        printf "\n  ${c_purple}${c_bold}GPU / CUDA${c_reset}\n"
+        local _gpu_name _gpu_drv _gpu_cap
+        _gpu_name=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
+        _gpu_drv=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)
+        _gpu_cap=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1)
+        if [[ -n "$_gpu_name" ]]; then
+            ok "GPU: ${c_white}${_gpu_name}${c_reset} ${c_dim}(driver ${_gpu_drv}, sm_${_gpu_cap//./})${c_reset}"
+            # Blackwell = compute capability 10.x or 12.x
+            case "$_gpu_cap" in
+                10.*|12.*) ok "Blackwell architecture detected ${c_dim}(FP4 + 5th-gen Tensor cores)${c_reset}" ;;
+                9.*)       info "Hopper architecture ${c_dim}(H100-class)${c_reset}" ;;
+                8.9)       info "Ada Lovelace ${c_dim}(RTX 40-series / L40)${c_reset}" ;;
+                *)         info "compute capability $_gpu_cap" ;;
+            esac
+        else
+            err "nvidia-smi installed but no GPU enumerated ${c_dim}— driver or hardware issue${c_reset}"
+        fi
+        if command -v nvcc &>/dev/null; then
+            ok "nvcc ${c_dim}$(nvcc --version | grep release | sed 's/.*release \([0-9.]*\).*/\1/')${c_reset}"
+        else
+            err "nvcc ${c_dim}— CUDA toolkit missing (run: claw install ai-workstation)${c_reset}"
+        fi
+        if command -v nvidia-ctk &>/dev/null; then
+            ok "nvidia-container-toolkit ${c_dim}$(nvidia-ctk --version 2>&1 | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)${c_reset}"
+        else
+            err "nvidia-container-toolkit ${c_dim}— required for docker/K3s GPU pass-through${c_reset}"
+        fi
+        # K3s GPU resource check — only if both kubectl and a kubeconfig exist
+        if command -v kubectl &>/dev/null && [[ -r "${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}" ]]; then
+            local _k_gpu
+            _k_gpu=$(KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}" \
+                kubectl get nodes -o jsonpath='{.items[*].status.capacity.nvidia\.com/gpu}' 2>/dev/null | tr -d ' ')
+            if [[ -n "$_k_gpu" ]]; then
+                ok "K3s GPU resources ${c_dim}(nvidia.com/gpu = ${_k_gpu})${c_reset}"
+            else
+                err "K3s GPU device plugin not advertising ${c_dim}— apply: $DOTFILES/config/k3s/gpu/${c_reset}"
+            fi
+        fi
+    fi
+
+    # AI agents (Hermes + OpenRouter) — independent checks, none fatal.
+    printf "\n  ${c_purple}${c_bold}AI Agents${c_reset}\n"
+    if command -v ollama &>/dev/null; then
+        ok "ollama ${c_dim}($(ollama --version 2>/dev/null | head -1))${c_reset}"
+        if curl -fsS --max-time 2 http://localhost:11434/api/tags &>/dev/null; then
+            ok "ollama daemon ${c_dim}reachable at :11434${c_reset}"
+            local _hm="${CLAW_HERMES_MODEL:-hermes3:8b}"
+            if ollama list 2>/dev/null | awk 'NR>1 {print $1}' | grep -Fxq "$_hm"; then
+                ok "hermes model ${c_dim}$_hm${c_reset}"
+            else
+                err "hermes model ${c_dim}$_hm — not pulled (run: claw install ai)${c_reset}"
+            fi
+        else
+            err "ollama daemon ${c_dim}— not reachable at :11434${c_reset}"
+        fi
+    else
+        err "ollama ${c_dim}— not installed (run: claw install ai)${c_reset}"
+    fi
+    if command -v aichat &>/dev/null; then
+        ok "aichat ${c_dim}($(aichat --version 2>/dev/null))${c_reset}"
+    else
+        err "aichat ${c_dim}— not installed (run: claw install ai)${c_reset}"
+    fi
+    if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
+        if [[ "$OPENROUTER_API_KEY" == op://* ]]; then
+            err "OPENROUTER_API_KEY ${c_dim}— op:// not resolved (install 1Password CLI: brew install 1password-cli)${c_reset}"
+        else
+            ok "OPENROUTER_API_KEY ${c_dim}set${c_reset}"
+        fi
+    else
+        err "OPENROUTER_API_KEY ${c_dim}— not set (add to ~/.dotfiles/.env)${c_reset}"
+    fi
+
     echo ""
 }
 
@@ -247,6 +373,14 @@ EOF
     esac
 }
 
+cmd_onboard() {
+    bash "$DOTFILES/scripts/utils/onboarding.sh" "$@"
+}
+
+cmd_integrity() {
+    bash "$DOTFILES/scripts/utils/integrity.sh" "$@"
+}
+
 cmd_skills() {
     local skills_dir="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
     if [[ ! -d "$skills_dir" ]]; then
@@ -294,11 +428,72 @@ cmd_off() {
 
 cmd_install() {
     local tc="$1"
-    [[ -z "$tc" ]] && { err "usage: claw install <toolchain>"; info "options: cloud security devops ai research cortex"; return 1; }
+    [[ -z "$tc" ]] && { err "usage: claw install <toolchain> [-- extra-args]"; info "options: cloud security devops ai ai-workstation ai-skills research cortex homelab"; return 1; }
     local script="$DOTFILES/scripts/install/${tc}-toolchain.sh"
     [[ ! -f "$script" ]] && { err "toolchain not found: $tc ($script)"; return 1; }
+    shift
     info "running $script (this can take a while)"
-    bash "$script"
+    DOTFILES_DIR="$DOTFILES" bash "$script" "$@"
+}
+
+cmd_uninstall() {
+    # Soft uninstall — reverses bootstrap deployment without removing
+    # CLI packages, OMZ, P10k, or fonts. See scripts/utils/uninstall.sh
+    # header for full scope. Flags: --dry-run --yes --keep-backup --help
+    bash "$DOTFILES/scripts/utils/uninstall.sh" "$@"
+}
+
+cmd_claude() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        snapshot)
+            DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/claude-snapshot.sh" "$@"
+            ;;
+        sync)
+            DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/install/claude-sync.sh" "$@"
+            ;;
+        status)
+            local mdir="$DOTFILES/claude/manifests"
+            if [[ ! -d "$mdir" ]]; then
+                err "no manifests yet — run: claw claude snapshot"; return 1
+            fi
+            printf "\n  ${c_purple}${c_bold}claude state${c_reset}  ${c_dim}vs ${mdir}${c_reset}\n\n"
+            if [[ -f "$mdir/SNAPSHOT.json" ]] && command -v jq &>/dev/null; then
+                info "last snapshot: ${c_dim}$(jq -r '.snapshotAt' "$mdir/SNAPSHOT.json") on $(jq -r '.hostname' "$mdir/SNAPSHOT.json")${c_reset}"
+            fi
+            local m_plugins live_plugins
+            m_plugins=$(wc -l < "$mdir/plugins.txt" 2>/dev/null | tr -d ' ' || echo 0)
+            live_plugins=$(claude plugin list 2>/dev/null | grep -c '❯ .*@' || echo 0)
+            info "plugins: ${c_white}$live_plugins${c_reset} live · ${c_white}$m_plugins${c_reset} in manifest"
+            if (( m_plugins != live_plugins )); then
+                err "drift detected — run claw claude-sync snapshot (or sync)"
+            else
+                ok "in sync"
+            fi
+            echo ""
+            ;;
+        help|-h|--help|"")
+            cat <<EOF
+  ${c_purple}${c_bold}claw claude-sync${c_reset} — sync Claude Code state across machines  ${c_dim}(alias: csync)${c_reset}
+
+  ${c_white}claw claude-sync snapshot${c_reset}  ${c_dim}capture this machine's plugins/skills/marketplaces${c_reset}
+  ${c_white}claw claude-sync sync${c_reset}      ${c_dim}install everything from the manifest on this machine${c_reset}
+  ${c_white}claw claude-sync status${c_reset}    ${c_dim}diff live state vs manifest${c_reset}
+
+  ${c_dim}Env overrides for sync:${c_reset}
+    ${c_dim}CLAUDE_SYNC_DRY_RUN=1${c_reset}  ${c_dim}print actions only${c_reset}
+    ${c_dim}CLAUDE_SYNC_FORCE=1${c_reset}    ${c_dim}reinstall even if already present${c_reset}
+
+  ${c_dim}Manifests live in ${DOTFILES}/claude/manifests/${c_reset}
+  ${c_dim}Workflow: snapshot on Mac → commit → git pull on BD790i → sync${c_reset}
+EOF
+            ;;
+        *)
+            err "unknown claude subcommand: $sub"
+            info "try: claw claude help"
+            return 1
+            ;;
+    esac
 }
 
 cmd_agent() {
@@ -372,10 +567,12 @@ cmd_run_agent() {
 # ============================================
 # DISPATCH
 # ============================================
+log_usage "${1:-menu}" "$@"
 case "${1:-menu}" in
     ""|menu)        cmd_menu ;;
     help|-h|--help) cmd_help ;;
     doctor)         cmd_doctor ;;
+    stats)          cmd_stats ;;
     update)         shift; cmd_update "$@" ;;
     tools)          shift; cmd_tools "$@" ;;
     tun|tunnel)     shift; cmd_tun "$@" ;;
@@ -384,9 +581,13 @@ case "${1:-menu}" in
     toolkit)        shift; cmd_toolkit "$@" ;;
     skills)         shift; cmd_skills "$@" ;;
     obsidian|vault) shift; cmd_obsidian "$@" ;;
+    onboard|onboarding|character) shift; cmd_onboard "$@" ;;
+    integrity|verify|check) shift; cmd_integrity "$@" ;;
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
     install)        shift; cmd_install "$@" ;;
+    uninstall|remove) shift; cmd_uninstall "$@" ;;
+    claude-sync|csync) shift; cmd_claude "$@" ;;
     agent)          shift; cmd_agent "$@" ;;
     *)              cmd_run_agent "$1" ;;
 esac

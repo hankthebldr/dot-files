@@ -1,75 +1,107 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 ################################################################################
-# Cortex Toolchain Installer (Palo Alto Networks Curriculum)
-# Description: Automated installation of Cortex CLI, panos-cli, demisto-sdk, 
-#              and pan-os-python for macOS.
+# Cortex Toolchain — Cross-Platform (Palo Alto Networks)
+#
+# demisto-sdk (XSOAR), pan-os-python (panapi), panos-cli (Go), Cortex CLI.
+# This toolchain is mostly sequential procedural setup rather than a flat
+# package list, so most of the work lives in toolchain_extras().
+#
+# >>> HENRY: you work on this product family — please review extras logic.
+#     The Cortex CLI in particular is tenant-specific and the install URL
+#     pattern in your console may differ from what's stubbed here.
 ################################################################################
 
 set -e
-set -u
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/toolchain-runner.sh"
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+TOOLCHAIN_TITLE="CORTEX  TOOLCHAIN"
+TOOLCHAIN_CLASS="GHOST-IN-THE-XSIAM"
+TOOLCHAIN_TAG="knows what XSOAR stands for · actually likes it"
 
-if ! command -v brew &> /dev/null; then
-    log_error "Homebrew is required. Please install it first."
-    exit 1
-fi
+CORTEX_WORKSPACE="${CORTEX_WORKSPACE:-$HOME/.cortex}"
 
-CORTEX_WORKSPACE="$HOME/.cortex"
-mkdir -p "$CORTEX_WORKSPACE"
+# Most tools here are Python or Go — the MAP is intentionally short. The
+# heavy lifting happens in toolchain_extras().
+TOOLCHAIN_MAP=(
+    # ── 01. Standalone CLI Tools ───────────────────────────────────────────
+    "demisto-sdk|?|?|pipx|XSOAR content development SDK"
+    "panos-cli|?|?|go:github.com/PaloAltoNetworks/panos-cli|PAN-OS Go CLI"
+)
 
-# 1. Install pipx if missing (preferred for global python CLI tools on macOS)
-if ! command -v pipx &> /dev/null; then
-    log_info "Installing pipx for Python CLI tool management..."
-    brew install pipx
-    pipx ensurepath
-fi
+declare -A TOOLCHAIN_SECTIONS=(
+    [0]="01|Standalone  CLI  Tools"
+)
 
-# 2. Install Python SDKs and CLI tools (demisto-sdk, panapi)
-log_info "Installing Cortex XSOAR demisto-sdk..."
-pipx install demisto-sdk || log_warning "Failed to install demisto-sdk via pipx"
+# ── Pre-install hook ──────────────────────────────────────────────────────
+toolchain_preflight_extras() {
+    # pipx: required for demisto-sdk + most other PANW python tools.
+    if ! command -v pipx &>/dev/null; then
+        log_info "installing pipx (required for demisto-sdk)"
+        case "$PKG_MANAGER" in
+            brew) brew install pipx && pipx ensurepath ;;
+            apt)
+                sudo apt-get install -y pipx 2>/dev/null \
+                    || python3 -m pip install --user pipx
+                command -v pipx &>/dev/null && pipx ensurepath
+                ;;
+            *) python3 -m pip install --user pipx ;;
+        esac
+    fi
 
-log_info "Setting up local Python venv for pan-os-python..."
-if [ ! -d "$CORTEX_WORKSPACE/venv" ]; then
-    python3 -m venv "$CORTEX_WORKSPACE/venv"
-    "$CORTEX_WORKSPACE/venv/bin/pip" install --upgrade pip
-    "$CORTEX_WORKSPACE/venv/bin/pip" install pan-os-python panapi
-    log_success "PAN-OS Python venv created at $CORTEX_WORKSPACE/venv"
-else
-    log_info "PAN-OS Python venv already exists."
-fi
+    # Go: required for panos-cli. If missing, that MAP row will fail-fast.
+    if ! command -v go &>/dev/null; then
+        log_warning "go not found — panos-cli will be skipped"
+        log_info "install golang: ${c_cyan}brew install go${c_reset} or ${c_cyan}sudo apt-get install golang${c_reset}"
+    fi
+}
 
-# 3. Install panos-cli (Go-based tool)
-log_info "Installing panos-cli (Go-based)..."
-if command -v go &> /dev/null; then
-    # Use go install if go is available
-    go install github.com/PaloAltoNetworks/panos-cli@latest || log_warning "Failed to install panos-cli"
-    # Ensure Go bin is in path for this session if it isn't
-    GOPATH_BIN="$(go env GOPATH)/bin"
-    export PATH="$PATH:$GOPATH_BIN"
-else
-    log_warning "Go is not installed. Skipping panos-cli installation."
-fi
+# ── Post-install: workspace + Python venv + Cortex CLI hint ───────────────
+toolchain_extras() {
+    _section 2 "Cortex  Workspace"
+    if [[ -d "$CORTEX_WORKSPACE" ]]; then
+        log_skip "workspace exists: $CORTEX_WORKSPACE"
+        RESULT_SKIPPED+=("cortex-workspace")
+    else
+        log_info "creating workspace at ${c_white}${CORTEX_WORKSPACE}${c_reset}"
+        mkdir -p "$CORTEX_WORKSPACE"
+        RESULT_INSTALLED+=("cortex-workspace")
+    fi
 
-# 4. Install Cortex CLI
-log_info "Installing Cortex CLI..."
-if ! command -v cortexcli &> /dev/null; then
-    log_warning "Cortex CLI typically requires downloading the binary specifically for your tenant from the Prisma Cloud / Cortex console."
-    log_warning "Please run the standard curl command provided in your Cortex Interface (e.g. Settings > Code Security > Integrations > Cortex CLI)."
-    # Optional fallback to known public release pattern could be placed here:
-    # curl -sL "https://pan.dev/cortex-cli/download" -o /usr/local/bin/cortexcli && chmod +x /usr/local/bin/cortexcli
-else
-    log_info "Cortex CLI is already installed: $(cortexcli -v 2>/dev/null || echo 'installed')"
-fi
+    _section 3 "PAN-OS  Python  Venv"
+    local venv_dir="$CORTEX_WORKSPACE/venv"
+    if [[ -d "$venv_dir" && -f "$venv_dir/bin/pip" ]]; then
+        log_skip "venv already exists at $venv_dir"
+        RESULT_SKIPPED+=("pan-os-python venv")
+    else
+        log_info "creating Python venv at ${c_white}${venv_dir}${c_reset}"
+        if python3 -m venv "$venv_dir" 2>/dev/null; then
+            log_info "installing pan-os-python + panapi into venv..."
+            if "$venv_dir/bin/pip" install --upgrade pip --quiet \
+                && "$venv_dir/bin/pip" install pan-os-python panapi --quiet; then
+                RESULT_INSTALLED+=("pan-os-python venv")
+                log_success "venv ready — activate with: source $venv_dir/bin/activate"
+            else
+                RESULT_FAILED+=("pan-os-python venv")
+            fi
+        else
+            log_error "python3 -m venv failed — ensure python3-venv is installed"
+            RESULT_FAILED+=("pan-os-python venv")
+        fi
+    fi
 
-log_success "Cortex Toolchain Installation Complete!"
+    _section 4 "Cortex  CLI"
+    if command -v cortexcli &>/dev/null; then
+        log_skip "cortexcli already installed: $(cortexcli -v 2>/dev/null || echo installed)"
+        RESULT_SKIPPED+=("cortexcli")
+    else
+        log_warning "Cortex CLI is tenant-specific — download from your console:"
+        log_info "  ${c_cyan}Settings → Code Security → Integrations → Cortex CLI${c_reset}"
+        log_info "  ${c_dim}or paste the curl command your tenant provides${c_reset}"
+        RESULT_SKIPPED+=("cortexcli (tenant-specific)")
+    fi
+}
+
+toolchain_run

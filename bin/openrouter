@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# openrouter — chat via OpenRouter through aichat
+#
+# Usage:
+#   openrouter                    # interactive REPL
+#   openrouter "your prompt"      # one-shot inference
+#
+# Default model: anthropic/claude-sonnet-4.6
+# Override:      export CLAW_OPENROUTER_MODEL=openrouter:meta-llama/llama-3.3-70b-instruct
+# API key:       OPENROUTER_API_KEY in ~/.dotfiles/.env (or 1Password op:// reference)
+
+set -e
+
+MODEL="${CLAW_OPENROUTER_MODEL:-openrouter:anthropic/claude-sonnet-4.6}"
+
+# aichat must be on PATH
+if ! command -v aichat &>/dev/null; then
+    echo "openrouter: aichat not installed" >&2
+    echo "            run: claw install ai   (or: bash \$DOTFILES_DIR/scripts/install/openrouter.sh)" >&2
+    exit 1
+fi
+
+# Key must be set (resolved from .env / op:// by shell/load-env.zsh)
+if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
+    echo "openrouter: OPENROUTER_API_KEY not set" >&2
+    echo "            add to ~/.dotfiles/.env:  OPENROUTER_API_KEY=sk-or-..." >&2
+    echo "            or 1Password:             OPENROUTER_API_KEY=op://Personal/OpenRouter/api_key" >&2
+    exit 1
+fi
+
+if [[ $# -eq 0 ]]; then
+    exec aichat -m "$MODEL"
+else
+    exec aichat -m "$MODEL" "$@"
+fi

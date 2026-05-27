@@ -10,6 +10,15 @@ elif [[ -f /etc/os-release ]]; then
     CLAW_OS="linux"
 fi
 
+# OS_FAMILY: short-form alias used by profile dispatchers to select the
+# matching per-OS sub-file (shell/profiles/<name>/{mac,linux,generic}.zsh).
+# Values intentionally shorter than CLAW_OS to keep profile filenames compact.
+export OS_FAMILY="generic"
+case "$CLAW_OS" in
+    macos)   OS_FAMILY="mac" ;;
+    linux)   OS_FAMILY="linux" ;;
+esac
+
 # ── Homebrew Prefix ──────────────────────────────────────
 # Resolves to the correct brew prefix on macOS (Intel/ARM) and Linux
 if command -v brew &>/dev/null; then
@@ -91,3 +100,27 @@ fi
 # ── Clipboard Aliases ────────────────────────────────────
 alias copy='clip_copy'
 alias paste='clip_paste'
+
+# ── Desktop Notifications ────────────────────────────────
+# Usage: claw_notify "Title" "Body text" [icon-or-sound]
+# macOS  → osascript display notification
+# Linux  → notify-send (libnotify-bin)
+# Fallback prints to stderr so scripts still see the message.
+if [[ "$CLAW_OS" == "macos" ]]; then
+    claw_notify() {
+        local title="${1:-Open Claw}" body="${2:-}" sound="${3:-}"
+        local sound_clause=""
+        [[ -n "$sound" ]] && sound_clause=" sound name \"$sound\""
+        osascript -e "display notification \"${body//\"/\\\"}\" with title \"${title//\"/\\\"}\"${sound_clause}" 2>/dev/null
+    }
+elif command -v notify-send &>/dev/null; then
+    claw_notify() {
+        local title="${1:-Open Claw}" body="${2:-}" icon="${3:-utilities-terminal}"
+        notify-send --app-name="Open Claw" --icon="$icon" "$title" "$body"
+    }
+else
+    claw_notify() {
+        printf '[notify] %s — %s\n' "${1:-Open Claw}" "${2:-}" >&2
+    }
+fi
+alias notify='claw_notify'

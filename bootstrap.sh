@@ -142,12 +142,25 @@ main() {
             build-essential curl git wget unzip tar \
             software-properties-common apt-transport-https \
             ca-certificates gnupg lsb-release \
-            xclip xsel \
+            xclip xsel wl-clipboard \
+            libnotify-bin \
             python3 python3-pip python3-venv \
             net-tools dnsutils iproute2 traceroute \
             2>/dev/null || true
     fi
     source "$SCRIPT_DIR/scripts/install/brew.sh"
+
+    # Make brew visible to the rest of this bootstrap session. brew.sh runs
+    # `eval "$(brew shellenv)"` in its own subshell, which doesn't bleed back
+    # up to us — without this, step 6's `brew_extras` block is silently
+    # skipped on a fresh Linux install.
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [[ -x /usr/local/bin/brew ]]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+    elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
 
     # On Ubuntu, also install tools available via apt that brew may not have
     if [[ "$PKG_MANAGER" == "apt" ]]; then
@@ -328,6 +341,17 @@ main() {
         log_warning "No clipboard tool found. Install: sudo apt install xclip"
     fi
 
+    # ── Step 9b: Generate integrity manifest ───────────────
+    # Captures the SHA-256 of every shell script / config / profile we
+    # just deployed so the user (or a CI job) can detect tampering or a
+    # partial install later via `claw integrity verify`.
+    if [[ -x "$SCRIPT_DIR/scripts/utils/integrity.sh" ]]; then
+        log_info "Recording install integrity manifest..."
+        bash "$SCRIPT_DIR/scripts/utils/integrity.sh" generate >/dev/null 2>&1 && \
+            log_success "Integrity manifest saved (run: claw integrity verify)" || \
+            log_warning "Integrity manifest generation failed (non-fatal)"
+    fi
+
     # ── Done ─────────────────────────────────────────────
     echo ""
     echo "  ╭──────────────────────────────────────────────────────╮"
@@ -346,8 +370,9 @@ main() {
     echo "  │                                                      │"
     fi
     echo "  │   Quick start:                                       │"
+    echo "  │     claw onboard   ▶ pick a profile (80s arcade)     │"
+    echo "  │     claw integrity verify   tamper-check your install │"
     echo "  │     default-help   show all commands                 │"
-    echo "  │     netcheck       network diagnostics               │"
     echo "  │     tun            SSH tunnel manager                │"
     echo "  │                                                      │"
     echo "  ╰──────────────────────────────────────────────────────╯"

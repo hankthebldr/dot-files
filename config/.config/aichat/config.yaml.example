@@ -1,0 +1,49 @@
+# aichat config — Open Claw default
+# Symlinked to ~/.config/aichat/config.yaml by scripts/install/openrouter.sh
+# Docs: https://github.com/sigoden/aichat/wiki/Configuration-Guide
+
+# Default model used by `aichat` and the `openrouter` wrapper.
+# Override at runtime: aichat -m <provider:model>
+# Override default:    export CLAW_OPENROUTER_MODEL=openrouter:meta-llama/llama-3.3-70b-instruct
+model: openrouter:anthropic/claude-sonnet-4.6
+
+# Reasonable defaults for terminal use
+temperature: 0.3
+top_p: null
+save_session: false
+keybindings: emacs
+editor: nvim
+wrap: auto
+wrap_code: false
+highlight: true
+light_theme: false
+
+# Providers
+clients:
+  # OpenRouter — multi-provider gateway
+  # API key reads from $OPENROUTER_API_KEY (set in ~/.dotfiles/.env)
+  - type: openai-compatible
+    name: openrouter
+    api_base: https://openrouter.ai/api/v1
+    api_key: ${env:OPENROUTER_API_KEY}
+    models:
+      - name: anthropic/claude-sonnet-4.6
+        max_input_tokens: 200000
+      - name: anthropic/claude-opus-4.7
+        max_input_tokens: 200000
+      - name: meta-llama/llama-3.3-70b-instruct
+        max_input_tokens: 128000
+      - name: deepseek/deepseek-chat
+        max_input_tokens: 64000
+      - name: google/gemini-2.0-flash-exp
+        max_input_tokens: 1000000
+
+  # Local Ollama (Hermes etc.) — uses the OpenAI-compatible endpoint
+  - type: openai-compatible
+    name: ollama
+    api_base: http://localhost:11434/v1
+    api_key: ollama
+    models:
+      - name: hermes3:8b
+      - name: hermes3:70b
+      - name: nous-hermes2-mixtral
