@@ -113,6 +113,7 @@ cmd_help() {
     ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
     ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
+    ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
     ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc)${c_reset}
     ${c_white}claw tools${c_reset}            ${c_dim}interactive curated CLI tool refresh${c_reset}
 
@@ -173,6 +174,100 @@ cmd_stats() {
         awk -v g=$'\e[38;2;188;140;255m' -v d=$'\e[38;2;139;148;158m' -v r=$'\e[0m' \
             '{ printf "    %s%4d%s  %s%s%s\n", g, $1, r, d, $2, r }'
     printf "\n  ${c_dim}log: %s${c_reset}\n\n" "$CLAW_USAGE_LOG"
+}
+
+cmd_tui_stats() {
+    if [[ ! -s "$CLAW_USAGE_LOG" ]]; then
+        info "no usage logged yet ${c_dim}($CLAW_USAGE_LOG)${c_reset}"
+        info "open a few fresh shells, then re-run claw tui-stats"
+        return 0
+    fi
+
+    # Pull TUI events only. Schema: timestamp \t event \t arg_count \t profile
+    local tui_rows fires esc_fallbacks skip_picks
+    tui_rows=$(awk -F'\t' '$2 ~ /^tui:/' "$CLAW_USAGE_LOG")
+    if [[ -z "$tui_rows" ]]; then
+        info "TUI has not fired yet since instrumentation landed"
+        info "log a few logins, then re-run claw tui-stats"
+        return 0
+    fi
+
+    fires=$(echo "$tui_rows" | awk -F'\t' '$2 == "tui:fire"' | wc -l | tr -d ' ')
+    esc_fallbacks=$(echo "$tui_rows" | awk -F'\t' '$2 == "tui:esc_to_default"' | wc -l | tr -d ' ')
+    skip_picks=$(echo "$tui_rows" | awk -F'\t' '$2 == "tui:pick:skip"' | wc -l | tr -d ' ')
+
+    local default_picks profile_picks tool_picks
+    # Explicit picks (excluding ESC fallback, skip, separator)
+    default_picks=$(echo "$tui_rows" | awk -F'\t' '$2 == "tui:pick:default"' | wc -l | tr -d ' ')
+    profile_picks=$(echo "$tui_rows" | awk -F'\t' \
+        '$2 ~ /^tui:pick:(security|cloud|devops|ai|research|cortex|claude|local)$/' | wc -l | tr -d ' ')
+    tool_picks=$(echo "$tui_rows" | awk -F'\t' \
+        '$2 ~ /^tui:pick:(homelab|tunnel|ai_tools|mcp|agents|vault|onboard|integrity|tmux|yazi|update|doc|top)$/' \
+        | wc -l | tr -d ' ')
+
+    local since
+    since=$(echo "$tui_rows" | head -1 | cut -f1)
+
+    printf "\n  ${c_purple}${c_bold}claw tui-stats${c_reset}  ${c_dim}— %s TUI fires since %s${c_reset}\n" "$fires" "$since"
+    printf "  ${c_dim}─────────────────────────────────────${c_reset}\n\n"
+
+    printf "  ${c_cyan}${c_bold}Outcomes${c_reset}\n"
+    printf "    ${c_green}%4d${c_reset}  ${c_dim}explicit non-default profile${c_reset}\n" "$profile_picks"
+    printf "    ${c_green}%4d${c_reset}  ${c_dim}tool / system entry${c_reset}\n" "$tool_picks"
+    printf "    ${c_orange}%4d${c_reset}  ${c_dim}explicit default pick${c_reset}\n" "$default_picks"
+    printf "    ${c_orange}%4d${c_reset}  ${c_dim}ESC fallback to default${c_reset}\n" "$esc_fallbacks"
+    printf "    ${c_red}%4d${c_reset}  ${c_dim}skip to bare shell${c_reset}\n" "$skip_picks"
+
+    printf "\n  ${c_cyan}${c_bold}Per-key breakdown${c_reset}\n"
+    echo "$tui_rows" | awk -F'\t' '$2 ~ /^tui:pick:/' | cut -f2 | sed 's/^tui:pick://' \
+        | sort | uniq -c | sort -rn | \
+        awk -v p=$'\e[38;2;188;140;255m' -v d=$'\e[38;2;139;148;158m' -v r=$'\e[0m' \
+            '{ printf "    %s%4d%s  %s%s%s\n", p, $1, r, d, $2, r }'
+
+    # ─────────────────────────────────────────────
+    # VERDICT — your call, Henry. 5-10 lines.
+    # The question: does the TUI deserve to exist as a forced login prompt?
+    # Inputs available above as shell vars: fires, profile_picks, tool_picks,
+    # default_picks, esc_fallbacks, skip_picks.
+    #
+    # Define what "earns its keep" means to YOU and print a recommendation.
+    # Example threshold ideas (pick one or combine):
+    #   - if (profile_picks + tool_picks) / fires < 0.20 → "KILL: 80%+ no-op"
+    #   - if profile_picks per week < 2 → "KILL: rarely used as profile switcher"
+    #   - if tool_picks > profile_picks × 3 → "REFRAME: it's a tool launcher, not a profile picker"
+    # ─────────────────────────────────────────────
+    tui_verdict "$fires" "$profile_picks" "$tool_picks" "$default_picks" "$esc_fallbacks" "$skip_picks"
+
+    printf "\n  ${c_dim}log: %s${c_reset}\n\n" "$CLAW_USAGE_LOG"
+}
+
+# Default verdict — opinionated thresholds. Tune to taste.
+#   KILL    if <20% of fires resulted in real work (profile switch or tool launch)
+#   REFRAME if it's mostly a tool launcher (tool >= 3× profile picks)
+#   REFRAME if useful work happens 20-50% of fires
+#   KEEP    if ≥50% useful
+# A 'skip to shell' rate >10% is flagged as a secondary signal.
+tui_verdict() {
+    local fires=$1 profile=$2 tool=$3 def=$4 esc=$5 skip=$6
+    if (( fires < 30 )); then
+        printf "\n  ${c_orange}${c_bold}Verdict${c_reset}  ${c_dim}— insufficient data (need ≥30 fires, have %s)${c_reset}\n" "$fires"
+        return
+    fi
+    local useful=$((profile + tool)) noop=$((def + esc))
+    local useful_pct=$(( useful * 100 / fires ))
+    local skip_pct=$(( skip * 100 / fires ))
+    printf "\n  ${c_orange}${c_bold}Verdict${c_reset}  ${c_dim}— %s%% of fires did real work, %s%% were no-ops${c_reset}\n" "$useful_pct" $(( noop * 100 / fires ))
+    if (( useful_pct < 20 )); then
+        printf "    ${c_red}● KILL${c_reset}     ${c_dim}TUI is mostly tax: %s/%s fires were no-ops. Move to opt-in (claw menu).${c_reset}\n" "$noop" "$fires"
+    elif (( profile > 0 && tool >= profile * 3 )); then
+        printf "    ${c_orange}● REFRAME${c_reset}  ${c_dim}used as a tool launcher (%s) far more than a profile picker (%s). Make tools the headline.${c_reset}\n" "$tool" "$profile"
+    elif (( useful_pct < 50 )); then
+        printf "    ${c_orange}● REFRAME${c_reset}  ${c_dim}used %s%% of fires. Default to last profile; surface TUI on demand.${c_reset}\n" "$useful_pct"
+    else
+        printf "    ${c_green}● KEEP${c_reset}     ${c_dim}earns its real estate at %s%% useful.${c_reset}\n" "$useful_pct"
+    fi
+    (( skip_pct > 10 )) && \
+        printf "    ${c_dim}↳ %s%% of fires ended in 'skip to shell' — strong signal you want a faster path to bare prompt.${c_reset}\n" "$skip_pct"
 }
 
 cmd_doctor() {
@@ -573,6 +668,7 @@ case "${1:-menu}" in
     help|-h|--help) cmd_help ;;
     doctor)         cmd_doctor ;;
     stats)          cmd_stats ;;
+    tui-stats)      cmd_tui_stats ;;
     update)         shift; cmd_update "$@" ;;
     tools)          shift; cmd_tools "$@" ;;
     tun|tunnel)     shift; cmd_tun "$@" ;;
