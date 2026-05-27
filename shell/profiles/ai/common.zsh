@@ -77,6 +77,7 @@ ai-help() {
   printf "\n"
   printf "  ${bold}${green}Agents${reset} ${dim}(via claw registry — not aliases)${reset}\n"
   printf "  ${purple}claw claude${reset}    ${dim}Anthropic Claude Code${reset}\n"
+  printf "  ${purple}claw gemini${reset}    ${dim}Google Gemini CLI (@google/gemini-cli)${reset}\n"
   printf "  ${purple}claw <name>${reset}    ${dim}any registered agent${reset}\n"
   printf "  ${purple}claw agent list${reset} ${dim}see all registered agents${reset}\n"
   printf "\n"
@@ -117,7 +118,7 @@ _ai_tool_check() {
   local reset='\e[0m'
   local found=0 missing=0
   local tools=(
-    ollama claude aider whisper-cpp python3 pip3 dvc mlflow huggingface-cli adk
+    ollama claude gemini aider whisper-cpp python3 pip3 dvc mlflow huggingface-cli adk
     # 2026 SOTA additions
     uv litellm marimo langgraph instructor inspect phoenix
     # Blackwell / GPU

@@ -46,6 +46,11 @@ default-help() {
     echo "  ${c_dim}Switch profiles from the welcome TUI or:${c_reset}"
     echo "  ${c_white}export CLAW_ACTIVE_PROFILE=cloud && source ~/.zshrc${c_reset}"
     echo ""
+    echo "  ${c_purple}${c_bold}AI agents${c_reset} ${c_dim}(via claw registry)${c_reset}"
+    echo "  ${c_white}claw claude${c_reset}     ${c_dim}Anthropic Claude Code${c_reset}"
+    echo "  ${c_white}claw gemini${c_reset}     ${c_dim}Google Gemini CLI${c_reset}"
+    echo "  ${c_white}claw agent list${c_reset} ${c_dim}see all registered agents${c_reset}"
+    echo ""
 }
 
 # ==========================================
