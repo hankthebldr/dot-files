@@ -197,10 +197,17 @@ cmd_tui_stats() {
     skip_picks=$(echo "$tui_rows" | awk -F'\t' '$2 == "tui:pick:skip"' | wc -l | tr -d ' ')
 
     local default_picks profile_picks tool_picks
-    # Explicit picks (excluding ESC fallback, skip, separator)
+    # Explicit picks (excluding ESC fallback, skip, separator).
+    # Profile list = superset of shell/profiles/*.zsh (15 today). The TUI menu
+    # currently exposes only ~8 of these explicitly, but widening the regex
+    # means new profiles get counted correctly the moment the menu catches up
+    # — no silent miscategorisation. NB: `vault` lives in the tool bucket
+    # because the TUI's `vault` key routes to the Obsidian opener, not the
+    # vault profile. If/when that changes, move vault → profile bucket.
     default_picks=$(echo "$tui_rows" | awk -F'\t' '$2 == "tui:pick:default"' | wc -l | tr -d ' ')
     profile_picks=$(echo "$tui_rows" | awk -F'\t' \
-        '$2 ~ /^tui:pick:(security|cloud|devops|ai|research|cortex|claude|local)$/' | wc -l | tr -d ' ')
+        '$2 ~ /^tui:pick:(security|cloud|devops|ai|research|cortex|claude|local|brainstorm|deck|demo|design|pmo)$/' \
+        | wc -l | tr -d ' ')
     tool_picks=$(echo "$tui_rows" | awk -F'\t' \
         '$2 ~ /^tui:pick:(homelab|tunnel|ai_tools|mcp|agents|vault|onboard|integrity|tmux|yazi|update|doc|top)$/' \
         | wc -l | tr -d ' ')
