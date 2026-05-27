@@ -14,6 +14,24 @@ function claw_welcome_tui() {
     # Use $DOTFILES_DIR set by .zshrc
     local _d="$DOTFILES_DIR"
 
+    # Append-only TUI event logger. Matches the TSV schema used by bin/claw
+    # (timestamp \t event \t arg_count \t profile). Errors swallowed so a
+    # broken log can never break login. Disable with CLAW_NO_LOG=1.
+    _claw_tui_log() {
+        [[ "$CLAW_NO_LOG" = "1" ]] && return 0
+        local _cache="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
+        {
+            mkdir -p "$_cache" 2>/dev/null
+            printf '%s\t%s\t%s\t%s\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                "tui:${1:-unknown}" \
+                "0" \
+                "${CLAW_ACTIVE_PROFILE:-none}" \
+                >> "$_cache/usage.tsv"
+        } 2>/dev/null || true
+    }
+    _claw_tui_log fire
+
     # Trigger background tool updater silently.
     # NOTE: `&!` is zsh's background-and-disown — it prevents the `[N] + done`
     # job-control notification from bleeding over the fastfetch logo when the
@@ -131,11 +149,20 @@ function claw_welcome_tui() {
 
     # Extract just the lookup key from the selection line
     local key=$(echo "$selection" | awk '{print $1}')
+    local raw_key="$key"  # preserved before any fallbacks for telemetry
 
     # Separator lines are not selectable actions
     [[ "$key" == "─" ]] && key="default"
     # Empty = user pressed ESC with no override → default
     [[ -z "$key" ]] && key="default"
+
+    # Telemetry: distinguish ESC-fallback from explicit "default" pick.
+    # Answers the key question: how often does the TUI add zero value?
+    if [[ -z "$raw_key" ]]; then
+        _claw_tui_log "esc_to_default"
+    else
+        _claw_tui_log "pick:$key"
+    fi
 
     # Process choice directly into the shell session
     case "$key" in
