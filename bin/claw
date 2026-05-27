@@ -64,6 +64,11 @@ command = "claude"
 profile = "claude"
 description = "Anthropic Claude Code"
 
+[gemini]
+command = "gemini"
+profile = "ai"
+description = "Google Gemini CLI (@google/gemini-cli)"
+
 # Example future entries:
 # [hermes]
 # command = "hermes-cli"
