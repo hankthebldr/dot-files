@@ -122,24 +122,30 @@ toolchain_extras() {
         done
     fi
 
-    # ── Claude Agent SDK (npm) ────────────────────────────────────────────
-    _section 9 "Claude  Agent  SDK  (npm)"
+    # ── Agent CLIs (npm) ──────────────────────────────────────────────────
+    _section 9 "Agent  CLIs  (npm)"
     if ! command -v npm &>/dev/null; then
-        log_warning "npm not found — skipping Claude Agent SDK (install Node.js first)"
-        RESULT_SKIPPED+=("claude-agent-sdk (no npm)")
+        log_warning "npm not found — skipping npm-based agent CLIs (install Node.js first)"
+        RESULT_SKIPPED+=("npm-agent-clis (no npm)")
     else
-        local pkg="@anthropic-ai/claude-agent-sdk"
-        if npm list -g "$pkg" &>/dev/null 2>&1; then
-            log_skip "$pkg already installed globally"
-            RESULT_SKIPPED+=("claude-agent-sdk")
-        else
-            log_info "npm install -g $pkg"
-            if npm install -g "$pkg"; then
-                RESULT_INSTALLED+=("claude-agent-sdk")
+        local npm_agents=(
+            "@anthropic-ai/claude-agent-sdk"
+            "@google/gemini-cli"
+        )
+        local pkg
+        for pkg in "${npm_agents[@]}"; do
+            if npm list -g "$pkg" &>/dev/null 2>&1; then
+                log_skip "$pkg already installed globally"
+                RESULT_SKIPPED+=("$pkg")
             else
-                RESULT_FAILED+=("claude-agent-sdk")
+                log_info "npm install -g $pkg"
+                if npm install -g "$pkg"; then
+                    RESULT_INSTALLED+=("$pkg")
+                else
+                    RESULT_FAILED+=("$pkg")
+                fi
             fi
-        fi
+        done
     fi
 
     # ── Hermes + OpenRouter (local installers) ────────────────────────────
