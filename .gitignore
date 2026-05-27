@@ -184,3 +184,9 @@ History
 **/Local Storage/
 **/*.plist
 .superpowers/
+
+# Claude Code worktrees (ephemeral agent workspaces)
+.claude/worktrees/
+
+# Claude Code per-machine settings (auto-rewritten by Claude Code itself)
+.claude/settings.local.json
