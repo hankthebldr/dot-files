@@ -103,17 +103,19 @@ hermes model, aichat, key) — independent checks, none fatal.
 
 ### Adding a new agent
 
-Either edit the TOML directly or use:
+`[claude]` and `[gemini]` are pre-registered out of the box. To add
+another, either edit `~/.config/claw/agents.toml` directly or use:
 
 ```bash
-claw agent add aider   aider    ai
-claw agent add gemini  gemini   ai
+claw agent add aider   aider       ai
+claw agent add hermes  hermes-cli  ai
 ```
 
 Then launch:
 
 ```bash
 claw aider         # loads ai profile dashboard, then exec aider
+claw gemini        # pre-registered — works immediately after install
 ```
 
 ### Listing

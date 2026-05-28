@@ -5,7 +5,7 @@ export CLAW_PROFILE_THEME="ai"
 export AI_WORKSPACE="$HOME/ai_models"
 mkdir -p "$AI_WORKSPACE" 2>/dev/null
 
-# Note: Set API Keys in ~/.zshrc.local (e.g. OPENAI_API_KEY, ANTHROPIC_API_KEY)
+# Note: Set API Keys in ~/.zshrc.local (e.g. OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY)
 
 # ==========================================
 # ALIASES — short, unprefixed, value-add only
