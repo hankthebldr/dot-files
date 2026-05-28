@@ -88,6 +88,10 @@ cortex-help() {
   echo -e "  ${wh}cortex-docs${rs}       ${dm}Open Cortex documentation${rs}"
   echo -e "  ${wh}xsoar-docs${rs}        ${dm}Open XSOAR developer docs${rs}"
   echo ""
+  echo -e "  ${bd}${or}AI helpers${rs} ${dm}(via claw registry — available from any profile)${rs}"
+  echo -e "  ${wh}claw claude${rs}       ${dm}Anthropic Claude Code${rs}"
+  echo -e "  ${wh}claw gemini${rs}       ${dm}Google Gemini CLI${rs}"
+  echo ""
 }
 
 # Check availability of cortex profile toolchain dependencies
