@@ -160,38 +160,36 @@ claw hermes               # → loads ai profile dashboard, then exec hermes-cli
 
 ---
 
-## Obsidian Vault Integration (profile-aware)
+## Obsidian Vault Integration
 
-Switching profiles automatically swaps which sub-vault under `~/vault-main` your helpers target.
+All helpers target the single knowledge-spine vault `~/hr-vault-main-pa` (the vault in Obsidian's own registry). Override per-shell with `OBSIDIAN_VAULT_OVERRIDE`.
 
 ```bash
-o                         # cd into active vault
+o                         # cd into the vault
 on "Note Title"           # create + open note
 os "search term"          # ripgrep + fzf inside vault
 ov                        # fzf over file names
 otoday                    # open/create today's daily note
 ocapture "thought"        # append timestamped line to today's daily
-ovaults                   # list all sub-vaults, mark active
-ovuse <subvault>          # switch sub-vault for this shell
+ovaults                   # show active vault + its top-level folders
+ovuse <name-or-path>      # switch active vault for this shell
 ```
 
 Or via dispatcher:
 
 ```bash
-claw obsidian             # open active vault in Obsidian.app
+claw obsidian             # open the vault in Obsidian.app
 claw obsidian today
 claw obsidian search "kubernetes incident"
 claw obsidian capture "stand-up notes for Q3"
 ```
 
-Default mapping (override via `OBSIDIAN_VAULT_OVERRIDE`):
+Override the active vault per-shell:
 
-| Profile | Sub-vault |
-|---------|-----------|
-| cortex | `cortex-obsidian-vault` |
-| research | `000_master_vault` |
-| claude / cloud / security / devops / ai | `_working` |
-| default / local | `000_master_vault` |
+```bash
+export OBSIDIAN_VAULT_OVERRIDE="$HOME/some-other-vault"   # absolute path
+export OBSIDIAN_VAULT_OVERRIDE="hr-vault-personal"        # bare name under $OBSIDIAN_ROOT (default: ~)
+```
 
 Optional **profile-load breadcrumbs**: `export CLAW_VAULT_BREADCRUMBS=1` to auto-log every profile load (`[HH:MM] Loaded **<profile>** profile`) under the daily note's "Profile log" section.
 
@@ -303,7 +301,7 @@ Both share `scripts/utils/tui-style.sh` for consistent visual polish (gum spinne
 │   ├── exports.zsh               # Environment variables
 │   ├── aliases.zsh               # ~680 lines of aliases & functions
 │   ├── security.zsh              # Safety aliases + network recon
-│   ├── obsidian.zsh              # Profile-aware vault routing + helpers
+│   ├── obsidian.zsh              # Single-vault routing + helpers
 │   ├── claw-fn.zsh               # zsh fn for claw load/off (parent shell)
 │   ├── profile-helpers.zsh       # _claw_guard for install-hint aliases
 │   ├── welcome-tui.zsh           # Interactive login dashboard

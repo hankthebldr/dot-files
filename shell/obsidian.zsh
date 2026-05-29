@@ -1,47 +1,22 @@
 # ============================================
 # OBSIDIAN VAULT INTEGRATION
 # ============================================
-# Profile-aware vault routing — `_claw_obsidian_vault` returns the right
-# sub-vault based on $CLAW_ACTIVE_PROFILE. All helpers (o/obs/on/os/ov)
-# delegate to it, so switching profiles automatically swaps which vault
-# they target.
+# Single active vault: the flat knowledge spine ~/hr-vault-main-pa (matches
+# Obsidian's own vault registry and the MCP/agent configs). `_claw_obsidian_vault`
+# returns its path; all helpers (o/obs/on/os/ov) delegate to it. Override
+# per-shell with OBSIDIAN_VAULT_OVERRIDE.
 
-# Root vault directory (parent of all sub-vaults)
-export OBSIDIAN_ROOT="${OBSIDIAN_ROOT:-$HOME/vault-main}"
-
-# Per-profile sub-vault mapping. Override per-shell by exporting
-# OBSIDIAN_VAULT_OVERRIDE=<full-path-or-subdir-name>.
-typeset -gA _CLAW_OBSIDIAN_VAULTS
-_CLAW_OBSIDIAN_VAULTS=(
-    cortex     "cortex-obsidian-vault"
-    security   "_working"
-    devops     "_working"
-    cloud      "_working"
-    ai         "_working"
-    research   "000_master_vault"
-    claude     "_working"
-    local      "000_master_vault"
-    default    "000_master_vault"
-    # Phase B1 additions:
-    vault      "000_master_vault"
-    brainstorm "000_master_vault"
-    pmo        "_working"
-)
+# Parent directory used to resolve bare-name overrides (see OBSIDIAN_VAULT_OVERRIDE).
+export OBSIDIAN_ROOT="${OBSIDIAN_ROOT:-$HOME}"
+# Default vault name under $OBSIDIAN_ROOT. Henry's knowledge spine is the
+# single flat vault ~/hr-vault-main-pa.
+export OBSIDIAN_VAULT_NAME="${OBSIDIAN_VAULT_NAME:-hr-vault-main-pa}"
 
 # Resolve the active vault path. Order:
-#   1. $OBSIDIAN_VAULT_OVERRIDE (full path or sub-vault name) — caller wins
-#   2. _CLAW_OBSIDIAN_VAULTS[$CLAW_ACTIVE_PROFILE]
-#   3. fallback: $OBSIDIAN_ROOT/000_master_vault
+#   1. $OBSIDIAN_VAULT_OVERRIDE — absolute path used as-is, or bare name under $OBSIDIAN_ROOT
+#   2. $OBSIDIAN_ROOT/$OBSIDIAN_VAULT_NAME  (default: ~/hr-vault-main-pa)
 _claw_obsidian_vault() {
-    local sub
-    if [[ -n "${OBSIDIAN_VAULT_OVERRIDE:-}" ]]; then
-        sub="$OBSIDIAN_VAULT_OVERRIDE"
-    elif [[ -n "${CLAW_ACTIVE_PROFILE:-}" ]]; then
-        sub="${_CLAW_OBSIDIAN_VAULTS[$CLAW_ACTIVE_PROFILE]:-000_master_vault}"
-    else
-        sub="000_master_vault"
-    fi
-    # Allow absolute path as override
+    local sub="${OBSIDIAN_VAULT_OVERRIDE:-$OBSIDIAN_VAULT_NAME}"
     if [[ "$sub" = /* ]]; then
         echo "$sub"
     else
@@ -142,39 +117,33 @@ function ocapture() {
     echo "  ✓ captured to dailies/$today.md"
 }
 
-# List all sub-vaults under OBSIDIAN_ROOT, marking the active one.
+# Show the active vault and its top-level folders.
 function ovaults() {
     local active="$(_claw_obsidian_vault)"
     local active_name="$(basename "$active")"
     echo ""
-    printf "  Vault root: \e[38;2;201;209;217m%s\e[0m\n" "$OBSIDIAN_ROOT"
-    printf "  Active:     \e[38;2;63;185;80m%s\e[0m" "$active_name"
+    printf "  Active vault: \e[38;2;63;185;80m%s\e[0m" "$active_name"
     [[ -n "$CLAW_ACTIVE_PROFILE" ]] && printf "  \e[38;2;139;148;158m(profile: %s)\e[0m" "$CLAW_ACTIVE_PROFILE"
     echo ""
+    printf "  Path:         \e[38;2;139;148;158m%s\e[0m\n" "$active"
     echo ""
-    if [[ ! -d "$OBSIDIAN_ROOT" ]]; then
-        printf "  \e[38;2;255;123;114m✗\e[0m vault root not found\n"
+    if [[ ! -d "$active" ]]; then
+        printf "  \e[38;2;255;123;114m✗\e[0m vault not found — check ~/hr-vault-main-pa or set OBSIDIAN_VAULT_OVERRIDE\n"
         return 1
     fi
-    setopt local_options null_glob
-    for d in "$OBSIDIAN_ROOT"/*/; do
-        local name="$(basename "$d")"
-        # Skip Obsidian's own metadata
-        [[ "$name" == ".obsidian" ]] && continue
-        if [[ "$name" == "$active_name" ]]; then
-            printf "  \e[38;2;63;185;80m●\e[0m \e[38;2;201;209;217m%s\e[0m \e[38;2;139;148;158m(active)\e[0m\n" "$name"
-        else
-            printf "  \e[38;2;139;148;158m○ %s\e[0m\n" "$name"
-        fi
+    printf "  \e[38;2;139;148;158mTop-level folders:\e[0m\n"
+    setopt local_options null_glob   # dotdirs (.obsidian/.git/.trash) are skipped by default
+    for d in "$active"/*/; do
+        printf "    \e[38;2;88;166;255m▸\e[0m %s\n" "$(basename "$d")"
     done
     echo ""
 }
 
-# Switch sub-vault for the rest of this shell.
-# Usage: ovuse cortex-obsidian-vault   |   ovuse /path/to/other-vault
+# Switch the active vault for the rest of this shell.
+# Usage: ovuse hr-vault-personal   |   ovuse /path/to/other-vault
 function ovuse() {
     if [[ -z "$1" ]]; then
-        echo "Usage: ovuse <subvault-name-or-absolute-path>"
+        echo "Usage: ovuse <vault-name-or-absolute-path>"
         ovaults
         return 1
     fi

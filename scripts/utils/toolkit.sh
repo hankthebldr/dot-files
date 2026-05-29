@@ -232,7 +232,7 @@ case $main_choice in
         echo ""
         echo "${c_green}── Knowledge & Notes (Obsidian) ──${c_reset}"
         
-        export OBSIDIAN_VAULT="$HOME/vault-main"
+        export OBSIDIAN_VAULT="${OBSIDIAN_VAULT:-$HOME/hr-vault-main-pa}"
         vault_name=$(basename "$OBSIDIAN_VAULT")
         # Ensure the new Obsidian CLI is available (macOS path)
         export PATH="$PATH:/Applications/Obsidian.app/Contents/MacOS"
@@ -296,9 +296,10 @@ case $main_choice in
             3)
                 read -p "  Template Title: " ttitle
                 if [[ -n "$ttitle" ]]; then
-                    mkdir -p "$HOME/vault-main/Prompts" 2>/dev/null
-                    echo "## $ttitle\n\n**System Prompt:**\n\n**User Prompt:**" > "$HOME/vault-main/Prompts/${ttitle}.md"
-                    echo "Template created at $HOME/vault-main/Prompts/${ttitle}.md"
+                    obs_vault="${OBSIDIAN_VAULT:-$HOME/hr-vault-main-pa}"
+                    mkdir -p "$obs_vault/Prompts" 2>/dev/null
+                    echo "## $ttitle\n\n**System Prompt:**\n\n**User Prompt:**" > "$obs_vault/Prompts/${ttitle}.md"
+                    echo "Template created at $obs_vault/Prompts/${ttitle}.md"
                 fi
                 ;;
             4)
