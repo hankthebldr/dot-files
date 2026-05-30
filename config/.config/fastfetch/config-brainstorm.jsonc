@@ -21,7 +21,7 @@
     { "type": "uptime", "key": "  UP" },
     { "type": "separator", "string": "── Ideation ─────────────" },
     { "type": "command", "key": "  Inbox",
-      "text": "find ${OBSIDIAN_VAULT:-$HOME/Obsidian}/00-Inbox -maxdepth 2 -name '*.md' 2>/dev/null | wc -l | tr -d ' '" },
+      "text": "find ${OBSIDIAN_VAULT:-$HOME/hr-vault-main-pa}/00-Inbox -maxdepth 2 -name '*.md' 2>/dev/null | wc -l | tr -d ' '" },
     { "type": "command", "key": "  Mode",
       "text": "echo 'SPARK-CATCHER · vhs'" },
     { "type": "separator", "string": "─────────────────────────" },

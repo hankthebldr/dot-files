@@ -11,7 +11,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
   pre-registered in the `claw` agents.toml seed — `claw gemini` works
   from any profile out of the box; surfaced in ai/cortex/default help
   blocks (694e49e, cea228c, 9df6232)
-- Profile-aware Obsidian vault routing with `claw` subcommand and welcome-TUI row (3fde5ba)
+- Profile-aware Obsidian folder routing within `~/hr-vault-main-pa` (profile → top-level folder; daily notes stay global) with `claw` subcommand and welcome-TUI row (3fde5ba)
 - `bin/claw` dispatcher + `agents.toml` registry + agents FZF picker (588a077, 9aa7b3f)
 - `claw` shell function for native profile load/off (9aa7b3f)
 - `_claw_guard` helper that prints an install hint when a tool is missing (bf4b316)

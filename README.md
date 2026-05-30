@@ -160,40 +160,52 @@ claw hermes               # → loads ai profile dashboard, then exec hermes-cli
 
 ---
 
-## Obsidian Vault Integration (profile-aware)
+## Obsidian Vault Integration (profile-aware folder routing)
 
-Switching profiles automatically swaps which sub-vault under `~/vault-main` your helpers target.
+One registered vault — `~/hr-vault-main-pa` — with **profile-aware routing at the folder level**: the active profile selects a top-level folder *inside* the vault that the scoped helpers target. Daily notes stay global.
 
 ```bash
-o                         # cd into active vault
-on "Note Title"           # create + open note
-os "search term"          # ripgrep + fzf inside vault
-ov                        # fzf over file names
-otoday                    # open/create today's daily note
+o                         # cd into the active profile's folder
+on "Note Title"           # create + open note in that folder
+os "search term"          # ripgrep + fzf within that folder
+ov                        # fzf over file names in that folder
+otoday                    # open/create today's GLOBAL daily note (Daily Note/)
 ocapture "thought"        # append timestamped line to today's daily
-ovaults                   # list all sub-vaults, mark active
-ovuse <subvault>          # switch sub-vault for this shell
+ovaults                   # show active folder + list the vault's folders
+ovuse <folder>            # switch active folder for this shell
 ```
 
 Or via dispatcher:
 
 ```bash
-claw obsidian             # open active vault in Obsidian.app
+claw obsidian             # open the vault in Obsidian.app
 claw obsidian today
 claw obsidian search "kubernetes incident"
 claw obsidian capture "stand-up notes for Q3"
 ```
 
-Default mapping (override via `OBSIDIAN_VAULT_OVERRIDE`):
+**Profile → folder map** (unlisted profiles and no-profile shells route to the `_wip` triage folder):
 
-| Profile | Sub-vault |
-|---------|-----------|
-| cortex | `cortex-obsidian-vault` |
-| research | `000_master_vault` |
-| claude / cloud / security / devops / ai | `_working` |
-| default / local | `000_master_vault` |
+| Profile | Folder |
+|---------|--------|
+| `cortex`, `deck` | `CORTEX` |
+| `devops` | `DEVELOPMENT` |
+| `pmo` | `WWTS - Projects` |
+| `security` | `Secops` |
+| `cloud` | `PUBLIC CLOUD PROVIDERS` |
+| `ai`, `claude` | `_agents` |
+| everything else | `_wip` (triage) |
 
-Optional **profile-load breadcrumbs**: `export CLAW_VAULT_BREADCRUMBS=1` to auto-log every profile load (`[HH:MM] Loaded **<profile>** profile`) under the daily note's "Profile log" section.
+Daily notes (`otoday`/`ocapture`) are **global** — always the `Daily Note/` journal, independent of the active profile.
+
+Override per-shell:
+
+```bash
+export OBSIDIAN_FOLDER_OVERRIDE="Secops"                 # force a folder (or: ovuse Secops)
+export OBSIDIAN_VAULT_OVERRIDE="$HOME/some-other-vault"  # rare: a different vault entirely
+```
+
+Optional **profile-load breadcrumbs**: `export CLAW_VAULT_BREADCRUMBS=1` to auto-log every profile load (`[HH:MM] Loaded **<profile>** profile`) under the global daily note's "Profile log" section.
 
 ---
 
@@ -303,7 +315,7 @@ Both share `scripts/utils/tui-style.sh` for consistent visual polish (gum spinne
 │   ├── exports.zsh               # Environment variables
 │   ├── aliases.zsh               # ~680 lines of aliases & functions
 │   ├── security.zsh              # Safety aliases + network recon
-│   ├── obsidian.zsh              # Profile-aware vault routing + helpers
+│   ├── obsidian.zsh              # Profile-aware folder routing + helpers
 │   ├── claw-fn.zsh               # zsh fn for claw load/off (parent shell)
 │   ├── profile-helpers.zsh       # _claw_guard for install-hint aliases
 │   ├── welcome-tui.zsh           # Interactive login dashboard

@@ -23,7 +23,7 @@
     { "type": "uptime",   "key": "  UP" },
     { "type": "separator", "string": "── Vault ─────────────────" },
     { "type": "command", "key": "  Notes",
-      "text": "find ${OBSIDIAN_VAULT:-$HOME/Obsidian} -maxdepth 4 -name '*.md' 2>/dev/null | wc -l | tr -d ' '" },
+      "text": "find ${OBSIDIAN_VAULT:-$HOME/hr-vault-main-pa} -maxdepth 4 -name '*.md' 2>/dev/null | wc -l | tr -d ' '" },
     { "type": "command", "key": "  Today",
       "text": "date +%Y-%m-%d" },
     { "type": "command", "key": "  Editor",
