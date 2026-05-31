@@ -2,20 +2,29 @@
 # scripts/setup/symlinks.sh
 
 source "$(dirname "${BASH_SOURCE[0]}")/../utils/logger.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../utils/detect-os.sh"
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TARGET_DIR="$HOME"
 
-# Modules to stow by default
+# Cross-platform modules. `terminal/` ships macOS-only artifacts
+# (mbp-m4.terminal, iterm2/, README.md) — stowing it on Linux drops a
+# $HOME/README.md symlink that collides with cargo/npm/etc. init.
+# `tools/` is currently empty — list explicitly to avoid stowing nothing
+# and emitting a misleading warning. Re-add when populated.
 MODULES=(
     shell
     git
     vim
     tmux
-    terminal
-    tools
     config
 )
+
+# macOS-only modules — only stow on Darwin.
+detect_os
+if [[ "$OS_TYPE" == "macos" ]]; then
+    MODULES+=(terminal)
+fi
 
 stow_modules() {
     log_info "Creating symlinks with GNU Stow..."

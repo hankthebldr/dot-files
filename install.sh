@@ -56,8 +56,15 @@ else
         if [[ "$OSTYPE" == "darwin"* ]]; then
             xcode-select --install 2>/dev/null || true
         elif command -v apt &>/dev/null; then
+            # Warm sudo creds before piping `curl | bash` consumed stdin —
+            # without this the first sudo call hangs forever for password input.
+            if ! sudo -n true 2>/dev/null; then
+                echo "  Sudo password required (running over piped stdin — \`sudo -v\` first if this hangs)..."
+                sudo -v || { echo "  ERROR: sudo unavailable. Run \`sudo -v\` then re-execute."; exit 1; }
+            fi
             sudo apt update -y && sudo apt install -y git
         elif command -v dnf &>/dev/null; then
+            if ! sudo -n true 2>/dev/null; then sudo -v; fi
             sudo dnf install -y git
         fi
     fi

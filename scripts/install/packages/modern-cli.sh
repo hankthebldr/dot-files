@@ -43,12 +43,16 @@ install_modern_cli() {
                 pkg_name="fd-find"
             fi
             
+            # Many of these tools (lazygit, eza, zoxide, glow, navi, starship,
+            # btop, tldr) aren't in Ubuntu < 24.04 / Debian < 13 stock repos.
+            # Fail-soft so a missing package doesn't trip `set -e` upstream —
+            # the brew_extras block in bootstrap.sh picks them up afterwards.
             if [[ "$PKG_MANAGER" == "brew" ]]; then
-                brew install "$pkg_name"
+                brew install "$pkg_name" 2>/dev/null || log_warning "brew couldn't install $pkg_name"
             elif [[ "$PKG_MANAGER" == "apt" ]]; then
-                sudo apt install -y "$pkg_name"
+                sudo apt install -y "$pkg_name" 2>/dev/null || log_warning "$pkg_name not in apt repo (will retry via brew)"
             elif [[ "$PKG_MANAGER" == "dnf" ]]; then
-                sudo dnf install -y "$pkg_name"
+                sudo dnf install -y "$pkg_name" 2>/dev/null || log_warning "$pkg_name not in dnf repo"
             fi
         fi
     done

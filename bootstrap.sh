@@ -99,6 +99,14 @@ main() {
     check_internet || log_warning "No internet — some steps may fail."
     check_disk_space || exit 1
 
+    # Warm sudo creds up front. Without this, the first sudo call (apt update
+    # in Step 3) hangs forever when bootstrap is invoked via `curl | bash` —
+    # piped stdin can't carry a password, and `set -e` aborts the whole run.
+    # check_sudo prints a clear message + uses `sudo -v` which prefers /dev/tty.
+    if [[ "$PKG_MANAGER" != "brew" ]]; then
+        check_sudo || { log_error "Sudo required for apt installs. Re-run with sudo cached (e.g. \`sudo -v\` first), or pass NOPASSWD via /etc/sudoers."; exit 1; }
+    fi
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "DRY RUN: No changes will be made."
         log_info "OS: $OS_TYPE, PKG_MANAGER: $PKG_MANAGER, MODE: $INSTALL_MODE"
@@ -217,7 +225,10 @@ main() {
             if ! grep -q "$zsh_path" /etc/shells 2>/dev/null; then
                 echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null
             fi
-            chsh -s "$zsh_path" || log_warning "chsh failed — change shell manually: chsh -s $zsh_path"
+            # sudo chsh bypasses PAM password prompt — vanilla chsh hangs or
+            # silently fails under `curl|bash` because it reads /dev/tty for the
+            # user's password, which isn't reachable from the piped subshell.
+            sudo chsh -s "$zsh_path" "$USER" || log_warning "chsh failed — change shell manually: chsh -s $zsh_path"
             log_success "Default shell set to zsh"
         else
             log_error "zsh not found after install"
