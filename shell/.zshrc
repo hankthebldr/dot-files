@@ -113,7 +113,8 @@ fi
 for _zsh_hl in \
     "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" \
     "/home/linuxbrew/.linuxbrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" \
-    "/usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"; do
+    "/usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" \
+    "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"; do
     if [[ -f "$_zsh_hl" ]]; then source "$_zsh_hl"; break; fi
 done
 unset _zsh_hl
@@ -122,7 +123,8 @@ unset _zsh_hl
 for _zsh_ac in \
     "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
     "/home/linuxbrew/.linuxbrew/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
-    "/usr/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh"; do
+    "/usr/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
+    "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh"; do
     if [[ -f "$_zsh_ac" ]]; then source "$_zsh_ac" 2>/dev/null; break; fi
 done
 unset _zsh_ac

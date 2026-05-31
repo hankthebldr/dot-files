@@ -1,44 +1,51 @@
-# Ghostty Configuration — Open Claw (GitHub Dark)
-# https://github.com/ghostty-org/ghostty
-# Sized for the welcome TUI + profile fastfetch flow.
+# Ghostty — cross-platform config (macOS + Linux/GNOME)
+# Theme: GitHub macOS Dark  (per dot-files CLAUDE.md)
+# Font:  JetBrainsMono Nerd Font Mono @ 14pt
+# Keys:  Mac-style — ⌘/Super for copy/paste/tab/window/find/clear
 
-# ── Fonts ──────────────────────────────────────────────
+# ── Font ──────────────────────────────────────────────────────────────
 font-family = "JetBrainsMono Nerd Font Mono"
-font-size = 13
+font-size = 14
 font-feature = "-calt"
 font-thicken = true
+adjust-cell-height = 10%
 
-# ── Window ─────────────────────────────────────────────
-# 160×50 leaves margin above the welcome TUI menu + profile fastfetch.
+# ── Window ────────────────────────────────────────────────────────────
 window-decoration = false
-window-padding-x = 10
-window-padding-y = 10
-window-save-state = never
-window-width = 160
-window-height = 50
-macos-titlebar-style = hidden
-background-opacity = 0.95
-background-blur-radius = 20
+window-padding-x = 12
+window-padding-y = 12
+window-padding-balance = true
+window-save-state = always
+window-theme = dark
+gtk-titlebar = false
+gtk-tabs-location = top
+gtk-wide-tabs = false
+unfocused-split-opacity = 0.85
 
-# ── macOS Integration ──────────────────────────────────
+# ── macOS-only knobs (ignored on Linux) ───────────────────────────────
+macos-titlebar-style = hidden
 macos-option-as-alt = true
 macos-window-shadow = true
+
+# ── Clipboard ─────────────────────────────────────────────────────────
 clipboard-read = allow
 clipboard-write = allow
+copy-on-select = clipboard
 
-# ── Shell integration ──────────────────────────────────
+# ── Shell integration ─────────────────────────────────────────────────
 shell-integration = zsh
-shell-integration-features = no-cursor,sudo,title
+shell-integration-features = cursor,sudo,title
+mouse-hide-while-typing = true
+cursor-style = bar
+cursor-style-blink = true
 
-# ── GitHub Dark palette (matches dotfiles identity) ────
+# ── Colors — GitHub macOS Dark ────────────────────────────────────────
 background = 0d1117
 foreground = c9d1d9
-selection-background = 58a6ff
-selection-foreground = 0d1117
+selection-background = 264f78
+selection-foreground = c9d1d9
 cursor-color = 58a6ff
-cursor-text = 0d1117
 
-# Palette
 palette = 0=#484f58
 palette = 1=#ff7b72
 palette = 2=#3fb950
@@ -56,9 +63,54 @@ palette = 13=#d2a8ff
 palette = 14=#56d4dd
 palette = 15=#f0f6fc
 
-# ── Keybindings ────────────────────────────────────────
+# ── Keybindings ───────────────────────────────────────────────────────
+# Ghostty's "cmd" binds to ⌘ on macOS and to Super (Win key) on Linux,
+# so a single keybind line works on both platforms.
+
+# Clipboard (Mac-style)
 keybind = cmd+c=copy_to_clipboard
 keybind = cmd+v=paste_from_clipboard
-keybind = cmd+q=quit
-keybind = cmd+n=new_window
+keybind = cmd+x=copy_to_clipboard
+
+# Tabs
 keybind = cmd+t=new_tab
+keybind = cmd+w=close_surface
+keybind = cmd+shift+w=close_tab
+keybind = cmd+shift+left_bracket=previous_tab
+keybind = cmd+shift+right_bracket=next_tab
+keybind = cmd+one=goto_tab:1
+keybind = cmd+two=goto_tab:2
+keybind = cmd+three=goto_tab:3
+keybind = cmd+four=goto_tab:4
+keybind = cmd+five=goto_tab:5
+keybind = cmd+six=goto_tab:6
+keybind = cmd+seven=goto_tab:7
+keybind = cmd+eight=goto_tab:8
+keybind = cmd+nine=last_tab
+
+# Windows & splits
+keybind = cmd+n=new_window
+keybind = cmd+shift+n=new_split:right
+keybind = cmd+shift+d=new_split:down
+keybind = cmd+shift+enter=toggle_split_zoom
+keybind = cmd+shift+h=goto_split:left
+keybind = cmd+shift+l=goto_split:right
+keybind = cmd+shift+k=goto_split:top
+keybind = cmd+shift+j=goto_split:bottom
+
+# Font size
+keybind = cmd+equal=increase_font_size:1
+keybind = cmd+minus=decrease_font_size:1
+keybind = cmd+zero=reset_font_size
+
+# Misc
+keybind = cmd+k=clear_screen
+keybind = cmd+f=write_screen_file:paste
+keybind = cmd+q=quit
+keybind = cmd+comma=open_config
+keybind = cmd+shift+r=reload_config
+
+# Linux-only safety: also accept the standard Ctrl+Shift+C/V so muscle
+# memory from other Linux terminals still works.
+keybind = ctrl+shift+c=copy_to_clipboard
+keybind = ctrl+shift+v=paste_from_clipboard
