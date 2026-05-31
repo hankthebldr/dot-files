@@ -3,6 +3,7 @@
 
 # IDENTITY
 PROFILE_NAME="security"
+PROFILE_HELP_CMD="sec-help"   # help card is sec-help, not security-help
 PROFILE_CLASS="NIGHTHACKER"
 PROFILE_TIER="2"
 

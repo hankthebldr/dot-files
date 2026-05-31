@@ -209,9 +209,12 @@ function claw_welcome_tui() {
                 echo ""
                 fastfetch -c "$_ff_profile"
             fi
-            # Default profile: show quick-ref cheatsheet
+            # Readout under the art: default keeps its quick-ref card; every
+            # other profile gets the metadata-driven key-tools/docs/help readout.
             if [[ "$key" == "default" ]]; then
                 _claw_default_quickref
+            else
+                _claw_profile_readout "$key"
             fi
             ;;
         homelab_ssh)
@@ -366,5 +369,63 @@ _claw_default_quickref() {
     echo "  ${c_purple}│${c_reset}  ${c_purple}${c_bold}System${c_reset}      ${c_white}top${c_reset} ${c_dim}btop${c_reset}  ${c_white}df${c_reset} ${c_dim}duf${c_reset}  ${c_white}du${c_reset} ${c_dim}dust${c_reset}  ${c_white}reload${c_reset}  ${c_white}update${c_reset}     ${c_purple}│${c_reset}"
     echo "  ${c_purple}│${c_reset}                                                                  ${c_purple}│${c_reset}"
     echo "  ${c_purple}╰──────────────────────────────────────────────────────────────────╯${c_reset}"
+    echo ""
+}
+
+# ============================================
+# PER-PROFILE READOUT
+# Compact card under the profile art — key tools, docs, help guidance.
+# Driven entirely by the PROFILE_* metadata the loaded profile's meta.zsh set
+# (PROFILE_CLASS / PROFILE_TAG / PROFILE_KEY_TOOLS / PROFILE_TOOLCHAIN) plus the
+# {profile}-help / _{profile}_tool_check helpers it defines. Only shows commands
+# that actually resolve, so it degrades gracefully on any profile.
+# ============================================
+_claw_profile_readout() {
+    local key="$1"
+    local c_reset=$'\e[0m' c_cyan=$'\e[38;2;88;166;255m' c_green=$'\e[38;2;63;185;80m'
+    local c_orange=$'\e[38;2;210;153;34m' c_dim=$'\e[38;2;139;148;158m'
+    local c_white=$'\e[38;2;201;209;217m' c_bold=$'\e[1m'
+
+    # Key tools — first 8 of PROFILE_KEY_TOOLS, "·"-joined
+    local tools_line=""
+    if [[ -n "${PROFILE_KEY_TOOLS:-}" ]]; then
+        local -a _t=(${=PROFILE_KEY_TOOLS})
+        local -a _head=(${_t[1,8]})
+        tools_line="${(j: · :)_head}"
+        (( ${#_t[@]} > 8 )) && tools_line+=" · …"
+    fi
+
+    # Reference commands — only those that actually resolve as functions
+    local help_cmd="${PROFILE_HELP_CMD:-${key}-help}"
+    local check_cmd="_${key}_tool_check"
+    local -a refs=()
+    (( ${+functions[$help_cmd]} ))  && refs+=("${c_green}${help_cmd}${c_reset} ${c_dim}reference${c_reset}")
+    (( ${+functions[$check_cmd]} )) && refs+=("${c_green}${check_cmd}${c_reset} ${c_dim}status${c_reset}")
+    [[ -n "${PROFILE_TOOLCHAIN:-}" ]] && refs+=("${c_green}${PROFILE_TOOLCHAIN}${c_reset} ${c_dim}install${c_reset}")
+
+    # Glyph mirrors the picker
+    local glyph
+    case "$key" in
+        cloud) glyph="☁️" ;;   devops) glyph="🏗️" ;;   security) glyph="🔐" ;;
+        cortex) glyph="🛡️" ;;  ai) glyph="🤖" ;;       research) glyph="🔬" ;;
+        claude) glyph="🧡" ;;  vault) glyph="📓" ;;     brainstorm) glyph="💡" ;;
+        pmo) glyph="📋" ;;     deck) glyph="📊" ;;      design) glyph="🎨" ;;
+        demo) glyph="🎬" ;;    homelab) glyph="📡" ;;   blackwell) glyph="🧠" ;;
+        tunnels) glyph="🔗" ;; local) glyph="🛠️" ;;     *) glyph="⚙️" ;;
+    esac
+
+    echo ""
+    # Identity — class + tag
+    if [[ -n "${PROFILE_CLASS:-}${PROFILE_TAG:-}" ]]; then
+        printf "  %s  ${c_green}${c_bold}%s${c_reset}" "$glyph" "${PROFILE_CLASS:-$key}"
+        [[ -n "${PROFILE_TAG:-}" ]] && printf "  ${c_dim}· %s${c_reset}" "$PROFILE_TAG"
+        echo ""
+    fi
+    # Key tools
+    [[ -n "$tools_line" ]] && \
+        printf "  ${c_orange}${c_bold}🔧 Key tools${c_reset}   ${c_white}%s${c_reset}\n" "$tools_line"
+    # Docs & help
+    (( ${#refs[@]} )) && \
+        printf "  ${c_cyan}${c_bold}📖 Docs & help${c_reset}  %s\n" "${(j:   ·   :)refs}"
     echo ""
 }
