@@ -38,3 +38,8 @@
     ci = commit
     st = status
     lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+
+# Machine-specific overrides (credential helpers, signing keys, etc.) live
+# in ~/.gitconfig.local — not tracked, never the same across two machines.
+[include]
+    path = ~/.gitconfig.local
