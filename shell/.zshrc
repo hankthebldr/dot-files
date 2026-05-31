@@ -195,5 +195,7 @@ unset _fzf_init
 [[ -d "$HOME/.antigravity/antigravity/bin" ]] && export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
 [[ -d "$HOME/.lmstudio/bin" ]] && export PATH="$PATH:$HOME/.lmstudio/bin"
 
-# Ollama: store models on LACIE HD (8TB external)
-export OLLAMA_MODELS="/Volumes/LacieDrive/ollama-models"
+# Ollama: store models on LACIE HD (8TB external) — only when the drive is
+# actually mounted, else ollama would fail to read/write models on Linux or
+# on a Mac without the drive attached.
+[[ -d /Volumes/LacieDrive ]] && export OLLAMA_MODELS="/Volumes/LacieDrive/ollama-models"
