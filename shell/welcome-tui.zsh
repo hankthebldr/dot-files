@@ -1,5 +1,5 @@
 # shell/welcome-tui.zsh
-# Interactive Open Claw Login Dashboard
+# Interactive Open Claw Login Dashboard — two-level wizard (group → sub-profile)
 
 function claw_welcome_tui() {
     # SAFETY: Never run in non-interactive shells (breaks scp, rsync, git-over-ssh)
@@ -51,113 +51,137 @@ function claw_welcome_tui() {
     local c_white=$'\e[38;2;201;209;217m'  # GitHub fg: #c9d1d9
     local c_bold=$'\e[1m'
 
-    # Clean slate — TUI owns the full terminal
-    clear
-
-    # Render Dashboard Header via fastfetch with native OS logo
-    local ff_config="$_d/config/.config/fastfetch/config.jsonc"
-    if command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
-        fastfetch -c "$ff_config"
-    else
-        # Fallback: branded header if fastfetch is missing
-        echo ""
-        echo "  ${c_purple}╭──────────────────────────────────────────────╮${c_reset}"
-        echo "  ${c_purple}│${c_reset}                                              ${c_purple}│${c_reset}"
-        echo "  ${c_purple}│${c_reset}   ${c_cyan}█▀█ █▀█ █▀▀ █▄░█   ${c_green}█▀▀ █░░ ▄▀█ █░█░█${c_reset}   ${c_purple}│${c_reset}"
-        echo "  ${c_purple}│${c_reset}   ${c_cyan}█▄█ █▀▀ ██▄ █░▀█   ${c_green}█▄▄ █▄▄ █▀█ ▀▄▀▄▀${c_reset}   ${c_purple}│${c_reset}"
-        echo "  ${c_purple}│${c_reset}                                              ${c_purple}│${c_reset}"
-        echo "  ${c_purple}│${c_reset}   ${c_dim}$(os_version 2>/dev/null || uname -sr) · $(uname -m)${c_reset}"
-        echo "  ${c_purple}│${c_reset}   ${c_dim}$(date '+%a %b %d %H:%M') · $(local_ip 2>/dev/null)${c_reset}"
-        echo "  ${c_purple}│${c_reset}                                              ${c_purple}│${c_reset}"
-        echo "  ${c_purple}╰──────────────────────────────────────────────╯${c_reset}"
-    fi
-    echo ""
-
     # Ensure fzf is installed to run the interactive menu
     if ! command -v fzf &> /dev/null; then
-        echo "  ${c_dim}Launch modules skipped: 'fzf' is not installed.${c_reset}"
+        clear
+        echo "  ${c_dim}Welcome TUI skipped: 'fzf' is not installed.${c_reset}"
         return
     fi
 
-    # Build Interactive Menu Choices — grouped by category
-    local choices=""
+    local _fzf_color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff"
 
-    # ── Tier 1: Daily Driver ──
-    choices+="default\t${c_green}${c_bold}⚙️  Default Shell${c_reset}${c_dim}      Standard Dev · daily driver${c_reset}\n"
-    choices+="local\t${c_green}🛠️  Local${c_reset}${c_dim}              Custom Built CLI Tools${c_reset}\n"
+    # Render the Screen-1 dashboard header (fastfetch + custom readout). Called
+    # on every return to the group picker so the intro persists on Screen 1.
+    _claw_tui_header() {
+        clear
+        local ff_config="$_d/config/.config/fastfetch/config.jsonc"
+        if command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
+            fastfetch -c "$ff_config"
+        else
+            # Fallback: branded header if fastfetch is missing
+            echo ""
+            echo "  ${c_purple}╭──────────────────────────────────────────────╮${c_reset}"
+            echo "  ${c_purple}│${c_reset}   ${c_cyan}█▀█ █▀█ █▀▀ █▄░█   ${c_green}█▀▀ █░░ ▄▀█ █░█░█${c_reset}   ${c_purple}│${c_reset}"
+            echo "  ${c_purple}│${c_reset}   ${c_cyan}█▄█ █▀▀ ██▄ █░▀█   ${c_green}█▄▄ █▄▄ █▀█ ▀▄▀▄▀${c_reset}   ${c_purple}│${c_reset}"
+            echo "  ${c_purple}│${c_reset}   ${c_dim}$(os_version 2>/dev/null || uname -sr) · $(uname -m)${c_reset}"
+            echo "  ${c_purple}│${c_reset}   ${c_dim}$(date '+%a %b %d %H:%M') · $(local_ip 2>/dev/null)${c_reset}"
+            echo "  ${c_purple}╰──────────────────────────────────────────────╯${c_reset}"
+        fi
+        echo ""
+    }
 
-    # ── Tier 2: Domain Expertise ──
-    choices+="─\t${c_dim}── domain expertise ──────────────────────────${c_reset}\n"
-    choices+="cloud\t${c_cyan}☁️  Cloud${c_reset}${c_dim}              AWS · K8s · Terraform · SKYSURFER${c_reset}\n"
-    choices+="devops\t${c_green}🏗️  DevOps${c_reset}${c_dim}             CI/CD · Monitoring · IaC · WRENCH-MAGE${c_reset}\n"
-    choices+="security\t${c_pink}🔐 Security${c_reset}${c_dim}           Pentest · OSINT · Forensics · NIGHTHACKER${c_reset}\n"
-    choices+="cortex\t${c_pink}🛡️  Cortex${c_reset}${c_dim}             XSOAR · XSIAM · PAN-OS · GHOST-IN-THE-XSIAM${c_reset}\n"
-    choices+="ai\t${c_purple}🤖 AI${c_reset}${c_dim}                 LLMs · Embeddings · MLOps · NEUROMANCER${c_reset}\n"
-    choices+="research\t${c_orange}🔬 Research${c_reset}${c_dim}           Datasets · Scraping · NLP · DATA-DJ${c_reset}\n"
+    # ── Level 1: groups + direct picks ──
+    # Tokens are either a profile/action key (direct) or a group id. Group ids
+    # (domain/knowledge/visual/hardware/actions/system) are chosen NOT to collide
+    # with any profile or action key, so membership alone decides Screen 2 vs dispatch.
+    local l1=""
+    l1+="default\t${c_green}${c_bold}⚙️  Default Shell${c_reset}${c_dim}      Standard Dev · daily driver${c_reset}\n"
+    l1+="local\t${c_green}🛠️  Local${c_reset}${c_dim}              Custom Built CLI Tools${c_reset}\n"
+    l1+="claude\t${c_orange}🧡 Claude Code${c_reset}${c_dim}        Agent SDK · MCP · PROMPT-RIDER${c_reset}\n"
+    l1+="domain\t${c_cyan}☁️  Domain Expertise${c_reset} ${c_dim}▸ cloud · devops · security · cortex · ai · research${c_reset}\n"
+    l1+="knowledge\t${c_orange}📓 Knowledge & Ideation${c_reset} ${c_dim}▸ vault · brainstorm · pmo${c_reset}\n"
+    l1+="visual\t${c_purple}🎨 Customer-Facing${c_reset} ${c_dim}▸ deck · design · demo${c_reset}\n"
+    l1+="hardware\t${c_orange}📡 Hardware & Ops${c_reset} ${c_dim}▸ homelab · blackwell · tunnels${c_reset}\n"
+    l1+="actions\t${c_cyan}⚡ Direct Actions${c_reset} ${c_dim}▸ ai-toolkit · mcp · agents · ssh · tunnels · vault${c_reset}\n"
+    l1+="system\t${c_yellow}🛠  System${c_reset} ${c_dim}▸ onboard · integrity · tmux · yazi · update · docs · monitor${c_reset}\n"
 
-    # ── Tier 3: Agent / IDE ──
-    choices+="─\t${c_dim}── agent / IDE ───────────────────────────────${c_reset}\n"
-    choices+="claude\t${c_orange}🧡 Claude Code${c_reset}${c_dim}        Agent SDK · MCP · PROMPT-RIDER${c_reset}\n"
+    # ── Level 2: items per group ──
+    typeset -A l2 l2_title
+    l2_title[domain]="Domain Expertise"; l2_title[knowledge]="Knowledge & Ideation"
+    l2_title[visual]="Customer-Facing & Visual"; l2_title[hardware]="Hardware & Ops"
+    l2_title[actions]="Direct Actions"; l2_title[system]="System"
 
-    # ── Tier 4: Knowledge & Ideation ──
-    choices+="─\t${c_dim}── knowledge & ideation ──────────────────────${c_reset}\n"
-    choices+="vault\t${c_orange}📓 Vault${c_reset}${c_dim}              Obsidian · notes · KNOWLEDGE-KEEPER${c_reset}\n"
-    choices+="brainstorm\t${c_pink}💡 Brainstorm${c_reset}${c_dim}         Ideation · mind maps · SPARK-CATCHER${c_reset}\n"
-    choices+="pmo\t${c_cyan}📋 PMO${c_reset}${c_dim}                Things 3 · planning · SCRIBE-OPERATOR${c_reset}\n"
+    l2[domain]=""
+    l2[domain]+="cloud\t${c_cyan}☁️  Cloud${c_reset}${c_dim}              AWS · K8s · Terraform · SKYSURFER${c_reset}\n"
+    l2[domain]+="devops\t${c_green}🏗️  DevOps${c_reset}${c_dim}             CI/CD · Monitoring · IaC · WRENCH-MAGE${c_reset}\n"
+    l2[domain]+="security\t${c_pink}🔐 Security${c_reset}${c_dim}           Pentest · OSINT · Forensics · NIGHTHACKER${c_reset}\n"
+    l2[domain]+="cortex\t${c_pink}🛡️  Cortex${c_reset}${c_dim}             XSOAR · XSIAM · PAN-OS · GHOST-IN-THE-XSIAM${c_reset}\n"
+    l2[domain]+="ai\t${c_purple}🤖 AI${c_reset}${c_dim}                 LLMs · Embeddings · MLOps · NEUROMANCER${c_reset}\n"
+    l2[domain]+="research\t${c_orange}🔬 Research${c_reset}${c_dim}           Datasets · Scraping · NLP · DATA-DJ${c_reset}\n"
 
-    # ── Tier 5: Customer-Facing & Visual ──
-    choices+="─\t${c_dim}── customer-facing & visual ──────────────────${c_reset}\n"
-    choices+="deck\t${c_green}📊 Deck${c_reset}${c_dim}               Cortex slides · DECK-SMITH${c_reset}\n"
-    choices+="design\t${c_purple}🎨 Design${c_reset}${c_dim}             Diagrams · palettes · FRAME-SMITH${c_reset}\n"
-    choices+="demo\t${c_pink}🎬 Demo${c_reset}${c_dim}               Presales mode · SHOW-RUNNER${c_reset}\n"
+    l2[knowledge]=""
+    l2[knowledge]+="vault\t${c_orange}📓 Vault${c_reset}${c_dim}              Obsidian · notes · KNOWLEDGE-KEEPER${c_reset}\n"
+    l2[knowledge]+="brainstorm\t${c_pink}💡 Brainstorm${c_reset}${c_dim}         Ideation · mind maps · SPARK-CATCHER${c_reset}\n"
+    l2[knowledge]+="pmo\t${c_cyan}📋 PMO${c_reset}${c_dim}                Things 3 · planning · SCRIBE-OPERATOR${c_reset}\n"
 
-    # ── Tier 6: Hardware & Ops ──
-    choices+="─\t${c_dim}── hardware & ops ────────────────────────────${c_reset}\n"
-    choices+="homelab\t${c_orange}📡 Homelab${c_reset}${c_dim}            BD790i ops · RACK-WIZARD${c_reset}\n"
-    choices+="blackwell\t${c_green}🧠 Blackwell${c_reset}${c_dim}          GPU/ML · CUDA · PHOSPHOR-GHOST${c_reset}\n"
-    choices+="tunnels\t${c_cyan}🔗 Tunnels${c_reset}${c_dim}            SSH · Tailscale · PORT-RUNNER${c_reset}\n"
+    l2[visual]=""
+    l2[visual]+="deck\t${c_green}📊 Deck${c_reset}${c_dim}               Cortex slides · DECK-SMITH${c_reset}\n"
+    l2[visual]+="design\t${c_purple}🎨 Design${c_reset}${c_dim}             Diagrams · palettes · FRAME-SMITH${c_reset}\n"
+    l2[visual]+="demo\t${c_pink}🎬 Demo${c_reset}${c_dim}               Presales mode · SHOW-RUNNER${c_reset}\n"
 
-    # ── Direct Tools (action shortcuts, not profile loads) ──
-    choices+="─\t${c_dim}── direct actions ────────────────────────────${c_reset}\n"
-    choices+="ai_tools\t${c_purple}🧠 AI Toolkit${c_reset}${c_dim}         Ollama · Claude · Aider${c_reset}\n"
-    choices+="mcp\t${c_cyan}🔌 MCP Manager${c_reset}${c_dim}        Model Context Protocol${c_reset}\n"
-    choices+="agents\t${c_purple}🧠 Agents${c_reset}${c_dim}             Claude · Hermes · Aider · …${c_reset}\n"
-    choices+="homelab_ssh\t${c_orange}📡 Homelab SSH${c_reset}${c_dim}        Direct topology launcher${c_reset}\n"
-    choices+="tunnel_mgr\t${c_cyan}🔗 Tunnel Manager${c_reset}${c_dim}     Direct FZF tunnel TUI${c_reset}\n"
-    choices+="vault_open\t${c_orange}📓 Open Vault${c_reset}${c_dim}         Launch Obsidian directly${c_reset}\n"
+    l2[hardware]=""
+    l2[hardware]+="homelab\t${c_orange}📡 Homelab${c_reset}${c_dim}            BD790i ops · RACK-WIZARD${c_reset}\n"
+    l2[hardware]+="blackwell\t${c_green}🧠 Blackwell${c_reset}${c_dim}          GPU/ML · CUDA · PHOSPHOR-GHOST${c_reset}\n"
+    l2[hardware]+="tunnels\t${c_cyan}🔗 Tunnels${c_reset}${c_dim}            SSH · Tailscale · PORT-RUNNER${c_reset}\n"
 
-    # ── System ──
-    choices+="─\t${c_dim}───────────────────────────────────────────────${c_reset}\n"
-    choices+="onboard\t${c_pink}🕹  Onboarding${c_reset}${c_dim}        80s arcade · picks your profile${c_reset}\n"
-    choices+="integrity\t${c_green}🛡  Integrity Check${c_reset}${c_dim}   verify install · tamper-check${c_reset}\n"
-    choices+="tmux\t${c_green}🪟 TMUX${c_reset}${c_dim}               Attach or New Session${c_reset}\n"
-    choices+="yazi\t${c_cyan}📂 Yazi${c_reset}${c_dim}               File Browser${c_reset}\n"
-    choices+="update\t${c_yellow}🔧 System Update${c_reset}${c_dim}      Brew · NPM · Pip${c_reset}\n"
-    choices+="doc\t${c_dim}📖 CLI Docs & Help${c_reset}\n"
-    choices+="top\t${c_dim}📊 System Monitor${c_reset}\n"
-    choices+="skip\t${c_white}↩  Shell${c_reset}${c_dim}              Exit to prompt${c_reset}\n"
+    l2[actions]=""
+    l2[actions]+="ai_tools\t${c_purple}🧠 AI Toolkit${c_reset}${c_dim}         Ollama · Claude · Aider${c_reset}\n"
+    l2[actions]+="mcp\t${c_cyan}🔌 MCP Manager${c_reset}${c_dim}        Model Context Protocol${c_reset}\n"
+    l2[actions]+="agents\t${c_purple}🧠 Agents${c_reset}${c_dim}             Claude · Hermes · Aider · …${c_reset}\n"
+    l2[actions]+="homelab_ssh\t${c_orange}📡 Homelab SSH${c_reset}${c_dim}        Direct topology launcher${c_reset}\n"
+    l2[actions]+="tunnel_mgr\t${c_cyan}🔗 Tunnel Manager${c_reset}${c_dim}     Direct FZF tunnel TUI${c_reset}\n"
+    l2[actions]+="vault_open\t${c_orange}📓 Open Vault${c_reset}${c_dim}         Launch Obsidian directly${c_reset}\n"
 
-    # Launch fzf menu
-    local selection
-    selection=$(echo -e "$choices" | column -s $'\t' -t | fzf \
-        --height=~30 --reverse --margin=0,0,0,4 \
-        --prompt="▶ " \
-        --header="  ENTER default · ↑/↓ navigate · ESC shell" \
-        --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff" \
-        --ansi \
-        || echo "default")
+    l2[system]=""
+    l2[system]+="onboard\t${c_pink}🕹  Onboarding${c_reset}${c_dim}        80s arcade · picks your profile${c_reset}\n"
+    l2[system]+="integrity\t${c_green}🛡  Integrity Check${c_reset}${c_dim}   verify install · tamper-check${c_reset}\n"
+    l2[system]+="tmux\t${c_green}🪟 TMUX${c_reset}${c_dim}               Attach or New Session${c_reset}\n"
+    l2[system]+="yazi\t${c_cyan}📂 Yazi${c_reset}${c_dim}               File Browser${c_reset}\n"
+    l2[system]+="update\t${c_yellow}🔧 System Update${c_reset}${c_dim}      Brew · NPM · Pip${c_reset}\n"
+    l2[system]+="doc\t${c_dim}📖 CLI Docs & Help${c_reset}\n"
+    l2[system]+="top\t${c_dim}📊 System Monitor${c_reset}\n"
+    l2[system]+="skip\t${c_white}↩  Shell${c_reset}${c_dim}              Exit to prompt${c_reset}\n"
 
-    # Extract just the lookup key from the selection line
-    local key=$(echo "$selection" | awk '{print $1}')
-    local raw_key="$key"  # preserved before any fallbacks for telemetry
+    # ── Two-level selection loop ──
+    # L1: pick a direct entry or a group. ESC at L1 → default (preserves old behavior).
+    # L2: pick an item. ESC at L2 → back to L1.
+    local key="" raw_key=""
+    while true; do
+        _claw_tui_header
+        local sel tok
+        sel=$(echo -e "$l1" | column -s $'\t' -t | fzf \
+            --height=~14 --reverse --margin=0,0,0,4 --ansi \
+            --prompt="▶ " \
+            --header="  ENTER select · ↑/↓ navigate · ESC shell" \
+            --color="$_fzf_color")
+        tok=$(echo "$sel" | awk '{print $1}')
 
-    # Separator lines are not selectable actions
-    [[ "$key" == "─" ]] && key="default"
-    # Empty = user pressed ESC with no override → default
-    [[ -z "$key" ]] && key="default"
+        # ESC at L1 (empty) → fall through to default profile (legacy behavior)
+        if [[ -z "$tok" ]]; then key="default"; raw_key=""; break; fi
 
-    # Telemetry: distinguish ESC-fallback from explicit "default" pick.
-    # Answers the key question: how often does the TUI add zero value?
+        # Is the token a group? → descend to Level 2
+        if [[ -n "${l2[$tok]:-}" ]]; then
+            _claw_tui_log "group:$tok"
+            clear
+            printf "\n  ${c_purple}${c_bold}Open Claw${c_reset} ${c_dim}▸${c_reset} ${c_white}%s${c_reset}\n\n" "${l2_title[$tok]}"
+            local sel2 itok
+            sel2=$(echo -e "${l2[$tok]}" | column -s $'\t' -t | fzf \
+                --height=~14 --reverse --margin=0,0,0,4 --ansi \
+                --with-nth=2.. \
+                --prompt="▶ " \
+                --header="  ENTER select · ESC back" \
+                --color="$_fzf_color")
+            itok=$(echo "$sel2" | awk '{print $1}')
+            # ESC at L2 → back to the group picker
+            [[ -z "$itok" ]] && continue
+            key="$itok"; raw_key="$itok"; break
+        fi
+
+        # Direct pick (default / local / claude)
+        key="$tok"; raw_key="$tok"; break
+    done
+
+    # Telemetry: distinguish ESC-fallback from an explicit pick.
     if [[ -z "$raw_key" ]]; then
         _claw_tui_log "esc_to_default"
     else
@@ -177,15 +201,20 @@ function claw_welcome_tui() {
             else
                 echo "${c_red}Profile not found: $_profile${c_reset}"
             fi
-            # Display profile-specific fastfetch dashboard
+            # Display profile-specific fastfetch art — across the board. Falls
+            # back to the generic dashboard so EVERY pick renders something.
             local _ff_profile="$_d/config/.config/fastfetch/config-${key}.jsonc"
+            [[ -f "$_ff_profile" ]] || _ff_profile="$_d/config/.config/fastfetch/config.jsonc"
             if command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
                 echo ""
                 fastfetch -c "$_ff_profile"
             fi
-            # Default profile: show quick-ref cheatsheet
+            # Readout under the art: default keeps its quick-ref card; every
+            # other profile gets the metadata-driven key-tools/docs/help readout.
             if [[ "$key" == "default" ]]; then
                 _claw_default_quickref
+            else
+                _claw_profile_readout "$key"
             fi
             ;;
         homelab_ssh)
@@ -340,5 +369,63 @@ _claw_default_quickref() {
     echo "  ${c_purple}│${c_reset}  ${c_purple}${c_bold}System${c_reset}      ${c_white}top${c_reset} ${c_dim}btop${c_reset}  ${c_white}df${c_reset} ${c_dim}duf${c_reset}  ${c_white}du${c_reset} ${c_dim}dust${c_reset}  ${c_white}reload${c_reset}  ${c_white}update${c_reset}     ${c_purple}│${c_reset}"
     echo "  ${c_purple}│${c_reset}                                                                  ${c_purple}│${c_reset}"
     echo "  ${c_purple}╰──────────────────────────────────────────────────────────────────╯${c_reset}"
+    echo ""
+}
+
+# ============================================
+# PER-PROFILE READOUT
+# Compact card under the profile art — key tools, docs, help guidance.
+# Driven entirely by the PROFILE_* metadata the loaded profile's meta.zsh set
+# (PROFILE_CLASS / PROFILE_TAG / PROFILE_KEY_TOOLS / PROFILE_TOOLCHAIN) plus the
+# {profile}-help / _{profile}_tool_check helpers it defines. Only shows commands
+# that actually resolve, so it degrades gracefully on any profile.
+# ============================================
+_claw_profile_readout() {
+    local key="$1"
+    local c_reset=$'\e[0m' c_cyan=$'\e[38;2;88;166;255m' c_green=$'\e[38;2;63;185;80m'
+    local c_orange=$'\e[38;2;210;153;34m' c_dim=$'\e[38;2;139;148;158m'
+    local c_white=$'\e[38;2;201;209;217m' c_bold=$'\e[1m'
+
+    # Key tools — first 8 of PROFILE_KEY_TOOLS, "·"-joined
+    local tools_line=""
+    if [[ -n "${PROFILE_KEY_TOOLS:-}" ]]; then
+        local -a _t=(${=PROFILE_KEY_TOOLS})
+        local -a _head=(${_t[1,8]})
+        tools_line="${(j: · :)_head}"
+        (( ${#_t[@]} > 8 )) && tools_line+=" · …"
+    fi
+
+    # Reference commands — only those that actually resolve as functions
+    local help_cmd="${PROFILE_HELP_CMD:-${key}-help}"
+    local check_cmd="_${key}_tool_check"
+    local -a refs=()
+    (( ${+functions[$help_cmd]} ))  && refs+=("${c_green}${help_cmd}${c_reset} ${c_dim}reference${c_reset}")
+    (( ${+functions[$check_cmd]} )) && refs+=("${c_green}${check_cmd}${c_reset} ${c_dim}status${c_reset}")
+    [[ -n "${PROFILE_TOOLCHAIN:-}" ]] && refs+=("${c_green}${PROFILE_TOOLCHAIN}${c_reset} ${c_dim}install${c_reset}")
+
+    # Glyph mirrors the picker
+    local glyph
+    case "$key" in
+        cloud) glyph="☁️" ;;   devops) glyph="🏗️" ;;   security) glyph="🔐" ;;
+        cortex) glyph="🛡️" ;;  ai) glyph="🤖" ;;       research) glyph="🔬" ;;
+        claude) glyph="🧡" ;;  vault) glyph="📓" ;;     brainstorm) glyph="💡" ;;
+        pmo) glyph="📋" ;;     deck) glyph="📊" ;;      design) glyph="🎨" ;;
+        demo) glyph="🎬" ;;    homelab) glyph="📡" ;;   blackwell) glyph="🧠" ;;
+        tunnels) glyph="🔗" ;; local) glyph="🛠️" ;;     *) glyph="⚙️" ;;
+    esac
+
+    echo ""
+    # Identity — class + tag
+    if [[ -n "${PROFILE_CLASS:-}${PROFILE_TAG:-}" ]]; then
+        printf "  %s  ${c_green}${c_bold}%s${c_reset}" "$glyph" "${PROFILE_CLASS:-$key}"
+        [[ -n "${PROFILE_TAG:-}" ]] && printf "  ${c_dim}· %s${c_reset}" "$PROFILE_TAG"
+        echo ""
+    fi
+    # Key tools
+    [[ -n "$tools_line" ]] && \
+        printf "  ${c_orange}${c_bold}🔧 Key tools${c_reset}   ${c_white}%s${c_reset}\n" "$tools_line"
+    # Docs & help
+    (( ${#refs[@]} )) && \
+        printf "  ${c_cyan}${c_bold}📖 Docs & help${c_reset}  %s\n" "${(j:   ·   :)refs}"
     echo ""
 }
