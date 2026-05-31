@@ -22,6 +22,8 @@ TOOLS=(
     starship    # prompt
     glow        # markdown reader
     navi        # interactive cheatsheet
+    zellij      # modern terminal multiplexer (tmux alternative)
+    nvtop       # GPU process viewer
 )
 
 install_modern_cli() {
