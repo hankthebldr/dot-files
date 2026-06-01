@@ -89,6 +89,12 @@ test_title_bytes() {
   assert_contains "idle title emits OSC-0 intro"    "$out" $'\e]0;'
 }
 
+test_welcome_group_capture() {
+  local wt="$_THIS/../shell/welcome-tui.zsh"
+  zsh -n "$wt" || { print -r -- "  ✗ welcome-tui.zsh syntax error"; (( _fail++ )); return; }
+  assert_contains "welcome-tui exports CLAW_ACTIVE_GROUP" "$(<"$wt")" "export CLAW_ACTIVE_GROUP="
+}
+
 main() {
   emulate -L zsh
   print -r -- "▶ session-identity tests"
@@ -100,6 +106,7 @@ main() {
   test_seq_claim
   test_session_cmd
   test_title_bytes
+  test_welcome_group_capture
 
   print -r -- "  ──"
   print -r -- "  ${_pass} passed, ${_fail} failed"

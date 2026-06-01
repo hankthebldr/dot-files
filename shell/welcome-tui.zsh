@@ -145,7 +145,7 @@ function claw_welcome_tui() {
     # ── Two-level selection loop ──
     # L1: pick a direct entry or a group. ESC at L1 → default (preserves old behavior).
     # L2: pick an item. ESC at L2 → back to L1.
-    local key="" raw_key=""
+    local key="" raw_key="" _group=""
     while true; do
         _claw_tui_header
         local sel tok
@@ -174,7 +174,7 @@ function claw_welcome_tui() {
             itok=$(echo "$sel2" | awk '{print $1}')
             # ESC at L2 → back to the group picker
             [[ -z "$itok" ]] && continue
-            key="$itok"; raw_key="$itok"; break
+            key="$itok"; raw_key="$itok"; _group="$tok"; break
         fi
 
         # Direct pick (default / local / claude)
@@ -195,6 +195,7 @@ function claw_welcome_tui() {
             ;;
         default|security|cloud|devops|research|ai|cortex|claude|local|vault|brainstorm|pmo|deck|design|demo|homelab|blackwell|tunnels)
             export CLAW_ACTIVE_PROFILE="$key"
+            export CLAW_ACTIVE_GROUP="$_group"   # "" for direct picks (default/local/claude)
             local _profile="$_d/shell/profiles/${key}.zsh"
             if [[ -f "$_profile" ]]; then
                 source "$_profile"
