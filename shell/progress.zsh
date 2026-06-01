@@ -60,6 +60,28 @@ __claw_session_resolve() {
   fi
 }
 
+# Claim a monotonic ordinal once per interactive shell, frozen in a
+# NON-exported CLAW_SESSION_SEQ (non-export → child shells claim their own,
+# keeping siblings distinct). zsh/system flock makes the bump race-safe with
+# no external flock(1) binary (macOS lacks one); fallback tolerates the race.
+__claw_session_claim_seq() {
+  (( ${+CLAW_SESSION_SEQ} )) && return            # re-source in same shell: keep number
+  local _seqf="${XDG_CACHE_HOME:-$HOME/.cache}/claw/session.seq"
+  mkdir -p "${_seqf:h}" 2>/dev/null               # ${_seqf:h} = zsh dirname, no fork
+  local _cur=0 _n _lockfd
+  if zmodload zsh/system 2>/dev/null && zsystem flock -t 2 -f _lockfd "$_seqf" 2>/dev/null; then
+    [[ -r "$_seqf" ]] && _cur="$(<"$_seqf")"
+    _n=$(( _cur + 1 ))
+    print -r -- "$_n" >| "$_seqf"                  # >| clobbers under setopt noclobber
+    zsystem flock -u "$_lockfd"                    # release at once, don't hold for shell life
+  else
+    [[ -r "$_seqf" ]] && _cur="$(<"$_seqf")"
+    _n=$(( _cur + 1 ))
+    print -r -- "$_n" >| "$_seqf" 2>/dev/null
+  fi
+  typeset -g CLAW_SESSION_SEQ="$_n"                # typeset -g, NOT export
+}
+
 # Glyphs (Nerd Font) with ANSI fallbacks
 __claw_progress_glyph_ok="\033[38;5;78m✓\033[0m"      # green
 __claw_progress_glyph_err="\033[38;5;203m✗\033[0m"    # red
@@ -120,6 +142,9 @@ __claw_progress_precmd() {
   fi
   __claw_progress_cmd=""
 }
+
+# Claim this shell's session ordinal (once).
+__claw_session_claim_seq
 
 # Register only once
 if (( ! ${+__claw_progress_registered} )); then

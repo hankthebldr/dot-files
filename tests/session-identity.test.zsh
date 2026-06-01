@@ -43,6 +43,25 @@ test_resolver() {
   __claw_session_resolve; assert_eq "tier3 auto-seq" "session-5" "$REPLY"
 }
 
+test_seq_claim() {
+  local PROGRESS="$_THIS/../shell/progress.zsh"
+  local _tmp; _tmp="$(mktemp -d)"
+
+  # Two independent shells sharing one cache must claim distinct ordinals.
+  local one two
+  one="$(XDG_CACHE_HOME="$_tmp" zsh -c "source '$PROGRESS'; print -r -- \$CLAW_SESSION_SEQ")"
+  two="$(XDG_CACHE_HOME="$_tmp" zsh -c "source '$PROGRESS'; print -r -- \$CLAW_SESSION_SEQ")"
+  assert_eq "first shell claims 1"  "1" "$one"
+  assert_eq "second shell claims 2" "2" "$two"
+
+  # Re-sourcing within the SAME shell must not renumber it.
+  local guard
+  guard="$(XDG_CACHE_HOME="$_tmp" zsh -c "source '$PROGRESS'; a=\$CLAW_SESSION_SEQ; source '$PROGRESS'; print -r -- \"\${a}:\${CLAW_SESSION_SEQ}\"")"
+  assert_eq "re-source keeps same number" "${guard%%:*}" "${guard##*:}"
+
+  rm -rf "$_tmp"
+}
+
 main() {
   emulate -L zsh
   print -r -- "▶ session-identity tests"
@@ -51,6 +70,7 @@ main() {
   source "$PROGRESS"
 
   test_resolver
+  test_seq_claim
 
   print -r -- "  ──"
   print -r -- "  ${_pass} passed, ${_fail} failed"
