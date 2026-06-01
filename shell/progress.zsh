@@ -68,6 +68,7 @@ __claw_session_claim_seq() {
   (( ${+CLAW_SESSION_SEQ} )) && return            # re-source in same shell: keep number
   local _seqf="${XDG_CACHE_HOME:-$HOME/.cache}/claw/session.seq"
   mkdir -p "${_seqf:h}" 2>/dev/null               # ${_seqf:h} = zsh dirname, no fork
+  : >> "$_seqf" 2>/dev/null                       # create-if-missing (never truncates) so flock can open it
   local _cur=0 _n _lockfd
   if zmodload zsh/system 2>/dev/null && zsystem flock -t 2 -f _lockfd "$_seqf" 2>/dev/null; then
     [[ -r "$_seqf" ]] && _cur="$(<"$_seqf")"
