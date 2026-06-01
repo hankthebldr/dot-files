@@ -151,7 +151,7 @@ Add this function above `main()` in `tests/session-identity.test.zsh`:
 
 ```zsh
 test_seq_claim() {
-  local PROGRESS="${0:A:h}/../shell/progress.zsh"
+  local PROGRESS="$_THIS/../shell/progress.zsh"   # _THIS captured at top scope (FUNCTION_ARGZERO)
   local _tmp; _tmp="$(mktemp -d)"
 
   # Two independent shells sharing one cache must claim distinct ordinals.
@@ -194,6 +194,7 @@ __claw_session_claim_seq() {
   (( ${+CLAW_SESSION_SEQ} )) && return            # re-source in same shell: keep number
   local _seqf="${XDG_CACHE_HOME:-$HOME/.cache}/claw/session.seq"
   mkdir -p "${_seqf:h}" 2>/dev/null               # ${_seqf:h} = zsh dirname, no fork
+  : >> "$_seqf" 2>/dev/null                       # create-if-missing (never truncates) so flock can open it
   local _cur=0 _n _lockfd
   if zmodload zsh/system 2>/dev/null && zsystem flock -t 2 -f _lockfd "$_seqf" 2>/dev/null; then
     [[ -r "$_seqf" ]] && _cur="$(<"$_seqf")"
@@ -445,7 +446,7 @@ Add above `main()`:
 
 ```zsh
 test_welcome_group_capture() {
-  local wt="${0:A:h}/../shell/welcome-tui.zsh"
+  local wt="$_THIS/../shell/welcome-tui.zsh"   # _THIS captured at top scope (FUNCTION_ARGZERO)
   zsh -n "$wt" || { print -r -- "  ✗ welcome-tui.zsh syntax error"; (( _fail++ )); return; }
   assert_contains "welcome-tui exports CLAW_ACTIVE_GROUP" "$(<"$wt")" "export CLAW_ACTIVE_GROUP="
 }
