@@ -36,8 +36,14 @@ test_configs() {
     
     # Zsh
     bash -n scripts/install/packages/common.sh || return 1
-    
+
     return 0
+}
+
+test_session_identity() {
+    log_info "Testing session-identity layer..."
+    command -v zsh >/dev/null 2>&1 || { log_warning "zsh not found; skipping"; return 0; }
+    zsh "$(dirname "${BASH_SOURCE[0]}")/session-identity.test.zsh" || return 1
 }
 
 main() {
@@ -46,6 +52,7 @@ main() {
     
     run_test "Tools Installation" test_tools || ((failures++))
     run_test "Configuration Validity" test_configs || ((failures++))
+    run_test "Session Identity" test_session_identity || ((failures++))
     
     if [[ $failures -eq 0 ]]; then
         log_success "All tests passed!"
