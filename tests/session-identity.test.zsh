@@ -80,6 +80,15 @@ test_session_cmd() {
   functions[__claw_progress_reset_title]="$_orig"
 }
 
+test_title_bytes() {
+  CLAW_SESSION=""; CLAW_ACTIVE_PROFILE=""; CLAW_ACTIVE_GROUP=""; CLAW_SESSION_SEQ=9
+  # TMUX= disables the tmux push for the capture (subshell-scoped, no real tmux touched).
+  local out
+  out="$(TMUX= __claw_progress_reset_title)"
+  assert_contains "idle title carries [session-9]" "$out" "[session-9] "
+  assert_contains "idle title emits OSC-0 intro"    "$out" $'\e]0;'
+}
+
 main() {
   emulate -L zsh
   print -r -- "▶ session-identity tests"
@@ -90,6 +99,7 @@ main() {
   test_resolver
   test_seq_claim
   test_session_cmd
+  test_title_bytes
 
   print -r -- "  ──"
   print -r -- "  ${_pass} passed, ${_fail} failed"

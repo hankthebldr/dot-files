@@ -40,10 +40,21 @@ __claw_progress_set_title() {
   printf "\033]0;%s\007" "$1"
 }
 
+# Push the session label into tmux (window-scoped user option) only when it
+# changes — avoids forking tmux every prompt. status-left reads @claw_session.
+typeset -g __claw_session_tmux_last=""
+__claw_session_tmux_sync() {
+  [[ -n "$TMUX" ]] || return
+  [[ "$1" == "$__claw_session_tmux_last" ]] && return
+  command tmux set-option -w @claw_session "$1" 2>/dev/null
+  __claw_session_tmux_last="$1"
+}
+
 __claw_progress_reset_title() {
-  # Restore to a sensible default: user@host:cwd
-  local cwd="${PWD/#$HOME/~}"
-  __claw_progress_set_title "${USER}@${HOST%%.*}: ${cwd}"
+  # Idle title: [label] user@host: cwd, via zsh prompt expansion (%n/%m/%~).
+  __claw_session_resolve
+  print -Pn "\e]0;${REPLY:+[$REPLY] }%n@%m: %~\a"
+  __claw_session_tmux_sync "$REPLY"
 }
 
 # ─── Session identity ───────────────────────────────────────────────────
@@ -103,14 +114,14 @@ __claw_progress_glyph_run="\033[38;5;215m⏳\033[0m"   # orange
 
 # ─── Title-bar updater (background loop) ────────────────────────────────
 __claw_progress_updater() {
-  local pid="$1" cmd="$2" t0="$3"
+  local pid="$1" cmd="$2" t0="$3" lbl="$4"
   # Wait until threshold before painting anything
   sleep "$CLAW_PROGRESS_THRESHOLD"
   while kill -0 "$pid" 2>/dev/null; do
     local elapsed=$(( $(date +%s) - t0 ))
     local short="${cmd:0:60}"
     [[ ${#cmd} -gt 60 ]] && short="${short}…"
-    __claw_progress_set_title "⏳ ${elapsed}s — ${short}"
+    __claw_progress_set_title "${lbl:+[$lbl] }⏳ ${elapsed}s — ${short}"
     sleep 1
   done
 }
@@ -125,8 +136,10 @@ __claw_progress_preexec() {
     __claw_progress_skip=1
     return
   fi
+  # Resolve the session label now so the running-title keeps it for the whole cmd
+  __claw_session_resolve
   # Fork the title updater into the background, disowned
-  ( __claw_progress_updater "$$" "$__claw_progress_cmd" "$__claw_progress_t0" ) &!
+  ( __claw_progress_updater "$$" "$__claw_progress_cmd" "$__claw_progress_t0" "$REPLY" ) &!
   __claw_progress_pid=$!
 }
 
