@@ -62,6 +62,24 @@ test_seq_claim() {
   rm -rf "$_tmp"
 }
 
+test_session_cmd() {
+  local REPLY
+  # Save & restore the real repaint fn so this test causes no terminal side effects.
+  local _orig="$functions[__claw_progress_reset_title]"
+  __claw_progress_reset_title() { : }
+
+  CLAW_SESSION=""; CLAW_ACTIVE_PROFILE="cortex"; CLAW_ACTIVE_GROUP="domain"
+  session foo
+  assert_eq "session <label> pins CLAW_SESSION" "foo" "$CLAW_SESSION"
+  __claw_session_resolve; assert_eq "pinned label resolves" "foo" "$REPLY"
+
+  session -r
+  assert_eq "session -r clears the pin" "" "$CLAW_SESSION"
+  __claw_session_resolve; assert_eq "after reset falls back to profile" "domain/cortex" "$REPLY"
+
+  functions[__claw_progress_reset_title]="$_orig"
+}
+
 main() {
   emulate -L zsh
   print -r -- "▶ session-identity tests"
@@ -71,6 +89,7 @@ main() {
 
   test_resolver
   test_seq_claim
+  test_session_cmd
 
   print -r -- "  ──"
   print -r -- "  ${_pass} passed, ${_fail} failed"

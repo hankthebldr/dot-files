@@ -83,6 +83,19 @@ __claw_session_claim_seq() {
   typeset -g CLAW_SESSION_SEQ="$_n"                # typeset -g, NOT export
 }
 
+# ─── User-facing: session <label> ───────────────────────────────────────
+# session <label>  → pin this shell's name        session -r → clear the pin
+# session          → print the current label
+session() {
+  case "${1:-}" in
+    "")            __claw_session_resolve
+                   print -r -- "session: ${REPLY}${CLAW_SESSION:+ (pinned)}" ;;
+    -r|--reset|-)  unset CLAW_SESSION ;;
+    *)             export CLAW_SESSION="$1" ;;
+  esac
+  __claw_progress_reset_title    # repaint title + push to tmux immediately
+}
+
 # Glyphs (Nerd Font) with ANSI fallbacks
 __claw_progress_glyph_ok="\033[38;5;78m✓\033[0m"      # green
 __claw_progress_glyph_err="\033[38;5;203m✗\033[0m"    # red
