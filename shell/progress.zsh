@@ -46,6 +46,20 @@ __claw_progress_reset_title() {
   __claw_progress_set_title "${USER}@${HOST%%.*}: ${cwd}"
 }
 
+# ─── Session identity ───────────────────────────────────────────────────
+# Stable per-shell label, resolved fresh on every repaint (no cache, no
+# profile-switch hook needed — precmd already fires each prompt). Returns
+# via REPLY (zsh's no-subshell scalar return) so the hook never forks.
+#   tier 1: $CLAW_SESSION         (manual pin via `session <label>`)
+#   tier 2: group/subprofile      (from the welcome-TUI pick)
+#   tier 3: session-<N>           (auto sequence — the no-profile default)
+__claw_session_resolve() {
+  if   [[ -n "$CLAW_SESSION" ]];        then REPLY="$CLAW_SESSION"
+  elif [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then REPLY="${CLAW_ACTIVE_GROUP:+$CLAW_ACTIVE_GROUP/}$CLAW_ACTIVE_PROFILE"
+  else REPLY="session-${CLAW_SESSION_SEQ:-0}"
+  fi
+}
+
 # Glyphs (Nerd Font) with ANSI fallbacks
 __claw_progress_glyph_ok="\033[38;5;78m✓\033[0m"      # green
 __claw_progress_glyph_err="\033[38;5;203m✗\033[0m"    # red
