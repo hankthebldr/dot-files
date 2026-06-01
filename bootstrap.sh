@@ -84,7 +84,11 @@ print_header() {
 STEP=0
 TOTAL_STEPS=9
 step() {
-    ((STEP++))
+    # Pre-increment so the arithmetic expression's value is the NEW counter,
+    # never 0. Bash (( )) returns exit 1 when the expression is 0, and `set -e`
+    # then kills the script silently — `((STEP++))` on the first call (STEP=0)
+    # produced exactly that: install died at Step 1 with no error message.
+    ((++STEP))
     echo ""
     log_info "[$STEP/$TOTAL_STEPS] $1"
     echo "  ─────────────────────────────────────────"
