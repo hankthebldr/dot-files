@@ -40,10 +40,71 @@ __claw_progress_set_title() {
   printf "\033]0;%s\007" "$1"
 }
 
+# Push the session label into tmux (window-scoped user option) only when it
+# changes — avoids forking tmux every prompt. status-left reads @claw_session.
+typeset -g __claw_session_tmux_last=""
+__claw_session_tmux_sync() {
+  [[ -n "$TMUX" ]] || return
+  [[ "$1" == "$__claw_session_tmux_last" ]] && return
+  command tmux set-option -w @claw_session "$1" 2>/dev/null
+  __claw_session_tmux_last="$1"
+}
+
 __claw_progress_reset_title() {
-  # Restore to a sensible default: user@host:cwd
-  local cwd="${PWD/#$HOME/~}"
-  __claw_progress_set_title "${USER}@${HOST%%.*}: ${cwd}"
+  # Idle title: [label] user@host: cwd, via zsh prompt expansion (%n/%m/%~).
+  __claw_session_resolve
+  print -Pn "\e]0;${REPLY:+[$REPLY] }%n@%m: %~\a"
+  __claw_session_tmux_sync "$REPLY"
+}
+
+# ─── Session identity ───────────────────────────────────────────────────
+# Stable per-shell label, resolved fresh on every repaint (no cache, no
+# profile-switch hook needed — precmd already fires each prompt). Returns
+# via REPLY (zsh's no-subshell scalar return) so the hook never forks.
+#   tier 1: $CLAW_SESSION         (manual pin via `session <label>`)
+#   tier 2: group/subprofile      (from the welcome-TUI pick)
+#   tier 3: session-<N>           (auto sequence — the no-profile default)
+__claw_session_resolve() {
+  if   [[ -n "$CLAW_SESSION" ]];        then REPLY="$CLAW_SESSION"
+  elif [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then REPLY="${CLAW_ACTIVE_GROUP:+$CLAW_ACTIVE_GROUP/}$CLAW_ACTIVE_PROFILE"
+  else REPLY="session-${CLAW_SESSION_SEQ:-0}"
+  fi
+}
+
+# Claim a monotonic ordinal once per interactive shell, frozen in a
+# NON-exported CLAW_SESSION_SEQ (non-export → child shells claim their own,
+# keeping siblings distinct). zsh/system flock makes the bump race-safe with
+# no external flock(1) binary (macOS lacks one); fallback tolerates the race.
+__claw_session_claim_seq() {
+  (( ${+CLAW_SESSION_SEQ} )) && return            # re-source in same shell: keep number
+  local _seqf="${XDG_CACHE_HOME:-$HOME/.cache}/claw/session.seq"
+  mkdir -p "${_seqf:h}" 2>/dev/null               # ${_seqf:h} = zsh dirname, no fork
+  : >> "$_seqf" 2>/dev/null                       # create-if-missing (never truncates) so flock can open it
+  local _cur=0 _n _lockfd
+  if zmodload zsh/system 2>/dev/null && zsystem flock -t 2 -f _lockfd "$_seqf" 2>/dev/null; then
+    [[ -r "$_seqf" ]] && _cur="$(<"$_seqf")"
+    _n=$(( _cur + 1 ))
+    print -r -- "$_n" >| "$_seqf"                  # >| clobbers under setopt noclobber
+    zsystem flock -u "$_lockfd"                    # release at once, don't hold for shell life
+  else
+    [[ -r "$_seqf" ]] && _cur="$(<"$_seqf")"
+    _n=$(( _cur + 1 ))
+    print -r -- "$_n" >| "$_seqf" 2>/dev/null
+  fi
+  typeset -g CLAW_SESSION_SEQ="$_n"                # typeset -g, NOT export
+}
+
+# ─── User-facing: session <label> ───────────────────────────────────────
+# session <label>  → pin this shell's name        session -r → clear the pin
+# session          → print the current label
+session() {
+  case "${1:-}" in
+    "")            __claw_session_resolve
+                   print -r -- "session: ${REPLY}${CLAW_SESSION:+ (pinned)}" ;;
+    -r|--reset|-)  unset CLAW_SESSION ;;
+    *)             export CLAW_SESSION="$1" ;;
+  esac
+  __claw_progress_reset_title    # repaint title + push to tmux immediately
 }
 
 # Glyphs (Nerd Font) with ANSI fallbacks
@@ -53,14 +114,14 @@ __claw_progress_glyph_run="\033[38;5;215m⏳\033[0m"   # orange
 
 # ─── Title-bar updater (background loop) ────────────────────────────────
 __claw_progress_updater() {
-  local pid="$1" cmd="$2" t0="$3"
+  local pid="$1" cmd="$2" t0="$3" lbl="$4"
   # Wait until threshold before painting anything
   sleep "$CLAW_PROGRESS_THRESHOLD"
   while kill -0 "$pid" 2>/dev/null; do
     local elapsed=$(( $(date +%s) - t0 ))
     local short="${cmd:0:60}"
     [[ ${#cmd} -gt 60 ]] && short="${short}…"
-    __claw_progress_set_title "⏳ ${elapsed}s — ${short}"
+    __claw_progress_set_title "${lbl:+[$lbl] }⏳ ${elapsed}s — ${short}"
     sleep 1
   done
 }
@@ -75,8 +136,10 @@ __claw_progress_preexec() {
     __claw_progress_skip=1
     return
   fi
+  # Resolve the session label now so the running-title keeps it for the whole cmd
+  __claw_session_resolve
   # Fork the title updater into the background, disowned
-  ( __claw_progress_updater "$$" "$__claw_progress_cmd" "$__claw_progress_t0" ) &!
+  ( __claw_progress_updater "$$" "$__claw_progress_cmd" "$__claw_progress_t0" "$REPLY" ) &!
   __claw_progress_pid=$!
 }
 
@@ -106,6 +169,9 @@ __claw_progress_precmd() {
   fi
   __claw_progress_cmd=""
 }
+
+# Claim this shell's session ordinal (once).
+__claw_session_claim_seq
 
 # Register only once
 if (( ! ${+__claw_progress_registered} )); then
