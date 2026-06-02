@@ -1,0 +1,27 @@
+# TESmart HD402-M24 KVM — stop dropped keyboard/mouse inputs on Linux.
+#
+# The KVM presents to the host as a VIA Labs USB 2.0 hub (2109:2822). With the
+# kernel's default USB autosuspend (usbcore.autosuspend = 2s) the hub gets
+# suspended when briefly idle; on the next keypress / KVM port-switch the host
+# must re-enumerate it, which shows up as dropped or laggy inputs AND an
+# ever-climbing USB device number (we observed Dev 117 = ~117 re-attaches).
+#
+# Forcing power/control="on" disables autosuspend for the switch and for USB
+# HID devices, which keeps the link alive.
+#
+# Deploy:
+#   sudo cp config/udev/99-tesmart-kvm.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload && sudo udevadm trigger
+# Verify (the KVM hub should now read "on", not "auto"):
+#   for d in /sys/bus/usb/devices/*/; do
+#     [ -f "$d/idVendor" ] && grep -q 2109 "$d/idVendor" && cat "$d/power/control"; done
+
+# 1) The KVM's internal VIA Labs hub — the main fix.
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2109", ATTR{idProduct}=="2822", TEST=="power/control", ATTR{power/control}="on"
+
+# 2) Your MSI GK30 keyboard (routed through the KVM when switched to this host).
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0db0", ATTR{idProduct}=="0b30", TEST=="power/control", ATTR{power/control}="on"
+
+# 3) Belt-and-suspenders: never autosuspend any USB HID device. Matches the HID
+#    interface and walks up to its parent USB device to set power/control.
+ACTION=="add", SUBSYSTEM=="usb", DRIVERS=="usbhid", TEST=="power/control", ATTR{power/control}="on"

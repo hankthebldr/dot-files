@@ -7,6 +7,7 @@
 #   - GNOME Extension Manager (GUI for browsing/installing extensions)
 #   - Recommended extensions: Just Perfection, Dash to Panel, Vitals, Caffeine,
 #     Pop Shell, Blur My Shell, AppIndicator
+#   - Peripherals: TESmart KVM udev rule (fixes USB-autosuspend input drops)
 #
 # Companion: scripts/utils/gnome-optimize.sh applies dconf settings.
 
@@ -83,6 +84,18 @@ if command -v gext &>/dev/null; then
     for ext in "${EXTENSIONS[@]}"; do
         gext enable "$ext" 2>/dev/null || true
     done
+fi
+
+# ── Peripherals: TESmart KVM input-drop fix (USB autosuspend) ───────
+KVM_RULE="$DOTFILES_DIR/config/udev/99-tesmart-kvm.rules"
+if [[ -f "$KVM_RULE" ]]; then
+    log_info "Deploying TESmart KVM udev rule (disable USB autosuspend on the hub)..."
+    if sudo install -m 0644 "$KVM_RULE" /etc/udev/rules.d/99-tesmart-kvm.rules \
+        && sudo udevadm control --reload && sudo udevadm trigger; then
+        log_success "KVM udev rule deployed (config/udev/99-tesmart-kvm.rules)"
+    else
+        log_warning "KVM udev rule deploy failed"
+    fi
 fi
 
 log_success "Desktop apps installed."
