@@ -27,10 +27,15 @@ log_info "── Desktop apps for GNOME (Ubuntu) ──"
 
 sudo apt-get update -qq
 
-# ── Caffeine — basic tray-icon keep-awake (Amphetamine-equivalent) ──
-if ! dpkg -s caffeine &>/dev/null; then
-    log_info "Installing caffeine (tray app)..."
-    sudo apt-get install -y caffeine || log_warning "caffeine install failed"
+# ── Caffeine — keep-awake ───────────────────────────────────────────
+# We use the GNOME Shell extension (caffeine@patapon.info, installed below via
+# gext), NOT the apt `caffeine` package. The standalone app is deprecated on
+# GNOME 46+ (its caffeine-indicator tray app errors/misbehaves), and running
+# both fights over screensaver inhibition. If the apt app is present, remove it:
+#   sudo apt-get remove -y caffeine
+if dpkg -s caffeine &>/dev/null; then
+    log_warning "Legacy apt 'caffeine' detected — remove it (we use the GNOME extension):"
+    log_warning "  sudo apt-get remove -y caffeine"
 fi
 
 # ── GNOME Extension Manager ─────────────────────────────────────────
