@@ -5,13 +5,13 @@
 #   openrouter                    # interactive REPL
 #   openrouter "your prompt"      # one-shot inference
 #
-# Default model: anthropic/claude-sonnet-4.6
+# Default model: anthropic/claude-opus-4.7
 # Override:      export CLAW_OPENROUTER_MODEL=openrouter:meta-llama/llama-3.3-70b-instruct
 # API key:       OPENROUTER_API_KEY in ~/.dotfiles/.env (or 1Password op:// reference)
 
 set -e
 
-MODEL="${CLAW_OPENROUTER_MODEL:-openrouter:anthropic/claude-sonnet-4.6}"
+MODEL="${CLAW_OPENROUTER_MODEL:-openrouter:anthropic/claude-opus-4.7}"
 
 # aichat must be on PATH
 if ! command -v aichat &>/dev/null; then

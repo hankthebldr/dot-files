@@ -46,6 +46,11 @@ test_session_identity() {
     zsh "$(dirname "${BASH_SOURCE[0]}")/session-identity.test.zsh" || return 1
 }
 
+test_agents() {
+    log_info "Testing agent plumbing..."
+    bash "$(dirname "${BASH_SOURCE[0]}")/agents.test.sh" || return 1
+}
+
 main() {
     log_info "Starting Test Suite..."
     local failures=0
@@ -53,7 +58,8 @@ main() {
     run_test "Tools Installation" test_tools || ((failures++))
     run_test "Configuration Validity" test_configs || ((failures++))
     run_test "Session Identity" test_session_identity || ((failures++))
-    
+    run_test "Agents (hermes/openrouter)" test_agents || ((failures++))
+
     if [[ $failures -eq 0 ]]; then
         log_success "All tests passed!"
         exit 0

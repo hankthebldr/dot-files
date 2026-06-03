@@ -368,7 +368,7 @@ cmd_doctor() {
                 err "hermes model ${c_dim}$_hm — not pulled (run: claw install ai)${c_reset}"
             fi
         else
-            err "ollama daemon ${c_dim}— not reachable at :11434${c_reset}"
+            err "ollama daemon ${c_dim}— not reachable (start: claw hermes --serve)${c_reset}"
         fi
     else
         err "ollama ${c_dim}— not installed (run: claw install ai)${c_reset}"
@@ -644,7 +644,7 @@ cmd_agent() {
 }
 
 cmd_run_agent() {
-    local agent="$1"
+    local agent="$1"; shift || true
     ensure_agents_toml
     local cmd profile
     cmd=$(agent_get "$agent" command)
@@ -667,8 +667,8 @@ cmd_run_agent() {
             echo ""
         fi
     fi
-    # Hand off — exec replaces the claw process with the agent
-    exec "$cmd"
+    # Hand off — exec replaces the claw process with the agent, forwarding args
+    exec "$cmd" "$@"
 }
 
 # ============================================
@@ -697,5 +697,5 @@ case "${1:-menu}" in
     uninstall|remove) shift; cmd_uninstall "$@" ;;
     claude-sync|csync) shift; cmd_claude "$@" ;;
     agent)          shift; cmd_agent "$@" ;;
-    *)              cmd_run_agent "$1" ;;
+    *)              cmd_run_agent "$@" ;;
 esac
