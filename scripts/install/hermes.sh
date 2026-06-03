@@ -53,33 +53,11 @@ install_ollama() {
 # 2. Ensure ollama daemon is reachable
 # ─────────────────────────────────────────────
 ensure_daemon() {
-    # Quick reachability probe (3s timeout)
-    if curl -fsS --max-time 3 http://localhost:11434/api/tags &>/dev/null; then
+    source "$DOTFILES_DIR/scripts/utils/ollama.sh"
+    if ollama_ensure_up; then
         log_success "ollama daemon reachable at :11434"
-        return 0
-    fi
-
-    log_warning "ollama daemon not reachable at :11434"
-    case "$OS_TYPE" in
-        ubuntu|debian|parrot|kali|linux-generic)
-            if command -v systemctl &>/dev/null; then
-                log_info "starting ollama systemd service..."
-                sudo systemctl enable --now ollama || \
-                    log_warning "could not start systemd ollama unit; start manually: ollama serve"
-            else
-                log_info "no systemd; start manually: ollama serve &"
-            fi
-            ;;
-        macos)
-            log_info "start ollama with: ollama serve  (or: brew services start ollama)"
-            ;;
-    esac
-
-    # Re-probe (best-effort; do not fail install)
-    if curl -fsS --max-time 3 http://localhost:11434/api/tags &>/dev/null; then
-        log_success "ollama daemon reachable after start"
     else
-        log_warning "daemon still unreachable — model pull may fail; you can re-run later"
+        log_warning "ollama daemon still unreachable — model pull may fail; re-run later"
     fi
 }
 
