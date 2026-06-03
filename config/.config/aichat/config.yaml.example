@@ -5,7 +5,7 @@
 # Default model used by `aichat` and the `openrouter` wrapper.
 # Override at runtime: aichat -m <provider:model>
 # Override default:    export CLAW_OPENROUTER_MODEL=openrouter:meta-llama/llama-3.3-70b-instruct
-model: openrouter:anthropic/claude-sonnet-4.6
+model: openrouter:anthropic/claude-opus-4.7
 
 # Reasonable defaults for terminal use
 temperature: 0.3

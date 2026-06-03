@@ -146,7 +146,7 @@ EOF
 [openrouter]
 command = "openrouter"
 profile = "ai"
-description = "OpenRouter via aichat (default: anthropic/claude-sonnet-4.6)"
+description = "OpenRouter via aichat (default: anthropic/claude-opus-4.7)"
 EOF
     log_success "registered [openrouter] in $AGENTS_TOML"
 }
