@@ -368,7 +368,7 @@ cmd_doctor() {
                 err "hermes model ${c_dim}$_hm — not pulled (run: claw install ai)${c_reset}"
             fi
         else
-            err "ollama daemon ${c_dim}— not reachable at :11434${c_reset}"
+            err "ollama daemon ${c_dim}— not reachable (start: claw hermes --serve)${c_reset}"
         fi
     else
         err "ollama ${c_dim}— not installed (run: claw install ai)${c_reset}"

@@ -32,6 +32,8 @@ ollama_ensure_up() {
   ollama_up && return 0
   local cmd; cmd="$(ollama_serve_cmd)"
   echo "ollama: starting daemon → $cmd" >&2
+  # eval is safe here: $cmd is one of three hard-coded literals from
+  # ollama_serve_cmd — never external/user input.
   eval "$cmd" || echo "ollama: start command returned non-zero (continuing)" >&2
   # Give the daemon a moment, then re-probe a few times.
   local i
