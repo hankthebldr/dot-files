@@ -17,11 +17,11 @@
 #     [ -f "$d/idVendor" ] && grep -q 2109 "$d/idVendor" && cat "$d/power/control"; done
 
 # 1) The KVM's internal VIA Labs hub — the main fix.
-ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2109", ATTR{idProduct}=="2822", TEST=="power/control", ATTR{power/control}="on"
+ACTION!="remove", SUBSYSTEM=="usb", ATTR{idVendor}=="2109", ATTR{idProduct}=="2822", TEST=="power/control", ATTR{power/control}="on"
 
 # 2) Your MSI GK30 keyboard (routed through the KVM when switched to this host).
-ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0db0", ATTR{idProduct}=="0b30", TEST=="power/control", ATTR{power/control}="on"
+ACTION!="remove", SUBSYSTEM=="usb", ATTR{idVendor}=="0db0", ATTR{idProduct}=="0b30", TEST=="power/control", ATTR{power/control}="on"
 
 # 3) Belt-and-suspenders: never autosuspend any USB HID device. Matches the HID
 #    interface and walks up to its parent USB device to set power/control.
-ACTION=="add", SUBSYSTEM=="usb", DRIVERS=="usbhid", TEST=="power/control", ATTR{power/control}="on"
+ACTION!="remove", SUBSYSTEM=="usb", DRIVERS=="usbhid", TEST=="power/control", ATTR{power/control}="on"

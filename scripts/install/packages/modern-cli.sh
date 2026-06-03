@@ -58,4 +58,42 @@ install_modern_cli() {
     done
 }
 
+# ── yazi (TUI file manager) ──────────────────────────────────────────────────
+# Not in Ubuntu/Debian apt repos, and `cargo install yazi-fm` is slow + brittle
+# (fails on some toolchains). Use brew where it's the primary manager, otherwise
+# drop in the official prebuilt binary — no compiler required either way.
+install_yazi() {
+    if command -v yazi &>/dev/null; then
+        log_success "yazi is already installed"
+        return 0
+    fi
+    if [[ "$PKG_MANAGER" == "brew" ]]; then
+        brew install yazi 2>/dev/null && { log_success "yazi installed (brew)"; return 0; } \
+            || log_warning "brew couldn't install yazi — falling back to prebuilt binary"
+    fi
+
+    local arch tgt tmp
+    case "$(uname -m)" in
+        x86_64|amd64)  arch="x86_64" ;;
+        aarch64|arm64) arch="aarch64" ;;
+        *) log_warning "yazi: no prebuilt binary for $(uname -m) — skipping"; return 0 ;;
+    esac
+    if [[ "$(uname -s)" == "Darwin" ]]; then tgt="${arch}-apple-darwin"; else tgt="${arch}-unknown-linux-gnu"; fi
+
+    log_info "Installing yazi from prebuilt binary ($tgt)..."
+    tmp="$(mktemp -d)"
+    if curl -fsSL "https://github.com/sxyazi/yazi/releases/latest/download/yazi-${tgt}.zip" -o "$tmp/yazi.zip"; then
+        if command -v unzip &>/dev/null; then unzip -q "$tmp/yazi.zip" -d "$tmp"; else python3 -m zipfile -e "$tmp/yazi.zip" "$tmp"; fi
+        mkdir -p "$HOME/.local/bin"
+        install -m755 "$(find "$tmp" -type f -name yazi | head -1)" "$HOME/.local/bin/yazi" 2>/dev/null \
+            && install -m755 "$(find "$tmp" -type f -name ya | head -1)" "$HOME/.local/bin/ya" 2>/dev/null \
+            && log_success "yazi installed to ~/.local/bin" \
+            || log_warning "yazi: install step failed"
+    else
+        log_warning "yazi: prebuilt download failed (check network/GitHub)"
+    fi
+    rm -rf "$tmp"
+}
+
 install_modern_cli
+install_yazi
