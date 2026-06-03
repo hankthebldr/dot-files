@@ -1,10 +1,31 @@
 # Hermes + OpenRouter Agent Integration — Design
 
-**Date:** 2026-05-06
-**Status:** Pending review
+**Date:** 2026-05-06 · **Decisions finalized & approved:** 2026-06-02
+**Status:** ✅ Approved — code ~90% built (commit `416f193`, 2026-05-07); remaining deltas + activation tracked in [`docs/superpowers/plans/2026-06-02-hermes-openrouter-activation.md`](../plans/2026-06-02-hermes-openrouter-activation.md)
 **Builds on:** `2026-04-25-claw-mvp-rewrite-design.md` (claw agent registry)
 **Phase:** 5 (Hermes) + new Phase (OpenRouter)
-**Target host:** BD790i (Parrot/Ubuntu Linux, AMD x86_64)
+**Target host:** BD790i (Ubuntu Linux, AMD x86_64) — activated first; macOS (Apple Silicon) parity pass follows.
+
+---
+
+## Status & Decisions (2026-06-02)
+
+The agents were **implemented but never activated**. As of 2026-06-02 the wrappers, install scripts, `claw doctor` checks, the `op://` secret resolver, and `.env.example` scaffolding all exist on disk; what remains is a small set of deltas (below) plus running the installer. The live registry (`~/.config/claw/agents.toml`) still holds only `[claude]`.
+
+**Open questions — resolved by operator:**
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Default Hermes model | **`hermes3:8b`** (override `$CLAW_HERMES_MODEL` → `hermes3:70b` on BD790i's heavier config) |
+| 2 | `claw hermes --serve` — auto-start daemon or instruct? | **Auto-start, hybrid + enable-at-boot.** Linux: `sudo systemctl enable --now ollama`. macOS: `brew services start ollama`. Fallback: `nohup ollama serve & disown`. |
+| 3 | Default OpenRouter model | **`anthropic/claude-opus-4.7`** (was `sonnet-4.6`) |
+| 4 | macOS parity or Linux-only? | **Full parity**, staged: **BD790i first** (heavier configs), macOS local pass next |
+
+**Secrets:** `OPENROUTER_API_KEY` via **1Password `op://` reference** (primary, per operator OPSEC) resolved by `shell/load-env.zsh`; literal in `~/.dotfiles/.env` is the fallback. Configured on both hosts, BD790i first.
+
+**Delta discovered 2026-06-02 (correctness):** `bin/claw`'s `cmd_run_agent` does `exec "$cmd"` with **no argument forwarding**, and dispatch passes only `"$1"`. So `claw hermes --serve` (and one-shot prompts like `claw hermes "explain X"`) silently drop everything after the agent name. The dispatcher must forward `"$@"` to the agent for `--serve` to work *through* `claw`. See plan Task 1.
+
+**Remaining deltas (all in the plan):** (a) `claw` arg-forwarding; (b) `--serve` branch in `bin/hermes`; (c) macOS `brew services start` in `hermes.sh` `ensure_daemon`; (d) default-model swap to `opus-4.7` in `bin/openrouter` + `config.yaml.example` + `openrouter.sh` registry description; (e) activation via `claw install ai` + `claw doctor` verification on each host.
 
 ## Problem
 
@@ -18,7 +39,7 @@ The `claw <agent>` dispatcher already exists and works. What's missing is the **
 ## Goals
 
 1. **`claw hermes`** — works on a fresh BD790i install after `bootstrap.sh` + `claw install ai`. Backed by a local Ollama model, configurable via `$CLAW_HERMES_MODEL`.
-2. **`claw openrouter`** — works on the same install. Backed by [`aichat`](https://github.com/sigoden/aichat) configured for OpenRouter as a provider; default model `anthropic/claude-sonnet-4.6`.
+2. **`claw openrouter`** — works on the same install. Backed by [`aichat`](https://github.com/sigoden/aichat) configured for OpenRouter as a provider; default model **`anthropic/claude-opus-4.7`** (operator decision 2026-06-02; was `sonnet-4.6`).
 3. **Sustainable secrets** — `OPENROUTER_API_KEY` lives in `~/.dotfiles/.env` (gitignored) by default; optional 1Password CLI pass-through if `op` is available. No hard dependency on any proprietary tool.
 4. **Linux-first install path** — `scripts/install/ai-toolchain.sh` handles Parrot/Ubuntu cleanly without brew. macOS install path remains parallel.
 5. **Idempotent** — re-running `claw install ai` is safe; `command -v` and model-presence guards before every install/pull.
@@ -272,9 +293,11 @@ On a fresh BD790i clone of this repo:
 | Hermes 70b OOMs the box | Default is `hermes3:8b`; doc calls out RAM cost of larger models |
 | 1Password resolver runs on every shell | Guarded by `op://*` prefix check; no `op` call unless prefix matches |
 
-## Open questions for review
+## Open questions for review — ✅ RESOLVED 2026-06-02
 
-1. Default Hermes model — `hermes3:8b` (safe) vs. `hermes3:70b` (better, needs RAM)? Spec defaults to 8b; flag if you want bigger.
-2. Should `claw hermes --serve` auto-start `ollama serve` if down, or just instruct? Spec says instruct (less magic).
-3. Default OpenRouter model — confirm `anthropic/claude-sonnet-4.6` vs. `claude-opus-4.7` (more $$$).
-4. macOS branch — full parity or Linux-only? Spec includes parallel macOS paths; cut if you want strictly Linux.
+All four are resolved in the **Status & Decisions** section at the top of this doc:
+
+1. Default Hermes model → **`hermes3:8b`** (BD790i may override to `70b`).
+2. `claw hermes --serve` → **auto-start, hybrid + enable-at-boot** (systemd on Linux, `brew services` on macOS, `nohup` fallback). This *overrides* the original "instruct (less magic)" spec position.
+3. Default OpenRouter model → **`anthropic/claude-opus-4.7`**.
+4. macOS branch → **full parity**, BD790i activated first.

@@ -26,7 +26,7 @@ All spec references to `~/.dotfiles/...` resolve transparently. No move required
 | 2. Repo scaffold | ~90% | Verify `~/.dotfiles` symlink ✓. Skip Stow re-architecture — repo's symlink script works. |
 | 3. Claude Code hardening | ~10% | Largest gap. Author `~/.claude/CLAUDE.md`, 2 hooks (pre/post tool-use), 5 skills, 4 slash commands, `scope.txt`, SQLite tool-use log. Source at `claude/` in repo, symlinked into `~/.claude/`. |
 | 4. Foundational MCPs | ~30% | Currently connected: asana, figma, firebase, playwright, greptile (broken). Add per spec: filesystem (scoped), git, memory, fetch, smart-connections. Clean up greptile. Persist to `claude/mcp.json`. |
-| 5. Hermes Agent | 0% | Install + Nous Portal config + tool-call fallback parser (issue #741) + MCP mirror + canary prompt. **TUI-only** — skip `hermes gateway install` and Telegram (per operator decision). |
+| 5. Hermes Agent | ~90% — built, not activated | **Scope narrowed** by the [2026-05-06 design](superpowers/specs/2026-05-06-hermes-openrouter-design.md) (decisions finalized 2026-06-02): local Ollama (`hermes3:8b`, `claw hermes --serve` auto-starts the daemon) + OpenRouter via `aichat` (default `claude-opus-4.7`). **Supersedes** the original Nous Portal / `hermes gateway` / tool-call fallback parser / MCP-mirror scope — all dropped (local-only decision). Code shipped in `416f193`; remaining work = small deltas + `claw install ai` activation, **BD790i first**. Tracked in [activation plan](superpowers/plans/2026-06-02-hermes-openrouter-activation.md). |
 | 6. OSINT MCPs + Fabric | ~10% | Have httpx, nuclei. Add Fabric, subfinder, Shodan MCP, OSINT MCP, Security-Hub (Docker Desktop on macOS). |
 | 7. OPSEC + recon | 0% | DontFeedTheAI install. `safeclaude`, `recon` shell functions in repo's `shell/security.zsh` (additive, never overwrite). |
 | 8. Knowledge layer | ~50% | Have `shell/obsidian.zsh` + profile-aware vault routing. Add OSINT vault folder structure, Smart Connections MCP wiring, `lhermes`, aichat `--serve` (launchd on macOS, not systemd). |
@@ -48,7 +48,7 @@ All spec references to `~/.dotfiles/...` resolve transparently. No move required
 | 2 | Phase 3 — Claude hardening | Biggest gap, unblocks downstream |
 | 3 | Phase 4 — Foundational MCPs | Required before OSINT MCPs (mental model) |
 | 4 | Phase 8 partial — Smart Connections MCP | Same wiring as Phase 4 Obsidian server |
-| 5 | Phase 5 — Hermes Agent (TUI-only) | Independent; unblocks dual-agent OSINT |
+| 5 | Phase 5 — Hermes + OpenRouter (local-only; built `416f193`, activation pending) | Independent; unblocks dual-agent OSINT |
 | 6 | Phase 6 — OSINT arsenal + Fabric | Builds on Phases 3–5 |
 | 7 | Phase 7 — OPSEC layer + recon pipelines | Final agentic glue |
 | 8 | Phase 8 complete — vault structure, lhermes, aichat-server | Sealing the loop |
