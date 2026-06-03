@@ -14,6 +14,14 @@
 #   --skip-ollama      skip Ollama install
 #   --dry-run          print actions only
 #   --help
+#
+# K3s cluster join (make THIS box a GPU worker in an existing homelab cluster):
+#   --agent                 install K3s as an agent/worker instead of a server
+#   --server <url>          control-plane URL, e.g. https://homelab:6443  (K3S_URL)
+#   --token  <tok>          node token  (K3S_TOKEN) — prefer --token-file
+#   --token-file <path>     read the token from a file (keeps it out of ps/history)
+#     Token source on the server: /var/lib/rancher/k3s/server/node-token
+#     A detected NVIDIA GPU auto-labels the node `nvidia.com/gpu.present=true`.
 ################################################################################
 
 set -e
@@ -28,12 +36,20 @@ SKIP_DOCKER=false
 SKIP_K3S=false
 SKIP_OLLAMA=false
 DRY_RUN=false
+K3S_MODE=server
+K3S_SERVER_URL="${K3S_URL:-}"
+K3S_NODE_TOKEN="${K3S_TOKEN:-}"
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --skip-tailscale) SKIP_TAILSCALE=true ;;
         --skip-docker)    SKIP_DOCKER=true ;;
         --skip-k3s)       SKIP_K3S=true ;;
         --skip-ollama)    SKIP_OLLAMA=true ;;
+        --agent)          K3S_MODE=agent ;;
+        --server)         K3S_SERVER_URL="$2"; shift ;;
+        --token)          K3S_NODE_TOKEN="$2"; shift ;;
+        --token-file)     [[ -f "$2" ]] || { log_error "token file not found: $2"; exit 1; }
+                          K3S_NODE_TOKEN="$(< "$2")"; shift ;;
         --dry-run)        DRY_RUN=true ;;
         --help|-h)
             # Print the top doc-block: skip shebang + banner lines, print
@@ -113,14 +129,61 @@ install_docker() {
 # ─────────────────────────────────────────────
 install_k3s() {
     [[ "$SKIP_K3S" == "true" ]] && { log_info "skip: k3s"; return 0; }
+    [[ "$K3S_MODE" == "agent" ]] && { install_k3s_agent; return $?; }
+
+    # ── server (single-node control plane) ──
     if command -v k3s &>/dev/null && [[ -f /etc/rancher/k3s/k3s.yaml ]]; then
-        log_info "k3s already installed ($(k3s --version | head -1))"
+        log_info "k3s server already installed ($(k3s --version | head -1))"
         return 0
     fi
-    log_info "Installing K3s..."
+    log_info "Installing K3s (server)..."
     run "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode=644' sh -"
     log_success "k3s installed — kubeconfig at /etc/rancher/k3s/k3s.yaml"
     log_info "Add to ~/.dotfiles/.env: KUBECONFIG=/etc/rancher/k3s/k3s.yaml"
+    log_info "Join a GPU worker from another box:"
+    log_info "  ${0##*/} --agent --server https://$(hostname -I 2>/dev/null | awk '{print $1}'):6443 --token-file /var/lib/rancher/k3s/server/node-token"
+}
+
+# ─────────────────────────────────────────────
+# Join THIS box to an existing K3s server as a (GPU) agent/worker node.
+# A detected NVIDIA GPU is auto-labelled so AI workloads can target it via
+# nodeSelector/affinity (nvidia.com/gpu.present=true).
+# ─────────────────────────────────────────────
+install_k3s_agent() {
+    # Agents register a k3s-agent systemd unit (no kubeconfig) — use that for idempotency.
+    if systemctl list-unit-files 2>/dev/null | grep -q '^k3s-agent\.service'; then
+        log_info "k3s-agent already installed on this node ($(k3s --version 2>/dev/null | head -1))"
+        return 0
+    fi
+    if [[ -z "$K3S_SERVER_URL" || -z "$K3S_NODE_TOKEN" ]]; then
+        log_error "agent join needs --server <https://host:6443> and --token / --token-file"
+        log_info  "Token lives on the server at /var/lib/rancher/k3s/server/node-token"
+        exit 1
+    fi
+
+    # Auto-label as a GPU node so AI workloads can schedule onto the Blackwell card.
+    local exec_args=""
+    if command -v nvidia-smi &>/dev/null && nvidia-smi -L &>/dev/null; then
+        log_info "GPU detected ($(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)) — labelling nvidia.com/gpu.present=true"
+        exec_args="--node-label nvidia.com/gpu.present=true"
+    else
+        log_warning "No GPU visible here — joining as a plain worker (no GPU label)."
+    fi
+
+    log_info "Joining $K3S_SERVER_URL as a K3s agent..."
+    # Pass the token via the ENVIRONMENT (not the command string) so it never
+    # lands in `ps`, shell history, or the --dry-run printout.
+    if [[ "$DRY_RUN" == "true" ]]; then
+        printf '  [DRY] curl -sfL https://get.k3s.io | K3S_URL=%s K3S_TOKEN=*** INSTALL_K3S_EXEC='\''agent %s'\'' sh -\n' \
+            "$K3S_SERVER_URL" "$exec_args"
+    else
+        K3S_URL="$K3S_SERVER_URL" K3S_TOKEN="$K3S_NODE_TOKEN" INSTALL_K3S_EXEC="agent $exec_args" \
+            sh -c 'curl -sfL https://get.k3s.io | sh -'
+    fi
+    log_success "k3s-agent joined. Verify FROM THE SERVER: kubectl get nodes -o wide"
+    log_warning "Next — GPU passthrough on THIS node (configures nvidia containerd runtime):"
+    log_warning "  bash $DOTFILES_DIR/scripts/install/ai-workstation-toolchain.sh --inference-only --skip-agentic --skip-data"
+    log_warning "Then FROM THE SERVER apply the device plugin: kubectl apply -f config/k3s/gpu/"
 }
 
 # ─────────────────────────────────────────────

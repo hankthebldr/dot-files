@@ -1,0 +1,31 @@
+# OpenShell sandbox policy — STARTER TEMPLATE (illustrative, deny-by-default).
+#
+# ⚠️  SCHEMA NOT YET VERIFIED against the shipped CLI (openshell 0.0.52). The keys
+#     below express *intent* — read-only repo, deny egress, block dangerous
+#     syscalls — but were drafted from NVIDIA's announcement, not the live schema.
+#     Dump the authoritative schema from a running gateway and reconcile:
+#         openshell policy get --global --full -o json
+#         openshell policy prove <sandbox> ...      # formally check properties
+#
+# Prereq — a gateway must be active before any sandbox/policy command:
+#     openshell doctor check
+#     openshell gateway add <endpoint> && openshell gateway select <name>
+#
+# Apply at sandbox creation (verified flag):
+#     openshell sandbox create --gpu --policy config/agentic/openshell/policy.yaml -- claude
+# Or update a live sandbox:
+#     openshell policy set <sandbox> --policy config/agentic/openshell/policy.yaml
+#
+# Docs: https://docs.nvidia.com/openshell/latest/
+filesystem:
+  readOnly:
+    - ~/.dotfiles
+  readWrite:
+    - ~/.ai/workspace
+network:
+  defaultAction: deny
+  allow:
+    - host: localhost          # local vLLM / NIM (e.g. Nemotron Omni on :8000)
+    - host: api.anthropic.com  # cloud frontier fallback (privacy router)
+process:
+  blockSyscalls: [ptrace, mount, "socket(AF_PACKET)"]

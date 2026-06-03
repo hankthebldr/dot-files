@@ -159,6 +159,9 @@ $RECYCLE.BIN/
 *.old
 *.orig
 
+# Integrity manifest rolling backup (written by `claw integrity generate`)
+config/integrity/manifest.sha256.prev
+
 # Environment variables and secrets
 .env
 .env.local
