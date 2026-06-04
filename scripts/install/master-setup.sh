@@ -21,11 +21,16 @@ NC='\033[0m' # No Color
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Logging functions
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+# Logging — shared logger.sh with a standalone fallback so the script still
+# works if run in isolation. Single source of truth: scripts/utils/logger.sh.
+if [[ -r "$SCRIPT_DIR/../utils/logger.sh" ]]; then
+    source "$SCRIPT_DIR/../utils/logger.sh"
+else
+    log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
+    log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
+    log_warning() { echo -e "${YELLOW}[WARNING]${NC} $*"; }
+    log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
+fi
 
 # Check if Homebrew is installed
 check_brew() {
