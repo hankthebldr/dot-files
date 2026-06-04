@@ -12,19 +12,42 @@ cp "$SETTINGS" "$BACKUP_DIR/settings.json"
 
 python3 - <<'PY'
 import json, pathlib
+
 p = pathlib.Path.home() / ".claude" / "settings.json"
 data = json.loads(p.read_text())
 hooks = data.setdefault("hooks", {})
-hooks["PreToolUse"] = [{
-    "matcher": "Bash",
-    "hooks": [{"type": "command", "command": "python3 ~/.claude/hooks/pre_tool_use.py"}],
-}]
-hooks["PostToolUse"] = [{
-    "matcher": "*",
-    "hooks": [{"type": "command", "command": "python3 ~/.claude/hooks/post_tool_use.py"}],
-}]
-p.write_text(json.dumps(data, indent=2) + "\n")
-print(f"✓ hooks registered in {p}")
+
+
+def ensure(event: str, matcher: str, command: str) -> bool:
+    """Additively register one hook command. Never clobbers existing entries.
+
+    - Reuses an existing matcher block if present (appends our command unless
+      it's already there) instead of replacing the whole array.
+    - Idempotent: re-running makes no change once registered.
+    Returns True if anything changed.
+    """
+    entries = hooks.setdefault(event, [])
+    for entry in entries:
+        if entry.get("matcher") == matcher:
+            hlist = entry.setdefault("hooks", [])
+            if any(h.get("command") == command for h in hlist):
+                return False
+            hlist.append({"type": "command", "command": command})
+            return True
+    entries.append({"matcher": matcher,
+                    "hooks": [{"type": "command", "command": command}]})
+    return True
+
+
+changed = False
+changed |= ensure("PreToolUse", "Bash", "python3 ~/.claude/hooks/pre_tool_use.py")
+changed |= ensure("PostToolUse", "*", "python3 ~/.claude/hooks/post_tool_use.py")
+
+if changed:
+    p.write_text(json.dumps(data, indent=2) + "\n")
+    print(f"✓ hooks merged into {p} (existing hooks preserved)")
+else:
+    print(f"= hooks already present in {p} — no change")
 PY
 
 echo "✓ backup: $BACKUP_DIR/settings.json"

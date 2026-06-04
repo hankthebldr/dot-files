@@ -60,6 +60,24 @@ EXFIL_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+# Obfuscated / alternate-channel exfil the curl-POST sensor above misses.
+# These are the channels a prompt-injection payload reaches for once it has
+# coaxed the agent into shelling out: encode-then-send, DNS tunnelling, and
+# raw sockets. High-signal — these shapes almost never occur in legit work.
+_SENS = "(?:" + "|".join(EXFIL_PATHS) + ")"
+_EGRESS = r"(?:curl|wget|nc|ncat|netcat|socat|telnet|dig|host|nslookup|openssl\s+s_client)"
+_ENCODE = r"(?:base64|xxd|od\b|openssl\s+enc|gzip|gpg|xz)"
+EXFIL_OBFUSCATED = [
+    # encode a secret, then pipe to any egress tool:  cat ~/.ssh/id_rsa | base64 | curl ...
+    re.compile(_SENS + r".*\|\s*" + _ENCODE + r".*\|\s*" + _EGRESS, re.IGNORECASE | re.DOTALL),
+    re.compile(_ENCODE + r"\b.*" + _SENS + r".*\|\s*" + _EGRESS, re.IGNORECASE | re.DOTALL),
+    # DNS exfil: secret spliced into a lookup via command substitution
+    re.compile(r"\b(?:dig|host|nslookup)\b.*\$\(.*?" + _SENS, re.IGNORECASE | re.DOTALL),
+    re.compile(r"\b(?:dig|host|nslookup)\b.*`.*?" + _SENS, re.IGNORECASE | re.DOTALL),
+    # raw secret read piped straight into a non-curl/wget network tool
+    re.compile(_SENS + r".*\|\s*(?:nc|ncat|netcat|socat|telnet)\b", re.IGNORECASE | re.DOTALL),
+]
+
 
 def deny(tool: str, cmd: str, reason: str, targets: list[str] | None = None) -> None:
     log_row(
@@ -114,6 +132,9 @@ def main() -> None:
     # 2. Credential exfil
     if EXFIL_RE.search(cmd):
         deny(tool, cmd, "credential exfiltration pattern (curl/wget POST with sensitive path)")
+    for pat in EXFIL_OBFUSCATED:
+        if pat.search(cmd):
+            deny(tool, cmd, "obfuscated credential-exfil pattern (encode / DNS / raw-socket channel)")
 
     # 3. Recon scope check
     try:

@@ -157,11 +157,40 @@ def auto_logo(top):
 
 
 def file_logo(profile):
+    """Pre-rendered truecolor ANSI art (chafa-style). Printed verbatim."""
     return {
         "source": f"~/.dotfiles/config/.config/fastfetch/logo-{profile}.txt",
         "type": "file-raw",
         "padding": {"top": 1, "left": 2, "right": 3},
     }
+
+
+def placeholder_logo(filename, colors, top=1):
+    """Branded ASCII art using fastfetch $1..$N color placeholders.
+
+    Needs type:file (which substitutes the `color` map) — NOT file-raw, which
+    would print the literal "$1". This is how the pre-menu OPEN CLAW header
+    (logo.txt) and the Apple default logo (logo-default.txt) get their color.
+    """
+    return {
+        "source": f"~/.dotfiles/config/.config/fastfetch/{filename}",
+        "type": "file",
+        "color": colors,
+        "padding": {"top": top, "left": 2, "right": 3},
+    }
+
+
+# OPEN CLAW pre-menu header (logo.txt): frame / OPEN / accent / CLAW
+OPENCLAW_COLORS = {"1": MUTED, "2": BLUE, "3": PURPLE, "4": GREEN}
+# Apple default logo (logo-default.txt): six rainbow bands, top → bottom
+APPLE_COLORS = {
+    "1": "38;2;255;140;0",    # orange  (mid band + bite)
+    "2": "38;2;245;200;66",   # yellow  (upper body)
+    "3": GREEN,               # green   (leaf / top)
+    "4": RED,                 # red
+    "5": PURPLE,              # purple
+    "6": BLUE,                # blue    (bottom)
+}
 
 
 # ── Per-profile domain tooling ───────────────────────────────────────────────
@@ -203,8 +232,8 @@ CORTEX = [
 
 # profile -> (logo, keys/accent color, title color, tooling)
 CONFIGS = {
-    "config.jsonc":         (auto_logo(1), BLUE,   PURPLE, None),
-    "config-default.jsonc": (auto_logo(0), BLUE,   GREEN,  None),
+    "config.jsonc":         (placeholder_logo("logo.txt", OPENCLAW_COLORS), BLUE, PURPLE, None),
+    "config-default.jsonc": (placeholder_logo("logo-default.txt", APPLE_COLORS), BLUE, GREEN, None),
     "config-cloud.jsonc":   (file_logo("cloud"),    ORANGE,            PURPLE, CLOUD),
     "config-security.jsonc":(file_logo("security"),  RED,              PURPLE, SECURITY),
     "config-devops.jsonc":  (file_logo("devops"),    GREEN,            PURPLE, DEVOPS),

@@ -31,11 +31,24 @@ extension in Desktop does NOT make it available in CLI, and vice versa.
 | `~/.claude/scope.txt` | dot-files | ✅ keep |
 | `~/.claude/mcp.json` | ~~dot-files~~ | ❌ **removed** (Desktop owns MCP on macOS) |
 
+**Files dot-files writes into surgically (additive merge, never clobber):**
+
+- `~/.claude/settings.json` — Claude Code owns this file, so we never overwrite
+  it. `claude/install-hooks.sh` performs a **surgical merge**: it appends our
+  `PreToolUse` (Bash) and `PostToolUse` (`*`) hook commands into the existing
+  arrays, reusing a matcher block if present and skipping anything already
+  registered. Other keys, other matchers, and any hooks you or a plugin added
+  are preserved. A timestamped backup is written to `~/.dotfiles-backups/`
+  first, and re-running is a no-op.
+
 **Files dot-files explicitly does NOT manage:**
 
-- `~/.claude/settings.json` — Claude Code writes this directly; we don't touch it
 - `~/.claude.json` — user state (theme, history); CLI manages
-- `~/Library/Application Support/Claude/*` — Desktop's entire territory
+- `~/Library/Application Support/Claude/*` — Desktop's territory. The one
+  exception is `scripts/utils/mcp-manager.sh`, an **interactive** TUI: only when
+  you choose "add server" does it edit `claude_desktop_config.json` (the
+  documented Desktop MCP config), and it does so atomically (`jq … > tmp && mv`).
+  Nothing writes there during `bootstrap.sh` or any unattended flow.
 
 ## Applying the policy
 
