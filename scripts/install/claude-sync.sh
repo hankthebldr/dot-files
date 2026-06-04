@@ -101,6 +101,29 @@ should_skip_plugin() {
 # End contribution slot
 # ======================================================================
 
+# ----------------------------------------------------------------------
+# 0. Activate the dotfiles pre-commit guard. core.hooksPath is LOCAL git
+#    config (not pushed), so every clone must opt in once — doing it here
+#    means each synced box gets the skill-injection guard automatically.
+# ----------------------------------------------------------------------
+activate_git_hooks() {
+    [[ -d "$DOTFILES/.git" || -f "$DOTFILES/.git" ]] || {
+        log_warning "dotfiles is not a git repo — skip hook activation"
+        return 0
+    }
+    [[ -f "$DOTFILES/git-hooks/pre-commit" ]] || {
+        log_warning "git-hooks/pre-commit missing — skip hook activation"
+        return 0
+    }
+    if [[ "$(git -C "$DOTFILES" config --get core.hooksPath 2>/dev/null)" == "git-hooks" ]]; then
+        log_info "pre-commit guard already active (core.hooksPath=git-hooks)"
+    else
+        run git -C "$DOTFILES" config core.hooksPath git-hooks \
+            && log_success "activated pre-commit guard (core.hooksPath=git-hooks)" \
+            || log_warning "could not set core.hooksPath (continuing)"
+    fi
+}
+
 ensure_prereqs() {
     if ! command -v claude &>/dev/null; then
         log_error "claude CLI not on PATH — install Claude Code first"
@@ -223,6 +246,37 @@ sync_agent_skills() {
 }
 
 # ----------------------------------------------------------------------
+# 3.5 Scan synced skills for prompt-injection / XSS (defense-in-depth).
+#     The pre-commit hook only guards commits INTO this repo; skills
+#     synced from external sources (lockfile repos, marketplaces) land in
+#     ~/.agents directly and never cross that boundary. This is the control
+#     that catches a poisoned skill on the box where it actually lands.
+#     Non-fatal by default (warn-and-continue); CLAUDE_SYNC_STRICT=1 aborts.
+# ----------------------------------------------------------------------
+scan_skills() {
+    local scanner="$DOTFILES/claude/scan-skills.sh"
+    [[ -x "$scanner" ]] || {
+        log_warning "scan-skills.sh missing — skipping skill scan"
+        return 0
+    }
+    log_info "scanning synced skills for injection/XSS"
+    local out
+    if out=$("$scanner" "$AGENTS_HOME/skills" "$AGENT_SKILLS_DIR" 2>&1); then
+        log_success "skill scan clean"
+    else
+        log_error "⚠ POISONED SKILL DETECTED in synced skills:"
+        printf '%s\n' "$out" | grep -E '^(FAIL|WARN|RESULT)' >&2 || printf '%s\n' "$out" >&2
+        log_error "  the live ~/.agents copy is NOT overwritten by a normal sync if it"
+        log_error "  already exists — re-run clean: CLAUDE_SYNC_FORCE=1 bash scripts/install/claude-sync.sh"
+        n_failed+=1
+        [[ "${CLAUDE_SYNC_STRICT:-0}" == "1" ]] && {
+            log_error "CLAUDE_SYNC_STRICT=1 → aborting sync"
+            exit 1
+        }
+    fi
+}
+
+# ----------------------------------------------------------------------
 # 4. Summary
 # ----------------------------------------------------------------------
 print_summary() {
@@ -245,9 +299,11 @@ main() {
     log_info "Syncing Claude state from $MANIFEST_DIR"
     log_info "Host: $(uname -sm) — DRY_RUN=$DRY_RUN  FORCE=$FORCE"
     ensure_prereqs
+    activate_git_hooks
     sync_marketplaces
     sync_plugins
     sync_agent_skills
+    scan_skills
     print_summary
 }
 
