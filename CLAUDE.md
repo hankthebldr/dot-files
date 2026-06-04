@@ -138,6 +138,7 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | File | Purpose |
 |------|---------|
 | `.zshrc` | Main shell config, sources all modules |
+| `shell/.p10k.zsh` | Pre-themed Powerlevel10k prompt (GitHub-dark, Nerd Font); stowed to `~/.p10k.zsh` |
 | `shell/platform.zsh` | Cross-platform shims (clipboard, open, IP, VPN) |
 | `shell/path.zsh` | PATH setup (brew macOS/Linux, cargo, go) |
 | `shell/exports.zsh` | Environment variables (FZF, BAT, GIT_PAGER, XDG) |

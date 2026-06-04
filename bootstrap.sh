@@ -415,7 +415,7 @@ main() {
     echo "  │   Next steps:                                        │"
     echo "  │     1. Restart your terminal:  exec zsh              │"
     echo "  │     2. Set terminal font to a Nerd Font              │"
-    echo "  │     3. Run  p10k configure  for prompt setup         │"
+    echo "  │     3. Prompt is pre-themed (edit ~/.p10k.zsh)       │"
     echo "  │     4. Try:  claw help   (single command surface)    │"
     echo "  │                                                      │"
     if [[ "$SECURITY_MODE" == "true" ]]; then
