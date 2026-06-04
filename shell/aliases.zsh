@@ -15,6 +15,18 @@ alias l='eza -F --icons --git'
 alias lt='eza -l --sort=modified --icons --git'
 alias tree='eza --tree --icons'
 
+# colorls — Ruby ls with Font Awesome / Nerd Font icons (supplements eza)
+# Guarded: only active when the gem is installed. Honors stowed config at
+# ~/.config/colorls (dark_colors.yaml). Uses --gs for git status when in a repo.
+# Note: no `gem which` at startup — that spawns Ruby and slows every shell.
+if command -v colorls &> /dev/null; then
+    alias lc='colorls --gs --group-directories-first'
+    alias lcl='colorls -l --gs --group-directories-first'   # long view
+    alias lca='colorls -lA --gs --group-directories-first'  # long + hidden
+    alias lct='colorls --tree --gs'                          # tree view
+    alias lcd='colorls -d'                                   # dirs only
+fi
+
 # Open Claw & Toolkit
 # claw() function defined below — inline profile switcher
 alias openclaw='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/openclaw.sh'

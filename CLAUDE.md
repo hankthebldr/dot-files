@@ -123,7 +123,7 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 ## Conventions
 
 - **Cross-platform first:** All shell code uses `platform.zsh` shims, never raw `pbcopy`/`ipconfig`/`open`
-- **Modern CLI tools replace legacy ones:** `eza` (ls), `bat` (cat), `ripgrep` (grep), `fd` (find), `zoxide` (cd), `btop` (top), `delta` (diff)
+- **Modern CLI tools replace legacy ones:** `eza` (ls), `bat` (cat), `ripgrep` (grep), `fd` (find), `zoxide` (cd), `btop` (top), `delta` (diff). `colorls` (Ruby gem) supplements `eza` with Font Awesome / Nerd Font icons via `lc`/`lcl`/`lca`/`lct`/`lcd` aliases (guarded on `command -v colorls`), themed by `config/.config/colorls/dark_colors.yaml`. Font Awesome installs alongside the Nerd Fonts in `bootstrap.sh` Step 7 for colorls glyphs.
 - **Color theme:** GitHub macOS Dark throughout — Blue `#58a6ff`, Green `#3fb950`, Purple `#bc8cff`, Orange `#d29922`, Red `#ff7b72`, Muted `#8b949e`
 - **Logging pattern:** Color-coded `log_info`, `log_success`, `log_warning`, `log_error` (blue/green/yellow/red)
 - **Idempotent installs:** All scripts check `command -v` before installing
@@ -146,6 +146,7 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | `shell/profiles/*.zsh` | 8 workflow-specific environments |
 | `shell/welcome-tui.zsh` | Login dashboard + default quick-ref |
 | `config/.config/fastfetch/config-*.jsonc` | Profile-specific fastfetch configs (9 total) |
+| `config/.config/colorls/dark_colors.yaml` | colorls GitHub-dark theme (icons via Font Awesome) |
 | `config/.config/fastfetch/logo-*.txt` | Profile-specific ASCII logos (9 total) |
 | `config/ssh/tunnels.yml` | SSH tunnel definitions |
 | `scripts/utils/tunnel-manager.sh` | SSH tunnel manager TUI |
