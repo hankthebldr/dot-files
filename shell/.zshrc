@@ -101,13 +101,8 @@ if command -v thefuck &>/dev/null; then
     fuck() { unfunction fuck; eval $(thefuck --alias); fuck "$@"; }
 fi
 
-if command -v eza &>/dev/null; then
-    alias ls='eza --icons --group-directories-first'
-    alias ll='eza -l --icons --group-directories-first'
-    alias la='eza -la --icons --group-directories-first'
-    alias lt='eza --tree --level=2 --icons'
-    alias tree='eza --tree --icons'
-fi
+# Modern CLI replacements (eza/colorls aliases) live in shell/aliases.zsh,
+# sourced in step 6 — kept there as the single source of truth.
 
 # zsh-syntax-highlighting (cross-platform)
 for _zsh_hl in \

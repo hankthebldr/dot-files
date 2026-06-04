@@ -7,13 +7,29 @@
 # MODERN CLI REPLACEMENTS
 # ============================================
 
-# File listing (eza)
-alias ls='eza --icons --git'
-alias ll='eza -lah --icons --git'
-alias la='eza -A --icons --git'
-alias l='eza -F --icons --git'
-alias lt='eza -l --sort=modified --icons --git'
-alias tree='eza --tree --icons'
+# File listing (eza) — single source of truth (was previously duplicated in
+# .zshrc with conflicting flags; consolidated here and guarded on eza presence
+# so `ls` keeps working if eza is missing).
+if command -v eza &> /dev/null; then
+    alias ls='eza --icons --git --group-directories-first'
+    alias ll='eza -lah --icons --git --group-directories-first'
+    alias la='eza -A --icons --git --group-directories-first'
+    alias l='eza -F --icons --git --group-directories-first'
+    alias lt='eza -l --sort=modified --icons --git'   # long, recently modified
+    alias tree='eza --tree --icons'
+fi
+
+# colorls — Ruby ls with Font Awesome / Nerd Font icons (supplements eza)
+# Guarded: only active when the gem is installed. Honors stowed config at
+# ~/.config/colorls (dark_colors.yaml). Uses --gs for git status when in a repo.
+# Note: no `gem which` at startup — that spawns Ruby and slows every shell.
+if command -v colorls &> /dev/null; then
+    alias lc='colorls --gs --group-directories-first'
+    alias lcl='colorls -l --gs --group-directories-first'   # long view
+    alias lca='colorls -lA --gs --group-directories-first'  # long + hidden
+    alias lct='colorls --tree --gs'                          # tree view
+    alias lcd='colorls -d'                                   # dirs only
+fi
 
 # Open Claw & Toolkit
 # claw() function defined below — inline profile switcher

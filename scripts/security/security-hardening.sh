@@ -15,10 +15,18 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Logging — shared logger.sh with a standalone fallback. Single source of
+# truth: scripts/utils/logger.sh.
+if [[ -r "$SCRIPT_DIR/../utils/logger.sh" ]]; then
+    source "$SCRIPT_DIR/../utils/logger.sh"
+else
+    log_info() { echo -e "${BLUE}[INFO]${NC} $*"; }
+    log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
+    log_warning() { echo -e "${YELLOW}[WARNING]${NC} $*"; }
+    log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
+fi
 
 echo ""
 log_info "macOS Security Hardening Script"
