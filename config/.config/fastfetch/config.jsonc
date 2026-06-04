@@ -5,32 +5,45 @@
     "padding": { "top": 1, "left": 2, "right": 3 }
   },
   "display": {
-    "separator": "  ",
+    "separator": " → ",
     "color": {
       "keys": "38;2;88;166;255",
       "title": "38;2;188;140;255"
     }
   },
   "modules": [
-    { "type": "title", "format": "{user-name-colored}@{host-name-colored}", "key": " " },
+    {
+      "type": "title",
+      "format": "{user-name-colored}@{host-name-colored}",
+      "key": " "
+    },
     { "type": "separator", "string": "───────────────────────────────" },
-    { "type": "os", "key": "  OS" },
-    { "type": "host", "key": "  HW" },
-    { "type": "kernel", "key": "  KR" },
-    { "type": "cpu", "key": "  CPU" },
-    { "type": "gpu", "key": "  GPU" },
-    { "type": "memory", "key": "  MEM" },
-    { "type": "disk", "key": "  DSK", "folders": "/" },
-    { "type": "battery", "key": "  BAT" },
+
+    { "type": "os",       "key": "  OS",       "keyColor": "38;2;188;140;255" },
+    { "type": "kernel",   "key": "  Kernel",   "keyColor": "38;2;88;166;255" },
+    { "type": "uptime",   "key": "  Uptime",   "keyColor": "38;2;88;166;255" },
+    { "type": "packages", "key": "  Packages", "keyColor": "38;2;63;185;80" },
+    { "type": "shell",    "key": "  Shell",    "keyColor": "38;2;63;185;80" },
     { "type": "separator", "string": "───────────────────────────────" },
-    { "type": "shell", "key": "  SH" },
-    { "type": "terminal", "key": "  TERM" },
-    { "type": "packages", "key": "  PKG" },
-    { "type": "uptime", "key": "  UP" },
-    { "type": "localip", "key": "  IP" },
+
+    { "type": "wm",           "key": "  WM",       "keyColor": "38;2;210;153;34" },
+    { "type": "icons",        "key": "  Icons",    "keyColor": "38;2;255;123;114" },
+    { "type": "terminal",     "key": "  Terminal", "keyColor": "38;2;188;140;255" },
+    { "type": "terminalfont", "key": "  Font",     "keyColor": "38;2;88;166;255" },
+    { "type": "separator", "string": "───────────────────────────────" },
+
+    { "type": "cpu",    "key": "  CPU",  "keyColor": "38;2;88;166;255" },
+    { "type": "gpu",    "key": "  GPU",  "keyColor": "38;2;63;185;80" },
+    { "type": "memory", "key": "  RAM",  "keyColor": "38;2;63;185;80" },
+    { "type": "disk",   "key": "  Disk", "keyColor": "38;2;210;153;34" },
+    { "type": "battery","key": "  BAT",  "keyColor": "38;2;210;153;34" },
+    { "type": "separator", "string": "───────────────────────────────" },
+
+    { "type": "localip", "key": "  IP",   "keyColor": "38;2;139;148;158" },
     {
       "type": "command",
-      "key": "  DATE",
+      "key": "  Date",
+      "keyColor": "38;2;139;148;158",
       "text": "date '+%A, %b %d  %H:%M'"
     },
     { "type": "separator", "string": "───────────────────────────────" },
