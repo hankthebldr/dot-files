@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Pre-commit guard: block commits that introduce prompt-injection / XSS into
+# Claude agent skills. Pairs with claude/scan-skills.sh.
+#
+# Why: a poisoned skill committed here propagates to every machine that syncs
+# this repo (see the 'simple' skill incident — commits 453f2b6 → 0631a8a).
+# Catching it at the commit boundary stops it before it can spread.
+#
+# Install (once per clone — core.hooksPath is local config, not pushed):
+#   git config core.hooksPath git-hooks
+#
+# Override for a vetted edge case (use sparingly):
+#   git commit --no-verify
+#
+# Scope note: scans the working-tree skill trees (a good-enough proxy for what
+# is being committed). For airtight staged-blob scanning, extend to read
+# `git diff --cached` blobs — deferred as overkill for a single-operator repo.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+scanner="$repo_root/claude/scan-skills.sh"
+
+# Older checkout without the scanner → don't block.
+[ -x "$scanner" ] || exit 0
+
+if ! output="$("$scanner" "$repo_root/claude/agent-skills" "$repo_root/claude/skills" 2>&1)"; then
+  {
+    echo "✗ pre-commit BLOCKED: prompt-injection detected in a Claude skill."
+    printf '%s\n' "$output" | sed 's/^/    /'
+    echo "  Sanitize the skill and re-commit, or override with: git commit --no-verify"
+  } >&2
+  exit 1
+fi
+exit 0
