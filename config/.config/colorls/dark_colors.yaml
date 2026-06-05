@@ -1,0 +1,25 @@
+# colorls dark theme — GitHub macOS Dark palette
+# Mirrors the dotfiles color scheme used across fastfetch, tmux, starship.
+# Stowed to ~/.config/colorls/dark_colors.yaml. colorls merges these over its
+# built-in defaults, so any keys omitted here fall back gracefully.
+#
+# Palette:  Blue #58a6ff  Green #3fb950  Purple #bc8cff
+#           Orange #d29922  Red #ff7b72  Muted #8b949e  Text #c9d1d9
+
+unrecognized_file: '#8b949e'   # muted
+recognized_file:   '#c9d1d9'   # default text
+executable_file:   '#3fb950'   # green
+dir:               '#58a6ff'   # blue
+user:              '#bc8cff'   # purple
+normal:            '#c9d1d9'
+size:              '#d29922'   # orange
+read:              '#3fb950'   # green
+write:             '#d29922'   # orange
+exec:              '#ff7b72'   # red
+no_access:         '#8b949e'   # muted
+date:              '#8b949e'   # muted
+link:              '#bc8cff'   # purple
+tree:              '#8b949e'   # muted
+empty:             '#8b949e'   # muted
+error:             '#ff7b72'   # red
+report:            '#c9d1d9'

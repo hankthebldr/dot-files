@@ -14,13 +14,21 @@
 #   - nvidia-container-toolkit (Docker/K3s GPU passthrough)
 #   - K3s NVIDIA device plugin (DaemonSet)
 #   - Local inference: vLLM, llama.cpp CUDA, Ollama (auto-GPU)
+#   - Serving helper: config/ai/serve-nemotron-omni.sh (Nemotron 3 Nano Omni,
+#     multimodal 30B-A3B MoE — vLLM tuned for RTX PRO Blackwell)
+#   - Agentic runtime: NVIDIA OpenShell (kernel-isolated agent sandbox) +
+#     NemoClaw (self-evolving "claw" orchestration on top of OpenShell)
+#   - GPU data (CUDA-X): RAPIDS cuDF / cuOpt skills, Milvus GPU vector DB
 #   - Monitoring: nvtop, gpustat, nvitop, NVIDIA DCGM exporter
 #   - Profiling: NVIDIA Nsight Systems, py-spy, scalene
 #
 # Flags:
-#   --driver-only        install only the driver + CUDA toolkit, skip inference
+#   --driver-only        install only the driver + CUDA toolkit, skip the rest
 #   --inference-only     assume driver/CUDA already work, install vLLM/llama.cpp/etc.
+#   --agentic-only       install only the OpenShell + NemoClaw runtime layer
 #   --skip-k3s           don't install the K3s device plugin
+#   --skip-agentic       don't install the OpenShell / NemoClaw agentic runtime
+#   --skip-data          don't print/install the RAPIDS (cuDF/cuOpt) + Milvus stack
 #   --skip-reboot-prompt skip the post-driver-install reboot prompt
 #   --dry-run            print actions without executing
 #   --help
@@ -39,13 +47,20 @@ source "$DOTFILES_DIR/scripts/utils/detect-os.sh"
 INSTALL_DRIVER=true
 INSTALL_INFERENCE=true
 INSTALL_K3S_PLUGIN=true
+INSTALL_MONITORING=true
+INSTALL_AGENTIC=true
+INSTALL_DATA=true
 PROMPT_REBOOT=true
 DRY_RUN=false
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        --driver-only)        INSTALL_INFERENCE=false ;;
+        --driver-only)        INSTALL_INFERENCE=false; INSTALL_AGENTIC=false; INSTALL_DATA=false ;;
         --inference-only)     INSTALL_DRIVER=false ;;
+        --agentic-only)       INSTALL_DRIVER=false; INSTALL_INFERENCE=false
+                              INSTALL_K3S_PLUGIN=false; INSTALL_MONITORING=false; INSTALL_DATA=false ;;
         --skip-k3s)           INSTALL_K3S_PLUGIN=false ;;
+        --skip-agentic)       INSTALL_AGENTIC=false ;;
+        --skip-data)          INSTALL_DATA=false ;;
         --skip-reboot-prompt) PROMPT_REBOOT=false ;;
         --dry-run)            DRY_RUN=true ;;
         --help|-h)
@@ -172,6 +187,12 @@ install_driver_and_cuda() {
 # 2. nvidia-container-toolkit — host-level Docker/containerd GPU support
 # ─────────────────────────────────────────────
 install_container_toolkit() {
+    # Pure --agentic-only / --skip-data layering onto an already-set-up box
+    # shouldn't reconfigure the Docker runtime and bounce the daemon.
+    if [[ "$INSTALL_DRIVER" == "false" && "$INSTALL_INFERENCE" == "false" ]]; then
+        log_info "skip: container toolkit (runtime-layer-only run)"
+        return 0
+    fi
     if command -v nvidia-ctk &>/dev/null; then
         log_info "nvidia-container-toolkit already installed ($(nvidia-ctk --version 2>&1 | head -1))"
     else
@@ -221,61 +242,14 @@ install_k3s_gpu_plugin() {
 
     log_info "Applying NVIDIA RuntimeClass + device plugin DaemonSet to K3s..."
 
+    # Manifests are version-controlled in config/k3s/gpu/ (no longer generated
+    # inline). For multi-node clusters prefer the dedicated server-side helper —
+    # scripts/utils/k3s-gpu-enable.sh — which also labels/taints and verifies.
     local manifest_dir="$DOTFILES_DIR/config/k3s/gpu"
-    mkdir -p "$manifest_dir"
-
-    # RuntimeClass — tells K8s to use the nvidia containerd runtime for these pods
-    cat > "$manifest_dir/runtimeclass-nvidia.yaml" <<'EOF'
-apiVersion: node.k8s.io/v1
-kind: RuntimeClass
-metadata:
-  name: nvidia
-handler: nvidia
-EOF
-
-    # Device plugin DaemonSet — advertises nvidia.com/gpu as a schedulable resource.
-    # Pinned to v0.17.0 (released March 2026, first version with Blackwell + MIG 2.0 support).
-    cat > "$manifest_dir/nvidia-device-plugin.yaml" <<'EOF'
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: nvidia-device-plugin-daemonset
-  namespace: kube-system
-spec:
-  selector:
-    matchLabels:
-      name: nvidia-device-plugin-ds
-  updateStrategy:
-    type: RollingUpdate
-  template:
-    metadata:
-      labels:
-        name: nvidia-device-plugin-ds
-    spec:
-      runtimeClassName: nvidia
-      priorityClassName: system-node-critical
-      tolerations:
-        - key: nvidia.com/gpu
-          operator: Exists
-          effect: NoSchedule
-      containers:
-        - name: nvidia-device-plugin-ctr
-          image: nvcr.io/nvidia/k8s-device-plugin:v0.17.0
-          env:
-            - name: FAIL_ON_INIT_ERROR
-              value: "false"
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-          volumeMounts:
-            - name: device-plugin
-              mountPath: /var/lib/kubelet/device-plugins
-      volumes:
-        - name: device-plugin
-          hostPath:
-            path: /var/lib/kubelet/device-plugins
-EOF
+    if [[ ! -f "$manifest_dir/nvidia-device-plugin.yaml" ]]; then
+        log_error "Missing $manifest_dir/nvidia-device-plugin.yaml — checkout incomplete?"
+        return 1
+    fi
 
     export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
     run "kubectl apply -f '$manifest_dir/runtimeclass-nvidia.yaml'"
@@ -288,6 +262,7 @@ EOF
 # 4. Monitoring + profiling — nvtop, gpustat, nvitop, dcgm-exporter, nsight
 # ─────────────────────────────────────────────
 install_monitoring() {
+    [[ "$INSTALL_MONITORING" == "false" ]] && { log_info "skip: monitoring tools"; return 0; }
     log_info "Installing GPU monitoring tools..."
     run "sudo apt-get install -y nvtop"
 
@@ -362,6 +337,132 @@ install_inference_stack() {
     # Triton Inference Server — production-grade
     log_info "NVIDIA Triton Inference Server (production):"
     log_info "  docker run --gpus all -p 8000:8000 -p 8001:8001 -p 8002:8002 nvcr.io/nvidia/tritonserver:25.02-py3 tritonserver --model-repository=/models"
+
+    # Nemotron 3 Nano Omni — NVIDIA's open multimodal 30B-A3B MoE (vision+audio+
+    # text→text). Drop a launcher into config/ai/ so the serving flags (incl. the
+    # RTX-Pro `--moe-backend triton` FlashInfer workaround) are version-controlled.
+    local ai_cfg="$DOTFILES_DIR/config/ai"
+    if [[ -f "$ai_cfg/serve-nemotron-omni.sh" ]]; then
+        log_info "Nemotron Omni launcher present → config/ai/serve-nemotron-omni.sh"
+    else
+        log_info "Nemotron Omni launcher: config/ai/serve-nemotron-omni.sh (committed in repo)"
+    fi
+    log_info "  Serve:  MODEL=<repo-id> ~/.dotfiles/config/ai/serve-nemotron-omni.sh"
+    log_warning "  24GB RTX PRO 4000: FP8 weights (~30GB) won't fit — use the NVFP4 variant."
+}
+
+# ─────────────────────────────────────────────
+# 6. Agentic runtime — NVIDIA OpenShell sandbox + NemoClaw orchestration
+# ─────────────────────────────────────────────
+# OpenShell (GTC 2026) runs each agent inside its own kernel-isolated sandbox
+# — seccomp syscall filtering, Landlock filesystem restrictions, and network
+# namespaces — governed by declarative YAML policy enforced at the system layer,
+# out of reach of the agent. NemoClaw sits on top of OpenShell and orchestrates
+# self-evolving "claw" agents (task decomposition, memory, multi-agent
+# delegation), routing inference to local Nemotron (via NIM) or to cloud
+# frontier models within the policy guardrails.
+install_agentic_runtime() {
+    [[ "$INSTALL_AGENTIC" == "false" ]] && { log_info "skip: agentic runtime"; return 0; }
+
+    # OpenShell needs a container / virtualization backend for its sandbox.
+    if ! command -v docker &>/dev/null && ! command -v podman &>/dev/null; then
+        log_warning "OpenShell needs Docker or Podman for its sandbox — install one first (claw install homelab)"
+    fi
+
+    # ── OpenShell ──
+    if command -v openshell &>/dev/null; then
+        log_info "OpenShell already installed ($(openshell --version 2>&1 | head -1))"
+    elif command -v uv &>/dev/null; then
+        # Prefer `uv tool install` — lands in $HOME, no root, no piped shell.
+        log_info "Installing OpenShell via uv tool install..."
+        run "uv tool install -U openshell"
+    else
+        # Fall back to NVIDIA's official installer. Per repo policy we don't
+        # silently pipe curl|sh — print it and let the user opt in.
+        log_warning "uv not found — install OpenShell manually (NVIDIA's installer):"
+        log_warning "  curl -LsSf https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh | sh"
+        log_warning "  (or install uv first via 'claw install ai-skills', then re-run --agentic-only)"
+    fi
+
+    # Seed a deny-by-default sandbox policy in the repo so it's version-controlled.
+    local policy_dir="$DOTFILES_DIR/config/agentic/openshell"
+    mkdir -p "$policy_dir"
+    if [[ ! -f "$policy_dir/policy.yaml" ]]; then
+        cat > "$policy_dir/policy.yaml" <<'EOF'
+# OpenShell sandbox policy — STARTER TEMPLATE (illustrative, deny-by-default).
+#
+# ⚠️  SCHEMA NOT YET VERIFIED against the shipped CLI (openshell 0.0.52). The keys
+#     below express *intent* — read-only repo, deny egress, block dangerous
+#     syscalls — but were drafted from NVIDIA's announcement, not the live schema.
+#     Dump the authoritative schema from a running gateway and reconcile:
+#         openshell policy get --global --full -o json
+#         openshell policy prove <sandbox> ...      # formally check properties
+#
+# Prereq — a gateway must be active before any sandbox/policy command:
+#     openshell doctor check
+#     openshell gateway add <endpoint> && openshell gateway select <name>
+#
+# Apply at sandbox creation (verified flag):
+#     openshell sandbox create --gpu --policy config/agentic/openshell/policy.yaml -- claude
+# Or update a live sandbox:
+#     openshell policy set <sandbox> --policy config/agentic/openshell/policy.yaml
+#
+# Docs: https://docs.nvidia.com/openshell/latest/
+filesystem:
+  readOnly:
+    - ~/.dotfiles
+  readWrite:
+    - ~/.ai/workspace
+network:
+  defaultAction: deny
+  allow:
+    - host: localhost          # local vLLM / NIM (e.g. Nemotron Omni on :8000)
+    - host: api.anthropic.com  # cloud frontier fallback (privacy router)
+process:
+  blockSyscalls: [ptrace, mount, "socket(AF_PACKET)"]
+EOF
+        log_success "Wrote starter OpenShell policy → config/agentic/openshell/policy.yaml"
+    fi
+
+    # ── NemoClaw ──
+    # NemoClaw's bootstrap is an interactive, GPU- and network-heavy installer
+    # (selects an agent, pulls NIM images). The exact installer URL isn't pinned
+    # in NVIDIA's public README, so — matching this repo's "don't pipe an
+    # unverified installer" stance — we document it rather than auto-running it.
+    if command -v nemoclaw &>/dev/null; then
+        log_info "NemoClaw already installed ($(nemoclaw --version 2>&1 | head -1))"
+    else
+        log_info "NemoClaw (orchestration on OpenShell) — install when ready:"
+        log_info "  • Quickstart: https://docs.nvidia.com/nemoclaw/latest/get-started/quickstart.html"
+        log_info "  • Default agent is OpenClaw. Your repo ships Hermes — select it with:"
+        log_info "      NEMOCLAW_AGENT=hermes  (post-install alias: nemohermes)"
+        log_info "  • Prereqs: OpenShell + Docker + GPU + NIM for routed local inference."
+    fi
+}
+
+# ─────────────────────────────────────────────
+# 7. GPU data acceleration — RAPIDS cuDF/cuOpt (CUDA-X) + Milvus vector DB
+# ─────────────────────────────────────────────
+# CUDA-X libraries let agents offload structured-data work (cuDF dataframes) and
+# combinatorial routing/optimization (cuOpt) straight to the GPU instead of
+# writing CPU-bound Python. Milvus is a GPU-accelerated vector DB for local RAG
+# over large corpora (e.g. an Obsidian vault). These are heavy CUDA wheels /
+# containers, so we print the recipes rather than auto-pulling gigabytes.
+install_gpu_data_stack() {
+    [[ "$INSTALL_DATA" == "false" ]] && { log_info "skip: GPU data stack"; return 0; }
+
+    log_info "RAPIDS cuDF / cuOpt (CUDA-X) — GPU dataframes + optimization as agent skills:"
+    log_info "  uv pip install --extra-index-url=https://pypi.nvidia.com cudf-cu12 cuopt-cu12"
+    log_info "  (or conda: conda install -c rapidsai -c conda-forge -c nvidia cudf cuopt)"
+
+    if command -v docker &>/dev/null; then
+        log_info "Milvus (GPU vector DB) — standalone via the embed script:"
+        log_info "  curl -fsSL https://raw.githubusercontent.com/milvus-io/milvus/master/scripts/standalone_embed.sh -o standalone_embed.sh"
+        log_info "  bash standalone_embed.sh start   # GPU build: milvusdb/milvus:*-gpu"
+    else
+        log_info "Milvus: install Docker first (claw install homelab), then run the standalone embed script."
+    fi
+    log_info "Note: Qdrant CLI is already provided by 'claw install ai' (ai-toolchain.sh)."
 }
 
 # ─────────────────────────────────────────────
@@ -393,6 +494,18 @@ print_summary() {
     ollama pull llama3.1:8b && ollama run llama3.1:8b "hello"
     nvtop                          # watch GPU during inference
 
+  Multimodal serving (Nemotron 3 Nano Omni):
+    MODEL=nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-NVFP4 \\
+      ~/.dotfiles/config/ai/serve-nemotron-omni.sh   # NVFP4 fits 24GB RTX PRO 4000
+
+  Agentic runtime (OpenShell + NemoClaw):
+    openshell doctor check                           # verify Docker/host prereqs
+    openshell gateway add <endpoint> && openshell gateway select <name>   # control plane
+    openshell sandbox create --gpu \\
+      --policy config/agentic/openshell/policy.yaml -- claude   # kernel-isolated agent
+    openshell sandbox list                           # see running sandboxes
+    # NemoClaw: see https://docs.nvidia.com/nemoclaw/latest/ (NEMOCLAW_AGENT=hermes)
+
   Blackwell-specific (FP4 / Transformer Engine):
     python -c "import torch; print(torch.cuda.get_device_capability())"  # → (12, 0) for Blackwell
     python -c "import transformer_engine.pytorch as te; print(te.__version__)"
@@ -415,6 +528,8 @@ install_container_toolkit
 install_k3s_gpu_plugin
 install_monitoring
 install_inference_stack
+install_agentic_runtime
+install_gpu_data_stack
 print_summary
 
 log_success "AI workstation toolchain install complete."

@@ -290,6 +290,20 @@ main() {
         log_info "Install Homebrew: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
     fi
 
+    # colorls — Ruby-based ls with Font Awesome / Nerd Font icons
+    if command -v colorls &>/dev/null; then
+        log_success "colorls already installed"
+    elif command -v gem &>/dev/null; then
+        log_info "Installing colorls (Ruby gem)..."
+        if gem install colorls --no-document 2>/dev/null || sudo gem install colorls --no-document 2>/dev/null; then
+            log_success "colorls installed"
+        else
+            log_warning "colorls install failed — run 'gem install colorls' manually (needs Ruby ≥ 2.5)"
+        fi
+    else
+        log_warning "Ruby/gem not found — skipping colorls (install ruby, then 'gem install colorls')"
+    fi
+
     # ── Step 7: Install Nerd Fonts ───────────────────────
     step "Installing Nerd Fonts (icons for eza, starship, fastfetch)"
     if [[ "$OS_TYPE" == "macos" ]]; then
@@ -299,6 +313,14 @@ main() {
                 log_warning "Font install failed — install manually from nerdfonts.com"
         else
             log_success "Nerd Fonts already installed"
+        fi
+        # Font Awesome — glyphs used by colorls
+        if ! ls ~/Library/Fonts/*FontAwesome* ~/Library/Fonts/*Font*Awesome* &>/dev/null 2>&1; then
+            log_info "Installing Font Awesome (colorls glyphs) via brew..."
+            brew install --cask font-fontawesome 2>/dev/null || \
+                log_warning "Font Awesome install failed — install manually from fontawesome.com"
+        else
+            log_success "Font Awesome already installed"
         fi
     else
         local font_dir="$HOME/.local/share/fonts"
@@ -312,6 +334,23 @@ main() {
                 log_warning "Font install failed — download from nerdfonts.com"
         else
             log_success "Nerd Fonts already installed"
+        fi
+        # Font Awesome — glyphs used by colorls
+        if ! fc-list 2>/dev/null | grep -qi 'font.*awesome'; then
+            log_info "Installing Font Awesome (colorls glyphs)..."
+            mkdir -p "$font_dir"
+            local fa_url="https://github.com/FortAwesome/Font-Awesome/releases/download/6.5.2/fontawesome-free-6.5.2-desktop.zip"
+            local fa_tmp; fa_tmp="$(mktemp -d)"
+            if curl -fsSL "$fa_url" -o "$fa_tmp/fa.zip" 2>/dev/null && \
+               unzip -joq "$fa_tmp/fa.zip" '*/otfs/*.otf' -d "$font_dir" 2>/dev/null; then
+                fc-cache -fv "$font_dir" >/dev/null 2>&1
+                log_success "Font Awesome installed"
+            else
+                log_warning "Font Awesome install failed — download from fontawesome.com"
+            fi
+            rm -rf "$fa_tmp"
+        else
+            log_success "Font Awesome already installed"
         fi
     fi
 
@@ -376,7 +415,7 @@ main() {
     echo "  │   Next steps:                                        │"
     echo "  │     1. Restart your terminal:  exec zsh              │"
     echo "  │     2. Set terminal font to a Nerd Font              │"
-    echo "  │     3. Run  p10k configure  for prompt setup         │"
+    echo "  │     3. Prompt is pre-themed (edit ~/.p10k.zsh)       │"
     echo "  │     4. Try:  claw help   (single command surface)    │"
     echo "  │                                                      │"
     if [[ "$SECURITY_MODE" == "true" ]]; then

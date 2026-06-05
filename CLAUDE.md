@@ -78,7 +78,8 @@ Each profile provides:
 `config/.config/fastfetch/` contains:
 - `config.jsonc` + `logo.txt` — Generic pre-menu OPEN CLAW header
 - `config-{profile}.jsonc` + `logo-{profile}.txt` — 8 profile-specific dashboards
-- Each profile config: shared system modules + domain-specific `command` modules (live tool status, k8s context, docker containers, etc.)
+- Each profile config: a shared, icon-rich **System / Desktop / Hardware / Network** base (Nerd Font / Font Awesome glyph per key, GitHub-dark colors) plus a domain-specific **Tooling** section of `command` modules (live tool status, k8s context, docker containers, etc.). fastfetch silently skips modules with no data, so each machine (macOS or Linux, desktop or headless) auto-populates only what it has.
+- The 9 core dashboards (`config.jsonc`, `config-default.jsonc`, `config-{cloud,security,devops,ai,research,cortex,local}.jsonc`) are generated from a single source of truth — `scripts/utils/gen-fastfetch.py`. Edit the icon map / layout / per-profile tooling there and re-run `python3 scripts/utils/gen-fastfetch.py`; do not hand-edit those 9 files.
 - Logo variants: same OPEN CLAW geometry, different color palettes and banner text per profile
 - Default profile uses Apple-inspired logo instead of OPEN CLAW face
 
@@ -123,7 +124,7 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 ## Conventions
 
 - **Cross-platform first:** All shell code uses `platform.zsh` shims, never raw `pbcopy`/`ipconfig`/`open`
-- **Modern CLI tools replace legacy ones:** `eza` (ls), `bat` (cat), `ripgrep` (grep), `fd` (find), `zoxide` (cd), `btop` (top), `delta` (diff)
+- **Modern CLI tools replace legacy ones:** `eza` (ls), `bat` (cat), `ripgrep` (grep), `fd` (find), `zoxide` (cd), `btop` (top), `delta` (diff). `colorls` (Ruby gem) supplements `eza` with Font Awesome / Nerd Font icons via `lc`/`lcl`/`lca`/`lct`/`lcd` aliases (guarded on `command -v colorls`), themed by `config/.config/colorls/dark_colors.yaml`. Font Awesome installs alongside the Nerd Fonts in `bootstrap.sh` Step 7 for colorls glyphs.
 - **Color theme:** GitHub macOS Dark throughout — Blue `#58a6ff`, Green `#3fb950`, Purple `#bc8cff`, Orange `#d29922`, Red `#ff7b72`, Muted `#8b949e`
 - **Logging pattern:** Color-coded `log_info`, `log_success`, `log_warning`, `log_error` (blue/green/yellow/red)
 - **Idempotent installs:** All scripts check `command -v` before installing
@@ -137,6 +138,7 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | File | Purpose |
 |------|---------|
 | `.zshrc` | Main shell config, sources all modules |
+| `shell/.p10k.zsh` | Pre-themed Powerlevel10k prompt (GitHub-dark, Nerd Font); stowed to `~/.p10k.zsh` |
 | `shell/platform.zsh` | Cross-platform shims (clipboard, open, IP, VPN) |
 | `shell/path.zsh` | PATH setup (brew macOS/Linux, cargo, go) |
 | `shell/exports.zsh` | Environment variables (FZF, BAT, GIT_PAGER, XDG) |
@@ -146,6 +148,8 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | `shell/profiles/*.zsh` | 8 workflow-specific environments |
 | `shell/welcome-tui.zsh` | Login dashboard + default quick-ref |
 | `config/.config/fastfetch/config-*.jsonc` | Profile-specific fastfetch configs (9 total) |
+| `config/.config/colorls/dark_colors.yaml` | colorls GitHub-dark theme (icons via Font Awesome) |
+| `scripts/utils/gen-fastfetch.py` | Generator for the 9 icon-rich fastfetch dashboards |
 | `config/.config/fastfetch/logo-*.txt` | Profile-specific ASCII logos (9 total) |
 | `config/ssh/tunnels.yml` | SSH tunnel definitions |
 | `scripts/utils/tunnel-manager.sh` | SSH tunnel manager TUI |

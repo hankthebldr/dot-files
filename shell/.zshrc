@@ -101,13 +101,8 @@ if command -v thefuck &>/dev/null; then
     fuck() { unfunction fuck; eval $(thefuck --alias); fuck "$@"; }
 fi
 
-if command -v eza &>/dev/null; then
-    alias ls='eza --icons --group-directories-first'
-    alias ll='eza -l --icons --group-directories-first'
-    alias la='eza -la --icons --group-directories-first'
-    alias lt='eza --tree --level=2 --icons'
-    alias tree='eza --tree --icons'
-fi
+# Modern CLI replacements (eza/colorls aliases) live in shell/aliases.zsh,
+# sourced in step 6 — kept there as the single source of truth.
 
 # zsh-syntax-highlighting (cross-platform)
 for _zsh_hl in \
@@ -119,15 +114,23 @@ for _zsh_hl in \
 done
 unset _zsh_hl
 
-# zsh-autocomplete (cross-platform — suppress terminfo warnings)
-for _zsh_ac in \
-    "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
-    "/home/linuxbrew/.linuxbrew/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
-    "/usr/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
-    "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh"; do
-    if [[ -f "$_zsh_ac" ]]; then source "$_zsh_ac" 2>/dev/null; break; fi
-done
-unset _zsh_ac
+# zsh-autocomplete — DISABLED.
+# This plugin draws a live completion menu under the prompt on every keystroke,
+# which fights Powerlevel10k's multi-line prompt: the prompt jumps, inserts
+# spaces ("auto-next"), and spams newlines. It is a known p10k incompatibility.
+# Tab-completion, history search (atuin), autosuggestions, and syntax
+# highlighting all still work without it. To re-enable deliberately, set
+# CLAW_ENABLE_ZSH_AUTOCOMPLETE=1 before this file is sourced.
+if [[ -n "${CLAW_ENABLE_ZSH_AUTOCOMPLETE-}" ]]; then
+    for _zsh_ac in \
+        "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
+        "/home/linuxbrew/.linuxbrew/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
+        "/usr/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
+        "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh"; do
+        if [[ -f "$_zsh_ac" ]]; then source "$_zsh_ac" 2>/dev/null; break; fi
+    done
+    unset _zsh_ac
+fi
 
 # Google Cloud SDK
 for _gcloud in \
@@ -162,6 +165,9 @@ for _pn in security cloud devops research ai; do
 done
 [[ -f "$P10K_CONFIG_FILE" ]] && source "$P10K_CONFIG_FILE"
 unset _pn
+
+# Guard: stop `p10k configure` from overwriting the symlinked, pre-tuned prompt.
+[[ -f "$DOTFILES_DIR/shell/p10k-guard.zsh" ]] && source "$DOTFILES_DIR/shell/p10k-guard.zsh"
 
 # Terraform completion
 _tf_bin="$(command -v terraform 2>/dev/null)"

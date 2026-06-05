@@ -1,0 +1,54 @@
+# NVIDIA k8s device plugin — advertises nvidia.com/gpu as a schedulable resource
+# on every GPU node. Pinned to v0.17.0 (first release with Blackwell + MIG 2.0).
+# Apply from the K3s server:  kubectl apply -f config/k3s/gpu/nvidia-device-plugin.yaml
+#
+# The nodeAffinity restricts the DaemonSet to nodes labelled
+# `nvidia.com/gpu.present=true` — homelab-toolchain.sh applies that label when a
+# box joins as a GPU agent, so the plugin only lands on actual GPU workers.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-device-plugin-daemonset
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: nvidia-device-plugin-ds
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: nvidia-device-plugin-ds
+    spec:
+      runtimeClassName: nvidia
+      priorityClassName: system-node-critical
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nvidia.com/gpu.present
+                    operator: In
+                    values: ["true"]
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: nvidia-device-plugin-ctr
+          image: nvcr.io/nvidia/k8s-device-plugin:v0.17.0
+          env:
+            - name: FAIL_ON_INIT_ERROR
+              value: "false"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: device-plugin
+              mountPath: /var/lib/kubelet/device-plugins
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins

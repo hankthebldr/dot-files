@@ -117,6 +117,8 @@ cmd_help() {
   ${c_cyan}${c_bold}Workflows${c_reset}
     ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
     ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
+    ${c_white}claw restore-shell${c_reset}    ${c_dim}re-link ~/.zshrc, ~/.p10k.zsh, … to the repo (fix clobbered symlinks)${c_reset}
+    ${c_white}claw validate${c_reset}         ${c_dim}full top-to-bottom install check + update/missing detection${c_reset}
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
     ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc)${c_reset}
@@ -140,6 +142,10 @@ cmd_help() {
     ${c_white}claw <agent>${c_reset}          ${c_dim}launch a registered agent (claude, hermes, …)${c_reset}
     ${c_white}claw agent list${c_reset}       ${c_dim}list registered agents${c_reset}
     ${c_white}claw agent add${c_reset}        ${c_dim}claw agent add <name> <command> [profile]${c_reset}
+
+  ${c_green}${c_bold}AI Workstation${c_reset}
+    ${c_white}claw gpu [--test --taint]${c_reset}  ${c_dim}K3s GPU node enablement (run on the server)${c_reset}
+    ${c_white}claw gateway <cmd>${c_reset}         ${c_dim}OpenShell gateway: check|register|status|sandbox${c_reset}
 
   ${c_red}${c_bold}Install${c_reset}
     ${c_white}claw install <toolchain>${c_reset}  ${c_dim}opt-in toolchain installer (cloud/security/…)${c_reset}
@@ -282,7 +288,21 @@ tui_verdict() {
         printf "    ${c_dim}↳ %s%% of fires ended in 'skip to shell' — strong signal you want a faster path to bare prompt.${c_reset}\n" "$skip_pct"
 }
 
+cmd_validate() {
+    # Full top-to-bottom install validation (symlinks → shell → CLI → GPU → AI →
+    # desktop → peripherals → K3s → integrity) with update detection + fix hints.
+    DOTFILES_DIR="$DOTFILES" exec bash "$DOTFILES/scripts/utils/validate-install.sh" "$@"
+}
+
 cmd_doctor() {
+    # `claw doctor ai` → focused AI-workstation readiness check.
+    if [[ "${1:-}" == "ai" ]]; then
+        DOTFILES_DIR="$DOTFILES" exec bash "$DOTFILES/scripts/utils/ai-readiness.sh" "${@:2}"
+    fi
+    # `claw doctor --full` / `claw doctor all` → full install validation.
+    if [[ "${1:-}" == "--full" || "${1:-}" == "all" ]]; then
+        DOTFILES_DIR="$DOTFILES" exec bash "$DOTFILES/scripts/utils/validate-install.sh" "${@:2}"
+    fi
     printf "\n  ${c_purple}${c_bold}claw doctor${c_reset}  ${c_dim}— %s${c_reset}\n" "$(date '+%Y-%m-%d %H:%M:%S')"
     printf "  ${c_dim}─────────────────────────────────────${c_reset}\n"
     [[ -n "$CLAW_ACTIVE_PROFILE" ]] && \
@@ -533,6 +553,41 @@ cmd_off() {
     printf "    ${c_white}unset CLAW_ACTIVE_PROFILE && exec zsh${c_reset}\n"
 }
 
+cmd_restore_shell() {
+    # Re-link the shell dotfiles (~/.zshrc, ~/.p10k.zsh, …) back to the repo.
+    # Use after `p10k configure` (or any tool) replaces a stow symlink with a
+    # plain file — that's what drops the fastfetch/profile/prompt work.
+    if ! command -v stow &>/dev/null; then
+        err "GNU stow not installed — install it first: brew install stow"
+        return 1
+    fi
+    local ts backup
+    ts="$(date +%Y%m%d-%H%M%S)"
+    backup="$HOME/.dotfiles-backups/$ts"
+    info "restoring shell symlinks from ${c_white}$DOTFILES/shell${c_reset}"
+
+    # Move aside any real files squatting on the symlink targets (stow refuses to
+    # overwrite files it doesn't own). Symlinks are left for stow to refresh.
+    mkdir -p "$backup"
+    local f name
+    for f in "$DOTFILES"/shell/.[a-z]*; do
+        name="$(basename "$f")"
+        local target="$HOME/$name"
+        if [[ -e "$target" && ! -L "$target" ]]; then
+            mv "$target" "$backup/$name"
+            info "backed up real $name → ${c_dim}$backup/$name${c_reset}"
+        fi
+    done
+
+    if stow -R -d "$DOTFILES" -t "$HOME" shell 2>/dev/null; then
+        ok "shell module relinked"
+    else
+        err "stow reported a conflict — inspect: stow -nv -d $DOTFILES -t $HOME shell"
+        return 1
+    fi
+    printf "    ${c_white}exec zsh${c_reset}  ${c_dim}# reload to pick up the restored prompt${c_reset}\n"
+}
+
 cmd_install() {
     local tc="$1"
     [[ -z "$tc" ]] && { err "usage: claw install <toolchain> [-- extra-args]"; info "options: cloud security devops ai ai-workstation ai-skills research cortex homelab"; return 1; }
@@ -541,6 +596,16 @@ cmd_install() {
     shift
     info "running $script (this can take a while)"
     DOTFILES_DIR="$DOTFILES" bash "$script" "$@"
+}
+
+cmd_gpu() {
+    # Server-side K3s GPU enablement (apply device plugin, label/taint, verify).
+    DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/k3s-gpu-enable.sh" "$@"
+}
+
+cmd_gateway() {
+    # OpenShell gateway management (check | register | status | sandbox | deploy-cluster).
+    DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/openshell-gateway.sh" "$@"
 }
 
 cmd_uninstall() {
@@ -678,7 +743,8 @@ log_usage "${1:-menu}" "$@"
 case "${1:-menu}" in
     ""|menu)        cmd_menu ;;
     help|-h|--help) cmd_help ;;
-    doctor)         cmd_doctor ;;
+    doctor)         shift; cmd_doctor "$@" ;;
+    validate)       shift; cmd_validate "$@" ;;
     stats)          cmd_stats ;;
     tui-stats)      cmd_tui_stats ;;
     update)         shift; cmd_update "$@" ;;
@@ -693,7 +759,10 @@ case "${1:-menu}" in
     integrity|verify|check) shift; cmd_integrity "$@" ;;
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
+    restore-shell|relink) cmd_restore_shell ;;
     install)        shift; cmd_install "$@" ;;
+    gpu|gpu-node)   shift; cmd_gpu "$@" ;;
+    gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;
     claude-sync|csync) shift; cmd_claude "$@" ;;
     agent)          shift; cmd_agent "$@" ;;

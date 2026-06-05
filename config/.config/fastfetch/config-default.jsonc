@@ -1,11 +1,24 @@
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
   "logo": {
-    "type": "auto",
-    "padding": { "top": 0, "left": 2, "right": 3 }
+    "source": "~/.dotfiles/config/.config/fastfetch/logo-default.txt",
+    "type": "file",
+    "color": {
+      "1": "38;2;255;140;0",
+      "2": "38;2;245;200;66",
+      "3": "38;2;63;185;80",
+      "4": "38;2;255;123;114",
+      "5": "38;2;188;140;255",
+      "6": "38;2;88;166;255"
+    },
+    "padding": {
+      "top": 1,
+      "left": 2,
+      "right": 3
+    }
   },
   "display": {
-    "separator": "  ",
+    "separator": " → ",
     "color": {
       "keys": "38;2;88;166;255",
       "title": "38;2;63;185;80"
@@ -17,26 +30,202 @@
       "format": "{user-name-colored}@{host-name-colored}",
       "key": " "
     },
-    { "type": "separator", "string": "───────────────────────────────" },
-    { "type": "os", "key": "  OS" },
-    { "type": "host", "key": "  HW" },
-    { "type": "cpu", "key": "  CPU" },
-    { "type": "gpu", "key": "  GPU" },
-    { "type": "memory", "key": "  MEM" },
-    { "type": "disk", "key": "  DSK", "folders": "/" },
-    { "type": "battery", "key": "  BAT" },
-    { "type": "separator", "string": "───────────────────────────────" },
-    { "type": "shell", "key": "  SH" },
-    { "type": "terminal", "key": "  TERM" },
-    { "type": "packages", "key": "  PKG" },
-    { "type": "localip", "key": "  IP" },
-    { "type": "uptime", "key": "  UP" },
+    {
+      "type": "custom",
+      "format": "  System ────────────────────────"
+    },
+    {
+      "type": "os",
+      "key": "  OS",
+      "keyColor": "38;2;188;140;255"
+    },
+    {
+      "type": "host",
+      "key": "  Host",
+      "keyColor": "38;2;188;140;255"
+    },
+    {
+      "type": "kernel",
+      "key": "  Kernel",
+      "keyColor": "38;2;88;166;255"
+    },
+    {
+      "type": "uptime",
+      "key": "  Uptime",
+      "keyColor": "38;2;88;166;255"
+    },
+    {
+      "type": "loadavg",
+      "key": "  Load",
+      "keyColor": "38;2;88;166;255"
+    },
+    {
+      "type": "processes",
+      "key": "  Processes",
+      "keyColor": "38;2;88;166;255"
+    },
+    {
+      "type": "packages",
+      "key": "  Packages",
+      "keyColor": "38;2;63;185;80"
+    },
+    {
+      "type": "shell",
+      "key": "  Shell",
+      "keyColor": "38;2;63;185;80"
+    },
+    {
+      "type": "editor",
+      "key": "  Editor",
+      "keyColor": "38;2;63;185;80"
+    },
+    {
+      "type": "custom",
+      "format": "  Desktop ───────────────────────"
+    },
+    {
+      "type": "de",
+      "key": "  DE",
+      "keyColor": "38;2;210;153;34"
+    },
+    {
+      "type": "wm",
+      "key": "  WM",
+      "keyColor": "38;2;210;153;34"
+    },
+    {
+      "type": "wmtheme",
+      "key": "  WM Theme",
+      "keyColor": "38;2;210;153;34"
+    },
+    {
+      "type": "theme",
+      "key": "  Theme",
+      "keyColor": "38;2;255;123;114"
+    },
+    {
+      "type": "icons",
+      "key": "  Icons",
+      "keyColor": "38;2;255;123;114"
+    },
+    {
+      "type": "cursor",
+      "key": "  Cursor",
+      "keyColor": "38;2;255;123;114"
+    },
+    {
+      "type": "font",
+      "key": "  Font",
+      "keyColor": "38;2;88;166;255"
+    },
+    {
+      "type": "terminal",
+      "key": "  Terminal",
+      "keyColor": "38;2;188;140;255"
+    },
+    {
+      "type": "terminalfont",
+      "key": "  Term Font",
+      "keyColor": "38;2;88;166;255"
+    },
+    {
+      "type": "custom",
+      "format": "  Hardware ──────────────────────"
+    },
+    {
+      "type": "cpu",
+      "key": "  CPU",
+      "keyColor": "38;2;88;166;255"
+    },
+    {
+      "type": "gpu",
+      "key": "  GPU",
+      "keyColor": "38;2;63;185;80"
+    },
+    {
+      "type": "display",
+      "key": "  Display",
+      "keyColor": "38;2;188;140;255"
+    },
+    {
+      "type": "brightness",
+      "key": "  Brightness",
+      "keyColor": "38;2;188;140;255"
+    },
+    {
+      "type": "memory",
+      "key": "  Memory",
+      "keyColor": "38;2;63;185;80"
+    },
+    {
+      "type": "swap",
+      "key": "  Swap",
+      "keyColor": "38;2;63;185;80"
+    },
+    {
+      "type": "disk",
+      "key": "  Disk",
+      "keyColor": "38;2;210;153;34",
+      "showReadOnly": false
+    },
+    {
+      "type": "physicaldisk",
+      "key": "  Drive",
+      "keyColor": "38;2;210;153;34"
+    },
+    {
+      "type": "battery",
+      "key": "  Battery",
+      "keyColor": "38;2;210;153;34"
+    },
+    {
+      "type": "poweradapter",
+      "key": "  Power",
+      "keyColor": "38;2;210;153;34"
+    },
+    {
+      "type": "sound",
+      "key": "  Sound",
+      "keyColor": "38;2;255;123;114"
+    },
+    {
+      "type": "bluetooth",
+      "key": "  Bluetooth",
+      "keyColor": "38;2;88;166;255"
+    },
+    {
+      "type": "custom",
+      "format": "  Network ───────────────────────"
+    },
+    {
+      "type": "localip",
+      "key": "  Local IP",
+      "keyColor": "38;2;139;148;158"
+    },
+    {
+      "type": "wifi",
+      "key": "  Wi-Fi",
+      "keyColor": "38;2;139;148;158"
+    },
+    {
+      "type": "locale",
+      "key": "  Locale",
+      "keyColor": "38;2;139;148;158"
+    },
     {
       "type": "command",
-      "key": "  DATE",
+      "key": "  Date",
+      "keyColor": "38;2;139;148;158",
       "text": "date '+%A, %b %d  %H:%M'"
     },
-    { "type": "separator", "string": "───────────────────────────────" },
-    { "type": "colors", "paddingLeft": 2, "symbol": "circle" }
+    {
+      "type": "custom",
+      "format": "────────────────────────────────"
+    },
+    {
+      "type": "colors",
+      "paddingLeft": 2,
+      "symbol": "circle"
+    }
   ]
 }
