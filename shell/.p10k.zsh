@@ -166,7 +166,21 @@
   # Instant prompt is handled (disabled) in ~/.zshrc; keep p10k quiet about it.
   typeset -g POWERLEVEL9K_INSTANT_PROMPT=off
   typeset -g POWERLEVEL9K_DISABLE_HOT_RELOAD=true
-  typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=always
+
+  # Transient prompt + a leading blank line both fight the shell-integration that
+  # VS Code / Cursor / JetBrains inject into their built-in terminals: the multi-
+  # line prompt ends up redrawing and spamming blank lines on every Enter ("keeps
+  # entering newlines"). In those editor terminals, drop the transient redraw and
+  # the leading newline — the GitHub-dark colors and the ╭─╰─ frame are kept. Real
+  # standalone terminals (iTerm, kitty, Ghostty, Terminal.app, …) keep both.
+  if [[ "$TERM_PROGRAM" == "vscode" || "$TERM_PROGRAM" == "Cursor" \
+        || -n "${VSCODE_INJECTION-}${VSCODE_PID-}" \
+        || "$TERMINAL_EMULATOR" == "JetBrains-JediTerm" || "$TERM" == "dumb" ]]; then
+    typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=off
+    typeset -g POWERLEVEL9K_PROMPT_ADD_NEWLINE=false
+  else
+    typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=always
+  fi
 
   (( ! $+functions[p10k] )) || p10k reload
 }
