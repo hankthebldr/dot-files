@@ -29,26 +29,32 @@
   local red='#ff7b72' muted='#8b949e' text='#c9d1d9' bg='#161b22'
 
   # ── Prompt layout ─────────────────────────────────────────────────────────
+  # Two lines, fully LEFT-aligned. A right-aligned prompt forces p10k to fill the
+  # gap between the left and right segments with a run of characters — the dotted
+  # filler / "continuous spaces" we want gone. Keeping everything on the left and
+  # leaving the right prompt empty yields a clean, compact two-line prompt:
+  #   line 1:  os_icon  dir  git  [contextual segments, shown only when relevant]
+  #   line 2:  ❯
   typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(
     os_icon                 # platform glyph (auto: apple on macOS, distro on Linux)
     dir                     # current directory
     vcs                     # git status
-    newline                 # second line
-    prompt_char             # ❯ (green ok / red error)
-  )
-  typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(
-    status                  # exit code of last command
-    command_execution_time  # how long the last command ran
+    command_execution_time  # how long the last command ran (≥ threshold)
+    status                  # exit code (only on error — STATUS_OK=false)
     background_jobs         # presence of backgrounded jobs
     direnv                  # direnv status
-    virtualenv pyenv        # python env
-    nodenv node_version     # node env
-    kubecontext             # k8s context (shown on kubectl/helm — see .zshrc)
-    terraform               # terraform workspace
-    aws gcloud              # cloud context
+    virtualenv pyenv        # python env (only when active)
+    nodenv node_version     # node env (project only)
+    kubecontext             # k8s context (only on kubectl/helm — see .zshrc)
+    terraform               # terraform workspace (only on tf commands)
+    aws gcloud              # cloud context (only on relevant commands)
     context                 # user@host (only over SSH / as root)
-    time                    # clock
+    newline                 # → second line
+    prompt_char             # ❯ (green ok / red error)
   )
+  # Empty on purpose — see the layout note above. No right prompt ⇒ no gap fill.
+  typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=()
+
 
   # ── Global style ────────────────────────────────────────────────────────
   typeset -g POWERLEVEL9K_MODE=nerdfont-complete
