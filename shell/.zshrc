@@ -158,6 +158,9 @@ done
 [[ -f "$P10K_CONFIG_FILE" ]] && source "$P10K_CONFIG_FILE"
 unset _pn
 
+# Guard: stop `p10k configure` from overwriting the symlinked, pre-tuned prompt.
+[[ -f "$DOTFILES_DIR/shell/p10k-guard.zsh" ]] && source "$DOTFILES_DIR/shell/p10k-guard.zsh"
+
 # Terraform completion
 _tf_bin="$(command -v terraform 2>/dev/null)"
 if [[ -n "$_tf_bin" ]]; then
