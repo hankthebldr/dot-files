@@ -117,6 +117,7 @@ cmd_help() {
   ${c_cyan}${c_bold}Workflows${c_reset}
     ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
     ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
+    ${c_white}claw restore-shell${c_reset}    ${c_dim}re-link ~/.zshrc, ~/.p10k.zsh, … to the repo (fix clobbered symlinks)${c_reset}
     ${c_white}claw validate${c_reset}         ${c_dim}full top-to-bottom install check + update/missing detection${c_reset}
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
@@ -552,6 +553,41 @@ cmd_off() {
     printf "    ${c_white}unset CLAW_ACTIVE_PROFILE && exec zsh${c_reset}\n"
 }
 
+cmd_restore_shell() {
+    # Re-link the shell dotfiles (~/.zshrc, ~/.p10k.zsh, …) back to the repo.
+    # Use after `p10k configure` (or any tool) replaces a stow symlink with a
+    # plain file — that's what drops the fastfetch/profile/prompt work.
+    if ! command -v stow &>/dev/null; then
+        err "GNU stow not installed — install it first: brew install stow"
+        return 1
+    fi
+    local ts backup
+    ts="$(date +%Y%m%d-%H%M%S)"
+    backup="$HOME/.dotfiles-backups/$ts"
+    info "restoring shell symlinks from ${c_white}$DOTFILES/shell${c_reset}"
+
+    # Move aside any real files squatting on the symlink targets (stow refuses to
+    # overwrite files it doesn't own). Symlinks are left for stow to refresh.
+    mkdir -p "$backup"
+    local f name
+    for f in "$DOTFILES"/shell/.[a-z]*; do
+        name="$(basename "$f")"
+        local target="$HOME/$name"
+        if [[ -e "$target" && ! -L "$target" ]]; then
+            mv "$target" "$backup/$name"
+            info "backed up real $name → ${c_dim}$backup/$name${c_reset}"
+        fi
+    done
+
+    if stow -R -d "$DOTFILES" -t "$HOME" shell 2>/dev/null; then
+        ok "shell module relinked"
+    else
+        err "stow reported a conflict — inspect: stow -nv -d $DOTFILES -t $HOME shell"
+        return 1
+    fi
+    printf "    ${c_white}exec zsh${c_reset}  ${c_dim}# reload to pick up the restored prompt${c_reset}\n"
+}
+
 cmd_install() {
     local tc="$1"
     [[ -z "$tc" ]] && { err "usage: claw install <toolchain> [-- extra-args]"; info "options: cloud security devops ai ai-workstation ai-skills research cortex homelab"; return 1; }
@@ -723,6 +759,7 @@ case "${1:-menu}" in
     integrity|verify|check) shift; cmd_integrity "$@" ;;
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
+    restore-shell|relink) cmd_restore_shell ;;
     install)        shift; cmd_install "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;

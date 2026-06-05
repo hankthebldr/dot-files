@@ -114,15 +114,23 @@ for _zsh_hl in \
 done
 unset _zsh_hl
 
-# zsh-autocomplete (cross-platform — suppress terminfo warnings)
-for _zsh_ac in \
-    "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
-    "/home/linuxbrew/.linuxbrew/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
-    "/usr/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
-    "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh"; do
-    if [[ -f "$_zsh_ac" ]]; then source "$_zsh_ac" 2>/dev/null; break; fi
-done
-unset _zsh_ac
+# zsh-autocomplete — DISABLED.
+# This plugin draws a live completion menu under the prompt on every keystroke,
+# which fights Powerlevel10k's multi-line prompt: the prompt jumps, inserts
+# spaces ("auto-next"), and spams newlines. It is a known p10k incompatibility.
+# Tab-completion, history search (atuin), autosuggestions, and syntax
+# highlighting all still work without it. To re-enable deliberately, set
+# CLAW_ENABLE_ZSH_AUTOCOMPLETE=1 before this file is sourced.
+if [[ -n "${CLAW_ENABLE_ZSH_AUTOCOMPLETE-}" ]]; then
+    for _zsh_ac in \
+        "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
+        "/home/linuxbrew/.linuxbrew/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
+        "/usr/share/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
+        "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh"; do
+        if [[ -f "$_zsh_ac" ]]; then source "$_zsh_ac" 2>/dev/null; break; fi
+    done
+    unset _zsh_ac
+fi
 
 # Google Cloud SDK
 for _gcloud in \

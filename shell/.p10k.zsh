@@ -167,19 +167,24 @@
   typeset -g POWERLEVEL9K_INSTANT_PROMPT=off
   typeset -g POWERLEVEL9K_DISABLE_HOT_RELOAD=true
 
-  # Transient prompt + a leading blank line both fight the shell-integration that
-  # VS Code / Cursor / JetBrains inject into their built-in terminals: the multi-
-  # line prompt ends up redrawing and spamming blank lines on every Enter ("keeps
-  # entering newlines"). In those editor terminals, drop the transient redraw and
-  # the leading newline — the GitHub-dark colors and the ╭─╰─ frame are kept. Real
-  # standalone terminals (iTerm, kitty, Ghostty, Terminal.app, …) keep both.
+  # Transient prompt is OFF by design. `always` collapses every *past* prompt to
+  # a single line once a command runs, so scrollback fills with one-line ❯ prompts
+  # and only the live prompt shows the full frame — i.e. the prompt stops looking
+  # multi-line. Keeping it off means every prompt keeps the two-line ╭─ … ╰─ ❯
+  # frame. It also avoids the redraw that fights VS Code / Cursor / JetBrains
+  # shell-integration (the "keeps entering newlines" churn).
+  typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=off
+
+  # Editor terminals (VS Code / Cursor / JetBrains) double-run the prompt for
+  # command detection; with a leading blank line that shows up as an extra empty
+  # line each command. Drop only the leading blank there — the two-line frame and
+  # colors stay (POWERLEVEL9K_PROMPT_ADD_NEWLINE=true is set above for everyone
+  # else). If VS Code still adds a blank line, disable its shell integration:
+  #   "terminal.integrated.shellIntegration.enabled": false
   if [[ "$TERM_PROGRAM" == "vscode" || "$TERM_PROGRAM" == "Cursor" \
         || -n "${VSCODE_INJECTION-}${VSCODE_PID-}" \
-        || "$TERMINAL_EMULATOR" == "JetBrains-JediTerm" || "$TERM" == "dumb" ]]; then
-    typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=off
+        || "$TERMINAL_EMULATOR" == "JetBrains-JediTerm" ]]; then
     typeset -g POWERLEVEL9K_PROMPT_ADD_NEWLINE=false
-  else
-    typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=always
   fi
 
   (( ! $+functions[p10k] )) || p10k reload
