@@ -202,4 +202,5 @@ History
 config/secrets/*.plain
 config/secrets/.env
 !config/secrets/.env.sops
-tui/target/
+tui/**/target/
+tui/claw-tui/target/
