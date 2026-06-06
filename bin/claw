@@ -760,6 +760,7 @@ case "${1:-menu}" in
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
     restore-shell|relink) cmd_restore_shell ;;
+    docs-sync|docs)  bash "$DOTFILES/scripts/utils/docs-to-vault.sh" ;;
     install)        shift; cmd_install "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
