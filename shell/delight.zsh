@@ -82,3 +82,23 @@ fi
 # ── Weather (wttr.in — zero install) ────────────────────────────────────────
 weather() { curl -fsS "wttr.in/${1:-}?format=3" 2>/dev/null || echo "weather: offline"; }
 wttr()    { curl -fsS "wttr.in/${1:-}" 2>/dev/null || echo "weather: offline"; }
+
+# ── pkg-track nudge (P1) ────────────────────────────────────────────────────
+# Once/day, refresh an untracked-tool count in the background and nudge if any
+# manually-installed tools aren't in the manifest yet. Non-blocking, opt-out
+# with CLAW_PKG_NUDGE=0.
+if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_PKG_NUDGE:-1}" == 1 ]]; then
+    _pkg_count="${XDG_CACHE_HOME:-$HOME/.cache}/claw/pkg-untracked"
+    if [[ -s "$_pkg_count" ]]; then
+        _n=$(cat "$_pkg_count" 2>/dev/null)
+        [[ "$_n" =~ ^[0-9]+$ && "$_n" -gt 0 ]] && \
+            printf "  \e[38;2;210;153;34m●\e[0m \e[38;2;139;148;158m%s untracked tool(s) — \e[38;2;201;209;217mclaw pkg track\e[0m\n" "$_n"
+    fi
+    _pkg_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/pkgscan-$(date +%Y%m%d)"
+    if [[ ! -f "$_pkg_stamp" ]]; then
+        mkdir -p "${_pkg_stamp:h}" 2>/dev/null && touch "$_pkg_stamp"
+        ( bash "$DOTFILES_DIR/scripts/utils/pkg-manifest.sh" scan 2>/dev/null \
+            | grep -cE '^    [a-zA-Z0-9]' > "$_pkg_count" 2>/dev/null ) &!
+    fi
+    unset _pkg_count _pkg_stamp _n
+fi

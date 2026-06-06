@@ -29,6 +29,11 @@ DESKTOP = Path.home() / "Library" / "Application Support" / "Claude" / "claude_d
 
 DRY = "--dry-run" in sys.argv
 ONLY = next((sys.argv[i+1] for i, a in enumerate(sys.argv) if a == "--only" and i+1 < len(sys.argv)), None)
+# Profile gating: a server tagged `profile = "X"` syncs only when X matches the
+# requested/active profile, or with --all. Untagged servers always sync.
+PROFILE = next((sys.argv[i+1] for i, a in enumerate(sys.argv) if a == "--profile" and i+1 < len(sys.argv)),
+               os.environ.get("CLAW_ACTIVE_PROFILE"))
+ALL = "--all" in sys.argv
 IS_MAC = platform.system() == "Darwin"
 
 def load():
@@ -38,6 +43,10 @@ def load():
 
 def applicable(name, spec):
     if spec.get("os") == "macos" and not IS_MAC:
+        return False
+    # profile-gated servers only sync for the matching profile (or --all)
+    prof = spec.get("profile")
+    if prof and not ALL and prof != PROFILE:
         return False
     return True
 
