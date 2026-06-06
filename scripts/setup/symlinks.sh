@@ -18,13 +18,13 @@ MODULES=(
     vim
     tmux
     config
+    terminal
 )
 
-# macOS-only modules — only stow on Darwin.
+# terminal/ links only its .config/ subtree (ghostty/kitty/alacritty/wezterm/
+# starship) on every platform — the macOS .terminal/iterm2 imports are excluded
+# via terminal/.stow-local-ignore. detect_os kept for downstream use.
 detect_os
-if [[ "$OS_TYPE" == "macos" ]]; then
-    MODULES+=(terminal)
-fi
 
 stow_modules() {
     log_info "Creating symlinks with GNU Stow..."

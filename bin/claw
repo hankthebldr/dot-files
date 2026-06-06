@@ -590,7 +590,7 @@ cmd_restore_shell() {
 
 cmd_install() {
     local tc="$1"
-    [[ -z "$tc" ]] && { err "usage: claw install <toolchain> [-- extra-args]"; info "options: cloud security devops ai ai-workstation ai-skills research cortex homelab"; return 1; }
+    [[ -z "$tc" ]] && { err "usage: claw install <toolchain> [-- extra-args]"; info "options: nextgen cloud security devops ai ai-workstation ai-skills research cortex homelab deck demo design"; return 1; }
     local script="$DOTFILES/scripts/install/${tc}-toolchain.sh"
     [[ ! -f "$script" ]] && { err "toolchain not found: $tc ($script)"; return 1; }
     shift
@@ -760,6 +760,7 @@ case "${1:-menu}" in
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
     restore-shell|relink) cmd_restore_shell ;;
+    docs-sync|docs)  bash "$DOTFILES/scripts/utils/docs-to-vault.sh" ;;
     install)        shift; cmd_install "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
