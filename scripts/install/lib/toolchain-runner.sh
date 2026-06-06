@@ -95,6 +95,7 @@ _install_one() {  # _install_one <id> <brew> <apt> <fallback>
         manual:*)         log_info "$id — manual: ${c_dim}${fb#manual:}${c_reset}"; RESULT_MANUAL+=("$id") ;;
         curl:*)           if _fb_curl "$id" "${fb#curl:}"; then log_success "$id (binary)"; RESULT_INSTALLED+=("$id"); else log_warning "$id (curl failed)"; RESULT_FAILED+=("$id"); fi ;;
         go:*)             command -v go &>/dev/null   && _run go install "${fb#go:}@latest" && { log_success "$id (go)"; RESULT_INSTALLED+=("$id"); } || { log_warning "$id (go unavailable)"; RESULT_FAILED+=("$id"); } ;;
+        eget:*)           command -v eget &>/dev/null && _run eget "${fb#eget:}" --to "$HOME/.local/bin/$id" && { log_success "$id (eget)"; RESULT_INSTALLED+=("$id"); } || { log_warning "$id (eget unavailable — run: claw install nextgen)"; RESULT_FAILED+=("$id"); } ;;
         pipx)             command -v pipx &>/dev/null && _run pipx install "$id" && { log_success "$id (pipx)"; RESULT_INSTALLED+=("$id"); } || { log_warning "$id (pipx unavailable)"; RESULT_FAILED+=("$id"); } ;;
         gem)              command -v gem &>/dev/null  && _run gem install "$id" && { log_success "$id (gem)"; RESULT_INSTALLED+=("$id"); } || { log_warning "$id (gem unavailable)"; RESULT_FAILED+=("$id"); } ;;
         cargo)            command -v cargo &>/dev/null && _run cargo install "$id" && { log_success "$id (cargo)"; RESULT_INSTALLED+=("$id"); } || { log_warning "$id (cargo unavailable)"; RESULT_FAILED+=("$id"); } ;;

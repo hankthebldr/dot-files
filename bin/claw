@@ -590,7 +590,7 @@ cmd_restore_shell() {
 
 cmd_install() {
     local tc="$1"
-    [[ -z "$tc" ]] && { err "usage: claw install <toolchain> [-- extra-args]"; info "options: cloud security devops ai ai-workstation ai-skills research cortex homelab"; return 1; }
+    [[ -z "$tc" ]] && { err "usage: claw install <toolchain> [-- extra-args]"; info "options: nextgen cloud security devops ai ai-workstation ai-skills research cortex homelab deck demo design"; return 1; }
     local script="$DOTFILES/scripts/install/${tc}-toolchain.sh"
     [[ ! -f "$script" ]] && { err "toolchain not found: $tc ($script)"; return 1; }
     shift
