@@ -12,6 +12,32 @@ vault_path: Github-Projects/dot-files/FEATURE-BACKLOG.md
 Prioritized, derived from the full-code review + `UX-WALKTHROUGH.md` friction
 points. P1 = highest leverage. Each item is sized S/M/L.
 
+## Gap review — hardening pass (2026-06-06)
+
+**Implementation gaps found & fixed (by shellcheck/bats):**
+- `ai-skills-toolchain.sh` — `local` at script top level (SC2168): would abort
+  `claw install ai-skills`. Fixed.
+- `capture-tasks.sh` — unquoted `$VAULT` in a `${..#..}` pattern (SC2295). Fixed.
+- `mcp-sync` dry-run named no servers (only a count) — now lists them.
+- Whole repo verified clean at shellcheck **error** severity; CI now enforces it.
+
+**Visual-flow gaps identified (→ folded into P2):**
+- **Login line-stacking** — fact-of-the-day + pkg-track nudge + profile banner can
+  stack and push the prompt down. Need a single compact "login strip" that
+  budgets ≤ N lines and dedupes. (S)
+- **Two different readouts** — the fzf welcome (fastfetch two-column) and the
+  ratatui welcome (minimal Rust probe) show different data/style. Converge the
+  ratatui readout onto `fastfetch --format json`. (already a P2 item — confirmed P1-of-P2)
+- **Logo inconsistency** — ratatui uses a plain block-ASCII logo; the fzf path
+  uses truecolor art. Render the same `logo-*.txt` via `ansi-to-tui` in the TUI. (S)
+- **Profile dashboard vs welcome readout** duplicate system info — consider one
+  shared readout component. (M)
+
+**Backlog direction — confirmed:** P2 order is (1) ratatui readout/logo convergence
++ login-strip (visual consistency, cheap, high-impact), (2) visual packs
+(tte/MOTD/gum-spin), (3) ratatui M3–M5, (4) secrets depth. P3 dead-weight triage
+needs an operator decision (don't auto-delete authored files).
+
 ## P1 — Surfacing & discoverability  ✅ DONE (Wave: P1)
 - [x] **`claw cheatsheet`** (S) — one screen of the delight/alias/agent commands
   (`cpv`/`dlv`/`xtract`/`weather`/`claw ai`/`claw secret`…). Today they're only
@@ -63,10 +89,10 @@ points. P1 = highest leverage. Each item is sized S/M/L.
 - `tools/.config/{bottom,lazygit}/.gitkeep` — populate real configs or drop.
 - `should_skip_plugin()` stub in `claude-sync.sh` — implement the macOS/Linux split.
 
-## P3 — Quality & testing
-- **bats tests** (M) — for `pkg-manifest`, `toolchain-runner`, `secret`, `mcp-sync`.
-- **rust unit/`TestBackend` tests** (M) — readout alignment + outcome contract snapshots.
-- **shellcheck CI** (S) — lint all `scripts/**` on PR.
+## Quality & testing  ✅ DONE (hardening pass)
+- [x] **bats tests** (M) — for `pkg-manifest`, `toolchain-runner`, `secret`, `mcp-sync`.
+- [x] **rust unit/`TestBackend` tests** (M) — readout alignment + outcome contract snapshots.
+- [x] **shellcheck CI** (S) — lint all `scripts/**` on PR.
 - **`doggo`/`trippy` alias wiring** (S) — alias `dig`→doggo, `mtr`→trip where present.
 
 ## Notes for whoever picks this up

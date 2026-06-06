@@ -79,7 +79,7 @@ def merge_json(path: Path, servers, key="mcpServers"):
         if spec.get("env"): entry["env"] = spec["env"]
         block[name] = entry
     if DRY:
-        print(f"  DRY: would write {len(servers)} servers → {path}")
+        print(f"  DRY: would write [{', '.join(servers)}] → {path}")
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2) + "\n")

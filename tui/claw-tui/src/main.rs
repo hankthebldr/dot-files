@@ -49,13 +49,15 @@ impl Item {
 
 enum Outcome { Profile(String), Action(String), None }
 impl Outcome {
-    fn emit(&self) {
+    /// The contract line the zsh wrapper parses (kept pure for testing).
+    fn line(&self) -> String {
         match self {
-            Outcome::Profile(k) => println!("PROFILE\t{}", k),
-            Outcome::Action(k) => println!("ACTION\t{}", k),
-            Outcome::None => println!("NONE"),
+            Outcome::Profile(k) => format!("PROFILE\t{}", k),
+            Outcome::Action(k) => format!("ACTION\t{}", k),
+            Outcome::None => "NONE".to_string(),
         }
     }
+    fn emit(&self) { println!("{}", self.line()); }
 }
 
 struct App {
@@ -244,4 +246,37 @@ fn ui(f: &mut Frame, app: &mut App) {
         Span::styled("esc", theme::pointer()), Span::styled(" bare shell", theme::value()),
     ])).style(Style::default().fg(theme::MUTED));
     f.render_widget(bar, root[2]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn outcome_contract_format() {
+        assert_eq!(Outcome::Profile("security".into()).line(), "PROFILE\tsecurity");
+        assert_eq!(Outcome::Action("doctor".into()).line(), "ACTION\tdoctor");
+        assert_eq!(Outcome::None.line(), "NONE");
+    }
+
+    #[test]
+    fn first_selectable_skips_headers() {
+        let items = vec![Item::header("h"), Item::profile("default"), Item::action("a", "A")];
+        assert_eq!(first_selectable(&items), Some(1)); // skips the header at 0
+    }
+
+    #[test]
+    fn build_items_has_headers_and_actions() {
+        let v = build_items();
+        assert!(matches!(v[0].kind, Kind::Header));            // starts with a section header
+        assert!(v.iter().any(|i| matches!(i.kind, Kind::Profile)));
+        assert!(v.iter().any(|i| matches!(i.kind, Kind::Action) && i.key == "doctor"));
+    }
+
+    #[test]
+    fn header_not_selectable() {
+        assert!(!Item::header("x").selectable());
+        assert!(Item::profile("p").selectable());
+        assert!(Item::action("a", "l").selectable());
+    }
 }
