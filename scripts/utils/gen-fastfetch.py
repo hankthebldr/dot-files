@@ -232,8 +232,10 @@ CORTEX = [
 
 # profile -> (logo, keys/accent color, title color, tooling)
 CONFIGS = {
-    "config.jsonc":         (placeholder_logo("logo.txt", OPENCLAW_COLORS), BLUE, PURPLE, None),
-    "config-default.jsonc": (placeholder_logo("logo-default.txt", APPLE_COLORS), BLUE, GREEN, None),
+    # Startup + default: use the real system icon (Apple on macOS, distro on
+    # Linux) — cleaner and more recognizable than the ASCII OPEN CLAW header.
+    "config.jsonc":         (auto_logo(1), BLUE,   PURPLE, None),
+    "config-default.jsonc": (auto_logo(0), BLUE,   GREEN,  None),
     "config-cloud.jsonc":   (file_logo("cloud"),    ORANGE,            PURPLE, CLOUD),
     "config-security.jsonc":(file_logo("security"),  RED,              PURPLE, SECURITY),
     "config-devops.jsonc":  (file_logo("devops"),    GREEN,            PURPLE, DEVOPS),
