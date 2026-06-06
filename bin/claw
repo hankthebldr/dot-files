@@ -149,6 +149,9 @@ cmd_help() {
     ${c_white}claw <agent>${c_reset}          ${c_dim}launch a registered agent (claude, hermes, …)${c_reset}
     ${c_white}claw agent list${c_reset}       ${c_dim}list registered agents${c_reset}
     ${c_white}claw agent add${c_reset}        ${c_dim}claw agent add <name> <command> [profile]${c_reset}
+    ${c_white}claw agent doctor${c_reset}     ${c_dim}per-agent binary + key + config health${c_reset}
+    ${c_white}claw mcp-sync${c_reset}          ${c_dim}render one MCP registry → Claude Code/Gemini/Desktop${c_reset}
+    ${c_white}claw ai <cmd>${c_reset}          ${c_dim}local stack: serve|models|pull|chat|web|doctor${c_reset}
 
   ${c_green}${c_bold}AI Workstation${c_reset}
     ${c_white}claw gpu [--test --taint]${c_reset}  ${c_dim}K3s GPU node enablement (run on the server)${c_reset}
@@ -162,6 +165,13 @@ cmd_help() {
     ${c_white}claw claude-sync snapshot${c_reset} ${c_dim}capture Mac Claude state → manifests${c_reset}
     ${c_white}claw claude-sync sync${c_reset}     ${c_dim}replay manifests on this machine (BD790i etc.)${c_reset}
     ${c_white}claw claude-sync status${c_reset}   ${c_dim}diff live state vs manifests · (alias: csync)${c_reset}
+
+  ${c_purple}${c_bold}Knowledge & Secrets${c_reset}
+    ${c_white}claw handoff "topic"${c_reset}   ${c_dim}session note → Obsidian 00-Inbox (backlinked)${c_reset}
+    ${c_white}claw capture-tasks${c_reset}     ${c_dim}vault '@things' lines → Things 3 tasks${c_reset}
+    ${c_white}claw secret <cmd>${c_reset}      ${c_dim}init|env|encrypt|decrypt|doctor (age+sops)${c_reset}
+    ${c_white}claw selfupdate install${c_reset} ${c_dim}schedule weekly auto-update${c_reset}
+    ${c_white}claw cheatsheet${c_reset}        ${c_dim}one-screen command reference${c_reset}
 
   ${c_dim}Config: ${AGENTS_TOML}${c_reset}
 EOF
