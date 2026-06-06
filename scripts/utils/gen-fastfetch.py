@@ -257,7 +257,7 @@ def build_readout():
     rows = [
         {"type": "command", "key": "",
          "text": f"~/.dotfiles/scripts/utils/ff-readout.sh r{i}"}
-        for i in range(1, 7)
+        for i in range(1, 10)
     ]
     return {
         "$schema": SCHEMA,
