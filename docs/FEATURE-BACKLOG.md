@@ -65,15 +65,15 @@ needs an operator decision (don't auto-delete authored files).
 - **M5 — CI release binaries** (M) — `.github/workflows/tui-release.yml`
   (macOS arm64 + Linux x86_64/arm64 musl) + `claw install claw-tui` downloads
   a verified binary instead of compiling.
-- **Readout from `fastfetch --format json`** (S) — replace the minimal Rust
+- [x] **Readout from `fastfetch --format json`** (S) — replace the minimal Rust
   probe with fastfetch's data so the TUI readout matches the shell one.
 - **Live refresh** (S) — k8s context / docker counts updating on tick.
 
 ## P2 — Visual / delight packs
 - **`tte` intro animation** (S) — animated OPEN CLAW reveal on first login.
-- **Per-profile MOTD** (S) — profile-themed quote + glyph banner on `claw load`.
+- [x] **Per-profile MOTD** (S) — profile-themed quote + glyph banner on `claw load`.
 - **`pokeget`/`onefetch` MOTD options** (S) — toggleable personality.
-- **Loader pack** (S) — wrap long ops (`apt`, `brew`, clones) in `gum spin`.
+- [x] **Loader pack** (S) — claw_spin (gum spin + fallback) — wrap long ops (`apt`, `brew`, clones) in `gum spin`.
 
 ## P2 — Secrets & system ops depth
 - **`op`/`bw` bridge** (M) — optional 1Password/Bitwarden layer feeding sops/env.
