@@ -709,9 +709,40 @@ cmd_agent() {
             } >> "$AGENTS_TOML"
             ok "registered agent: $name → $command"
             ;;
+        doctor)
+            ensure_agents_toml
+            printf "\n  ${c_purple}${c_bold}agent health${c_reset}\n\n"
+            local name cmd
+            for name in $(agent_list_sections); do
+                cmd=$(agent_get "$name" command)
+                # binary present?
+                if command -v "${cmd%% *}" &>/dev/null; then
+                    printf "  ${c_green}●${c_reset} ${c_white}%-12s${c_reset} ${c_dim}%s${c_reset}" "$name" "$cmd"
+                else
+                    printf "  ${c_red}○${c_reset} ${c_white}%-12s${c_reset} ${c_dim}%s — not installed${c_reset}" "$name" "$cmd"
+                fi
+                # key present? (map agent → expected env var)
+                local keyvar=""
+                case "$name" in
+                    claude)     keyvar=ANTHROPIC_API_KEY ;;
+                    gemini)     keyvar=GEMINI_API_KEY ;;
+                    openrouter) keyvar=OPENROUTER_API_KEY ;;
+                    *)          keyvar="" ;;
+                esac
+                if [[ -n "$keyvar" ]]; then
+                    [[ -n "${!keyvar:-}" ]] \
+                        && printf "  ${c_green}key✓${c_reset}" || printf "  ${c_orange}key?${c_reset}"
+                fi
+                printf "\n"
+            done
+            printf "\n  ${c_dim}MCP: claw agent mcp-sync --dry-run · keys: .env / claw secret env${c_reset}\n\n"
+            ;;
+        mcp-sync)
+            python3 "$DOTFILES/scripts/utils/mcp-sync.py" "$@"
+            ;;
         *)
             err "unknown agent subcommand: $sub"
-            info "try: claw agent list | claw agent add <name> <command> [profile]"
+            info "try: claw agent {list|add|doctor|mcp-sync}"
             return 1
             ;;
     esac
@@ -779,6 +810,7 @@ case "${1:-menu}" in
     mcp-sync)       shift; python3 "$DOTFILES/scripts/utils/mcp-sync.py" "$@" ;;
     selfupdate)     shift; bash "$DOTFILES/scripts/utils/selfupdate.sh" "$@" ;;
     capture-tasks)  shift; bash "$DOTFILES/scripts/utils/capture-tasks.sh" "$@" ;;
+    cheatsheet|cheat) bash "$DOTFILES/scripts/utils/cheatsheet.sh" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;
