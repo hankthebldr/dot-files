@@ -87,12 +87,17 @@ function claw_welcome_tui() {
 
     local _fzf_color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff"
 
-    # Render the Screen-1 dashboard header (fastfetch + custom readout). Called
-    # on every return to the group picker so the intro persists on Screen 1.
+    # Render the Screen-1 dashboard header. Preference order:
+    #   1. claw-dashboard.py — the framed, gradient, two-column dashboard (best)
+    #   2. fastfetch config.jsonc — the two-column readout
+    #   3. branded ASCII fallback
     _claw_tui_header() {
         clear
+        local dash="$_d/scripts/utils/claw-dashboard.py"
         local ff_config="$_d/config/.config/fastfetch/config.jsonc"
-        if command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
+        if command -v python3 &> /dev/null && [[ -f "$dash" ]]; then
+            DOTFILES_DIR="$_d" python3 "$dash"
+        elif command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
             fastfetch -c "$ff_config"
         else
             # Fallback: branded header if fastfetch is missing
@@ -229,11 +234,16 @@ function claw_welcome_tui() {
             else
                 echo "${c_red}Profile not found: $_profile${c_reset}"
             fi
-            # Display profile-specific fastfetch art — across the board. Falls
-            # back to the generic dashboard so EVERY pick renders something.
+            # Display profile-specific art. default → the framed claw-dashboard
+            # (system logo + two-column readout); other profiles keep their
+            # truecolor fastfetch art. Falls back so EVERY pick renders something.
+            local _dash="$_d/scripts/utils/claw-dashboard.py"
             local _ff_profile="$_d/config/.config/fastfetch/config-${key}.jsonc"
             [[ -f "$_ff_profile" ]] || _ff_profile="$_d/config/.config/fastfetch/config.jsonc"
-            if command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
+            if [[ "$key" == "default" ]] && command -v python3 &> /dev/null && [[ -f "$_dash" ]]; then
+                echo ""
+                DOTFILES_DIR="$_d" python3 "$_dash"
+            elif command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
                 echo ""
                 fastfetch -c "$_ff_profile"
             fi
