@@ -5,6 +5,7 @@ pub const BLUE:   Color = Color::Rgb(0x58, 0xa6, 0xff);
 pub const GREEN:  Color = Color::Rgb(0x3f, 0xb9, 0x50);
 pub const PURPLE: Color = Color::Rgb(0xbc, 0x8c, 0xff);
 pub const ORANGE: Color = Color::Rgb(0xd2, 0x99, 0x22);
+#[allow(dead_code)] // palette completeness — used by error states in later screens
 pub const RED:    Color = Color::Rgb(0xff, 0x7b, 0x72);
 pub const MUTED:  Color = Color::Rgb(0x8b, 0x94, 0x9e);
 pub const FG:     Color = Color::Rgb(0xc9, 0xd1, 0xd9);

@@ -17,7 +17,7 @@ while IFS= read -r m; do
   task="$(sed -E 's/.*- \[ \] //; s/@things//; s/\^list:[A-Za-z0-9_-]+//; s/[[:space:]]+$//' <<<"$line")"
   [[ -z "$task" ]] && continue
   list="$(grep -oE '\^list:[A-Za-z0-9_-]+' <<<"$line" | sed 's/\^list://')"
-  rel="${file#$VAULT/}"; note="${rel%.md}"
+  rel="${file#"$VAULT"/}"; note="${rel%.md}"
   back="obsidian://open?vault=$(enc "$vname")&file=$(enc "$note")"
   url="things:///add?title=$(enc "$task")&notes=$(enc "source: $back")${list:+&list=$(enc "$list")}"
   n=$((n+1))

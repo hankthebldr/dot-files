@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    name: shell — shellcheck · zsh · bats
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: sudo apt-get update -qq && sudo apt-get install -y shellcheck bats zsh
+      - name: shellcheck — error severity (real bugs, whole repo)
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            head -1 "$f" | grep -qE 'bash|sh' || continue
+            shellcheck -S error -e SC1090,SC1091 "$f" || fail=1
+          done < <(git ls-files 'scripts/**/*.sh' 'bin/*' 'install.sh' 'bootstrap.sh' '*.sh')
+          exit $fail
+      - name: shellcheck — strict warnings (the core engine)
+        run: |
+          # New code is held to a higher bar; the cinematic color-logging style
+          # codes (unused palette vars, color in printf format) are excluded.
+          EXCL="SC1090,SC1091,SC2034,SC2059,SC2015,SC2154"
+          fail=0
+          for f in scripts/install/lib/toolchain-runner.sh scripts/install/provision.sh                    scripts/install/nextgen-toolchain.sh scripts/utils/pkg-manifest.sh                    scripts/utils/secret.sh scripts/utils/ai.sh scripts/utils/selfupdate.sh                    scripts/utils/capture-tasks.sh scripts/utils/handoff.sh                    scripts/utils/cheatsheet.sh scripts/utils/docs-to-vault.sh; do
+            shellcheck -S warning -e "$EXCL" "$f" || fail=1
+          done
+          exit $fail
+      - name: zsh syntax (shell modules)
+        run: |
+          fail=0
+          for f in $(git ls-files 'shell/**/*.zsh' 'shell/.zshrc' 'shell/.p10k.zsh'); do
+            zsh -n "$f" || { echo "FAIL: $f"; fail=1; }
+          done
+          exit $fail
+      - name: bats tests
+        run: bats tests/
+
+  rust:
+    name: rust — build · test · clippy
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: tui/claw-tui } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: clippy }
+      - run: cargo build --locked --verbose
+      - run: cargo test --locked --verbose
+      - run: cargo clippy -- -D warnings
+
+  python:
+    name: python — compile · generators · configs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: py_compile
+        run: |
+          for f in $(git ls-files 'scripts/**/*.py'); do python3 -m py_compile "$f"; done
+      - name: fastfetch generator is deterministic (no manual drift)
+        run: |
+          python3 scripts/utils/gen-fastfetch.py
+          git diff --exit-code config/.config/fastfetch/ \
+            || { echo "::error::config drift — re-run gen-fastfetch.py and commit"; exit 1; }
+      - name: fastfetch + mcp configs are valid
+        run: |
+          for f in config/.config/fastfetch/config*.jsonc; do python3 -c "import json,sys;json.load(open(sys.argv[1]))" "$f"; done
+          python3 -c "import tomllib;tomllib.load(open('claude/mcp.toml','rb'))"
