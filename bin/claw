@@ -149,6 +149,8 @@ cmd_help() {
 
   ${c_red}${c_bold}Install${c_reset}
     ${c_white}claw install <toolchain>${c_reset}  ${c_dim}opt-in toolchain installer (cloud/security/…)${c_reset}
+    ${c_white}claw provision${c_reset}            ${c_dim}fresh box → fully configured in one pass (--dry-run --minimal)${c_reset}
+    ${c_white}claw pkg {list|scan|track|install|update}${c_reset} ${c_dim}self-aware tool registry${c_reset}
     ${c_white}claw uninstall${c_reset}            ${c_dim}reverse bootstrap (soft scope · --dry-run --yes)${c_reset}
     ${c_white}claw claude-sync snapshot${c_reset} ${c_dim}capture Mac Claude state → manifests${c_reset}
     ${c_white}claw claude-sync sync${c_reset}     ${c_dim}replay manifests on this machine (BD790i etc.)${c_reset}
@@ -762,6 +764,8 @@ case "${1:-menu}" in
     restore-shell|relink) cmd_restore_shell ;;
     docs-sync|docs)  bash "$DOTFILES/scripts/utils/docs-to-vault.sh" ;;
     install)        shift; cmd_install "$@" ;;
+    provision)      shift; bash "$DOTFILES/scripts/install/provision.sh" "$@" ;;
+    pkg|packages)   shift; bash "$DOTFILES/scripts/utils/pkg-manifest.sh" "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;
