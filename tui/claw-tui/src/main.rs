@@ -63,7 +63,7 @@ impl Outcome {
 struct App {
     items: Vec<Item>,
     state: ListState,
-    readout: Vec<(String, String, String, String)>,
+    readout: Vec<(String, String)>,
     outcome: Outcome,
     quit: bool,
 }
@@ -136,19 +136,80 @@ fn discover_profiles() -> Vec<String> {
 
 fn home() -> PathBuf { std::env::var("HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from("/")) }
 
-fn gather_readout() -> Vec<(String, String, String, String)> {
+/// (label, value) pairs. Converges on fastfetch's data — `fastfetch --format
+/// json` is the same probe the shell readout uses — rendered natively by a
+/// ratatui Table. Falls back to a std probe when fastfetch is absent.
+fn gather_readout() -> Vec<(String, String)> {
+    if let Some(out) = std::process::Command::new("fastfetch")
+        .args(["--format", "json"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+    {
+        if let Ok(text) = String::from_utf8(out.stdout) {
+            let pairs = parse_fastfetch(&text);
+            if !pairs.is_empty() {
+                return pairs;
+            }
+        }
+    }
+    fallback_readout()
+}
+
+/// Parse `fastfetch --format json` ([{type, result}, …]) into display pairs.
+/// Defensive: result is a string → used directly; an object → a few well-known
+/// keys are stitched; otherwise skipped. Kept pure for unit testing.
+fn parse_fastfetch(json: &str) -> Vec<(String, String)> {
+    const WANT: &[&str] = &["OS", "Host", "Kernel", "Uptime", "CPU", "GPU", "Memory", "Disk", "LocalIp", "Shell"];
+    let v: serde_json::Value = match serde_json::from_str(json) {
+        Ok(v) => v,
+        Err(_) => return vec![],
+    };
+    let mut out = vec![];
+    for item in v.as_array().into_iter().flatten() {
+        let ty = item.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if !WANT.contains(&ty) {
+            continue;
+        }
+        let res = match item.get("result") {
+            Some(r) => r,
+            None => continue,
+        };
+        let val = match res {
+            serde_json::Value::String(s) => s.clone(),
+            serde_json::Value::Object(o) => {
+                // try common display keys, else join string-ish values
+                ["name", "value", "version", "cpu", "pretty"]
+                    .iter()
+                    .find_map(|k| o.get(*k).and_then(|x| x.as_str()).map(String::from))
+                    .unwrap_or_else(|| {
+                        o.values()
+                            .filter_map(|x| x.as_str())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    })
+            }
+            _ => continue,
+        };
+        if !val.is_empty() {
+            out.push((format!(" {}", ty), val));
+        }
+    }
+    out
+}
+
+fn fallback_readout() -> Vec<(String, String)> {
     let os = std::fs::read_to_string("/etc/os-release").ok()
         .and_then(|s| s.lines().find(|l| l.starts_with("PRETTY_NAME="))
             .map(|l| l.trim_start_matches("PRETTY_NAME=").trim_matches('"').to_string()))
         .unwrap_or_else(|| std::env::consts::OS.to_string());
-    let host = std::env::var("HOSTNAME").or_else(|_| std::env::var("HOST")).unwrap_or_else(|_| "—".into());
-    let shell = std::env::var("SHELL").unwrap_or_default();
-    let term = std::env::var("TERM_PROGRAM").or_else(|_| std::env::var("TERM")).unwrap_or_default();
-    let user = std::env::var("USER").unwrap_or_default();
     vec![
-        (" OS".into(), os, " Arch".into(), std::env::consts::ARCH.into()),
-        (" Host".into(), host, " User".into(), user),
-        (" Shell".into(), shell, " Term".into(), term),
+        (" OS".into(), os),
+        (" Arch".into(), std::env::consts::ARCH.into()),
+        (" Host".into(), std::env::var("HOSTNAME").or_else(|_| std::env::var("HOST")).unwrap_or_else(|_| "—".into())),
+        (" Shell".into(), std::env::var("SHELL").unwrap_or_default()),
+        (" Term".into(), std::env::var("TERM_PROGRAM").or_else(|_| std::env::var("TERM")).unwrap_or_default()),
+        (" User".into(), std::env::var("USER").unwrap_or_default()),
     ]
 }
 
@@ -200,7 +261,7 @@ fn run(term: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> Result<(
 }
 
 fn ui(f: &mut Frame, app: &mut App) {
-    let root = Layout::vertical([Constraint::Length(7), Constraint::Min(5), Constraint::Length(1)]).split(f.area());
+    let root = Layout::vertical([Constraint::Length(9), Constraint::Min(5), Constraint::Length(1)]).split(f.area());
     let head = Layout::horizontal([Constraint::Length(20), Constraint::Min(30)]).split(root[0]);
 
     let logo = Paragraph::new(vec![
@@ -211,19 +272,14 @@ fn ui(f: &mut Frame, app: &mut App) {
     ]);
     f.render_widget(logo, head[0]);
 
-    let rows: Vec<Row> = app.readout.iter().map(|(lk, lv, rk, rv)| {
+    let rows: Vec<Row> = app.readout.iter().take(8).map(|(k, v)| {
         Row::new(vec![
-            Span::styled(lk.clone(), theme::key()),
-            Span::styled(lv.clone(), theme::value()),
-            Span::styled("│", Style::default().fg(theme::RULE)),
-            Span::styled(rk.clone(), theme::key()),
-            Span::styled(rv.clone(), theme::value()),
+            Span::styled(k.clone(), theme::key()),
+            Span::styled(v.clone(), theme::value()),
         ])
     }).collect();
-    let table = Table::new(rows, [
-        Constraint::Length(8), Constraint::Length(20), Constraint::Length(1),
-        Constraint::Length(8), Constraint::Min(8),
-    ]).block(Block::default().borders(Borders::LEFT).border_style(Style::default().fg(theme::RULE)));
+    let table = Table::new(rows, [Constraint::Length(10), Constraint::Min(10)])
+        .block(Block::default().borders(Borders::LEFT).border_style(Style::default().fg(theme::RULE)));
     f.render_widget(table, head[1]);
 
     let items: Vec<ListItem> = app.items.iter().map(|it| {
@@ -251,6 +307,26 @@ fn ui(f: &mut Frame, app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_fastfetch_handles_string_and_object_results() {
+        let j = r#"[
+            {"type":"OS","result":{"name":"macOS","version":"26.6"}},
+            {"type":"Kernel","result":"Darwin 25.6.0"},
+            {"type":"CPU","result":{"cpu":"Apple M4 Pro"}},
+            {"type":"WiFi","result":{"ssid":"ignored-not-in-want-list"}}
+        ]"#;
+        let pairs = parse_fastfetch(j);
+        assert!(pairs.iter().any(|(k, v)| k == " OS" && v == "macOS"));
+        assert!(pairs.iter().any(|(k, v)| k == " Kernel" && v == "Darwin 25.6.0"));
+        assert!(pairs.iter().any(|(k, v)| k == " CPU" && v == "Apple M4 Pro"));
+        assert!(!pairs.iter().any(|(k, _)| k == " WiFi"));   // not in WANT
+    }
+
+    #[test]
+    fn parse_fastfetch_bad_json_is_empty() {
+        assert!(parse_fastfetch("not json").is_empty());
+    }
 
     #[test]
     fn outcome_contract_format() {
