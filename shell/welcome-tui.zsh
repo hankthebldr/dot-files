@@ -1,6 +1,21 @@
 # shell/welcome-tui.zsh
 # Interactive Open Claw Login Dashboard — two-level wizard (group → sub-profile)
 
+# Apply a claw-tui outcome line (PROFILE\t<key> | ACTION\t<id> | NONE) to the
+# parent shell — this is the half the binary physically cannot do.
+_claw_apply_outcome() {
+    local line="$1" kind rest
+    kind="${line%%$'\t'*}"; rest="${line#*$'\t'}"
+    case "$kind" in
+        PROFILE)
+            [[ -f "$DOTFILES_DIR/shell/profiles/${rest}.zsh" ]] && {
+                export CLAW_ACTIVE_PROFILE="$rest"
+                source "$DOTFILES_DIR/shell/profiles/${rest}.zsh"
+            } ;;
+        *) : ;;   # NONE / unknown → bare shell
+    esac
+}
+
 function claw_welcome_tui() {
     # SAFETY: Never run in non-interactive shells (breaks scp, rsync, git-over-ssh)
     [[ ! -o interactive ]] && return
@@ -10,6 +25,15 @@ function claw_welcome_tui() {
     [[ -n "$SSH_CONNECTION" && ! -t 1 ]] && return
     # Skip if a profile is already active to prevent infinite loop
     [[ -n "$CLAW_ACTIVE_PROFILE" ]] && return
+
+    # ── Wave 4: optional ratatui front-end (opt-in via CLAW_TUI=1) ──────────
+    # The Rust binary renders + selects; we apply its one-line outcome here.
+    # Default-off so the proven fzf path stays the baseline (progressive
+    # enhancement, same guard pattern as every tool in the repo).
+    if [[ "${CLAW_TUI:-0}" == 1 ]] && command -v claw-tui &> /dev/null; then
+        _claw_apply_outcome "$(claw-tui welcome)"
+        return
+    fi
 
     # Use $DOTFILES_DIR set by .zshrc
     local _d="$DOTFILES_DIR"

@@ -39,3 +39,7 @@ if [[ -f "${DOTFILES_DIR:-$HOME/Github/Github_desktop/dot-files}/.env" ]]; then
     load_env
     _claw_resolve_op_refs 2>/dev/null
 fi
+
+# Decrypt sops-managed secrets into the env (silent, guarded — see claw secret).
+[[ -f "$DOTFILES_DIR/config/secrets/.env.sops" ]] && command -v sops &>/dev/null && \
+    source "$DOTFILES_DIR/scripts/utils/secret.sh" load 2>/dev/null || true

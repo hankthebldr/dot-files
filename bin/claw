@@ -69,16 +69,23 @@ command = "gemini"
 profile = "ai"
 description = "Google Gemini CLI (@google/gemini-cli)"
 
-# Example future entries:
-# [hermes]
-# command = "hermes-cli"
-# profile = "ai"
-# description = "Hermes 70B local agent"
-#
-# [aider]
-# command = "aider"
-# profile = "ai"
-# description = "Aider pair-programmer"
+[hermes]
+command = "hermes"
+profile = "ai"
+kind = "local"
+description = "Hermes 3 local agent (Ollama)"
+
+[openrouter]
+command = "openrouter"
+profile = "ai"
+kind = "chat"
+description = "OpenRouter via aichat"
+
+[aichat]
+command = "aichat"
+profile = "ai"
+kind = "chat"
+description = "Multi-provider chat/pipe"
 EOF
         info "Created $AGENTS_TOML with [claude] pre-registered"
     fi
@@ -149,6 +156,8 @@ cmd_help() {
 
   ${c_red}${c_bold}Install${c_reset}
     ${c_white}claw install <toolchain>${c_reset}  ${c_dim}opt-in toolchain installer (cloud/security/…)${c_reset}
+    ${c_white}claw provision${c_reset}            ${c_dim}fresh box → fully configured in one pass (--dry-run --minimal)${c_reset}
+    ${c_white}claw pkg {list|scan|track|install|update}${c_reset} ${c_dim}self-aware tool registry${c_reset}
     ${c_white}claw uninstall${c_reset}            ${c_dim}reverse bootstrap (soft scope · --dry-run --yes)${c_reset}
     ${c_white}claw claude-sync snapshot${c_reset} ${c_dim}capture Mac Claude state → manifests${c_reset}
     ${c_white}claw claude-sync sync${c_reset}     ${c_dim}replay manifests on this machine (BD790i etc.)${c_reset}
@@ -762,6 +771,12 @@ case "${1:-menu}" in
     restore-shell|relink) cmd_restore_shell ;;
     docs-sync|docs)  bash "$DOTFILES/scripts/utils/docs-to-vault.sh" ;;
     install)        shift; cmd_install "$@" ;;
+    provision)      shift; bash "$DOTFILES/scripts/install/provision.sh" "$@" ;;
+    pkg|packages)   shift; bash "$DOTFILES/scripts/utils/pkg-manifest.sh" "$@" ;;
+    secret|secrets)  shift; bash "$DOTFILES/scripts/utils/secret.sh" "$@" ;;
+    ai)             shift; bash "$DOTFILES/scripts/utils/ai.sh" "$@" ;;
+    handoff)        shift; bash "$DOTFILES/scripts/utils/handoff.sh" "$@" ;;
+    mcp-sync)       shift; python3 "$DOTFILES/scripts/utils/mcp-sync.py" "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;

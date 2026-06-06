@@ -67,3 +67,7 @@ export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
 
 # Git pager (delta)
 export GIT_PAGER='delta'
+
+# ── Agentic shared env (one secret source → many harnesses) ─────────────────
+: "${GEMINI_API_KEY:=${GOOGLE_API_KEY:-}}"; [[ -n "$GEMINI_API_KEY" ]] && export GEMINI_API_KEY
+export OLLAMA_OPENAI_BASE="${OLLAMA_OPENAI_BASE:-http://localhost:11434/v1}"
