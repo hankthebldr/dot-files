@@ -48,3 +48,11 @@ setup() {
   [[ "$output" == *"claw provision"* ]]
   [[ "$output" == *"claw secret"* ]]
 }
+
+@test "claw-dashboard: renders a framed dashboard with system info + OPEN CLAW title" {
+  run env DOTFILES_DIR="$BATS_TEST_DIRNAME/.." USER=tester python3 "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"OPEN CLAW"* ]]   # title in the frame
+  [[ "$output" == *"OS"* ]]          # readout present
+  [[ "$output" == *"╭"* ]]           # framed
+}

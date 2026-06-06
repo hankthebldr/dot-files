@@ -70,6 +70,12 @@ row() {
 }
 
 case "${1:-all}" in
+  # Machine-readable dump for claw-dashboard.py (one key=value per line).
+  fields)
+    for _f in os host kernel uptime load shell term pkgs locale cpu cores mem swap disk ip wifi batt date; do
+        printf '%s=%s\n' "$_f" "$(g "$_f")"
+    done ;;
+  field) shift; g "${1:-os}" ;;
   r1) row "$I_OS"   "OS"     os      "$I_CPU"  "CPU"   cpu ;;
   r2) row "$I_HOST" "Host"   host    "$I_CORE" "Cores" cores ;;
   r3) row "$I_KERN" "Kernel" kernel  "$I_MEM"  "Mem"   mem ;;
