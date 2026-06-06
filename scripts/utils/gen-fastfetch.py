@@ -246,12 +246,38 @@ CONFIGS = {
 }
 
 
+def build_readout():
+    """Startup dashboard: system icon + a compact TWO-COLUMN readout.
+
+    The long ~40-row module list didn't fit the screen, so config.jsonc renders
+    the icon-rich two-column block from scripts/utils/ff-readout.sh instead —
+    each row is its own one-line `command` module (so it never depends on
+    multi-line module output), shown to the right of the auto system logo.
+    """
+    rows = [
+        {"type": "command", "key": "",
+         "text": f"~/.dotfiles/scripts/utils/ff-readout.sh r{i}"}
+        for i in range(1, 7)
+    ]
+    return {
+        "$schema": SCHEMA,
+        "logo": auto_logo(1),
+        "display": {"separator": "", "color": {"keys": BLUE, "title": PURPLE}},
+        "modules": [
+            {"type": "title",
+             "format": "{user-name-colored}@{host-name-colored}", "key": " "},
+            *rows,
+            {"type": "colors", "paddingLeft": 2, "symbol": "circle"},
+        ],
+    }
+
+
 def main():
     out_dir = os.path.join(os.path.dirname(__file__), "..", "..",
                            "config", ".config", "fastfetch")
     out_dir = os.path.abspath(out_dir)
     for name, (logo, keys, title, tools) in CONFIGS.items():
-        cfg = build(logo, keys, title, tools)
+        cfg = build_readout() if name == "config.jsonc" else build(logo, keys, title, tools)
         path = os.path.join(out_dir, name)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
