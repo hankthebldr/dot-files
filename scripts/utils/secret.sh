@@ -65,7 +65,10 @@ sec_env() {
 # Decrypt the sops env into the current environment (called from load-env.zsh).
 sec_load_env() {
     [[ -f "$SOPS_ENV" ]] && command -v sops &>/dev/null || return 0
-    while IFS='=' read -r k v; do
+    local line k v
+    while IFS= read -r line; do
+        # split on the FIRST '=' only — values may contain '=' (base64, JWTs).
+        k="${line%%=*}"; v="${line#*=}"
         [[ "$k" =~ ^[A-Za-z_][A-Za-z0-9_]*$ && -n "$v" ]] && export "$k=$v"
     done < <(sops -d "$SOPS_ENV" 2>/dev/null)
 }
