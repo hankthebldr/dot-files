@@ -49,7 +49,7 @@ def load_palette():
         pass
     base = dict(blue=(88,166,255), green=(63,185,80), purple=(188,140,255),
                 amber=(227,179,65), red=(255,123,114), muted=(139,148,158),
-                fg=(201,209,217), cyan=(86,212,221))
+                fg=(201,209,217), cyan=(57,197,255))
     base.update(pal)
     return base
 
