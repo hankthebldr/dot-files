@@ -193,3 +193,7 @@ History
 
 # Claude Code per-machine settings (auto-rewritten by Claude Code itself)
 .claude/settings.local.json
+
+# install toolchain engine (not a build artifact)
+!scripts/install/lib/
+!scripts/install/lib/*.sh
