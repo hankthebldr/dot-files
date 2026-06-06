@@ -777,6 +777,8 @@ case "${1:-menu}" in
     ai)             shift; bash "$DOTFILES/scripts/utils/ai.sh" "$@" ;;
     handoff)        shift; bash "$DOTFILES/scripts/utils/handoff.sh" "$@" ;;
     mcp-sync)       shift; python3 "$DOTFILES/scripts/utils/mcp-sync.py" "$@" ;;
+    selfupdate)     shift; bash "$DOTFILES/scripts/utils/selfupdate.sh" "$@" ;;
+    capture-tasks)  shift; bash "$DOTFILES/scripts/utils/capture-tasks.sh" "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;
