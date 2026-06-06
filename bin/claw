@@ -766,6 +766,7 @@ case "${1:-menu}" in
     install)        shift; cmd_install "$@" ;;
     provision)      shift; bash "$DOTFILES/scripts/install/provision.sh" "$@" ;;
     pkg|packages)   shift; bash "$DOTFILES/scripts/utils/pkg-manifest.sh" "$@" ;;
+    secret|secrets)  shift; bash "$DOTFILES/scripts/utils/secret.sh" "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;
