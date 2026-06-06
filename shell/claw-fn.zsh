@@ -12,7 +12,7 @@ claw() {
             local p="${1:-}"
             if [[ -z "$p" ]]; then
                 printf "  \e[38;2;255;123;114m✗\e[0m usage: claw load <profile>\n" >&2
-                printf "  \e[38;2;139;148;158mavailable: default claude cloud security devops ai research cortex local\e[0m\n" >&2
+                printf "  \e[38;2;139;148;158mavailable: default local claude cloud devops security cortex ai research vault brainstorm pmo deck design demo homelab blackwell tunnels\e[0m\n" >&2
                 return 1
             fi
             local pfile="${DOTFILES_DIR:-$HOME/.dotfiles}/shell/profiles/$p.zsh"

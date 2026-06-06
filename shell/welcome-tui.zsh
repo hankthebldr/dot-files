@@ -399,6 +399,11 @@ _claw_profile_readout() {
     # Reference commands — only those that actually resolve as functions
     local help_cmd="${PROFILE_HELP_CMD:-${key}-help}"
     local check_cmd="_${key}_tool_check"
+    # Profiles without a bespoke checker fall back to the generic one (which
+    # reads PROFILE_KEY_TOOLS) so the status card always renders.
+    if (( ! ${+functions[$check_cmd]} )) && [[ -n "${PROFILE_KEY_TOOLS:-}" ]]; then
+        check_cmd="_claw_profile_tool_check"
+    fi
     local -a refs=()
     (( ${+functions[$help_cmd]} ))  && refs+=("${c_green}${help_cmd}${c_reset} ${c_dim}reference${c_reset}")
     (( ${+functions[$check_cmd]} )) && refs+=("${c_green}${check_cmd}${c_reset} ${c_dim}status${c_reset}")
