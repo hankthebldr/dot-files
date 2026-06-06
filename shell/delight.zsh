@@ -102,3 +102,19 @@ if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_PKG_NUDGE:-1
     fi
     unset _pkg_count _pkg_stamp _n
 fi
+
+# ── claw_spin — run a command under a spinner (gum if present) ──────────────
+# Usage: claw_spin "Installing X" brew install x
+claw_spin() {
+    local msg="$1"; shift
+    [[ $# -eq 0 ]] && return 0
+    if command -v gum &>/dev/null; then
+        gum spin --spinner dot --title "$msg" -- "$@"
+    else
+        printf "  \e[38;2;88;166;255m◐\e[0m %s…" "$msg"
+        "$@"; local rc=$?
+        if [[ $rc -eq 0 ]]; then printf "\r  \e[38;2;63;185;80m✓\e[0m %s   \n" "$msg"
+        else printf "\r  \e[38;2;255;123;114m✗\e[0m %s   \n" "$msg"; fi
+        return $rc
+    fi
+}

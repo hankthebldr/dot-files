@@ -23,6 +23,8 @@ claw() {
             export CLAW_ACTIVE_PROFILE="$p"
             source "$pfile"
             printf "  \e[38;2;63;185;80m✓\e[0m loaded profile: \e[38;2;201;209;217m%s\e[0m\n" "$p"
+            # per-profile MOTD: the profile's flavor tag (set in meta.zsh)
+            [[ -n "${PROFILE_TAG:-}" ]] && printf "  \e[38;2;139;148;158m%s\e[0m\n" "$PROFILE_TAG"
             # load↔install bridge: nudge if the profile's key tools aren't present.
             if [[ -n "${PROFILE_KEY_TOOLS:-}" ]]; then
                 local _miss=() _t
