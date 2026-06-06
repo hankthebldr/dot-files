@@ -262,10 +262,14 @@ def build_readout():
     return {
         "$schema": SCHEMA,
         "logo": auto_logo(1),
-        "display": {"separator": "", "color": {"keys": BLUE, "title": PURPLE}},
+        "display": {"separator": "", "color": {"keys": BLUE, "title": PURPLE},
+                    "key": {"width": 0}},
         "modules": [
+            # key:"" + the same 2-space indent the readout rows use, so the title
+            # lines up with the box below it (a non-empty key would widen the key
+            # column and shift only this top row).
             {"type": "title",
-             "format": "{user-name-colored}@{host-name-colored}", "key": " "},
+             "format": "  {user-name-colored}@{host-name-colored}", "key": ""},
             *rows,
             {"type": "colors", "paddingLeft": 2, "symbol": "circle"},
         ],
