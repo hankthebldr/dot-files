@@ -69,16 +69,23 @@ command = "gemini"
 profile = "ai"
 description = "Google Gemini CLI (@google/gemini-cli)"
 
-# Example future entries:
-# [hermes]
-# command = "hermes-cli"
-# profile = "ai"
-# description = "Hermes 70B local agent"
-#
-# [aider]
-# command = "aider"
-# profile = "ai"
-# description = "Aider pair-programmer"
+[hermes]
+command = "hermes"
+profile = "ai"
+kind = "local"
+description = "Hermes 3 local agent (Ollama)"
+
+[openrouter]
+command = "openrouter"
+profile = "ai"
+kind = "chat"
+description = "OpenRouter via aichat"
+
+[aichat]
+command = "aichat"
+profile = "ai"
+kind = "chat"
+description = "Multi-provider chat/pipe"
 EOF
         info "Created $AGENTS_TOML with [claude] pre-registered"
     fi
@@ -142,6 +149,9 @@ cmd_help() {
     ${c_white}claw <agent>${c_reset}          ${c_dim}launch a registered agent (claude, hermes, …)${c_reset}
     ${c_white}claw agent list${c_reset}       ${c_dim}list registered agents${c_reset}
     ${c_white}claw agent add${c_reset}        ${c_dim}claw agent add <name> <command> [profile]${c_reset}
+    ${c_white}claw agent doctor${c_reset}     ${c_dim}per-agent binary + key + config health${c_reset}
+    ${c_white}claw mcp-sync${c_reset}          ${c_dim}render one MCP registry → Claude Code/Gemini/Desktop${c_reset}
+    ${c_white}claw ai <cmd>${c_reset}          ${c_dim}local stack: serve|models|pull|chat|web|doctor${c_reset}
 
   ${c_green}${c_bold}AI Workstation${c_reset}
     ${c_white}claw gpu [--test --taint]${c_reset}  ${c_dim}K3s GPU node enablement (run on the server)${c_reset}
@@ -149,10 +159,19 @@ cmd_help() {
 
   ${c_red}${c_bold}Install${c_reset}
     ${c_white}claw install <toolchain>${c_reset}  ${c_dim}opt-in toolchain installer (cloud/security/…)${c_reset}
+    ${c_white}claw provision${c_reset}            ${c_dim}fresh box → fully configured in one pass (--dry-run --minimal)${c_reset}
+    ${c_white}claw pkg {list|scan|track|install|update}${c_reset} ${c_dim}self-aware tool registry${c_reset}
     ${c_white}claw uninstall${c_reset}            ${c_dim}reverse bootstrap (soft scope · --dry-run --yes)${c_reset}
     ${c_white}claw claude-sync snapshot${c_reset} ${c_dim}capture Mac Claude state → manifests${c_reset}
     ${c_white}claw claude-sync sync${c_reset}     ${c_dim}replay manifests on this machine (BD790i etc.)${c_reset}
     ${c_white}claw claude-sync status${c_reset}   ${c_dim}diff live state vs manifests · (alias: csync)${c_reset}
+
+  ${c_purple}${c_bold}Knowledge & Secrets${c_reset}
+    ${c_white}claw handoff "topic"${c_reset}   ${c_dim}session note → Obsidian 00-Inbox (backlinked)${c_reset}
+    ${c_white}claw capture-tasks${c_reset}     ${c_dim}vault '@things' lines → Things 3 tasks${c_reset}
+    ${c_white}claw secret <cmd>${c_reset}      ${c_dim}init|env|encrypt|decrypt|doctor (age+sops)${c_reset}
+    ${c_white}claw selfupdate install${c_reset} ${c_dim}schedule weekly auto-update${c_reset}
+    ${c_white}claw cheatsheet${c_reset}        ${c_dim}one-screen command reference${c_reset}
 
   ${c_dim}Config: ${AGENTS_TOML}${c_reset}
 EOF
@@ -590,7 +609,7 @@ cmd_restore_shell() {
 
 cmd_install() {
     local tc="$1"
-    [[ -z "$tc" ]] && { err "usage: claw install <toolchain> [-- extra-args]"; info "options: cloud security devops ai ai-workstation ai-skills research cortex homelab"; return 1; }
+    [[ -z "$tc" ]] && { err "usage: claw install <toolchain> [-- extra-args]"; info "options: nextgen cloud security devops ai ai-workstation ai-skills research cortex homelab deck demo design"; return 1; }
     local script="$DOTFILES/scripts/install/${tc}-toolchain.sh"
     [[ ! -f "$script" ]] && { err "toolchain not found: $tc ($script)"; return 1; }
     shift
@@ -700,9 +719,40 @@ cmd_agent() {
             } >> "$AGENTS_TOML"
             ok "registered agent: $name → $command"
             ;;
+        doctor)
+            ensure_agents_toml
+            printf "\n  ${c_purple}${c_bold}agent health${c_reset}\n\n"
+            local name cmd
+            for name in $(agent_list_sections); do
+                cmd=$(agent_get "$name" command)
+                # binary present?
+                if command -v "${cmd%% *}" &>/dev/null; then
+                    printf "  ${c_green}●${c_reset} ${c_white}%-12s${c_reset} ${c_dim}%s${c_reset}" "$name" "$cmd"
+                else
+                    printf "  ${c_red}○${c_reset} ${c_white}%-12s${c_reset} ${c_dim}%s — not installed${c_reset}" "$name" "$cmd"
+                fi
+                # key present? (map agent → expected env var)
+                local keyvar=""
+                case "$name" in
+                    claude)     keyvar=ANTHROPIC_API_KEY ;;
+                    gemini)     keyvar=GEMINI_API_KEY ;;
+                    openrouter) keyvar=OPENROUTER_API_KEY ;;
+                    *)          keyvar="" ;;
+                esac
+                if [[ -n "$keyvar" ]]; then
+                    [[ -n "${!keyvar:-}" ]] \
+                        && printf "  ${c_green}key✓${c_reset}" || printf "  ${c_orange}key?${c_reset}"
+                fi
+                printf "\n"
+            done
+            printf "\n  ${c_dim}MCP: claw agent mcp-sync --dry-run · keys: .env / claw secret env${c_reset}\n\n"
+            ;;
+        mcp-sync)
+            python3 "$DOTFILES/scripts/utils/mcp-sync.py" "$@"
+            ;;
         *)
             err "unknown agent subcommand: $sub"
-            info "try: claw agent list | claw agent add <name> <command> [profile]"
+            info "try: claw agent {list|add|doctor|mcp-sync}"
             return 1
             ;;
     esac
@@ -760,7 +810,17 @@ case "${1:-menu}" in
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
     restore-shell|relink) cmd_restore_shell ;;
+    docs-sync|docs)  bash "$DOTFILES/scripts/utils/docs-to-vault.sh" ;;
     install)        shift; cmd_install "$@" ;;
+    provision)      shift; bash "$DOTFILES/scripts/install/provision.sh" "$@" ;;
+    pkg|packages)   shift; bash "$DOTFILES/scripts/utils/pkg-manifest.sh" "$@" ;;
+    secret|secrets)  shift; bash "$DOTFILES/scripts/utils/secret.sh" "$@" ;;
+    ai)             shift; bash "$DOTFILES/scripts/utils/ai.sh" "$@" ;;
+    handoff)        shift; bash "$DOTFILES/scripts/utils/handoff.sh" "$@" ;;
+    mcp-sync)       shift; python3 "$DOTFILES/scripts/utils/mcp-sync.py" "$@" ;;
+    selfupdate)     shift; bash "$DOTFILES/scripts/utils/selfupdate.sh" "$@" ;;
+    capture-tasks)  shift; bash "$DOTFILES/scripts/utils/capture-tasks.sh" "$@" ;;
+    cheatsheet|cheat) bash "$DOTFILES/scripts/utils/cheatsheet.sh" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;

@@ -1,6 +1,24 @@
 # shell/welcome-tui.zsh
 # Interactive Open Claw Login Dashboard — two-level wizard (group → sub-profile)
 
+# Apply a claw-tui outcome line (PROFILE\t<key> | ACTION\t<id> | NONE) to the
+# parent shell — this is the half the binary physically cannot do.
+_claw_apply_outcome() {
+    local line="$1" kind rest
+    kind="${line%%$'\t'*}"; rest="${line#*$'\t'}"
+    case "$kind" in
+        PROFILE)
+            [[ -f "$DOTFILES_DIR/shell/profiles/${rest}.zsh" ]] && {
+                export CLAW_ACTIVE_PROFILE="$rest"
+                source "$DOTFILES_DIR/shell/profiles/${rest}.zsh"
+            } ;;
+        ACTION)
+            # Run a known claw action, then continue to a bare shell.
+            command -v claw &>/dev/null && claw "$rest" ;;
+        *) : ;;   # NONE / unknown → bare shell
+    esac
+}
+
 function claw_welcome_tui() {
     # SAFETY: Never run in non-interactive shells (breaks scp, rsync, git-over-ssh)
     [[ ! -o interactive ]] && return
@@ -10,6 +28,15 @@ function claw_welcome_tui() {
     [[ -n "$SSH_CONNECTION" && ! -t 1 ]] && return
     # Skip if a profile is already active to prevent infinite loop
     [[ -n "$CLAW_ACTIVE_PROFILE" ]] && return
+
+    # ── Wave 4: optional ratatui front-end (opt-in via CLAW_TUI=1) ──────────
+    # The Rust binary renders + selects; we apply its one-line outcome here.
+    # Default-off so the proven fzf path stays the baseline (progressive
+    # enhancement, same guard pattern as every tool in the repo).
+    if [[ "${CLAW_TUI:-0}" == 1 ]] && command -v claw-tui &> /dev/null; then
+        _claw_apply_outcome "$(claw-tui welcome)"
+        return
+    fi
 
     # Use $DOTFILES_DIR set by .zshrc
     local _d="$DOTFILES_DIR"
@@ -399,6 +426,11 @@ _claw_profile_readout() {
     # Reference commands — only those that actually resolve as functions
     local help_cmd="${PROFILE_HELP_CMD:-${key}-help}"
     local check_cmd="_${key}_tool_check"
+    # Profiles without a bespoke checker fall back to the generic one (which
+    # reads PROFILE_KEY_TOOLS) so the status card always renders.
+    if (( ! ${+functions[$check_cmd]} )) && [[ -n "${PROFILE_KEY_TOOLS:-}" ]]; then
+        check_cmd="_claw_profile_tool_check"
+    fi
     local -a refs=()
     (( ${+functions[$help_cmd]} ))  && refs+=("${c_green}${help_cmd}${c_reset} ${c_dim}reference${c_reset}")
     (( ${+functions[$check_cmd]} )) && refs+=("${c_green}${check_cmd}${c_reset} ${c_dim}status${c_reset}")

@@ -1,0 +1,79 @@
+# Open Claw — tracked tool manifest (the self-aware registry).
+# Format: id|source   ·   source ∈ brew apt cargo pipx gem npm eget:<repo> go:<pkg> curl:<url> manual
+# `claw pkg track` appends newly-installed tools here; `claw provision` installs them all.
+
+## Core / shell
+git|brew
+zsh|brew
+tmux|brew
+stow|brew
+curl|brew
+wget|brew
+fzf|brew
+ripgrep|brew
+fd|brew
+bat|brew
+eza|brew
+zoxide|brew
+atuin|brew
+starship|brew
+neovim|brew
+jq|brew
+yq|brew
+tree|brew
+rsync|brew
+
+## Modern CLI
+btop|brew
+lazygit|brew
+lazydocker|brew
+git-delta|brew
+dust|brew
+duf|brew
+procs|brew
+glow|brew
+gum|brew
+vivid|brew
+navi|brew
+zellij|brew
+yazi|brew
+fastfetch|brew
+tldr|brew
+
+## Next-gen pack
+pv|brew
+aria2|brew
+xh|eget:ducaale/xh
+gtrash|eget:umlx5h/gtrash
+chafa|brew
+k9s|eget:derailed/k9s
+oxker|eget:mrjackwills/oxker
+trip|eget:fujiapple852/trippy
+gdu|eget:dundee/gdu
+doggo|eget:mr-karan/doggo
+sshs|eget:quantumsheep/sshs
+just|brew
+mise|curl:https://mise.run
+watchexec|eget:watchexec/watchexec
+hyperfine|brew
+sd|eget:chmln/sd
+jless|eget:PaulJuliusMartinez/jless
+qsv|eget:dathere/qsv
+age|brew
+sops|eget:getsops/sops
+topgrade|eget:topgrade-rs/topgrade
+eget|go:github.com/zyedidia/eget
+gh|brew
+onefetch|eget:o2sh/onefetch
+
+## Languages / runtimes
+node|brew
+go|brew
+rust|brew
+python3|brew
+
+## Agentic harnesses
+claude|npm
+gemini|npm
+aichat|brew
+ollama|curl:https://ollama.com/install.sh

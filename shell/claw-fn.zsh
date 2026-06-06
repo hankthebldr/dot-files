@@ -12,7 +12,7 @@ claw() {
             local p="${1:-}"
             if [[ -z "$p" ]]; then
                 printf "  \e[38;2;255;123;114m✗\e[0m usage: claw load <profile>\n" >&2
-                printf "  \e[38;2;139;148;158mavailable: default claude cloud security devops ai research cortex local\e[0m\n" >&2
+                printf "  \e[38;2;139;148;158mavailable: default local claude cloud devops security cortex ai research vault brainstorm pmo deck design demo homelab blackwell tunnels\e[0m\n" >&2
                 return 1
             fi
             local pfile="${DOTFILES_DIR:-$HOME/.dotfiles}/shell/profiles/$p.zsh"
@@ -23,6 +23,16 @@ claw() {
             export CLAW_ACTIVE_PROFILE="$p"
             source "$pfile"
             printf "  \e[38;2;63;185;80m✓\e[0m loaded profile: \e[38;2;201;209;217m%s\e[0m\n" "$p"
+            # per-profile MOTD: the profile's flavor tag (set in meta.zsh)
+            [[ -n "${PROFILE_TAG:-}" ]] && printf "  \e[38;2;139;148;158m%s\e[0m\n" "$PROFILE_TAG"
+            # load↔install bridge: nudge if the profile's key tools aren't present.
+            if [[ -n "${PROFILE_KEY_TOOLS:-}" ]]; then
+                local _miss=() _t
+                for _t in ${(s: :)PROFILE_KEY_TOOLS}; do
+                    command -v "$_t" &>/dev/null || _miss+=("$_t")
+                done
+                (( ${#_miss[@]} )) && printf "  \e[38;2;210;153;34m●\e[0m \e[38;2;139;148;158m%d tool(s) missing (%s) — \e[38;2;201;209;217mclaw install %s\e[0m\n" "${#_miss[@]}" "${_miss[*]}" "$p"
+            fi
             # Optional: drop a breadcrumb into the active vault's daily note.
             # Gated by CLAW_VAULT_BREADCRUMBS=1; obsidian.zsh defines the fn.
             if typeset -f _claw_vault_breadcrumb &>/dev/null; then

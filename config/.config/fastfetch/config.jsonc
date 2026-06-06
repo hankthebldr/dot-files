@@ -9,209 +9,65 @@
     }
   },
   "display": {
-    "separator": " → ",
+    "separator": "",
     "color": {
       "keys": "38;2;88;166;255",
       "title": "38;2;188;140;255"
+    },
+    "key": {
+      "width": 0
     }
   },
   "modules": [
     {
       "type": "title",
-      "format": "{user-name-colored}@{host-name-colored}",
-      "key": " "
-    },
-    {
-      "type": "custom",
-      "format": "  System ────────────────────────"
-    },
-    {
-      "type": "os",
-      "key": "  OS",
-      "keyColor": "38;2;188;140;255"
-    },
-    {
-      "type": "host",
-      "key": "  Host",
-      "keyColor": "38;2;188;140;255"
-    },
-    {
-      "type": "kernel",
-      "key": "  Kernel",
-      "keyColor": "38;2;88;166;255"
-    },
-    {
-      "type": "uptime",
-      "key": "  Uptime",
-      "keyColor": "38;2;88;166;255"
-    },
-    {
-      "type": "loadavg",
-      "key": "  Load",
-      "keyColor": "38;2;88;166;255"
-    },
-    {
-      "type": "processes",
-      "key": "  Processes",
-      "keyColor": "38;2;88;166;255"
-    },
-    {
-      "type": "packages",
-      "key": "  Packages",
-      "keyColor": "38;2;63;185;80"
-    },
-    {
-      "type": "shell",
-      "key": "  Shell",
-      "keyColor": "38;2;63;185;80"
-    },
-    {
-      "type": "editor",
-      "key": "  Editor",
-      "keyColor": "38;2;63;185;80"
-    },
-    {
-      "type": "custom",
-      "format": "  Desktop ───────────────────────"
-    },
-    {
-      "type": "de",
-      "key": "  DE",
-      "keyColor": "38;2;210;153;34"
-    },
-    {
-      "type": "wm",
-      "key": "  WM",
-      "keyColor": "38;2;210;153;34"
-    },
-    {
-      "type": "wmtheme",
-      "key": "  WM Theme",
-      "keyColor": "38;2;210;153;34"
-    },
-    {
-      "type": "theme",
-      "key": "  Theme",
-      "keyColor": "38;2;255;123;114"
-    },
-    {
-      "type": "icons",
-      "key": "  Icons",
-      "keyColor": "38;2;255;123;114"
-    },
-    {
-      "type": "cursor",
-      "key": "  Cursor",
-      "keyColor": "38;2;255;123;114"
-    },
-    {
-      "type": "font",
-      "key": "  Font",
-      "keyColor": "38;2;88;166;255"
-    },
-    {
-      "type": "terminal",
-      "key": "  Terminal",
-      "keyColor": "38;2;188;140;255"
-    },
-    {
-      "type": "terminalfont",
-      "key": "  Term Font",
-      "keyColor": "38;2;88;166;255"
-    },
-    {
-      "type": "custom",
-      "format": "  Hardware ──────────────────────"
-    },
-    {
-      "type": "cpu",
-      "key": "  CPU",
-      "keyColor": "38;2;88;166;255"
-    },
-    {
-      "type": "gpu",
-      "key": "  GPU",
-      "keyColor": "38;2;63;185;80"
-    },
-    {
-      "type": "display",
-      "key": "  Display",
-      "keyColor": "38;2;188;140;255"
-    },
-    {
-      "type": "brightness",
-      "key": "  Brightness",
-      "keyColor": "38;2;188;140;255"
-    },
-    {
-      "type": "memory",
-      "key": "  Memory",
-      "keyColor": "38;2;63;185;80"
-    },
-    {
-      "type": "swap",
-      "key": "  Swap",
-      "keyColor": "38;2;63;185;80"
-    },
-    {
-      "type": "disk",
-      "key": "  Disk",
-      "keyColor": "38;2;210;153;34",
-      "showReadOnly": false
-    },
-    {
-      "type": "physicaldisk",
-      "key": "  Drive",
-      "keyColor": "38;2;210;153;34"
-    },
-    {
-      "type": "battery",
-      "key": "  Battery",
-      "keyColor": "38;2;210;153;34"
-    },
-    {
-      "type": "poweradapter",
-      "key": "  Power",
-      "keyColor": "38;2;210;153;34"
-    },
-    {
-      "type": "sound",
-      "key": "  Sound",
-      "keyColor": "38;2;255;123;114"
-    },
-    {
-      "type": "bluetooth",
-      "key": "  Bluetooth",
-      "keyColor": "38;2;88;166;255"
-    },
-    {
-      "type": "custom",
-      "format": "  Network ───────────────────────"
-    },
-    {
-      "type": "localip",
-      "key": "  Local IP",
-      "keyColor": "38;2;139;148;158"
-    },
-    {
-      "type": "wifi",
-      "key": "  Wi-Fi",
-      "keyColor": "38;2;139;148;158"
-    },
-    {
-      "type": "locale",
-      "key": "  Locale",
-      "keyColor": "38;2;139;148;158"
+      "format": "  {user-name-colored}@{host-name-colored}",
+      "key": ""
     },
     {
       "type": "command",
-      "key": "  Date",
-      "keyColor": "38;2;139;148;158",
-      "text": "date '+%A, %b %d  %H:%M'"
+      "key": "",
+      "text": "~/.dotfiles/scripts/utils/ff-readout.sh r1"
     },
     {
-      "type": "custom",
-      "format": "────────────────────────────────"
+      "type": "command",
+      "key": "",
+      "text": "~/.dotfiles/scripts/utils/ff-readout.sh r2"
+    },
+    {
+      "type": "command",
+      "key": "",
+      "text": "~/.dotfiles/scripts/utils/ff-readout.sh r3"
+    },
+    {
+      "type": "command",
+      "key": "",
+      "text": "~/.dotfiles/scripts/utils/ff-readout.sh r4"
+    },
+    {
+      "type": "command",
+      "key": "",
+      "text": "~/.dotfiles/scripts/utils/ff-readout.sh r5"
+    },
+    {
+      "type": "command",
+      "key": "",
+      "text": "~/.dotfiles/scripts/utils/ff-readout.sh r6"
+    },
+    {
+      "type": "command",
+      "key": "",
+      "text": "~/.dotfiles/scripts/utils/ff-readout.sh r7"
+    },
+    {
+      "type": "command",
+      "key": "",
+      "text": "~/.dotfiles/scripts/utils/ff-readout.sh r8"
+    },
+    {
+      "type": "command",
+      "key": "",
+      "text": "~/.dotfiles/scripts/utils/ff-readout.sh r9"
     },
     {
       "type": "colors",

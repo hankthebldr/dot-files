@@ -1,0 +1,46 @@
+# ~/.agents/mcp.toml — single source of truth for MCP servers.
+# Rendered into Claude Code, Gemini CLI, and (macOS) Claude Desktop by
+# `claw agent mcp-sync`. $VARS stay SYMBOLIC — never inline secrets here.
+
+[servers.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "$HOME/projects", "$OBSIDIAN_VAULT"]
+targets = ["claude", "gemini"]
+
+[servers.git]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-git"]
+targets = ["claude", "gemini"]
+
+[servers.fetch]
+command = "uvx"
+args = ["mcp-server-fetch"]
+targets = ["claude", "gemini", "desktop"]
+
+[servers.memory]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-memory"]
+targets = ["claude", "gemini"]
+
+[servers.obsidian]
+command = "uvx"
+args = ["mcp-obsidian"]
+targets = ["claude", "gemini", "desktop"]
+[servers.obsidian.env]
+OBSIDIAN_API_KEY = "$OBSIDIAN_API_KEY"
+OBSIDIAN_HOST = "127.0.0.1"
+OBSIDIAN_PORT = "27124"
+
+[servers.things]
+command = "uvx"
+args = ["things-mcp"]
+targets = ["claude", "desktop"]
+os = "macos"
+
+[servers.shodan]
+command = "uvx"
+args = ["mcp-shodan"]
+targets = ["claude", "gemini"]
+profile = "security"
+[servers.shodan.env]
+SHODAN_API_KEY = "$SHODAN_API_KEY"

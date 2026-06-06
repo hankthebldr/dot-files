@@ -1,0 +1,5 @@
+# Only the .config/ subtree should ever be stowed into $HOME.
+# These are macOS *import* artifacts (open them in the app), not dotfiles:
+README\.md
+iterm2
+.*\.terminal

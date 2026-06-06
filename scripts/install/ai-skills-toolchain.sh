@@ -220,8 +220,8 @@ if should_run_tier 4; then
         apt)
             if ! command -v duckdb &>/dev/null; then
                 # No apt package; install via official binary
-                local arch; arch=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-                local tmp; tmp=$(mktemp -d)
+                arch=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+                tmp=$(mktemp -d)
                 run "curl -fsSL 'https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${arch}.zip' -o '$tmp/duckdb.zip'"
                 run "unzip -q '$tmp/duckdb.zip' -d '$tmp'"
                 run "sudo install -m 0755 '$tmp/duckdb' /usr/local/bin/duckdb"

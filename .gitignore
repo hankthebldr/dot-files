@@ -193,3 +193,14 @@ History
 
 # Claude Code per-machine settings (auto-rewritten by Claude Code itself)
 .claude/settings.local.json
+
+# install toolchain engine (not a build artifact)
+!scripts/install/lib/
+!scripts/install/lib/*.sh
+
+# secrets: encrypted .env.sops is safe to commit; ignore plaintext
+config/secrets/*.plain
+config/secrets/.env
+!config/secrets/.env.sops
+tui/**/target/
+tui/claw-tui/target/

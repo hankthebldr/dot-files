@@ -232,8 +232,10 @@ CORTEX = [
 
 # profile -> (logo, keys/accent color, title color, tooling)
 CONFIGS = {
-    "config.jsonc":         (placeholder_logo("logo.txt", OPENCLAW_COLORS), BLUE, PURPLE, None),
-    "config-default.jsonc": (placeholder_logo("logo-default.txt", APPLE_COLORS), BLUE, GREEN, None),
+    # Startup + default: use the real system icon (Apple on macOS, distro on
+    # Linux) — cleaner and more recognizable than the ASCII OPEN CLAW header.
+    "config.jsonc":         (auto_logo(1), BLUE,   PURPLE, None),
+    "config-default.jsonc": (auto_logo(0), BLUE,   GREEN,  None),
     "config-cloud.jsonc":   (file_logo("cloud"),    ORANGE,            PURPLE, CLOUD),
     "config-security.jsonc":(file_logo("security"),  RED,              PURPLE, SECURITY),
     "config-devops.jsonc":  (file_logo("devops"),    GREEN,            PURPLE, DEVOPS),
@@ -244,12 +246,42 @@ CONFIGS = {
 }
 
 
+def build_readout():
+    """Startup dashboard: system icon + a compact TWO-COLUMN readout.
+
+    The long ~40-row module list didn't fit the screen, so config.jsonc renders
+    the icon-rich two-column block from scripts/utils/ff-readout.sh instead —
+    each row is its own one-line `command` module (so it never depends on
+    multi-line module output), shown to the right of the auto system logo.
+    """
+    rows = [
+        {"type": "command", "key": "",
+         "text": f"~/.dotfiles/scripts/utils/ff-readout.sh r{i}"}
+        for i in range(1, 10)
+    ]
+    return {
+        "$schema": SCHEMA,
+        "logo": auto_logo(1),
+        "display": {"separator": "", "color": {"keys": BLUE, "title": PURPLE},
+                    "key": {"width": 0}},
+        "modules": [
+            # key:"" + the same 2-space indent the readout rows use, so the title
+            # lines up with the box below it (a non-empty key would widen the key
+            # column and shift only this top row).
+            {"type": "title",
+             "format": "  {user-name-colored}@{host-name-colored}", "key": ""},
+            *rows,
+            {"type": "colors", "paddingLeft": 2, "symbol": "circle"},
+        ],
+    }
+
+
 def main():
     out_dir = os.path.join(os.path.dirname(__file__), "..", "..",
                            "config", ".config", "fastfetch")
     out_dir = os.path.abspath(out_dir)
     for name, (logo, keys, title, tools) in CONFIGS.items():
-        cfg = build(logo, keys, title, tools)
+        cfg = build_readout() if name in ("config.jsonc", "config-default.jsonc") else build(logo, keys, title, tools)
         path = os.path.join(out_dir, name)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
