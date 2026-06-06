@@ -12,22 +12,22 @@ vault_path: Github-Projects/dot-files/FEATURE-BACKLOG.md
 Prioritized, derived from the full-code review + `UX-WALKTHROUGH.md` friction
 points. P1 = highest leverage. Each item is sized S/M/L.
 
-## P1 — Surfacing & discoverability (cheap, high impact)
-- **`claw cheatsheet`** (S) — one screen of the delight/alias/agent commands
+## P1 — Surfacing & discoverability  ✅ DONE (Wave: P1)
+- [x] **`claw cheatsheet`** (S) — one screen of the delight/alias/agent commands
   (`cpv`/`dlv`/`xtract`/`weather`/`claw ai`/`claw secret`…). Today they're only
   discoverable by reading source. Render with `glow`/`gum`.
-- **Help integration** (S) — fold `claw pkg|secret|ai|selfupdate|mcp-sync|provision`
+- [x] **Help integration** (S) — fold `claw pkg|secret|ai|selfupdate|mcp-sync|provision`
   into `claw help` groups (some are wired but not all documented there).
-- **`claw doctor` → registry-driven agent block** (M) — generalize the AI-agents
+- [x] **`claw doctor` → registry-driven agent block** (M) — generalize the AI-agents
   health check to iterate `agents.toml` + check binary/key/config per agent
   (i.e. build the specced `claw agent doctor`).
 
-## P1 — Close the interop loop fully
-- **`claw pkg track` auto-hook** (M) — a `precmd`/periodic detector that notices
+## P1 — Close the interop loop fully  ✅ DONE (Wave: P1)
+- [x] **`claw pkg track` auto-hook** (M) — a `precmd`/periodic detector that notices
   newly-installed tools and nudges (or auto-commits) without manual `track`.
-- **load↔install bridge** (M) — `claw load <profile>` detects missing
+- [x] **load↔install bridge** (M) — `claw load <profile>` detects missing
   `PROFILE_KEY_TOOLS` and offers `claw install <profile>`.
-- **Profile-aware `mcp-sync`** (M) — honor the `profile=` tag in `mcp.toml`
+- [x] **Profile-aware `mcp-sync`** (M) — honor the `profile=` tag in `mcp.toml`
   (e.g. only sync `shodan` when the security profile is active/synced).
 
 ## P2 — Ratatui TUI to parity (Wave 4 M3–M5)
