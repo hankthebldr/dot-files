@@ -12,6 +12,9 @@ _claw_apply_outcome() {
                 export CLAW_ACTIVE_PROFILE="$rest"
                 source "$DOTFILES_DIR/shell/profiles/${rest}.zsh"
             } ;;
+        ACTION)
+            # Run a known claw action, then continue to a bare shell.
+            command -v claw &>/dev/null && claw "$rest" ;;
         *) : ;;   # NONE / unknown → bare shell
     esac
 }

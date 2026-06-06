@@ -1,16 +1,15 @@
 //! claw-tui — Open Claw ratatui front-end.
 //!
-//! Architecture: a child binary cannot `source` a profile into the parent login
-//! shell, so this binary **renders and selects**; the zsh wrapper **applies**.
-//! On exit it prints ONE machine-readable line to stdout (the contract):
-//!   PROFILE\t<key>     → wrapper: export CLAW_ACTIVE_PROFILE; source profile
-//!   ACTION\t<id>       → wrapper: run a known action
-//!   NONE               → bare shell (ESC / no selection)
+//! A child binary cannot `source` a profile into the parent login shell, so this
+//! binary **renders and selects**; the zsh wrapper **applies**. On exit it prints
+//! ONE line to stdout (the contract):
+//!   PROFILE\t<key>   → wrapper exports CLAW_ACTIVE_PROFILE + sources the profile
+//!   ACTION\t<id>     → wrapper runs `claw <id>` (tunnels, mcp, ai, doctor, …)
+//!   NONE             → bare shell (ESC / no selection)
 //! The TUI draws to the alternate screen; stdout stays clean for the contract.
 //!
-//! M1 scope: welcome screen = logo + two-column system readout (alignment solved
-//! natively by ratatui's Table) + profile picker. Falls back to the fzf path
-//! whenever this binary is absent (the zsh wrapper guards on `command -v`).
+//! M1 = welcome dashboard (logo + native two-column readout). M2 = profiles AND
+//! actions in one picker. Opt-in via CLAW_TUI=1; the fzf path is the default.
 
 use std::io::{self, IsTerminal, Stdout};
 use std::path::PathBuf;
@@ -29,102 +28,118 @@ use ratatui::{
 
 mod theme;
 
-/// What the user chose — emitted to stdout on exit (the zsh contract).
-enum Outcome {
-    Profile(String),
-    None,
+#[derive(Clone)]
+enum Kind {
+    Profile,
+    Action,
+    Header,
 }
+#[derive(Clone)]
+struct Item {
+    label: String,
+    key: String,
+    kind: Kind,
+}
+impl Item {
+    fn profile(k: &str) -> Self { Item { label: format!("  {}", k), key: k.into(), kind: Kind::Profile } }
+    fn action(k: &str, l: &str) -> Self { Item { label: format!("  {}", l), key: k.into(), kind: Kind::Action } }
+    fn header(l: &str) -> Self { Item { label: l.into(), key: String::new(), kind: Kind::Header } }
+    fn selectable(&self) -> bool { !matches!(self.kind, Kind::Header) }
+}
+
+enum Outcome { Profile(String), Action(String), None }
 impl Outcome {
     fn emit(&self) {
         match self {
             Outcome::Profile(k) => println!("PROFILE\t{}", k),
+            Outcome::Action(k) => println!("ACTION\t{}", k),
             Outcome::None => println!("NONE"),
         }
     }
 }
 
 struct App {
-    profiles: Vec<String>,
+    items: Vec<Item>,
     state: ListState,
-    readout: Vec<(String, String, String, String)>, // (licon+label, lval, ricon+label, rval)
+    readout: Vec<(String, String, String, String)>,
     outcome: Outcome,
     quit: bool,
 }
 
 impl App {
     fn new() -> Self {
+        let items = build_items();
         let mut state = ListState::default();
-        state.select(Some(0));
-        App {
-            profiles: discover_profiles(),
-            state,
-            readout: gather_readout(),
-            outcome: Outcome::None,
-            quit: false,
+        state.select(first_selectable(&items));
+        App { items, state, readout: gather_readout(), outcome: Outcome::None, quit: false }
+    }
+    fn step(&mut self, dir: i32) {
+        let n = self.items.len();
+        if n == 0 { return; }
+        let mut i = self.state.selected().unwrap_or(0) as i32;
+        for _ in 0..n {
+            i = (i + dir).rem_euclid(n as i32);
+            if self.items[i as usize].selectable() { break; }
         }
-    }
-    fn next(&mut self) {
-        let i = self.state.selected().unwrap_or(0);
-        let n = self.profiles.len().max(1);
-        self.state.select(Some((i + 1) % n));
-    }
-    fn prev(&mut self) {
-        let i = self.state.selected().unwrap_or(0);
-        let n = self.profiles.len().max(1);
-        self.state.select(Some((i + n - 1) % n));
+        self.state.select(Some(i as usize));
     }
     fn confirm(&mut self) {
         if let Some(i) = self.state.selected() {
-            if let Some(p) = self.profiles.get(i) {
-                self.outcome = Outcome::Profile(p.clone());
+            if let Some(it) = self.items.get(i) {
+                self.outcome = match it.kind {
+                    Kind::Profile => Outcome::Profile(it.key.clone()),
+                    Kind::Action => Outcome::Action(it.key.clone()),
+                    Kind::Header => return,
+                };
             }
         }
         self.quit = true;
     }
 }
 
-/// Profiles = subdirs of $DOTFILES_DIR/shell/profiles containing common.zsh.
-fn discover_profiles() -> Vec<String> {
-    let dots = std::env::var("DOTFILES_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| dirs_home().join(".dotfiles"));
-    let dir = dots.join("shell/profiles");
-    let mut v: Vec<String> = std::fs::read_dir(&dir)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .filter(|e| e.path().join("common.zsh").exists())
-        .filter_map(|e| e.file_name().into_string().ok())
-        .collect();
-    v.sort();
-    // default first if present
-    if let Some(p) = v.iter().position(|x| x == "default") {
-        v.swap(0, p);
-    }
-    if v.is_empty() {
-        v.push("default".into());
+fn first_selectable(items: &[Item]) -> Option<usize> {
+    items.iter().position(|i| i.selectable())
+}
+
+fn build_items() -> Vec<Item> {
+    let mut v = vec![Item::header("  profiles")];
+    for p in discover_profiles() { v.push(Item::profile(&p)); }
+    v.push(Item::header("  actions"));
+    for (k, l) in [
+        ("doctor", "⚕ doctor       system + profile health"),
+        ("ai", "✦ ai           local AI stack (ollama/aichat)"),
+        ("tun", "⇄ tunnels      SSH tunnel manager"),
+        ("mcp", "◆ mcp          MCP server manager"),
+        ("homelab", "⌂ homelab      SSH topology"),
+        ("update", "↑ update       full system update"),
+    ] {
+        v.push(Item::action(k, l));
     }
     v
 }
 
-fn dirs_home() -> PathBuf {
-    std::env::var("HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from("/"))
+fn discover_profiles() -> Vec<String> {
+    let dots = std::env::var("DOTFILES_DIR").map(PathBuf::from)
+        .unwrap_or_else(|_| home().join(".dotfiles"));
+    let mut v: Vec<String> = std::fs::read_dir(dots.join("shell/profiles"))
+        .into_iter().flatten().flatten()
+        .filter(|e| e.path().join("common.zsh").exists())
+        .filter_map(|e| e.file_name().into_string().ok())
+        .collect();
+    v.sort();
+    if let Some(p) = v.iter().position(|x| x == "default") { v.swap(0, p); }
+    if v.is_empty() { v.push("default".into()); }
+    v
 }
 
-/// Minimal cross-platform readout. (Wave-4 M1+ swaps this for `fastfetch --format
-/// json`; the point here is the ratatui Table does the column alignment.)
+fn home() -> PathBuf { std::env::var("HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from("/")) }
+
 fn gather_readout() -> Vec<(String, String, String, String)> {
-    let os = std::fs::read_to_string("/etc/os-release")
-        .ok()
-        .and_then(|s| {
-            s.lines()
-                .find(|l| l.starts_with("PRETTY_NAME="))
-                .map(|l| l.trim_start_matches("PRETTY_NAME=").trim_matches('"').to_string())
-        })
+    let os = std::fs::read_to_string("/etc/os-release").ok()
+        .and_then(|s| s.lines().find(|l| l.starts_with("PRETTY_NAME="))
+            .map(|l| l.trim_start_matches("PRETTY_NAME=").trim_matches('"').to_string()))
         .unwrap_or_else(|| std::env::consts::OS.to_string());
-    let host = std::env::var("HOSTNAME")
-        .or_else(|_| std::env::var("HOST"))
-        .unwrap_or_else(|_| "—".into());
+    let host = std::env::var("HOSTNAME").or_else(|_| std::env::var("HOST")).unwrap_or_else(|_| "—".into());
     let shell = std::env::var("SHELL").unwrap_or_default();
     let term = std::env::var("TERM_PROGRAM").or_else(|_| std::env::var("TERM")).unwrap_or_default();
     let user = std::env::var("USER").unwrap_or_default();
@@ -136,24 +151,17 @@ fn gather_readout() -> Vec<(String, String, String, String)> {
 }
 
 fn main() -> Result<()> {
-    // Only the welcome screen is implemented; any other arg → NONE (safe default).
     let arg = std::env::args().nth(1).unwrap_or_else(|| "welcome".into());
-    if arg != "welcome" {
+    if arg != "welcome" || !std::io::stdout().is_terminal() {
         Outcome::None.emit();
         return Ok(());
     }
-    // Not a TTY (scp/pipe) → never draw; emit NONE and exit (login-safety).
-    if !std::io::stdout().is_terminal() {
-        Outcome::None.emit();
-        return Ok(());
-    }
-
     let mut term = setup()?;
     let mut app = App::new();
     let res = run(&mut term, &mut app);
     restore(&mut term)?;
     res?;
-    app.outcome.emit(); // contract printed AFTER the alt screen is torn down
+    app.outcome.emit();
     Ok(())
 }
 
@@ -175,16 +183,11 @@ fn run(term: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> Result<(
         term.draw(|f| ui(f, app))?;
         if event::poll(Duration::from_millis(200))? {
             if let Event::Key(k) = event::read()? {
-                if k.kind != KeyEventKind::Press {
-                    continue;
-                }
+                if k.kind != KeyEventKind::Press { continue; }
                 match k.code {
-                    KeyCode::Char('q') | KeyCode::Esc => {
-                        app.outcome = Outcome::None;
-                        app.quit = true;
-                    }
-                    KeyCode::Down | KeyCode::Char('j') => app.next(),
-                    KeyCode::Up | KeyCode::Char('k') => app.prev(),
+                    KeyCode::Char('q') | KeyCode::Esc => { app.outcome = Outcome::None; app.quit = true; }
+                    KeyCode::Down | KeyCode::Char('j') => app.step(1),
+                    KeyCode::Up | KeyCode::Char('k') => app.step(-1),
                     KeyCode::Enter => app.confirm(),
                     _ => {}
                 }
@@ -195,78 +198,50 @@ fn run(term: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> Result<(
 }
 
 fn ui(f: &mut Frame, app: &mut App) {
-    let root = Layout::vertical([
-        Constraint::Length(8),  // header: logo + readout
-        Constraint::Min(5),     // profile picker
-        Constraint::Length(1),  // status bar
-    ])
-    .split(f.area());
-
-    // ── Header: logo (left) | readout (right) ──
+    let root = Layout::vertical([Constraint::Length(7), Constraint::Min(5), Constraint::Length(1)]).split(f.area());
     let head = Layout::horizontal([Constraint::Length(20), Constraint::Min(30)]).split(root[0]);
 
     let logo = Paragraph::new(vec![
         Line::from(Span::styled("  ▄▀█ █▀█ █▀▀ █▄░█", theme::key())),
-        Line::from(Span::styled("  █▄█ █▀▀ ██▄ █░▀█", theme::key())),
         Line::from(Span::styled("  █▀▀ █░░ ▄▀█ █░█░█", theme::pointer())),
         Line::from(Span::styled("  █▄▄ █▄▄ █▀█ ▀▄▀▄▀", theme::pointer())),
         Line::from(Span::styled("     OPEN CLAW", theme::title())),
     ]);
     f.render_widget(logo, head[0]);
 
-    // Two-column readout — ratatui aligns columns natively (the alignment win).
-    let rows: Vec<Row> = app
-        .readout
-        .iter()
-        .map(|(lk, lv, rk, rv)| {
-            Row::new(vec![
-                Span::styled(lk.clone(), theme::key()),
-                Span::styled(lv.clone(), theme::value()),
-                Span::styled("│", Style::default().fg(theme::RULE)),
-                Span::styled(rk.clone(), theme::key()),
-                Span::styled(rv.clone(), theme::value()),
-            ])
-        })
-        .collect();
-    let table = Table::new(
-        rows,
-        [
-            Constraint::Length(8),
-            Constraint::Length(20),
-            Constraint::Length(1),
-            Constraint::Length(8),
-            Constraint::Min(8),
-        ],
-    )
-    .block(Block::default().borders(Borders::LEFT).border_style(Style::default().fg(theme::RULE)));
+    let rows: Vec<Row> = app.readout.iter().map(|(lk, lv, rk, rv)| {
+        Row::new(vec![
+            Span::styled(lk.clone(), theme::key()),
+            Span::styled(lv.clone(), theme::value()),
+            Span::styled("│", Style::default().fg(theme::RULE)),
+            Span::styled(rk.clone(), theme::key()),
+            Span::styled(rv.clone(), theme::value()),
+        ])
+    }).collect();
+    let table = Table::new(rows, [
+        Constraint::Length(8), Constraint::Length(20), Constraint::Length(1),
+        Constraint::Length(8), Constraint::Min(8),
+    ]).block(Block::default().borders(Borders::LEFT).border_style(Style::default().fg(theme::RULE)));
     f.render_widget(table, head[1]);
 
-    // ── Profile picker ──
-    let items: Vec<ListItem> = app
-        .profiles
-        .iter()
-        .map(|p| ListItem::new(Line::from(format!("  {}", p))))
-        .collect();
+    let items: Vec<ListItem> = app.items.iter().map(|it| {
+        let style = match it.kind {
+            Kind::Header => theme::title(),
+            Kind::Action => Style::default().fg(theme::ORANGE),
+            Kind::Profile => theme::value(),
+        };
+        ListItem::new(Line::from(Span::styled(it.label.clone(), style)))
+    }).collect();
     let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::TOP)
-                .border_style(Style::default().fg(theme::RULE))
-                .title(Span::styled(" profiles ", theme::title())),
-        )
+        .block(Block::default().borders(Borders::TOP).border_style(Style::default().fg(theme::RULE)))
         .highlight_style(theme::selected())
         .highlight_symbol("❯ ");
     f.render_stateful_widget(list, root[1], &mut app.state);
 
-    // ── Status bar ──
     let bar = Paragraph::new(Line::from(vec![
-        Span::styled("  ↑/↓", theme::pointer()),
-        Span::styled(" navigate  ", theme::value()),
-        Span::styled("⏎", theme::pointer()),
-        Span::styled(" load profile  ", theme::value()),
-        Span::styled("esc", theme::pointer()),
-        Span::styled(" bare shell", theme::value()),
-    ]))
-    .style(Style::default().fg(theme::MUTED));
+        Span::styled("  ↑/↓", theme::pointer()), Span::styled(" navigate  ", theme::value()),
+        Span::styled("⏎", theme::pointer()), Span::styled(" select  ", theme::value()),
+        Span::styled("esc", theme::pointer()), Span::styled(" bare shell", theme::value()),
+    ])).style(Style::default().fg(theme::MUTED));
     f.render_widget(bar, root[2]);
 }
