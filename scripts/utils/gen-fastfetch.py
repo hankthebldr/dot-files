@@ -281,7 +281,7 @@ def main():
                            "config", ".config", "fastfetch")
     out_dir = os.path.abspath(out_dir)
     for name, (logo, keys, title, tools) in CONFIGS.items():
-        cfg = build_readout() if name == "config.jsonc" else build(logo, keys, title, tools)
+        cfg = build_readout() if name in ("config.jsonc", "config-default.jsonc") else build(logo, keys, title, tools)
         path = os.path.join(out_dir, name)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
