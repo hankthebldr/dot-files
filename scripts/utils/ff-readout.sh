@@ -14,10 +14,15 @@
 set -u
 is_mac() { [[ "$(uname -s)" == "Darwin" ]]; }
 
-# ── GitHub-dark palette + Nerd Font glyphs (Font Awesome, 1-cell in *Mono) ────
-KEY=$'\033[38;2;88;166;255m'    # blue labels
-VAL=$'\033[38;2;201;209;217m'   # light values
-BAR=$'\033[38;2;48;54;61m'      # column divider
+# ── Palette from the active Open Claw theme (single source of truth) ─────────
+# Sourcing theme.sh exports CLAW_RGB_* for the active palette; fall back to the
+# GitHub-dark defaults if it isn't available (keeps this script standalone).
+_ffr_dots="${DOTFILES_DIR:-$HOME/.dotfiles}"
+# shellcheck source=/dev/null
+[ -r "$_ffr_dots/scripts/utils/theme.sh" ] && . "$_ffr_dots/scripts/utils/theme.sh" 2>/dev/null
+KEY=$'\033[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"'m'    # blue labels
+VAL=$'\033[38;2;'"${CLAW_RGB_FG:-201;209;217}"'m'     # light values
+BAR=$'\033[38;2;'"${CLAW_RGB_DIVIDER:-48;54;61}"'m'   # column divider
 RST=$'\033[0m'
 I_OS=$''; I_HOST=$''; I_KERN=$''; I_UP=$''; I_LOAD=$''
 I_SH=$''; I_TERM=$''; I_PKG=$''; I_LOC=$''

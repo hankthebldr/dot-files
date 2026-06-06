@@ -96,7 +96,7 @@ if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_PKG_NUDGE:-1
     if [[ -s "$_pkg_count" ]]; then
         _n=$(cat "$_pkg_count" 2>/dev/null)
         [[ "$_n" =~ ^[0-9]+$ && "$_n" -gt 0 ]] && \
-            printf "  \e[38;2;210;153;34m●\e[0m \e[38;2;139;148;158m%s untracked tool(s) — \e[38;2;201;209;217mclaw pkg track\e[0m\n" "$_n"
+            printf "  \e[38;2;227;179;65m●\e[0m \e[38;2;139;148;158m%s untracked tool(s) — \e[38;2;201;209;217mclaw pkg track\e[0m\n" "$_n"
     fi
     _pkg_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/pkgscan-$(date +%Y%m%d)"
     if [[ ! -f "$_pkg_stamp" ]]; then

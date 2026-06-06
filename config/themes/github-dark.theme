@@ -1,0 +1,15 @@
+# GitHub macOS Dark — the original Open Claw palette (warm gold accent).
+# Kept for anyone who prefers the classic look. `claw theme set github-dark`.
+name=GitHub Dark (classic)
+slug=github-dark
+bg=0d1117
+bg_alt=161b22
+fg=c9d1d9
+muted=8b949e
+divider=30363d
+blue=58a6ff
+green=3fb950
+purple=bc8cff
+amber=d29922
+red=ff7b72
+cyan=39c8ff

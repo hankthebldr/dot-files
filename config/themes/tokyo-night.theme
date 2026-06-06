@@ -1,0 +1,14 @@
+# Tokyo Night — deep blue-black with electric accents. `claw theme set tokyo-night`.
+name=Tokyo Night
+slug=tokyo-night
+bg=1a1b26
+bg_alt=24283b
+fg=c0caf5
+muted=565f89
+divider=414868
+blue=7aa2f7
+green=9ece6a
+purple=bb9af7
+amber=ff9e64
+red=f7768e
+cyan=7dcfff
