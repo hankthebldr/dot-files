@@ -43,11 +43,14 @@ I = {
     "pubip": "",
 }
 
-# GitHub macOS Dark palette (truecolor ANSI)
+# Refined GitHub Dark palette (truecolor ANSI) — matches config/themes/refined-dark.theme.
+# The default Open Claw theme; the gruvbox-y gold (#d29922) is replaced by a
+# cooler amber (#e3b341). fastfetch configs are static so they bake the default
+# palette; the live dashboard (claw-dashboard.py) follows `claw theme` instead.
 PURPLE = "38;2;188;140;255"
 BLUE   = "38;2;88;166;255"
 GREEN  = "38;2;63;185;80"
-ORANGE = "38;2;210;153;34"
+ORANGE = "38;2;227;179;65"
 RED    = "38;2;255;123;114"
 MUTED  = "38;2;139;148;158"
 

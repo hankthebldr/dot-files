@@ -13,7 +13,7 @@ c_reset=$'\e[0m'
 c_cyan=$'\e[38;2;88;166;255m'      # Blue #58a6ff
 c_green=$'\e[38;2;63;185;80m'      # Green #3fb950
 c_purple=$'\e[38;2;188;140;255m'   # Purple #bc8cff
-c_orange=$'\e[38;2;210;153;34m'    # Orange #d29922
+c_orange=$'\e[38;2;227;179;65m'    # Orange #e3b341
 c_red=$'\e[38;2;255;123;114m'      # Red #ff7b72
 c_dim=$'\e[38;2;139;148;158m'      # Muted #8b949e
 c_white=$'\e[38;2;201;209;217m'    # Foreground #c9d1d9
@@ -472,7 +472,7 @@ preview_tunnel() {
     local c_cyan=$'\e[38;2;88;166;255m'
     local c_green=$'\e[38;2;63;185;80m'
     local c_purple=$'\e[38;2;188;140;255m'
-    local c_orange=$'\e[38;2;210;153;34m'
+    local c_orange=$'\e[38;2;227;179;65m'
     local c_red=$'\e[38;2;255;123;114m'
     local c_dim=$'\e[38;2;139;148;158m'
     local c_white=$'\e[38;2;201;209;217m'

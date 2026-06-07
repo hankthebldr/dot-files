@@ -31,7 +31,7 @@ claw() {
                 for _t in ${(s: :)PROFILE_KEY_TOOLS}; do
                     command -v "$_t" &>/dev/null || _miss+=("$_t")
                 done
-                (( ${#_miss[@]} )) && printf "  \e[38;2;210;153;34m●\e[0m \e[38;2;139;148;158m%d tool(s) missing (%s) — \e[38;2;201;209;217mclaw install %s\e[0m\n" "${#_miss[@]}" "${_miss[*]}" "$p"
+                (( ${#_miss[@]} )) && printf "  \e[38;2;227;179;65m●\e[0m \e[38;2;139;148;158m%d tool(s) missing (%s) — \e[38;2;201;209;217mclaw install %s\e[0m\n" "${#_miss[@]}" "${_miss[*]}" "$p"
             fi
             # Optional: drop a breadcrumb into the active vault's daily note.
             # Gated by CLAW_VAULT_BREADCRUMBS=1; obsidian.zsh defines the fn.

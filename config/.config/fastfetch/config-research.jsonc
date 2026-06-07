@@ -12,7 +12,7 @@
   "display": {
     "separator": " → ",
     "color": {
-      "keys": "38;2;210;153;34",
+      "keys": "38;2;227;179;65",
       "title": "38;2;88;166;255"
     }
   },
@@ -78,17 +78,17 @@
     {
       "type": "de",
       "key": "  DE",
-      "keyColor": "38;2;210;153;34"
+      "keyColor": "38;2;227;179;65"
     },
     {
       "type": "wm",
       "key": "  WM",
-      "keyColor": "38;2;210;153;34"
+      "keyColor": "38;2;227;179;65"
     },
     {
       "type": "wmtheme",
       "key": "  WM Theme",
-      "keyColor": "38;2;210;153;34"
+      "keyColor": "38;2;227;179;65"
     },
     {
       "type": "theme",
@@ -157,23 +157,23 @@
     {
       "type": "disk",
       "key": "  Disk",
-      "keyColor": "38;2;210;153;34",
+      "keyColor": "38;2;227;179;65",
       "showReadOnly": false
     },
     {
       "type": "physicaldisk",
       "key": "  Drive",
-      "keyColor": "38;2;210;153;34"
+      "keyColor": "38;2;227;179;65"
     },
     {
       "type": "battery",
       "key": "  Battery",
-      "keyColor": "38;2;210;153;34"
+      "keyColor": "38;2;227;179;65"
     },
     {
       "type": "poweradapter",
       "key": "  Power",
-      "keyColor": "38;2;210;153;34"
+      "keyColor": "38;2;227;179;65"
     },
     {
       "type": "sound",

@@ -71,8 +71,8 @@ function claw_welcome_tui() {
     local c_green=$'\e[38;2;63;185;80m'    # GitHub Green: #3fb950
     local c_pink=$'\e[38;2;255;123;114m'   # GitHub Red/Pink: #ff7b72
     local c_purple=$'\e[38;2;188;140;255m' # GitHub Purple: #bc8cff
-    local c_orange=$'\e[38;2;210;153;34m'  # GitHub Orange/Gold: #d29922
-    local c_yellow=$'\e[38;2;210;153;34m'  # GitHub Yellow (using gold)
+    local c_orange=$'\e[38;2;227;179;65m'  # GitHub Orange/Gold: #e3b341
+    local c_yellow=$'\e[38;2;227;179;65m'  # GitHub Yellow (using gold)
     local c_dim=$'\e[38;2;139;148;158m'    # GitHub Muted: #8b949e
     local c_red=$'\e[38;2;255;123;114m'    # GitHub Red: #ff7b72
     local c_white=$'\e[38;2;201;209;217m'  # GitHub fg: #c9d1d9
@@ -85,7 +85,9 @@ function claw_welcome_tui() {
         return
     fi
 
-    local _fzf_color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff"
+    # Colors from the active theme (exported by exports.zsh / theme.sh); fall
+    # back to the refined-dark defaults if the dashboard is invoked standalone.
+    local _fzf_color="${CLAW_FZF_COLOR:-bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff}"
 
     # Render the Screen-1 dashboard header. Preference order:
     #   1. claw-dashboard.py — the framed, gradient, two-column dashboard (best)
@@ -389,7 +391,7 @@ _claw_default_quickref() {
     local c_cyan=$'\e[38;2;88;166;255m'
     local c_green=$'\e[38;2;63;185;80m'
     local c_purple=$'\e[38;2;188;140;255m'
-    local c_orange=$'\e[38;2;210;153;34m'
+    local c_orange=$'\e[38;2;227;179;65m'
     local c_red=$'\e[38;2;255;123;114m'
     local c_dim=$'\e[38;2;139;148;158m'
     local c_white=$'\e[38;2;201;209;217m'
@@ -421,7 +423,7 @@ _claw_default_quickref() {
 _claw_profile_readout() {
     local key="$1"
     local c_reset=$'\e[0m' c_cyan=$'\e[38;2;88;166;255m' c_green=$'\e[38;2;63;185;80m'
-    local c_orange=$'\e[38;2;210;153;34m' c_dim=$'\e[38;2;139;148;158m'
+    local c_orange=$'\e[38;2;227;179;65m' c_dim=$'\e[38;2;139;148;158m'
     local c_white=$'\e[38;2;201;209;217m' c_bold=$'\e[1m'
 
     # Key tools — first 8 of PROFILE_KEY_TOOLS, "·"-joined

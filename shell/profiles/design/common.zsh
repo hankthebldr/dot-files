@@ -91,7 +91,7 @@ EOF
 | primary       | #58a6ff  | links, focus rings |
 | primary-bold  | #1f6feb  | hover states |
 | accent        | #3fb950  | success, positive |
-| warning       | #d29922  | mild attention |
+| warning       | #e3b341  | mild attention |
 | danger        | #ff7b72  | errors, destructive |
 | bg-base       | #0d1117  | main background |
 | bg-elevated   | #161b22  | cards, panels |
