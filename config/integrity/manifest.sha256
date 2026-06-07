@@ -387,6 +387,7 @@
 65ac8604c5acb13882d97dc00e27f6418a311c514defed1572dfbe93d0338d2b  shell/profiles/vault/linux.zsh
 669675dcff8093c67714449996db6a6140efc54bf94e06ea45e167296413b60c  config/.config/fastfetch/logo-research.txt
 669675dcff8093c67714449996db6a6140efc54bf94e06ea45e167296413b60c  shell/profiles/research/logo.txt
+669fd1d3622c4ed49747ef5a60cc7ff4533966b6e6d2abb3bc62e7b0a41a51d3  terminal/.config/ghostty/config
 66e993cfebe590ba396f79096a6316539a490458ff22d38f74d6e3e0d8b6a880  tui/claw-tui/target/release/deps/libpaste-b141aea372dc6196.so
 6957df9f68b212cea4d25eb71f58599ab437b537a000000d884d28a4386d2d4b  tui/claw-tui/target/release/.fingerprint/rustversion-6782037285cf3eed/build-script-build-script-build.json
 6970ae1438b8208f786affb4b999028751ca9da8335936e4ea8d3734ba395b84  scripts/install/cortex-toolchain.sh
@@ -442,7 +443,6 @@
 78bdab3920df9a142704eeef65eead7ee71e0367349f41b0ccf1c1d770600d49  scripts/utils/docs-to-vault.sh
 7921f75497894272a6d8ed18dbe9888faa8be6b6f46edcb720ae5803da7026f0  shell/profiles/brainstorm/mac.zsh
 7954eeb1a8b2a5f414fd176429e7e537f379bacdb9bf571404c810afb0fb35e4  tui/claw-tui/target/release/deps/zmij-8bb850cbb3842134.d
-7956eaa8cb937f3e52c7535fe9ac137c97fef40abad2aeccd2ce12da9a379e55  terminal/.config/ghostty/config
 79946ac3056fc78dd8f58423da82ffea0ac957c355b5f3c62fc05c9490395ea5  docs/archive/vim-config.txt
 7994b0bca31520baf10e89d90a39c9b002fbcc7fe90f6da2f90364d7ac12852e  tui/claw-tui/target/release/.fingerprint/ratatui-dadd191ddd389a8a/lib-ratatui
 7a912350272c643d5b97e7e21d374a8e68d42b53fb9f25f6f9e8b3b4c7f3814f  shell/profiles/cloud/linux.zsh

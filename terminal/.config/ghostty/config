@@ -39,29 +39,33 @@ mouse-hide-while-typing = true
 cursor-style = bar
 cursor-style-blink = true
 
-# ── Colors — GitHub macOS Dark ────────────────────────────────────────
-background = 0d1117
-foreground = c9d1d9
-selection-background = 264f78
-selection-foreground = c9d1d9
-cursor-color = 58a6ff
+# ── Colors — Gruvbox Material (dark) ──────────────────────────────────
+# Soft, low-glare ANSI palette matching `claw theme set gruvbox-material`,
+# the p10k prompt, and EZA_COLORS. Apps that color through the terminal's
+# 16-color palette (incl. Claude Code's purple directory paths → #d3869b)
+# follow this, so the whole terminal reads as one calm gruvbox surface.
+background = 1d2021
+foreground = d4be98
+selection-background = 45403d
+selection-foreground = d4be98
+cursor-color = d8a657
 
-palette = 0=#484f58
-palette = 1=#ff7b72
-palette = 2=#3fb950
-palette = 3=#d29922
-palette = 4=#58a6ff
-palette = 5=#bc8cff
-palette = 6=#39c5cf
-palette = 7=#b1bac4
-palette = 8=#6e7681
-palette = 9=#ffa198
-palette = 10=#56d364
-palette = 11=#e3b341
-palette = 12=#79c0ff
-palette = 13=#d2a8ff
-palette = 14=#56d4dd
-palette = 15=#f0f6fc
+palette = 0=#282828
+palette = 1=#ea6962
+palette = 2=#a9b665
+palette = 3=#d8a657
+palette = 4=#7daea3
+palette = 5=#d3869b
+palette = 6=#89b482
+palette = 7=#d4be98
+palette = 8=#928374
+palette = 9=#ea6962
+palette = 10=#a9b665
+palette = 11=#d8a657
+palette = 12=#7daea3
+palette = 13=#d3869b
+palette = 14=#89b482
+palette = 15=#d4be98
 
 # ── Keybindings ───────────────────────────────────────────────────────
 # Ghostty's "cmd" binds to ⌘ on macOS and to Super (Win key) on Linux,
