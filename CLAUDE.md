@@ -102,6 +102,14 @@ Each profile provides:
 - SSH ControlMaster lifecycle (connect/disconnect/status)
 - Aliases: `tun`, `tunls`, `tunkill`, `tuntopo`
 
+### AI Services Manager
+
+`scripts/utils/ai-services.sh` — unified manager for self-hosted AI web stacks, dispatched via `claw ai-services <cmd>` (aliases `aisvc`, plus `aisup`/`aisdown`/`aisst`/`owui` in the `ai` profile). Registry-driven over two install shapes:
+- **local** — compose file shipped in the repo at `config/<svc>/docker-compose.yml`: `open-webui` (:3000, ChatGPT-style UI auto-wired to host Ollama at :11434), `langfuse` (:3000, observability).
+- **upstream** — shallow `git clone` of the project's repo into `$XDG_DATA_HOME/claw/ai-services/<svc>` (NOT the dotfiles tree); runs *their* version-coupled compose with port/GPU tweaks driven through their `.env`: `dify` (:8080 via `EXPOSE_NGINX_PORT`), `ragflow` (:8081 via `SVR_WEB_HTTP_PORT`, GPU via `DEVICE=gpu`).
+- Each stack runs under a `claw-<svc>` compose project (namespaced containers). Commands: `list`, `status`, `up`, `down`, `restart`, `pull`, `logs`, `prepare`, `url`. With no service args, `up`/`down`/`status`/`pull` act on all. `claw validate` shows live reachability of each stack.
+- Port map (collision-free): open-webui/langfuse :3000, dify :8080, ragflow :8081.
+
 ### Installation Scripts
 
 Two entry points:
@@ -116,6 +124,7 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 - `shell/welcome-tui.zsh` — FZF login dashboard with 20+ options, grouped into Profiles / Tools / System sections. Default profile is highlighted as daily driver. ESC = default shell.
 - `scripts/utils/toolkit.sh` — "Open Claw Toolkit" FZF menu for Git, Docker, K8s, Cloud, Security, System workflows
 - `scripts/utils/tunnel-manager.sh` — SSH tunnel manager with ASCII topology
+- `scripts/utils/ai-services.sh` — unified manager for self-hosted AI web stacks (open-webui, dify, ragflow, langfuse) via `claw ai-services`
 - `scripts/utils/homelab.sh` — SSH topology manager (parses ~/.ssh/config)
 - `scripts/utils/mcp-manager.sh` — MCP server manager (list/register/scaffold)
 - `scripts/utils/system-update.sh` — Cumulative updater with gum spinners (graceful fallback)
@@ -153,6 +162,8 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | `config/.config/fastfetch/logo-*.txt` | Profile-specific ASCII logos (9 total) |
 | `config/ssh/tunnels.yml` | SSH tunnel definitions |
 | `scripts/utils/tunnel-manager.sh` | SSH tunnel manager TUI |
+| `scripts/utils/ai-services.sh` | Unified manager for self-hosted AI web stacks (open-webui/dify/ragflow/langfuse) |
+| `config/open-webui/docker-compose.yml` | Open WebUI stack (ChatGPT-style Ollama UI, :3000) |
 | `scripts/utils/toolkit.sh` | Interactive workflow launcher |
 | `scripts/utils/system-update.sh` | Package updater with gum spinners |
 | `scripts/utils/homelab.sh` | SSH topology manager |

@@ -100,6 +100,7 @@ toolchain_extras() {
             "cohere"
             "huggingface-hub"
             "langchain-cli"
+            "crewai"
             "dvc"
             "mlflow"
             "aider-chat"
@@ -107,12 +108,16 @@ toolchain_extras() {
         )
         local tool
         for tool in "${pipx_tools[@]}"; do
+            # crewai is a library whose CLI ships in the crewai-cli dependency —
+            # plain `pipx install` exposes no `crewai` command, so include deps.
+            local extra=""
+            [[ "$tool" == "crewai" ]] && extra="--include-deps"
             if pipx list 2>/dev/null | grep -q "package $tool "; then
                 log_skip "$tool — already installed via pipx"
                 RESULT_SKIPPED+=("$tool")
             else
-                log_info "pipx install $tool"
-                if pipx install "$tool" 2>/dev/null || pipx upgrade "$tool" 2>/dev/null; then
+                log_info "pipx install $tool $extra"
+                if pipx install $extra "$tool" 2>/dev/null || pipx upgrade "$tool" 2>/dev/null; then
                     RESULT_INSTALLED+=("$tool (pipx)")
                 else
                     log_warning "failed: $tool"
