@@ -14,16 +14,32 @@
 set -u
 is_mac() { [[ "$(uname -s)" == "Darwin" ]]; }
 
-# ── Palette from the active Open Claw theme (single source of truth) ─────────
-# Sourcing theme.sh exports CLAW_RGB_* for the active palette; fall back to the
-# GitHub-dark defaults if it isn't available (keeps this script standalone).
+# ── Palette: per-type label colors sourced from the active Open Claw theme ───
+# theme.sh exports CLAW_RGB_* for the active palette (GitHub-dark fallback keeps
+# this script standalone). Labels are colored by type via cf(), mirroring the
+# native base_modules() scheme in gen-fastfetch.py, so the readout keeps its
+# "cool color by type" look AND follows a `claw theme` switch. (orange = amber.)
 _ffr_dots="${DOTFILES_DIR:-$HOME/.dotfiles}"
 # shellcheck source=/dev/null
 [ -r "$_ffr_dots/scripts/utils/theme.sh" ] && . "$_ffr_dots/scripts/utils/theme.sh" 2>/dev/null
-KEY=$'\033[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"'m'    # blue labels
-VAL=$'\033[38;2;'"${CLAW_RGB_FG:-201;209;217}"'m'     # light values
-BAR=$'\033[38;2;'"${CLAW_RGB_DIVIDER:-48;54;61}"'m'   # column divider
+PURPLE=$'\033[38;2;'"${CLAW_RGB_PURPLE:-188;140;255}"'m'
+BLUE=$'\033[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"'m'
+GREEN=$'\033[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"'m'
+ORANGE=$'\033[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"'m'
+MUTED=$'\033[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"'m'
+VAL=$'\033[38;2;'"${CLAW_RGB_FG:-201;209;217}"'m'      # light values
+BAR=$'\033[38;2;'"${CLAW_RGB_DIVIDER:-48;54;61}"'m'    # column divider
 RST=$'\033[0m'
+
+cf() {  # cf <field> → ANSI color for that field's label (color-by-type)
+  case "$1" in
+    os|host|term)                 printf '%s' "$PURPLE" ;;
+    kernel|uptime|load|cpu|cores) printf '%s' "$BLUE" ;;
+    shell|pkgs|mem|swap)          printf '%s' "$GREEN" ;;
+    disk|batt)                    printf '%s' "$ORANGE" ;;
+    *)                            printf '%s' "$MUTED" ;;
+  esac
+}
 I_OS=$''; I_HOST=$''; I_KERN=$''; I_UP=$''; I_LOAD=$''
 I_SH=$''; I_TERM=$''; I_PKG=$''; I_LOC=$''
 I_CPU=$''; I_CORE=$''; I_MEM=$''; I_SWAP=$''; I_DISK=$''
@@ -66,12 +82,21 @@ g() {  # g <field> → value (best-effort, fast, never errors)
 }
 
 # row <licon> <llabel> <lfield>   <ricon> <rlabel> <rfield>
+# Labels are colored by type (cf). Fields with no data drop out so the dashboard
+# adapts per machine: if the RIGHT field is empty the divider + right cell are
+# omitted; if BOTH are empty the row prints nothing and fastfetch silently skips
+# the module — no "n/a" clutter on headless servers or batteryless desktops.
 row() {
-  local lv rv; lv=$(g "$3"); rv=$(g "$6"); : "${lv:=n/a}" "${rv:=n/a}"
-  # left cell padded to a fixed width, then the vertical rule, then the right
-  # cell — the rule lands on the same column every row.
-  printf "  ${KEY}%s %-7s${RST}${VAL}%-18.18s${RST}${BAR}│${RST}  ${KEY}%s %-7s${RST}${VAL}%.18s${RST}\n" \
-         "$1" "$2" "$lv" "$4" "$5" "$rv"
+  local lv rv lc rc; lv=$(g "$3"); rv=$(g "$6"); lc=$(cf "$3"); rc=$(cf "$6")
+  [[ -z "$lv" && -z "$rv" ]] && return
+  if [[ -n "$rv" ]]; then
+    # left cell padded to a fixed width, then the vertical rule, then the right
+    # cell — the rule lands on the same column every row.
+    printf "  ${lc}%s %-7s${RST}${VAL}%-18.18s${RST}${BAR}│${RST}  ${rc}%s %-7s${RST}${VAL}%.18s${RST}\n" \
+           "$1" "$2" "${lv:-n/a}" "$4" "$5" "$rv"
+  else
+    printf "  ${lc}%s %-7s${RST}${VAL}%-.18s${RST}\n" "$1" "$2" "${lv:-n/a}"
+  fi
 }
 
 case "${1:-all}" in

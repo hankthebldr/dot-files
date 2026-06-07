@@ -80,10 +80,11 @@ if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_FACT:-1}" ==
 fi
 
 # ── Weather (wttr.in — zero install) ────────────────────────────────────────
-# aliases.zsh already defines a `weather` alias; remove it so these richer
-# city-aware functions can be defined (a function on top of an alias is a zsh
-# parse error that would abort the rest of this file).
-unalias weather wttr weatherfull 2>/dev/null
+# aliases.zsh loads first; unalias `weather`/`wttr` so these richer city-aware
+# functions can be defined — a function defined on top of an alias is a zsh
+# parse error that aborts the rest of this file. `weatherfull` stays an alias
+# (no function shadows it).
+unalias weather wttr 2>/dev/null
 weather() { curl -fsS "wttr.in/${1:-}?format=3" 2>/dev/null || echo "weather: offline"; }
 wttr()    { curl -fsS "wttr.in/${1:-}" 2>/dev/null || echo "weather: offline"; }
 

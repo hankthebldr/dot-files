@@ -5,7 +5,7 @@
     "padding": {
       "top": 1,
       "left": 2,
-      "right": 3
+      "right": 1
     }
   },
   "display": {
@@ -20,53 +20,62 @@
   },
   "modules": [
     {
+      "type": "break"
+    },
+    {
+      "type": "break"
+    },
+    {
+      "type": "break"
+    },
+    {
       "type": "title",
       "format": "  {user-name-colored}@{host-name-colored}",
-      "key": ""
+      "key": " "
     },
     {
       "type": "command",
-      "key": "",
+      "key": " ",
       "text": "~/.dotfiles/scripts/utils/ff-readout.sh r1"
     },
     {
       "type": "command",
-      "key": "",
+      "key": " ",
       "text": "~/.dotfiles/scripts/utils/ff-readout.sh r2"
     },
     {
       "type": "command",
-      "key": "",
+      "key": " ",
       "text": "~/.dotfiles/scripts/utils/ff-readout.sh r3"
     },
     {
       "type": "command",
-      "key": "",
+      "key": " ",
       "text": "~/.dotfiles/scripts/utils/ff-readout.sh r4"
     },
     {
       "type": "command",
-      "key": "",
+      "key": " ",
       "text": "~/.dotfiles/scripts/utils/ff-readout.sh r5"
     },
     {
       "type": "command",
-      "key": "",
+      "key": " ",
       "text": "~/.dotfiles/scripts/utils/ff-readout.sh r6"
     },
     {
       "type": "command",
-      "key": "",
+      "key": " ",
       "text": "~/.dotfiles/scripts/utils/ff-readout.sh r7"
     },
     {
       "type": "command",
-      "key": "",
+      "key": " ",
       "text": "~/.dotfiles/scripts/utils/ff-readout.sh r8"
     },
     {
       "type": "command",
-      "key": "",
+      "key": " ",
       "text": "~/.dotfiles/scripts/utils/ff-readout.sh r9"
     },
     {

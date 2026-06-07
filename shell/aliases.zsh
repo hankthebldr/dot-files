@@ -542,8 +542,8 @@ extract() {
 # mkdir + cd
 mkcd() { mkdir -p "$1" && cd "$1"; }
 
-# Weather
-alias weather='curl -s "wttr.in?format=%C+%t+%w+%h"'
+# Weather — `weather` (formatted) and `wttr` (full) are functions in delight.zsh
+# with a location arg + offline fallback; only the no-arg full alias lives here.
 alias weatherfull='curl -s wttr.in'
 
 # Cheat sheets
