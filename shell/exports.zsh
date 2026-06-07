@@ -51,19 +51,27 @@ setopt INC_APPEND_HISTORY     # Write to history file immediately, not when shel
 # config/themes/<slug>.theme is the single source of truth for every surface.
 [[ -r "$DOTFILES_DIR/scripts/utils/theme.sh" ]] && source "$DOTFILES_DIR/scripts/utils/theme.sh"
 
-# eza/ls colors — eza's built-in `di` is a dim ANSI blue (code 34) that's nearly
-# illegible on the dark bg. Replace it with a soft, low-glare "Gruvbox Material"
-# listing palette (muted blue dirs, easy on the eyes) — intentionally decoupled
-# from `claw theme` so listings stay calm regardless of the active prompt theme.
-# No leading `reset`, so only these keys are overridden; eza keeps its defaults
-# for everything else. Palette (gruvbox-material dark):
-#   blue   #7daea3 125;174;163   dirs
-#   green  #a9b665 169;182;101   executables
-#   aqua   #89b482 137;180;130   symlinks
-#   yellow #d8a657 216;166;87    sizes
-#   fg     #d4be98 212;190;152   your user
-#   gray   #928374 146;131;116   dates / group
-export EZA_COLORS="di=1;38;2;125;174;163:ex=1;38;2;169;182;101:ln=38;2;137;180;130:da=38;2;146;131;116:uu=38;2;212;190;152:gu=38;2;146;131;116:sn=38;2;216;166;87:sb=38;2;216;166;87"
+# eza/ls colors — soft "gruvbox-material" listing palette. eza's defaults paint
+# dirs dim-blue, archives bright-red, images/video bright-magenta, source bold-
+# yellow — all harsh on the dark bg. We override the UI/category colors AND the
+# noisy per-extension rules (which take precedence over the category codes) so
+# every file kind lands on a calm gruvbox tone. Decoupled from `claw theme` on
+# purpose; no leading `reset`, so unspecified keys keep eza's defaults. Built in
+# an anon function so the extension-group temporaries don't leak into the shell.
+# Palette: dir #7daea3 · exec/source #a9b665 · symlink/audio #89b482 ·
+# image/video #d3869b · archive #e78a4e · size/doc #d8a657 · crypto #ea6962 ·
+# file/user #d4be98 · date/group/temp #928374.
+() {
+  local _img='38;2;211;134;155' _aud='38;2;137;180;130' _arc='38;2;231;138;78' \
+        _src='38;2;169;182;101'  _cfg='38;2;212;190;152' _e
+  EZA_COLORS='di=1;38;2;125;174;163:ex=1;38;2;169;182;101:ln=38;2;137;180;130:da=38;2;146;131;116:uu=38;2;212;190;152:gu=38;2;146;131;116:sn=38;2;216;166;87:sb=38;2;216;166;87:fi=38;2;212;190;152:or=38;2;234;105;98:cr=38;2;234;105;98:do=38;2;216;166;87:tm=38;2;146;131;116'
+  for _e in jpg jpeg png gif bmp svg webp tiff ico heic avif jxl mp4 m4v mkv avi mov webm flv wmv mpeg mpg; do EZA_COLORS+=":*.$_e=$_img"; done
+  for _e in mp3 flac wav ogg oga m4a aac opus wma aiff; do EZA_COLORS+=":*.$_e=$_aud"; done
+  for _e in tar tgz gz bz2 xz txz zst zip 7z rar lz4 lzma deb rpm jar war apk iso dmg cab; do EZA_COLORS+=":*.$_e=$_arc"; done
+  for _e in py js mjs cjs ts tsx jsx rs go c cc cpp h hpp java kt rb php pl pm lua vim el swift dart scala sql jl r sh bash zsh fish ipynb; do EZA_COLORS+=":*.$_e=$_src"; done
+  for _e in json yaml yml toml ini cfg conf xml html htm css scss sass less md markdown rst tex env; do EZA_COLORS+=":*.$_e=$_cfg"; done
+  export EZA_COLORS
+}
 
 # FZF — colors come from the active theme (falls back to refined-dark defaults).
 export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
