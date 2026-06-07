@@ -186,16 +186,25 @@ cmd_status() {
         local port; port="$(_field "$n" 3)"
         local kind; kind="$(_field "$n" 2)"
         [[ -n "$kind" ]] || { warn "unknown: $n"; continue; }
+        # Container count is the source of truth for "is THIS stack up" — a bare
+        # port check is ambiguous when two services share a port (open-webui and
+        # langfuse both default to :3000). Only this stack's own claw-<n> compose
+        # project counts.
         local running=0
         if [[ "$kind" == "local" || -d "$DATA_HOME/$n/.git" ]]; then
             _resolve "$n" 0 2>/dev/null && running="$(_compose "$n" ps -q 2>/dev/null | grep -c .)" || running=0
         fi
-        if _port_up "$port"; then
-            ok "$(printf '%-11s' "$n") ${C_MUTED}reachable → http://localhost:$port  (${running} container(s))${C_RST}"
-        elif [[ "$running" -gt 0 ]]; then
-            warn "$(printf '%-11s' "$n") ${C_MUTED}${running} container(s) up, port $port not answering yet${C_RST}"
+        if [[ "$running" -gt 0 ]]; then
+            if _port_up "$port"; then
+                ok "$(printf '%-11s' "$n") ${C_MUTED}reachable → http://localhost:$port  (${running} container(s))${C_RST}"
+            else
+                warn "$(printf '%-11s' "$n") ${C_MUTED}${running} container(s) up, port $port not answering yet${C_RST}"
+            fi
         elif [[ "$kind" == "upstream" && ! -d "$DATA_HOME/$n/.git" ]]; then
             printf '  %s·%s %-11s %snot prepared (claw ai-services up %s)%s\n' "$C_MUTED" "$C_RST" "$n" "$C_MUTED" "$n" "$C_RST"
+        elif _port_up "$port"; then
+            # Not our containers, but the port answers → another stack owns it.
+            printf '  %s·%s %-11s %sstopped (port %s busy — another stack)%s\n' "$C_MUTED" "$C_RST" "$n" "$C_MUTED" "$port" "$C_RST"
         else
             printf '  %s·%s %-11s %sstopped%s\n' "$C_MUTED" "$C_RST" "$n" "$C_MUTED" "$C_RST"
         fi

@@ -30,6 +30,7 @@ export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
 [[ -d "$HOME/.cargo/bin" ]] && export PATH="$HOME/.cargo/bin:$PATH"
 [[ -d "$HOME/go/bin" ]]     && export PATH="$HOME/go/bin:$PATH"
 export PATH="${DOTFILES_DIR}/scripts/utils:$PATH"
+export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 
 # ── 2. Platform Shims ───────────────────────────────────
 [[ -f "$DOTFILES_DIR/shell/platform.zsh" ]] && source "$DOTFILES_DIR/shell/platform.zsh"

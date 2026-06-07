@@ -162,6 +162,7 @@
 35db91b1eef58b2abe01da9b88577de5a44e233b740cd93d692ddeeadd2afe4d  claude/agent-skills/shadcn/agents/openai.yml
 360f1b4bb314fd8f28f34e552e7a19dd460c78526f68450c24d31c66fbc740bf  tui/claw-tui/target/release/.fingerprint/paste-b141aea372dc6196/lib-paste.json
 365f78407487ef4f61b7323cfa0398692163fef020a265e609d4a6576d2303fa  tui/claw-tui/target/release/deps/libserde_core-a7d787dfb433a53a.rlib
+36da2dddeb6e20a243f820fa7dbd386141c64ac93c5e8805f41e972732834689  shell/.zshrc
 36eae61f1dca33f6c5a1e2f02e845d827705cf36e0fcc5ab4c75c639adb7b0cf  tui/claw-tui/target/release/deps/strum_macros-bc2db63bbfe1c0a2.d
 3751cdcfaa98998f845450b4566d8fd885951df2d7b478f3778ec793067c7aeb  config/.config/fastfetch/config-homelab.jsonc
 377117d53b08ff115c81ae0daae08fce19006bd05b260044f949a851a4304034  config/agentic/openshell/policy.yaml
@@ -218,6 +219,7 @@
 48f4f89457f27318fd151662ca28022413f634e08c4df4fc274b41b921720c24  vim/.config/nvim/lua/plugins/colorscheme.lua
 49006070372e2d14d8bf8b4bf3c231abda824fa73c3b4a0e869c1cab2ca296fe  shell/profiles/cortex/meta.zsh
 49149ef418569dfb468faea58f0990bd859e82bb8f94b203f75981da0cc76a63  tui/claw-tui/target/release/deps/libc-dc67ce6863d1818c.d
+4991646fb21e92e4e8e75d0bfb8d0a2017603f6f998b7072ed817551742322e0  scripts/utils/ai-services.sh
 4a69a50953d7e78a967063a1af4aca2438a69e7d1fbbf167ad085adb34150e31  scripts/utils/secret.sh
 4a71da3fc53d8efbedac26946e5b13b53d1edf71583d62088ccc2b8cc7b5fef7  claude/agent-skills/shadcn/rules/styling.md
 4b1236ac16d7afa5c744c5b78b2c748e0dc32ac06f72ea4e68334b210dd88855  tui/claw-tui/target/release/deps/libscopeguard-44ddb96251990afa.rmeta
@@ -275,7 +277,6 @@
 5828922bd0b328545d5d61de66cf79dbce23abcd4d34a32a4d21fe4c46863310  config/.config/aichat/config.yaml.example
 582fd273c1e95f93705ede6fb062e9ac42954644bd6ddd0e9156dcc74a2e1251  config/.config/themes/GitHub-Dark-OpenClaw.itermcolors
 583d4ecfa3b982d6ed30a105b968f9099ec90e7b3bcfc29d8ec793c45a60ffbc  tests/session-identity.test.zsh
-5857eed05825b4f655d90965092b82a188582131cfd662766afed4920c6c82aa  shell/.zshrc
 59af841174d2acbabfa2c4346456539d2224da1e3ad866185e77efad1835626c  tui/claw-tui/target/release/deps/liblru-f7c2a87b9395681e.rmeta
 5a109e6643e8d3e88642e3f35e85d2a83e639d07523aa6e99166c48178e965c3  tui/claw-tui/target/release/.fingerprint/allocator-api2-a9015fbca23f3844/invoked.timestamp
 5a109e6643e8d3e88642e3f35e85d2a83e639d07523aa6e99166c48178e965c3  tui/claw-tui/target/release/.fingerprint/anyhow-3c4996b19ae8e9dd/invoked.timestamp
@@ -796,7 +797,6 @@ df22e92aad4fce98171426996c855059f5b2b9b8bbdf53930a2cd4103a9da6e3  bin/claw
 e01b38e200a0cad7fb4f3f32f15df6ac0133eeb2cc9316d7cb9f17a182edb3e6  shell/.p10k.zsh
 e053f75f2b155452156ac151a5312a9c6226c4af7675961c01f5ba9be06460cb  tui/claw-tui/target/release/deps/liberrno-48bbe7d0dee4872d.rmeta
 e0832a0090cf16ff66e103ee3e1a5ec279d1cf202a8ce0015a985975446d9d5b  tui/claw-tui/target/release/.fingerprint/quote-51317fc9d8cc402c/lib-quote.json
-e0beec5857baa29e25291c06fb2567a19ce813d52397171a7aa4e74195b4a225  scripts/utils/ai-services.sh
 e0d6e19013abaa4c9f7f3ebd57f1b66143e13d48377969a294511ff1432291e6  config/.config/colorls/dark_colors.yaml
 e11a982fb8245f0cf79b70a5742084c1e618295293c6204a808312cae5bce6d3  tui/claw-tui/target/release/deps/libratatui-dadd191ddd389a8a.rmeta
 e1297ed6f94368bd61fedbf1c83e9eecf15786d3dbe57d0df70d84c7fb7e95ab  tui/claw-tui/target/release/deps/castaway-bd0a544eb1c355fb.d
