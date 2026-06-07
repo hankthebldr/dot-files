@@ -359,6 +359,7 @@
 5c5418e1881eb851093c683eea3db803d1fab1f16c87f379743547031284bef3  tui/claw-tui/target/release/.fingerprint/scopeguard-44ddb96251990afa/lib-scopeguard.json
 5dabdf3e9470a677e6d3bc386ed599744a7d9e1202b2c841f7d9fc0f69e9782e  tui/claw-tui/target/release/.fingerprint/instability-0de89ef94745d9ca/build-script-build-script-build
 5de49cfebedb057a6dc0f99135fbd444b06c6ad1935291067a0447faa2085377  config/logitech/logid.cfg
+5dfcbf46b80476582933a527e861b804b2d74cb8898e31ec2a210345dbaf2fdb  config/themes/gruvbox-material.theme
 5e37a319372ab6bc37b61a89c1e7ee3395bc2ba8a4f3dece2efbae66578d701e  docs/archive/SECURITY-CLEANUP-SUMMARY.md
 5f1f2016711e83b503a252b07dc1e49415e700650bfe0d4e54639a136555dee9  docs/archive/legacy-pre-mvp/HOMELAB-MCP-SUMMARY.md
 5f44347fc5e089dfff0167411472a76b22eb799a30702b334f51a95a2ec8636d  scripts/utils/logger.sh
