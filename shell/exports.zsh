@@ -51,6 +51,20 @@ setopt INC_APPEND_HISTORY     # Write to history file immediately, not when shel
 # config/themes/<slug>.theme is the single source of truth for every surface.
 [[ -r "$DOTFILES_DIR/scripts/utils/theme.sh" ]] && source "$DOTFILES_DIR/scripts/utils/theme.sh"
 
+# eza/ls colors — eza's built-in `di` is a dim ANSI blue (code 34) that's nearly
+# illegible on the dark bg. Replace it with a soft, low-glare "Gruvbox Material"
+# listing palette (muted blue dirs, easy on the eyes) — intentionally decoupled
+# from `claw theme` so listings stay calm regardless of the active prompt theme.
+# No leading `reset`, so only these keys are overridden; eza keeps its defaults
+# for everything else. Palette (gruvbox-material dark):
+#   blue   #7daea3 125;174;163   dirs
+#   green  #a9b665 169;182;101   executables
+#   aqua   #89b482 137;180;130   symlinks
+#   yellow #d8a657 216;166;87    sizes
+#   fg     #d4be98 212;190;152   your user
+#   gray   #928374 146;131;116   dates / group
+export EZA_COLORS="di=1;38;2;125;174;163:ex=1;38;2;169;182;101:ln=38;2;137;180;130:da=38;2;146;131;116:uu=38;2;212;190;152:gu=38;2;146;131;116:sn=38;2;216;166;87:sb=38;2;216;166;87"
+
 # FZF — colors come from the active theme (falls back to refined-dark defaults).
 export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
