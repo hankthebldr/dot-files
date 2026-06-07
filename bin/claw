@@ -20,7 +20,7 @@ c_reset=$'\e[0m'
 c_cyan=$'\e[38;2;88;166;255m'
 c_green=$'\e[38;2;63;185;80m'
 c_purple=$'\e[38;2;188;140;255m'
-c_orange=$'\e[38;2;210;153;34m'
+c_orange=$'\e[38;2;227;179;65m'
 c_red=$'\e[38;2;255;123;114m'
 c_dim=$'\e[38;2;139;148;158m'
 c_white=$'\e[38;2;201;209;217m'
@@ -174,6 +174,7 @@ cmd_help() {
     ${c_white}claw secret <cmd>${c_reset}      ${c_dim}init|env|encrypt|decrypt|doctor (age+sops)${c_reset}
     ${c_white}claw selfupdate install${c_reset} ${c_dim}schedule weekly auto-update${c_reset}
     ${c_white}claw cheatsheet${c_reset}        ${c_dim}one-screen command reference${c_reset}
+    ${c_white}claw theme [set <name>]${c_reset} ${c_dim}switch color palette (refined-dark · catppuccin · tokyo-night · …)${c_reset}
 
   ${c_dim}Config: ${AGENTS_TOML}${c_reset}
 EOF
@@ -679,6 +680,32 @@ cmd_install() {
     DOTFILES_DIR="$DOTFILES" bash "$script" "$@"
 }
 
+cmd_theme() {
+    # Single-source-of-truth color switcher. list | current | set | preview | fzf.
+    local sub="${1:-list}"; shift || true
+    case "$sub" in
+        ""|list|ls)        DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" list ;;
+        current|active)    DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" current ;;
+        set|use)           DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" set "$@" ;;
+        preview|show)      DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" preview "$@" ;;
+        fzf)               DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" fzf ;;
+        help|-h|--help)
+            cat <<EOF
+  ${c_purple}${c_bold}claw theme${c_reset} — Open Claw color palette switcher
+
+  ${c_white}claw theme${c_reset}                  ${c_dim}list palettes (● = active)${c_reset}
+  ${c_white}claw theme current${c_reset}          ${c_dim}print the active palette slug${c_reset}
+  ${c_white}claw theme preview [slug]${c_reset}   ${c_dim}show color swatches${c_reset}
+  ${c_white}claw theme set <slug>${c_reset}       ${c_dim}switch palette (then: exec zsh)${c_reset}
+
+  ${c_dim}Palettes: refined-dark (default) · github-dark · catppuccin-mocha · tokyo-night · rose-pine${c_reset}
+  ${c_dim}Defined in ${DOTFILES}/config/themes/*.theme — the single source of truth.${c_reset}
+EOF
+            ;;
+        *) err "unknown theme subcommand: $sub"; info "try: claw theme help"; return 1 ;;
+    esac
+}
+
 cmd_gpu() {
     # Server-side K3s GPU enablement (apply device plugin, label/taint, verify).
     DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/k3s-gpu-enable.sh" "$@"
@@ -885,6 +912,7 @@ case "${1:-menu}" in
     selfupdate)     shift; bash "$DOTFILES/scripts/utils/selfupdate.sh" "$@" ;;
     capture-tasks)  shift; bash "$DOTFILES/scripts/utils/capture-tasks.sh" "$@" ;;
     cheatsheet|cheat) bash "$DOTFILES/scripts/utils/cheatsheet.sh" ;;
+    theme|themes|colors) shift; cmd_theme "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;

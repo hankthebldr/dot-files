@@ -48,7 +48,7 @@ selected_host=$(echo "$hosts" | fzf \
     --preview="echo \"${c_cyan}Node Details:${c_reset}\"; awk -v host=\"{}\" 'BEGIN{IGNORECASE=1} /^Host / {if ($2 == host) flag=1; else flag=0} flag {print}' \"$SSH_CONFIG\"" \
     --preview-window="right:50%:wrap" \
     --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950" \
-    --color="hl:#ff7b72,hl+:#ff7b72,info:#8b949e,marker:#d29922,spinner:#bc8cff")
+    --color="hl:#ff7b72,hl+:#ff7b72,info:#8b949e,marker:#e3b341,spinner:#bc8cff")
 
 if [[ -z "$selected_host" ]]; then
     echo "${c_dim}Connection cancelled.${c_reset}"

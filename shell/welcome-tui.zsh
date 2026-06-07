@@ -71,8 +71,8 @@ function claw_welcome_tui() {
     local c_green=$'\e[38;2;63;185;80m'    # GitHub Green: #3fb950
     local c_pink=$'\e[38;2;255;123;114m'   # GitHub Red/Pink: #ff7b72
     local c_purple=$'\e[38;2;188;140;255m' # GitHub Purple: #bc8cff
-    local c_orange=$'\e[38;2;210;153;34m'  # GitHub Orange/Gold: #d29922
-    local c_yellow=$'\e[38;2;210;153;34m'  # GitHub Yellow (using gold)
+    local c_orange=$'\e[38;2;227;179;65m'  # GitHub Orange/Gold: #e3b341
+    local c_yellow=$'\e[38;2;227;179;65m'  # GitHub Yellow (using gold)
     local c_dim=$'\e[38;2;139;148;158m'    # GitHub Muted: #8b949e
     local c_red=$'\e[38;2;255;123;114m'    # GitHub Red: #ff7b72
     local c_white=$'\e[38;2;201;209;217m'  # GitHub fg: #c9d1d9
@@ -85,14 +85,21 @@ function claw_welcome_tui() {
         return
     fi
 
-    local _fzf_color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff"
+    # Colors from the active theme (exported by exports.zsh / theme.sh); fall
+    # back to the refined-dark defaults if the dashboard is invoked standalone.
+    local _fzf_color="${CLAW_FZF_COLOR:-bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff}"
 
-    # Render the Screen-1 dashboard header (fastfetch + custom readout). Called
-    # on every return to the group picker so the intro persists on Screen 1.
+    # Render the Screen-1 dashboard header. Preference order:
+    #   1. claw-dashboard.py — the framed, gradient, two-column dashboard (best)
+    #   2. fastfetch config.jsonc — the two-column readout
+    #   3. branded ASCII fallback
     _claw_tui_header() {
         clear
+        local dash="$_d/scripts/utils/claw-dashboard.py"
         local ff_config="$_d/config/.config/fastfetch/config.jsonc"
-        if command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
+        if command -v python3 &> /dev/null && [[ -f "$dash" ]]; then
+            DOTFILES_DIR="$_d" python3 "$dash"
+        elif command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
             fastfetch -c "$ff_config"
         else
             # Fallback: branded header if fastfetch is missing
@@ -229,11 +236,16 @@ function claw_welcome_tui() {
             else
                 echo "${c_red}Profile not found: $_profile${c_reset}"
             fi
-            # Display profile-specific fastfetch art — across the board. Falls
-            # back to the generic dashboard so EVERY pick renders something.
+            # Display profile-specific art. default → the framed claw-dashboard
+            # (system logo + two-column readout); other profiles keep their
+            # truecolor fastfetch art. Falls back so EVERY pick renders something.
+            local _dash="$_d/scripts/utils/claw-dashboard.py"
             local _ff_profile="$_d/config/.config/fastfetch/config-${key}.jsonc"
             [[ -f "$_ff_profile" ]] || _ff_profile="$_d/config/.config/fastfetch/config.jsonc"
-            if command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
+            if [[ "$key" == "default" ]] && command -v python3 &> /dev/null && [[ -f "$_dash" ]]; then
+                echo ""
+                DOTFILES_DIR="$_d" python3 "$_dash"
+            elif command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
                 echo ""
                 fastfetch -c "$_ff_profile"
             fi
@@ -379,7 +391,7 @@ _claw_default_quickref() {
     local c_cyan=$'\e[38;2;88;166;255m'
     local c_green=$'\e[38;2;63;185;80m'
     local c_purple=$'\e[38;2;188;140;255m'
-    local c_orange=$'\e[38;2;210;153;34m'
+    local c_orange=$'\e[38;2;227;179;65m'
     local c_red=$'\e[38;2;255;123;114m'
     local c_dim=$'\e[38;2;139;148;158m'
     local c_white=$'\e[38;2;201;209;217m'
@@ -411,7 +423,7 @@ _claw_default_quickref() {
 _claw_profile_readout() {
     local key="$1"
     local c_reset=$'\e[0m' c_cyan=$'\e[38;2;88;166;255m' c_green=$'\e[38;2;63;185;80m'
-    local c_orange=$'\e[38;2;210;153;34m' c_dim=$'\e[38;2;139;148;158m'
+    local c_orange=$'\e[38;2;227;179;65m' c_dim=$'\e[38;2;139;148;158m'
     local c_white=$'\e[38;2;201;209;217m' c_bold=$'\e[1m'
 
     # Key tools — first 8 of PROFILE_KEY_TOOLS, "·"-joined

@@ -29,7 +29,7 @@ alias ytj="yt-dlp --dump-json"
 # QUICK REFERENCE
 # ==========================================
 research-help() {
-  local orange='\e[38;2;210;153;34m'
+  local orange='\e[38;2;227;179;65m'
   local purple='\e[38;2;188;140;255m'
   local dim='\e[38;2;139;148;158m'
   local white='\e[38;2;201;209;217m'
@@ -64,7 +64,7 @@ _research_tool_check() {
   local dim='\e[38;2;139;148;158m'
   local white='\e[38;2;201;209;217m'
   local bold='\e[1m'
-  local orange='\e[38;2;210;153;34m'
+  local orange='\e[38;2;227;179;65m'
   local reset='\e[0m'
 
   local tools=(curl httpie jq csvkit rg awk pup htmlq yt-dlp pandoc python3)

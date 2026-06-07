@@ -1,0 +1,14 @@
+# Catppuccin Mocha — soft pastel-on-dark. `claw theme set catppuccin-mocha`.
+name=Catppuccin Mocha
+slug=catppuccin-mocha
+bg=1e1e2e
+bg_alt=313244
+fg=cdd6f4
+muted=9399b2
+divider=45475a
+blue=89b4fa
+green=a6e3a1
+purple=cba6f7
+amber=fab387
+red=f38ba8
+cyan=94e2d5

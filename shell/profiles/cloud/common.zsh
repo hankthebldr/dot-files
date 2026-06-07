@@ -35,7 +35,7 @@ cloud-help() {
     local cyan='\e[38;2;88;166;255m'
     local green='\e[38;2;63;185;80m'
     local purple='\e[38;2;188;140;255m'
-    local orange='\e[38;2;210;153;34m'
+    local orange='\e[38;2;227;179;65m'
     local dim='\e[38;2;139;148;158m'
     local bold='\e[1m'
     local reset='\e[0m'

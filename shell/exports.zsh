@@ -47,17 +47,25 @@ setopt INC_APPEND_HISTORY     # Write to history file immediately, not when shel
 # TOOL CONFIGURATIONS
 # ============================================
 
-# FZF (GitHub Dark Appearance)
+# Active Open Claw theme → CLAW_C_* / CLAW_RGB_* + the fzf --color string.
+# config/themes/<slug>.theme is the single source of truth for every surface.
+[[ -r "$DOTFILES_DIR/scripts/utils/theme.sh" ]] && source "$DOTFILES_DIR/scripts/utils/theme.sh"
+
+# FZF — colors come from the active theme (falls back to refined-dark defaults).
 export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
-export FZF_DEFAULT_OPTS='
+if typeset -f claw_theme_fzf &>/dev/null; then
+    export CLAW_FZF_COLOR="$(claw_theme_fzf)"
+else
+    export CLAW_FZF_COLOR="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#ff7b72,hl+:#ff7b72,info:#8b949e,marker:#e3b341,spinner:#bc8cff"
+fi
+export FZF_DEFAULT_OPTS="
     --height 40%
     --layout=reverse
     --border
     --inline-info
-    --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950"
-    --color="hl:#ff7b72,hl+:#ff7b72,info:#8b949e,marker:#d29922,spinner:#bc8cff"
-'
+    --color=\"$CLAW_FZF_COLOR\"
+"
 
 # Bat (syntax highlighting)
 export BAT_THEME="GitHub"

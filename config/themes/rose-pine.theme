@@ -1,0 +1,16 @@
+# Rosé Pine — muted, painterly, sophisticated. `claw theme set rose-pine`.
+# Green is approximated (Rosé Pine has no true green) with a sage that sits well
+# beside foam/pine.
+name=Rosé Pine
+slug=rose-pine
+bg=191724
+bg_alt=1f1d2e
+fg=e0def4
+muted=6e6a86
+divider=403d52
+blue=31748f
+green=5dc2a3
+purple=c4a7e7
+amber=f6c177
+red=eb6f92
+cyan=9ccfd8

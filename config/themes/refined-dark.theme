@@ -1,0 +1,21 @@
+# Refined GitHub Dark — Open Claw default
+# Cooler, more cohesive take on GitHub-dark. The gruvbox-y gold (#d29922) is
+# replaced by a cleaner amber (#e3b341) and the cyan is pulled toward teal so the
+# whole palette leans blue/purple/cyan instead of warm yellow.
+#
+# Format: key=hex (no leading '#'). Parsed by scripts/utils/theme.sh (shell) and
+# scripts/utils/claw-dashboard.py (python). This file is the SINGLE SOURCE OF
+# TRUTH for the palette — edit here, every surface follows.
+name=Refined GitHub Dark
+slug=refined-dark
+bg=0d1117
+bg_alt=161b22
+fg=c9d1d9
+muted=8b949e
+divider=30363d
+blue=58a6ff
+green=3fb950
+purple=bc8cff
+amber=e3b341
+red=ff7b72
+cyan=39c5ff

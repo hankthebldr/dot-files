@@ -456,6 +456,17 @@ claw() {
         fi
         return
     fi
+    # `claw theme ...` — color theme management (palettes in config/themes/*.theme)
+    if [[ "$1" == "theme" ]]; then
+        shift
+        case "$1" in
+            ""|list|ls)  claw_theme_list ;;
+            set)         claw_theme_set "$2" ;;
+            preview)     claw_theme_preview "$2" ;;
+            *) printf 'usage: claw theme [list | set <slug> | preview <slug>]\n' >&2; return 1 ;;
+        esac
+        return
+    fi
     local profile="$1"
     local profile_path="$_d/shell/profiles/${profile}.zsh"
     if [[ ! -f "$profile_path" ]]; then

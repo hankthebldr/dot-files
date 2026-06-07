@@ -14,18 +14,21 @@
 set -u
 is_mac() { [[ "$(uname -s)" == "Darwin" ]]; }
 
-# ── GitHub-dark palette + Nerd Font glyphs (Font Awesome, 1-cell in *Mono) ────
-# Per-type label colors mirror the native base_modules() scheme in
-# gen-fastfetch.py, so the two-column readout keeps the "cool color by type"
-# look: system fields purple/blue/green, hardware blue/green/orange, network
-# muted. cf() maps each field name to its color.
-PURPLE=$'\033[38;2;188;140;255m'
-BLUE=$'\033[38;2;88;166;255m'
-GREEN=$'\033[38;2;63;185;80m'
-ORANGE=$'\033[38;2;210;153;34m'
-MUTED=$'\033[38;2;139;148;158m'
-VAL=$'\033[38;2;201;209;217m'   # light values
-BAR=$'\033[38;2;48;54;61m'      # column divider
+# ── Palette: per-type label colors sourced from the active Open Claw theme ───
+# theme.sh exports CLAW_RGB_* for the active palette (GitHub-dark fallback keeps
+# this script standalone). Labels are colored by type via cf(), mirroring the
+# native base_modules() scheme in gen-fastfetch.py, so the readout keeps its
+# "cool color by type" look AND follows a `claw theme` switch. (orange = amber.)
+_ffr_dots="${DOTFILES_DIR:-$HOME/.dotfiles}"
+# shellcheck source=/dev/null
+[ -r "$_ffr_dots/scripts/utils/theme.sh" ] && . "$_ffr_dots/scripts/utils/theme.sh" 2>/dev/null
+PURPLE=$'\033[38;2;'"${CLAW_RGB_PURPLE:-188;140;255}"'m'
+BLUE=$'\033[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"'m'
+GREEN=$'\033[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"'m'
+ORANGE=$'\033[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"'m'
+MUTED=$'\033[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"'m'
+VAL=$'\033[38;2;'"${CLAW_RGB_FG:-201;209;217}"'m'      # light values
+BAR=$'\033[38;2;'"${CLAW_RGB_DIVIDER:-48;54;61}"'m'    # column divider
 RST=$'\033[0m'
 
 cf() {  # cf <field> → ANSI color for that field's label (color-by-type)
@@ -97,6 +100,12 @@ row() {
 }
 
 case "${1:-all}" in
+  # Machine-readable dump for claw-dashboard.py (one key=value per line).
+  fields)
+    for _f in os host kernel uptime load shell term pkgs locale cpu cores mem swap disk ip wifi batt date; do
+        printf '%s=%s\n' "$_f" "$(g "$_f")"
+    done ;;
+  field) shift; g "${1:-os}" ;;
   r1) row "$I_OS"   "OS"     os      "$I_CPU"  "CPU"   cpu ;;
   r2) row "$I_HOST" "Host"   host    "$I_CORE" "Cores" cores ;;
   r3) row "$I_KERN" "Kernel" kernel  "$I_MEM"  "Mem"   mem ;;
