@@ -5,17 +5,24 @@
 
 # ── Font ──────────────────────────────────────────────────────────────
 font-family = "JetBrainsMono Nerd Font Mono"
-font-size = 14
+font-size = 11
 font-feature = "-calt"
 font-thicken = true
-adjust-cell-height = 10%
+# Tight line height for a dense viewport (was +10%, which loosened rows).
+adjust-cell-height = 0%
 
 # ── Window ────────────────────────────────────────────────────────────
+# Open maximized so the terminal fills the screen on launch — combined with
+# the smaller font this gives a dense, repo-wide viewport. `window-save-state`
+# is `never` (was `always`) because restoring a stale, undersized geometry was
+# what kept the window from opening at full size. Tight padding keeps more
+# cells on screen.
+maximize = true
 window-decoration = false
-window-padding-x = 12
-window-padding-y = 12
+window-padding-x = 4
+window-padding-y = 4
 window-padding-balance = true
-window-save-state = always
+window-save-state = never
 window-theme = dark
 gtk-titlebar = false
 gtk-tabs-location = top
