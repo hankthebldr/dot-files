@@ -157,15 +157,29 @@ if [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then
     [[ -f "$PROFILE_PATH" && -z "$CLAW_PROFILE_THEME" ]] && source "$PROFILE_PATH"
 fi
 
-P10K_CONFIG_FILE="$HOME/.p10k.zsh"
-for _pn in security cloud devops research ai; do
-    if [[ "$CLAW_ACTIVE_PROFILE" == "$_pn" && -f "$HOME/.p10k-${_pn}.zsh" ]]; then
-        P10K_CONFIG_FILE="$HOME/.p10k-${_pn}.zsh"
-        break
-    fi
-done
-[[ -f "$P10K_CONFIG_FILE" ]] && source "$P10K_CONFIG_FILE"
-unset _pn
+# ── Powerlevel10k prompt — sourced from the REPO, not ~/.p10k.zsh ───────────
+# Decoupled on purpose. `p10k configure` overwrites ~/.p10k.zsh (and used to
+# write 5 ~/.p10k-<profile>.zsh files) with a 1786-line vanilla config carrying
+# instant_prompt=verbose — which re-enables instant prompt and breaks the
+# fastfetch TUI. Sourcing the tuned theme straight from the repo means a
+# clobbered ~/.p10k.zsh can no longer replace the OPEN CLAW prompt; the home
+# copy is only a fallback for a machine without the repo checked out.
+if [[ -r "$DOTFILES_DIR/shell/.p10k.zsh" ]]; then
+    source "$DOTFILES_DIR/shell/.p10k.zsh"
+elif [[ -r "$HOME/.p10k.zsh" ]]; then
+    source "$HOME/.p10k.zsh"
+fi
+
+# Drift guard: if a stow symlink got clobbered into a plain file (the p10k
+# configure failure mode), say so once per interactive shell. Near-zero cost.
+if [[ -o interactive ]]; then
+    for _df in .p10k.zsh .zshrc; do
+        if [[ -e "$HOME/$_df" && ! -L "$HOME/$_df" ]]; then
+            print -P "  %F{214}⚠%f %F{245}~/$_df is a plain file, not the repo symlink (clobbered?) — fix with %F{39}claw restore-shell%f"
+        fi
+    done
+    unset _df
+fi
 
 # Guard: stop `p10k configure` from overwriting the symlinked, pre-tuned prompt.
 [[ -f "$DOTFILES_DIR/shell/p10k-guard.zsh" ]] && source "$DOTFILES_DIR/shell/p10k-guard.zsh"

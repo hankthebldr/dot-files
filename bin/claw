@@ -125,6 +125,8 @@ cmd_help() {
     ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
     ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
     ${c_white}claw restore-shell${c_reset}    ${c_dim}re-link ~/.zshrc, ~/.p10k.zsh, … to the repo (fix clobbered symlinks)${c_reset}
+    ${c_white}claw lock-shell${c_reset}       ${c_dim}make ~/.zshrc & ~/.p10k.zsh immutable so p10k configure can't clobber them${c_reset}
+    ${c_white}claw unlock-shell${c_reset}     ${c_dim}lift the immutable lock (before re-stow / running the wizard)${c_reset}
     ${c_white}claw validate${c_reset}         ${c_dim}full top-to-bottom install check + update/missing detection${c_reset}
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
@@ -580,6 +582,13 @@ cmd_restore_shell() {
         err "GNU stow not installed — install it first: brew install stow"
         return 1
     fi
+    # Lift any immutable lock (claw lock-shell) first — stow -R can't remove a
+    # locked symlink. No-op when nothing is locked.
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        chflags -h nouchg "$HOME/.zshrc" "$HOME/.p10k.zsh" 2>/dev/null || true
+    else
+        sudo chattr -i "$HOME/.zshrc" "$HOME/.p10k.zsh" 2>/dev/null || true
+    fi
     local ts backup
     ts="$(date +%Y%m%d-%H%M%S)"
     backup="$HOME/.dotfiles-backups/$ts"
@@ -604,7 +613,60 @@ cmd_restore_shell() {
         err "stow reported a conflict — inspect: stow -nv -d $DOTFILES -t $HOME shell"
         return 1
     fi
+    # Sweep up vanilla per-profile prompt files left by an old `p10k configure`
+    # (not in the repo, no longer sourced) so they can't shadow the tuned theme.
+    local pf
+    for pf in "$HOME"/.p10k-*.zsh; do
+        [[ -e "$pf" ]] || continue
+        mv "$pf" "$backup/" && info "archived stray $(basename "$pf") → ${c_dim}$backup/${c_reset}"
+    done
     printf "    ${c_white}exec zsh${c_reset}  ${c_dim}# reload to pick up the restored prompt${c_reset}\n"
+}
+
+# Shell stow symlinks that `p10k configure` likes to clobber. Locking them makes
+# the wizard physically unable to replace them; the THEME stays editable because
+# the flag is on the symlink, not the repo file it points at.
+_claw_shell_links=("$HOME/.zshrc" "$HOME/.p10k.zsh")
+
+cmd_lock_shell() {
+    local link rc=0
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        for link in "${_claw_shell_links[@]}"; do
+            [[ -e "$link" ]] || continue
+            if chflags -h uchg "$link" 2>/dev/null; then
+                ok "locked ${c_white}$link${c_reset}"
+            else
+                err "could not lock $link"; rc=1
+            fi
+        done
+        info "theme stays editable: ${c_white}\$DOTFILES_DIR/shell/.p10k.zsh${c_reset} then ${c_white}exec zsh${c_reset}"
+        info "to re-stow or run the wizard, first ${c_white}claw unlock-shell${c_reset}"
+    else
+        for link in "${_claw_shell_links[@]}"; do
+            [[ -e "$link" ]] || continue
+            if sudo chattr +i "$link" 2>/dev/null; then
+                ok "locked $link ${c_dim}(chattr +i)${c_reset}"
+            else
+                err "could not lock $link — needs root + an fs that supports chattr +i"; rc=1
+            fi
+        done
+    fi
+    return $rc
+}
+
+cmd_unlock_shell() {
+    local link
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        for link in "${_claw_shell_links[@]}"; do
+            [[ -e "$link" ]] || continue
+            chflags -h nouchg "$link" 2>/dev/null && ok "unlocked ${c_white}$link${c_reset}"
+        done
+    else
+        for link in "${_claw_shell_links[@]}"; do
+            [[ -e "$link" ]] || continue
+            sudo chattr -i "$link" 2>/dev/null && ok "unlocked $link"
+        done
+    fi
 }
 
 cmd_install() {
@@ -810,6 +872,8 @@ case "${1:-menu}" in
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
     restore-shell|relink) cmd_restore_shell ;;
+    lock-shell)     cmd_lock_shell ;;
+    unlock-shell)   cmd_unlock_shell ;;
     docs-sync|docs)  bash "$DOTFILES/scripts/utils/docs-to-vault.sh" ;;
     install)        shift; cmd_install "$@" ;;
     provision)      shift; bash "$DOTFILES/scripts/install/provision.sh" "$@" ;;
