@@ -101,6 +101,7 @@ toolchain_extras() {
             "huggingface-hub"
             "langchain-cli"
             "crewai"
+            "smolagents"     # HuggingFace code-first "small agents" (also in ai-skills)
             "dvc"
             "mlflow"
             "aider-chat"

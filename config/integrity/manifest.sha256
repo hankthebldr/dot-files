@@ -186,6 +186,7 @@
 3c6f29a203e7220cc4059ff74347837ba481606d7f7fe562812fd6cf75e838bf  tui/claw-tui/target/release/.fingerprint/parking_lot_core-408cc86a6418c84b/run-build-script-build-script-build.json
 3d0427db39555a6b03e582fbe10badb39a4fa4be47f78213445c62d2092caf96  tui/claw-tui/target/release/deps/liblog-7652cbf3ef10d255.rmeta
 3d059ef739d4f434e38fcb5a44f42c15cc742f9d94b7ce53eea068eb5afbc3d4  QUICK-REFERENCE.md
+3e1eacfdad4a8aaf8bc4af5f8d058df4566dd0424d917a3cdae63ccc4f597ac3  scripts/install/ai-toolchain.sh
 3e30a32d4e48e692ccf403a3ccfab1f92d30fb9b7e5994e78b622279d4ea6db1  vim/.config/nvim/lua/plugins/ui.lua
 3ed39dcbf01a885551258d1a35dd1b0abb05ce7dd18c833963e88fad4ed56be7  tui/claw-tui/target/release/deps/errno-48bbe7d0dee4872d.d
 3edc982e5bbea2df6bd462f7ecbfb64aa2db3f0ec8d994c303c71ba01962dda5  tui/claw-tui/target/release/.fingerprint/unicode-ident-b5082d00e5e87341/lib-unicode_ident
@@ -653,7 +654,6 @@ aba5fa5ff34de808e44f21cffd1d870be1e60b02f64157ebf8fec7347e4ef089  tui/claw-tui/t
 ac3a180e607b938b6d962929725ccd21736c5022005740bb4f5ff12642fb85b3  tui/claw-tui/target/release/.fingerprint/proc-macro2-76c9afe465972d66/build-script-build-script-build
 aca7623fc357938774916e7549b695716937d9e694f6a1c0b91de14e7303e2f0  claude/scope.txt
 acc45a89ca3c65dc277b51589919a26218a1764db54f3fd4b382a78ca4643dc2  tui/claw-tui/target/release/.fingerprint/serde_core-2bc79f720cf4b07d/run-build-script-build-script-build
-ad2d120d1e72985f63b0dbc724f0d02454305fd3725b66e76df2675d62801df8  scripts/install/ai-toolchain.sh
 ad48343f069feb5e85cb5cad98e89f7a04cbe125109a9ed58a598437bf255574  tui/claw-tui/target/release/.fingerprint/rustversion-886f6617f6759ac0/run-build-script-build-script-build.json
 adfcc3d5355b4752ac436c9cd791beedaf86e2e752fd028a1874f762641bad45  tests/agents.test.sh
 adfd2269997fb818d72d7fc8aa3d25bcea47b18a8920f767e6c84c1ae17685d3  docs/archive/README-NEXT-STEPS.md
