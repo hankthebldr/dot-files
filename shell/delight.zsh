@@ -80,6 +80,9 @@ if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_FACT:-1}" ==
 fi
 
 # ── Weather (wttr.in — zero install) ────────────────────────────────────────
+# These supersede any earlier `weather` alias (aliases.zsh loads first). unalias
+# first or zsh expands the alias while parsing the def → "parse error near ()".
+unalias weather wttr 2>/dev/null
 weather() { curl -fsS "wttr.in/${1:-}?format=3" 2>/dev/null || echo "weather: offline"; }
 wttr()    { curl -fsS "wttr.in/${1:-}" 2>/dev/null || echo "weather: offline"; }
 
