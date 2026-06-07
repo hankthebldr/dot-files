@@ -246,6 +246,14 @@ CONFIGS = {
 }
 
 
+# Vertical centering: the readout is title + 9 rows + colors ≈ 11 lines, while
+# the auto system logo (Apple on macOS) is ~17. Prepend this many `break`
+# modules to drop the block down so it sits centered against the logo's full
+# height. One knob — raise to push lower, lower to push up. Different OS logos
+# vary slightly in height; tuned for the macOS Apple logo (primary).
+READOUT_VCENTER = 3
+
+
 def build_readout():
     """Startup dashboard: system icon + a compact TWO-COLUMN readout.
 
@@ -255,21 +263,28 @@ def build_readout():
     multi-line module output), shown to the right of the auto system logo.
     """
     rows = [
-        {"type": "command", "key": "",
+        {"type": "command", "key": " ",
          "text": f"~/.dotfiles/scripts/utils/ff-readout.sh r{i}"}
         for i in range(1, 10)
     ]
+    leading = [{"type": "break"} for _ in range(READOUT_VCENTER)]
     return {
         "$schema": SCHEMA,
-        "logo": auto_logo(1),
+        # right:1 (was 3) pulls the two columns in toward the logo instead of
+        # floating them off to the right.
+        "logo": {"type": "auto", "padding": {"top": 1, "left": 2, "right": 1}},
         "display": {"separator": "", "color": {"keys": BLUE, "title": PURPLE},
                     "key": {"width": 0}},
         "modules": [
-            # key:"" + the same 2-space indent the readout rows use, so the title
-            # lines up with the box below it (a non-empty key would widen the key
-            # column and shift only this top row).
+            # `break` spacers push the block down to vertically center it beside
+            # the logo (see READOUT_VCENTER).
+            *leading,
+            # key:" " (a single blank, NOT "") — fastfetch renders an empty-string
+            # key as the module's type name ("Command"/"Title"), but a blank space
+            # with keyWidth:0 prints nothing. The readout rows + this title each
+            # carry their own 2-space indent so they line up with the box below.
             {"type": "title",
-             "format": "  {user-name-colored}@{host-name-colored}", "key": ""},
+             "format": "  {user-name-colored}@{host-name-colored}", "key": " "},
             *rows,
             {"type": "colors", "paddingLeft": 2, "symbol": "circle"},
         ],
