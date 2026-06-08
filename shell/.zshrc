@@ -92,7 +92,9 @@ fi
 # Live progress indicator (window title + completion banner + claw_run wrapper)
 [[ -f "$DOTFILES_DIR/shell/progress.zsh" ]] && source "$DOTFILES_DIR/shell/progress.zsh"
 [[ -f "$DOTFILES_DIR/shell/delight.zsh" ]] && source "$DOTFILES_DIR/shell/delight.zsh"
-[[ -f ~/hr-vault-main-pa/_agents/shell-aliases.sh ]] && source ~/hr-vault-main-pa/_agents/shell-aliases.sh
+# Obsidian Vault OS (vault lives under ~/Documents on this machine)
+export VAULT_PATH="$HOME/Documents/hr-vault-main-pa"
+[[ -f "$VAULT_PATH/_agents/shell-aliases.sh" ]] && source "$VAULT_PATH/_agents/shell-aliases.sh"
 
 # ── 7. Tool Initializations (all guarded) ───────────────
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"

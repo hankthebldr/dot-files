@@ -1,0 +1,22 @@
+# Portainer CE — web UI to view/manage every Docker container, image, volume,
+# network, and stack on this host. Managed by `claw ai-services`.
+#
+#   UI: https://localhost:9443   (self-signed cert — accept once; first visit
+#                                 creates the admin account)
+#
+# Mounts the Docker socket read/write so it can manage containers, and persists
+# its own state (users, settings, stacks) in the named `portainer_data` volume.
+# 9000/9001 are taken by RagFlow's MinIO, so this uses Portainer's HTTPS :9443.
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+volumes:
+  portainer_data:

@@ -138,7 +138,8 @@ cmd_help() {
     ${c_white}claw mcp${c_reset}              ${c_dim}MCP server manager${c_reset}
     ${c_white}claw homelab${c_reset}          ${c_dim}homelab SSH topology${c_reset}
     ${c_white}claw toolkit${c_reset}          ${c_dim}Open Claw workflow launcher${c_reset}
-    ${c_white}claw ai-services${c_reset}      ${c_dim}self-hosted AI stacks: open-webui|dify|ragflow|langfuse${c_reset}
+    ${c_white}claw ai-services${c_reset}      ${c_dim}self-hosted AI/web stacks: open-webui|dify|ragflow|langfuse|portainer${c_reset}
+    ${c_white}claw docker${c_reset}           ${c_dim}grouped overview of all containers (lzd=tui, cto=metrics)${c_reset}
     ${c_white}claw skills${c_reset}           ${c_dim}browse Claude skills${c_reset}
     ${c_white}claw obsidian${c_reset}         ${c_dim}vault helpers (profile-aware)${c_reset}
     ${c_white}claw onboard${c_reset}          ${c_dim}80s arcade onboarding · picks your profile${c_reset}
@@ -473,6 +474,10 @@ cmd_toolkit() {
 
 cmd_ai_services() {
     bash "$DOTFILES/scripts/utils/ai-services.sh" "$@"
+}
+
+cmd_docker() {
+    bash "$DOTFILES/scripts/utils/docker-overview.sh" "$@"
 }
 
 cmd_obsidian() {
@@ -911,6 +916,7 @@ case "${1:-menu}" in
     homelab)        shift; cmd_homelab "$@" ;;
     toolkit)        shift; cmd_toolkit "$@" ;;
     ai-services|aisvc|services) shift; cmd_ai_services "$@" ;;
+    docker|containers|dps) shift; cmd_docker "$@" ;;
     skills)         shift; cmd_skills "$@" ;;
     obsidian|vault) shift; cmd_obsidian "$@" ;;
     onboard|onboarding|character) shift; cmd_onboard "$@" ;;

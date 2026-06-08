@@ -65,6 +65,7 @@ die()   { printf '  %s✗%s %s\n' "$C_RED"   "$C_RST" "$*" >&2; exit 1; }
 SERVICES=(
   "open-webui|local|3000|ChatGPT-style UI for Ollama|$DOTFILES/config/open-webui/docker-compose.yml"
   "langfuse|local|3000|LLM observability / tracing|$DOTFILES/config/langfuse/docker-compose.yml"
+  "portainer|local|9443|Docker management web UI|$DOTFILES/config/portainer/docker-compose.yml"
   "dify|upstream|8080|LLM app-builder platform|https://github.com/langgenius/dify::docker::docker-compose.yaml"
   "ragflow|upstream|8081|RAG engine + deep-doc parsing|https://github.com/infiniflow/ragflow::docker::docker-compose.yml"
 )
@@ -162,6 +163,7 @@ _compose() {
 }
 
 _port_up() { local p="$1"; { exec 3<>"/dev/tcp/127.0.0.1/$p"; } 2>/dev/null && { exec 3>&-; return 0; }; return 1; }
+_scheme() { case "$1" in 9443|8443|443) printf 'https' ;; *) printf 'http' ;; esac; }
 
 # ── Commands ─────────────────────────────────────────────────────────────────
 cmd_list() {
@@ -196,7 +198,7 @@ cmd_status() {
         fi
         if [[ "$running" -gt 0 ]]; then
             if _port_up "$port"; then
-                ok "$(printf '%-11s' "$n") ${C_MUTED}reachable → http://localhost:$port  (${running} container(s))${C_RST}"
+                ok "$(printf '%-11s' "$n") ${C_MUTED}reachable → $(_scheme "$port")://localhost:$port  (${running} container(s))${C_RST}"
             else
                 warn "$(printf '%-11s' "$n") ${C_MUTED}${running} container(s) up, port $port not answering yet${C_RST}"
             fi
@@ -223,7 +225,7 @@ cmd_up() {
         _compose "$n" pull 2>&1 | tail -3 || warn "$n: pull reported issues (continuing)"
         info "starting…"
         if _compose "$n" up -d; then
-            ok "$n up → http://localhost:$(_field "$n" 3)"
+            ok "$n up → $(_scheme "$(_field "$n" 3)")://localhost:$(_field "$n" 3)"
         else
             warn "$n: compose up reported errors — check: claw ai-services logs $n"
         fi
@@ -268,7 +270,7 @@ cmd_prepare() {
 cmd_url() {
     local n="${1:-}"; [[ -n "$n" ]] || die "usage: ai-services url <svc>"
     local p; p="$(_field "$n" 3)"; [[ -n "$p" ]] || die "unknown service: $n"
-    printf 'http://localhost:%s\n' "$p"
+    printf '%s://localhost:%s\n' "$(_scheme "$p")" "$p"
 }
 
 # ── Dispatch ─────────────────────────────────────────────────────────────────

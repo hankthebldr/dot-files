@@ -105,10 +105,14 @@ Each profile provides:
 ### AI Services Manager
 
 `scripts/utils/ai-services.sh` — unified manager for self-hosted AI web stacks, dispatched via `claw ai-services <cmd>` (aliases `aisvc`, plus `aisup`/`aisdown`/`aisst`/`owui` in the `ai` profile). Registry-driven over two install shapes:
-- **local** — compose file shipped in the repo at `config/<svc>/docker-compose.yml`: `open-webui` (:3000, ChatGPT-style UI auto-wired to host Ollama at :11434), `langfuse` (:3000, observability).
+- **local** — compose file shipped in the repo at `config/<svc>/docker-compose.yml`: `open-webui` (:3000, ChatGPT-style UI auto-wired to host Ollama at :11434), `langfuse` (:3000, observability), `portainer` (:9443 HTTPS, Docker management web UI — mounts the Docker socket).
 - **upstream** — shallow `git clone` of the project's repo into `$XDG_DATA_HOME/claw/ai-services/<svc>` (NOT the dotfiles tree); runs *their* version-coupled compose with port/GPU tweaks driven through their `.env`: `dify` (:8080 via `EXPOSE_NGINX_PORT`), `ragflow` (:8081 via `SVR_WEB_HTTP_PORT`, GPU via `DEVICE=gpu`).
 - Each stack runs under a `claw-<svc>` compose project (namespaced containers). Commands: `list`, `status`, `up`, `down`, `restart`, `pull`, `logs`, `prepare`, `url`. With no service args, `up`/`down`/`status`/`pull` act on all. `claw validate` shows live reachability of each stack.
-- Port map (collision-free): open-webui/langfuse :3000, dify :8080, ragflow :8081.
+- Port map (collision-free): open-webui/langfuse :3000, dify :8080, ragflow :8081, portainer :9443.
+
+### Docker container overview
+
+`scripts/utils/docker-overview.sh` (`claw docker`, alias `dover`) — read-only, gruvbox-themed snapshot of every container grouped by compose project, with state dot, status, published host ports, and live CPU/MEM. Complements the interactive tools: `lzd` (lazydocker TUI — logs/exec/graphs), `cto` (ctop — live per-container metrics), and Portainer (web UI via `claw ai-services up portainer`). lazydocker + ctop are flagged in `devops-toolchain.sh`.
 
 ### Installation Scripts
 

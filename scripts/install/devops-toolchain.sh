@@ -36,6 +36,8 @@ TOOLCHAIN_MAP=(
     "docker|docker|docker.io|manual:https://docs.docker.com/engine/install/|prefer docker-ce repo over apt's docker.io"
     "podman|podman|podman|none|rootless container runtime"
     "buildah|buildah|buildah|none|OCI image builder"
+    "lazydocker|lazydocker|?|manual:https://github.com/jesseduffield/lazydocker#installation|docker TUI — logs/exec/graphs (alias: lzd)"
+    "ctop|ctop|?|manual:https://github.com/bcicen/ctop#install|live per-container metrics, top-like (alias: cto)"
 
     # ── 03. CI/CD & Config Mgmt ────────────────────────────────────────────
     "skaffold|skaffold|?|curl:https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-${_arch}|k8s dev workflow"

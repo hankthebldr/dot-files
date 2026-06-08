@@ -147,6 +147,8 @@ alias drmi='docker rmi $(docker images -q)'
 alias drm='docker rm $(docker ps -aq)'
 alias dstop='docker stop $(docker ps -q)'
 alias lzd='lazydocker'
+alias cto='ctop'                  # live per-container CPU/mem/net/io metrics
+alias dover='claw docker'         # grouped overview of all containers by stack
 
 # Docker Compose
 alias dc='docker-compose'
