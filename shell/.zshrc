@@ -90,6 +90,7 @@ fi
 [[ -f "$DOTFILES_DIR/shell/aliases.zsh" ]] && source "$DOTFILES_DIR/shell/aliases.zsh"
 [[ -f "$DOTFILES_DIR/shell/profile-helpers.zsh" ]] && source "$DOTFILES_DIR/shell/profile-helpers.zsh"
 [[ -f "$DOTFILES_DIR/shell/claw-fn.zsh" ]] && source "$DOTFILES_DIR/shell/claw-fn.zsh"
+[[ -f "$DOTFILES_DIR/shell/claw-completion.zsh" ]] && source "$DOTFILES_DIR/shell/claw-completion.zsh"
 [[ -f "$DOTFILES_DIR/shell/security.zsh" ]] && source "$DOTFILES_DIR/shell/security.zsh"
 [[ -f "$DOTFILES_DIR/shell/obsidian.zsh" ]] && source "$DOTFILES_DIR/shell/obsidian.zsh"
 # Live progress indicator (window title + completion banner + claw_run wrapper)

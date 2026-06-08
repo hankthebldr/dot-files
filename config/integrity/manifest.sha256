@@ -27,7 +27,6 @@
 0787e7fe139d58b9d812517c1bc7476ccf1f2b215d83406f6e9c4177b5bffc10  tui/claw-tui/target/release/deps/libsignal_hook_registry-061dc0addff3a2c3.rmeta
 07f2e67acd675e2b08fdca839105c2ce4818fd31e1c68835435e1c782035b354  claude/skills/iocs-extract/SKILL.md
 087e392c96abcbe8cb5749b18392507bb1c90b36f7689af67ba2757a78276a72  CONTRIBUTING.md
-08e0b521a77cf62d556e2dd7f8bebd7463b24cff9b511b56f30b592ee87d9b71  shell/.zshrc
 08e4dd5cef5d69c1985a96a624b345436e4733b2f67e9d899a5412861874b292  shell/profiles/deck/logo.txt
 0971b0d59207cb337a745e9ce7dd49ba6951542c4c91d47346a9c2acc75aa943  shell/profiles/brainstorm/meta.zsh
 0a6844826ab9b64401dc111470dfda47c0b6a5917b5c4f4f1f6af2bb0cbff701  docs/archive/legacy-pre-mvp/quick-start-guide.md
@@ -38,6 +37,7 @@
 0c6e800dab12cc34e201db6ea45a30a24f76d0a281da2f83c5e9bfbbe2ebc305  shell/profiles/homelab/meta.zsh
 0c9603883be9cb2d2e5377a4b6b01d12608e973f9db3b94121afd3c433fd45fe  scripts/utils/k3s-gpu-enable.sh
 0ca438de801e7da182d583f3845167048647ff6c057065723b522dbc2e6d4217  config/ssh/remote-env/zshrc-remote
+0d490f476c81556ad9d6fb25af54640d12933d33bf4699db81be19230ea5d0ed  shell/.zshrc
 0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594  claude/agent-skills/frontend-design/LICENSE.txt
 0d5ee4b41f2520f4a52ca51caca9ba6e497971f107054998de823d78aafcd48a  tui/claw-tui/target/release/deps/signal_hook_registry-061dc0addff3a2c3.d
 0ecc62d682727f68fc4937eed19960c706714fa084d44f63028d611ae02bf3d7  claude/agent-skills/shadcn/assets/shadcn-small.png
@@ -350,7 +350,6 @@
 5a109e6643e8d3e88642e3f35e85d2a83e639d07523aa6e99166c48178e965c3  tui/claw-tui/target/release/.fingerprint/zmij-03b8c79110cbd0a1/invoked.timestamp
 5a109e6643e8d3e88642e3f35e85d2a83e639d07523aa6e99166c48178e965c3  tui/claw-tui/target/release/.fingerprint/zmij-8bb850cbb3842134/invoked.timestamp
 5a3744a23fd3040aeb5cb7cf61bae86cfc0fff57d020a2dbb5dad80fd4cff5ac  tui/claw-tui/target/release/deps/libsignal_hook_registry-061dc0addff3a2c3.rlib
-5a57bece48651fbbfaa592936a558dd67fa29bcbe0c92eb97e18ee35a234048b  scripts/install/desktop-linux.sh
 5aa83f72dfd53255ed4244cd5aaf924bc5a3d3a1d806563a47d663e84238dae7  scripts/utils/homelab.sh
 5aafbdfa3c0b6abf7481c0d42af94f70bd7129055054461135365f2d1fffe6f5  tui/claw-tui/target/release/.fingerprint/ratatui-dadd191ddd389a8a/lib-ratatui.json
 5ac1787744e9077a527c43f5686141fdedf54e2b24c451a37b610e8fef99c4b2  tui/claw-tui/target/release/deps/libquote-51317fc9d8cc402c.rmeta
@@ -410,6 +409,7 @@
 6dbd068c2a57b328d313b2754730b6a8de3da34de0601b58b209b1f874bd91d9  .claude/launch.json
 6dc25f039c723358a6baf45ba8547728e090fa5648999a28c0f328cb67cf5e1a  shell/profiles/vault/mac.zsh
 6e3a94c89c63d9335fad7a01c7dd08f11ff8cf92a8710008a80ceeacf6479343  shell/profiles/security/meta.zsh
+6e8258df9d137527043a55592ff6d57e5347ffbc7accbde46919aea0a87d46d1  shell/claw-completion.zsh
 6e84ff09653c65cf8c80d02b5373b70f322cabc08bb5a7ad381d46b771d4fa86  tui/claw-tui/target/release/.fingerprint/mio-d96df4cb0bb1f9a8/lib-mio
 6ea93e346c598136ab13c5fc54915af0a8b333262b2f9368a1603cfe15190175  docs/archive/legacy-pre-mvp/homelab-mcp-deployment-strategy.md
 6eddffd5fd896dc651f95cd378f6e1493b21012d557972797764136f8eb48cfc  scripts/install/packages/devops-tools.sh
@@ -434,6 +434,7 @@
 76a4d814006bf84f928d144bdb86321472e0b4c1241dfd51eaa28ec06abcdcd6  shell/profiles/design.zsh
 76c496818775b78a6b20204b89d9d17963f11cfc713b8ac6bab655bf866f2f42  vim/.config/nvim/lua/core/lazy.lua
 76c557cc7b42f9e921148eae23620b6fd966fb15930baaa0cacd9bb85b7f8fbe  tui/claw-tui/target/release/.fingerprint/ryu-2a55fea9e38cd5d2/lib-ryu
+76cf361e3ede5f0ff2cfeb383a239f42abed04f8f123351898a2683762fb8772  scripts/install/desktop-linux.sh
 770b89b447e07badedee77ed5d1111e17bdcc9b5b9aed66f38f239490ed2b287  shell/profiles/default/meta.zsh
 777540201d1f12855322a7349c674dc73dd34f0ea4557624b9fb490d5f3184ab  tui/claw-tui/target/release/.fingerprint/rustix-384acc7494080909/build-script-build-script-build.json
 779d6b83f4a7e6f3bbd43b09273426885adb3acc40922819baed8e75b998b127  tui/claw-tui/target/release/.fingerprint/instability-b7c36393c6d03151/run-build-script-build-script-build.json

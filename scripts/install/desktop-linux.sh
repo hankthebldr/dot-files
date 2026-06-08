@@ -68,6 +68,20 @@ if ! command -v ghostty &>/dev/null; then
     sudo snap install ghostty --classic || log_warning "ghostty install failed"
 fi
 
+# ── Make Ghostty the default terminal (preferred over GNOME Terminal) ──
+if command -v ghostty &>/dev/null; then
+    log_info "Setting Ghostty as the default terminal..."
+    # GNOME default-applications (Files "Open Terminal", gnome-shell, etc.).
+    if command -v gsettings &>/dev/null; then
+        gsettings set org.gnome.desktop.default-applications.terminal exec 'ghostty' 2>/dev/null || true
+        gsettings set org.gnome.desktop.default-applications.terminal exec-arg '-e' 2>/dev/null || true
+    fi
+    # Debian alternative used by `x-terminal-emulator` and some apps (needs root).
+    _gpath="$(command -v ghostty)"
+    sudo update-alternatives --install /usr/bin/x-terminal-emulator x-terminal-emulator "$_gpath" 60 2>/dev/null || true
+    sudo update-alternatives --set x-terminal-emulator "$_gpath" 2>/dev/null || true
+fi
+
 # ── GNOME extensions (installed for current user via gext) ──────────
 if command -v gext &>/dev/null; then
     log_info "Installing GNOME Shell extensions for $USER..."
