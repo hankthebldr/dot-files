@@ -221,7 +221,6 @@
 48f4f89457f27318fd151662ca28022413f634e08c4df4fc274b41b921720c24  vim/.config/nvim/lua/plugins/colorscheme.lua
 49006070372e2d14d8bf8b4bf3c231abda824fa73c3b4a0e869c1cab2ca296fe  shell/profiles/cortex/meta.zsh
 49149ef418569dfb468faea58f0990bd859e82bb8f94b203f75981da0cc76a63  tui/claw-tui/target/release/deps/libc-dc67ce6863d1818c.d
-4990c11355100e974d302c73ecbdadb11e9bf84634051e81c376aa1a4a2dacda  config/caddy/Caddyfile
 4a69a50953d7e78a967063a1af4aca2438a69e7d1fbbf167ad085adb34150e31  scripts/utils/secret.sh
 4a71da3fc53d8efbedac26946e5b13b53d1edf71583d62088ccc2b8cc7b5fef7  claude/agent-skills/shadcn/rules/styling.md
 4b1236ac16d7afa5c744c5b78b2c748e0dc32ac06f72ea4e68334b210dd88855  tui/claw-tui/target/release/deps/libscopeguard-44ddb96251990afa.rmeta
@@ -634,6 +633,7 @@ a1d1ccf6bbefeb216a2989a207e552ffbf1701d06dfad0f20bb7499fa196e73d  config/.config
 a1f09651051fec0ce148cbbd29cb2e48041f0854ee9695270ce8b11e53f0f362  terminal/.config/kitty/kitty.conf
 a3091fd9b29984a6c4e298bfd44ae7375c6caa2dc049372b15901e6c83dedba9  vim/.config/nvim/lua/plugins/completion.lua
 a46f12d65732661a23d4b4261b5b622f5f34f494f63df689dbf23d31b90fe620  tui/claw-tui/target/release/.fingerprint/crossterm-0a2d9f6e8dd7bf42/lib-crossterm.json
+a4e7962e9ec27fc28bfcc79feec9fea80f447bbde9f2bb67bbd35c702f5eb485  config/caddy/Caddyfile
 a5707bef1af5f5fc474326cf67dd09eeaac1e94d85c21b26d06935ba8969a48f  tui/claw-tui/target/release/.fingerprint/anyhow-59cbe7442212f060/run-build-script-build-script-build
 a5777857b3390f107908c9c22d825de00ae886d8b7424fa6e08367e94b4d2b80  tui/claw-tui/target/release/.fingerprint/signal-hook-cf3c1909f1e41f09/run-build-script-build-script-build
 a5b0bda605ed5c6a073b881fe72f512dc9dee40c1d0dac3a756a430a245fe55c  config/.config/fastfetch/logo-claude.txt

@@ -6,7 +6,9 @@
 # with a self-signed cert on :9443, so we proxy over TLS and skip verification.
 # Caddy reaches the host's published port via the host-gateway alias.
 
-http://containers.local {
+# Serve both names: `containers.local` (mDNS/avahi, single-host) and
+# `containers.lab.local` (your Pi-hole `.lab.local` convention, LAN-wide).
+http://containers.local, http://containers.lab.local {
 	reverse_proxy https://host.docker.internal:9443 {
 		transport http {
 			tls_insecure_skip_verify
