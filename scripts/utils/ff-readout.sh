@@ -68,9 +68,12 @@ g() {  # g <field> → value (best-effort, fast, never errors)
     cores)  if is_mac; then sysctl -n hw.ncpu 2>/dev/null; else nproc 2>/dev/null; fi ;;
     mem)    if is_mac; then echo "$(( $(sysctl -n hw.memsize 2>/dev/null) / 1073741824 )) GiB"
             else awk '/MemTotal/{printf "%.0f GiB", $2/1048576}' /proc/meminfo 2>/dev/null; fi ;;
+    mem_pct) if is_mac; then memory_pressure 2>/dev/null | awk -F: '/free percentage/{gsub(/[ %]/,"",$2); print 100-$2}'
+            else free 2>/dev/null | awk '/^Mem:/{a=($7!=""?$7:$4); if($2>0) printf "%d", ($2-a)/$2*100}'; fi ;;
     swap)   if is_mac; then sysctl -n vm.swapusage 2>/dev/null | sed -E 's/.*used = ([0-9.]+[KMG]).*/\1 used/'
             else free -h 2>/dev/null | awk '/Swap/{print $3" / "$2}'; fi ;;
     disk)   df -H / 2>/dev/null | awk 'NR==2{print $3" / "$2}' ;;
+    disk_pct) df -H / 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5); print $5}' ;;
     ip)     if is_mac; then ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null
             else hostname -I 2>/dev/null | awk '{print $1}'; fi ;;
     wifi)   if is_mac; then networksetup -getairportnetwork en0 2>/dev/null | sed 's/.*Network: //'
@@ -102,7 +105,7 @@ row() {
 case "${1:-all}" in
   # Machine-readable dump for claw-dashboard.py (one key=value per line).
   fields)
-    for _f in os host kernel uptime load shell term pkgs locale cpu cores mem swap disk ip wifi batt date; do
+    for _f in os host kernel uptime load shell term pkgs locale cpu cores mem mem_pct swap disk disk_pct ip wifi batt date; do
         printf '%s=%s\n' "$_f" "$(g "$_f")"
     done ;;
   field) shift; g "${1:-os}" ;;

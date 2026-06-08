@@ -222,6 +222,12 @@ function claw_welcome_tui() {
         _claw_tui_log "pick:$key"
     fi
 
+    # Wipe the Screen-1 dashboard before rendering the post-pick art. fzf runs in
+    # an inline height region and leaves the header dashboard on screen when it
+    # exits; without this clear the profile art (or, for `default`, a second copy
+    # of the same dashboard) stacks underneath it — the "doubled boxes" bug.
+    clear
+
     # Process choice directly into the shell session
     case "$key" in
         skip)
