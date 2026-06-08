@@ -269,14 +269,28 @@ def main():
     width = max(vis(m) for m in merged) + 2
     title = grad(" OPEN CLAW ", BLUE, GREEN)
     tlen = vis(title)
-    top = col("╭─", C["muted"]) + title + col("─"*(width-2-tlen) + "╮", C["muted"])
+    # Every framed line is `│ <content padded to width-1> │` → display width+2.
+    # The top rule must span the same width+2 (was width+1: a one-column-short
+    # top-right corner — the "rough edge"). Dashes after the title = width-1-tlen.
+    top = col("╭─", C["muted"]) + title + col("─"*(width-1-tlen) + "╮", C["muted"])
     bot = col("╰" + "─"*width + "╯", C["muted"])
     bar = col("│", C["muted"])
 
     # horizontal centering — pad every framed line to the terminal centre.
     term = shutil.get_terminal_size((80, 24)).columns
-    box_w = width + 4                       # borders + the leading "│ "
+    box_w = width + 2                       # true outer display width of a row
     margin = " " * max(0, (term - box_w) // 2)
+
+    # Publish width + margin so sibling renderers (the default quickref) can
+    # match this box exactly and stack flush beneath it.
+    try:
+        sd = os.path.join(os.environ.get("XDG_STATE_HOME",
+                          os.path.expanduser("~/.local/state")), "claw")
+        os.makedirs(sd, exist_ok=True)
+        with open(os.path.join(sd, "dash_box"), "w") as f:
+            f.write(f"{box_w} {len(margin)}\n")
+    except Exception:
+        pass
 
     print()
     print(margin + top)
