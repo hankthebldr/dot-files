@@ -186,20 +186,26 @@ def main():
         rgt = body[bi] if 0 <= bi < len(body) else ""
         merged.append((lft + rgt).rstrip())
 
-    width = max((vis(m) for m in merged), default=20) + 2
+    # One inner width shared by all three borders so the right edge lines up:
+    # content row = "│" + " " + content(content_w) + " " + "│"  → inner = content_w + 2
+    # top         = "╭" + "─" + title + "─"*dash + "╮"          → inner = content_w + 2
+    # bottom      = "╰" + "─"*inner + "╯"                        → inner = content_w + 2
+    content_w = max((vis(m) for m in merged), default=20)
+    inner = content_w + 2
     title = col(" OPEN CLAW ", C["green"])
     tlen = vis(title)
-    top = col("╭─", C["muted"]) + title + col("─"*(width-2-tlen) + "╮", C["muted"])
-    bot = col("╰" + "─"*width + "╯", C["muted"])
+    dash = max(0, inner - 1 - tlen)
+    top = col("╭─", C["muted"]) + title + col("─"*dash + "╮", C["muted"])
+    bot = col("╰" + "─"*inner + "╯", C["muted"])
     bar_ch = col("│", C["muted"])
 
     term = shutil.get_terminal_size((100, 30)).columns
-    margin = " " * max(0, (term - (width + 2)) // 2)
+    margin = " " * max(0, (term - (inner + 2)) // 2)
 
     print()
     print(margin + top)
     for m in merged:
-        print(margin + bar_ch + " " + pad(m, width-1) + bar_ch)
+        print(margin + bar_ch + " " + pad(m, content_w) + " " + bar_ch)
     print(margin + bot)
 
 if __name__ == "__main__":
