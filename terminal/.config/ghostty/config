@@ -1,30 +1,32 @@
 # Ghostty — cross-platform config (macOS + Linux/GNOME)
-# Theme: GitHub macOS Dark  (per dot-files CLAUDE.md)
-# Font:  JetBrainsMono Nerd Font Mono @ 14pt
+# Theme: follows `claw theme set <slug>` — the active palette is regenerated
+#        into ./theme.conf (git-ignored) and included below, so the terminal
+#        recolors with the prompt, fzf, dashboard and fastfetch as one surface.
+# Font:  JetBrainsMono Nerd Font Mono @ 10pt
 # Keys:  Mac-style — ⌘/Super for copy/paste/tab/window/find/clear
 
 # ── Font ──────────────────────────────────────────────────────────────
 font-family = "JetBrainsMono Nerd Font Mono"
-font-size = 11
+font-size = 10
 font-feature = "-calt"
 font-thicken = true
 # Tight line height for a dense viewport (was +10%, which loosened rows).
 adjust-cell-height = 0%
 
 # ── Window ────────────────────────────────────────────────────────────
-# Open maximized so the terminal fills the screen on launch — combined with
-# the smaller font this gives a dense, repo-wide viewport. `window-save-state`
-# is `never` (was `always`) because restoring a stale, undersized geometry was
-# what kept the window from opening at full size. Tight padding keeps more
-# cells on screen.
-maximize = true
-window-decoration = false
+# Decorated, movable window. `window-decoration = true` + `gtk-titlebar = true`
+# give the GTK frame + titlebar back, so the window has a border and can be
+# dragged/resized on GNOME. `maximize = false` opens it floating (a maximized
+# window can't be moved); maximize manually with Super+Up if you want full
+# screen. Tight padding keeps more cells on screen.
+maximize = false
+window-decoration = true
 window-padding-x = 4
 window-padding-y = 4
 window-padding-balance = true
 window-save-state = never
 window-theme = dark
-gtk-titlebar = false
+gtk-titlebar = true
 gtk-tabs-location = top
 gtk-wide-tabs = false
 unfocused-split-opacity = 0.85
@@ -34,10 +36,43 @@ macos-titlebar-style = hidden
 macos-option-as-alt = true
 macos-window-shadow = true
 
+# ── Appearance / eye-candy ────────────────────────────────────────────
+# Translucent surface with a blurred backdrop. Blur needs a compositor that
+# supports it (KDE, Hyprland, macOS; GNOME/Mutter shows the transparency but
+# usually skips the blur). Drop opacity toward 0.90 for more glass, 1.0 = solid.
+background-opacity = 0.93
+background-blur = 20
+# Bold text uses the bright ANSI slots → punchier, still on-palette.
+bold-is-bright = true
+# Nudge legibility when an app paints fg/bg too close together (1.0 = off).
+minimum-contrast = 1.05
+# Don't flash the cell-size overlay every time the window resizes.
+resize-overlay = never
+
+# ── Quick terminal (drop-down, Guake/Yakuake-style) ───────────────────
+# macOS-only in Ghostty 1.3.1: the GTK/Linux build rejects the
+# `toggle_quick_terminal` action, so the keybind is commented out to keep this
+# shared config valid on Linux. The position/animation tuning below is inert on
+# Linux but harmless, and ready for when you're on macOS — just uncomment the
+# keybind there. (Linux GNOME drop-down: use a Custom Shortcut → `ghostty`.)
+quick-terminal-position = top
+quick-terminal-animation-duration = 0.15
+quick-terminal-autohide = true
+# keybind = global:super+grave=toggle_quick_terminal   # macOS only
+
+# ── Custom shader (off by default) ────────────────────────────────────
+# Drop a .glsl in this dir (e.g. from github.com/hackr-sh/ghostty-shaders —
+# cursor smear, CRT, glow) and uncomment to enable. Costs GPU; reload after.
+# custom-shader = cursor_smear.glsl
+# custom-shader-animation = true
+
 # ── Clipboard ─────────────────────────────────────────────────────────
 clipboard-read = allow
 clipboard-write = allow
 copy-on-select = clipboard
+# Warn before pasting multi-line / control-char payloads (paste-injection guard).
+clipboard-paste-protection = true
+clipboard-trim-trailing-spaces = true
 
 # ── Shell integration ─────────────────────────────────────────────────
 shell-integration = zsh
@@ -46,11 +81,18 @@ mouse-hide-while-typing = true
 cursor-style = bar
 cursor-style-blink = true
 
-# ── Colors — Gruvbox Material (dark) ──────────────────────────────────
-# Soft, low-glare ANSI palette matching `claw theme set gruvbox-material`,
-# the p10k prompt, and EZA_COLORS. Apps that color through the terminal's
-# 16-color palette (incl. Claude Code's purple directory paths → #d3869b)
-# follow this, so the whole terminal reads as one calm gruvbox surface.
+# ── Behavior / QoL ────────────────────────────────────────────────────
+# Deep scrollback (bytes), no nag on close, audible + taskbar-attention bell.
+scrollback-limit = 100000000
+confirm-close-surface = false
+bell-features = system,attention
+
+# ── Colors — baseline (Gruvbox Material dark) ─────────────────────────
+# This inline palette is the FALLBACK, used on a fresh checkout before any
+# theme has been generated. `claw theme set <slug>` writes the active palette
+# to ./theme.conf and the include at the end of this file overrides these — so
+# the terminal tracks the same single source of truth (config/themes/<slug>.theme)
+# as the p10k prompt, EZA_COLORS, fzf, the dashboard and the fastfetch readout.
 background = 1d2021
 foreground = d4be98
 selection-background = 45403d
@@ -73,6 +115,10 @@ palette = 12=#7daea3
 palette = 13=#d3869b
 palette = 14=#89b482
 palette = 15=#d4be98
+
+# Active theme override (generated by `claw theme set`; git-ignored, optional).
+# Must come AFTER the baseline palette so its values win when present.
+config-file = ?theme.conf
 
 # ── Keybindings ───────────────────────────────────────────────────────
 # Ghostty's "cmd" binds to ⌘ on macOS and to Super (Win key) on Linux,
@@ -114,12 +160,17 @@ keybind = cmd+equal=increase_font_size:1
 keybind = cmd+minus=decrease_font_size:1
 keybind = cmd+zero=reset_font_size
 
+# Prompt navigation (powered by shell-integration marks)
+keybind = cmd+up=jump_to_prompt:-1
+keybind = cmd+down=jump_to_prompt:1
+
 # Misc
 keybind = cmd+k=clear_screen
 keybind = cmd+f=write_screen_file:paste
 keybind = cmd+q=quit
 keybind = cmd+comma=open_config
 keybind = cmd+shift+r=reload_config
+keybind = cmd+shift+i=inspector:toggle
 
 # Linux-only safety: also accept the standard Ctrl+Shift+C/V so muscle
 # memory from other Linux terminals still works.

@@ -67,9 +67,12 @@ _claw() {
           ;;
         theme|themes|colors)
           if (( CURRENT == 2 )); then
-            _values 'action' list current set preview fzf reload
+            _values 'action' list current set preview fzf build apply reload
           else
-            local -a themes; themes=($dotfiles/config/themes/*.theme(N:t:r))
+            # Theme libraries live in config/themes/<slug>/; fall back to the
+            # legacy flat config/themes/<slug>.theme layout.
+            local -a themes
+            themes=($dotfiles/config/themes/*/palette.theme(N:h:t) $dotfiles/config/themes/*.theme(N:t:r))
             _values 'theme' $themes
           fi
           ;;

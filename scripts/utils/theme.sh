@@ -11,17 +11,34 @@
 # RUN it (bash scripts/utils/theme.sh ...) for the CLI:
 #   theme.sh list | current | set <slug> | preview [slug] | fzf | reload
 #
-# Palettes live in config/themes/<slug>.theme (key=hex). Active choice is stored
-# per-machine in $XDG_STATE_HOME/claw/theme (NOT committed) so each box can pick
-# its own without dirtying the repo. POSIX-portable; works under bash and zsh.
+# Each theme is a LIBRARY under config/themes/<slug>/ :
+#   palette.theme   key=hex source of truth (committed)
+#   ghostty.conf    rendered Ghostty color include (committed; built by
+#                   `claw theme build`). Other surface artifacts can join it.
+# Active choice is stored per-machine in $XDG_STATE_HOME/claw/theme (NOT
+# committed) so each box picks its own without dirtying the repo. The active
+# theme's ghostty.conf is copied to terminal/.config/ghostty/theme.conf (a
+# git-ignored, per-machine pointer the terminal includes). POSIX-portable.
 
 CLAW_THEME_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}/config/themes"
 CLAW_THEME_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/claw"
 CLAW_THEME_ACTIVE_FILE="$CLAW_THEME_STATE_DIR/theme"
 CLAW_THEME_DEFAULT="refined-dark"
+# Where the active theme's Ghostty colors are mirrored (git-ignored include).
+CLAW_THEME_GHOSTTY_ACTIVE="${DOTFILES_DIR:-$HOME/.dotfiles}/terminal/.config/ghostty/theme.conf"
 
-# Color keys present in every .theme file (order = swatch/preview order).
+# Color keys present in every palette.theme (order = swatch/preview order).
 CLAW_THEME_KEYS="bg bg_alt fg muted divider blue green purple amber red cyan"
+
+# Path to a theme's palette source. Falls back to the legacy flat layout
+# (config/themes/<slug>.theme) so a half-migrated checkout still loads.
+_claw_theme_file() {
+    if [ -r "$CLAW_THEME_DIR/$1/palette.theme" ]; then
+        printf '%s/%s/palette.theme' "$CLAW_THEME_DIR" "$1"
+    else
+        printf '%s/%s.theme' "$CLAW_THEME_DIR" "$1"
+    fi
+}
 
 # slug of the active theme (state file → default).
 claw_theme_current() {
@@ -41,8 +58,8 @@ _claw_hex2rgb() {
 # Parse the active .theme file into CLAW_C_* / CLAW_RGB_* exports.
 claw_theme_load() {
     _slug="$(claw_theme_current)"
-    _f="$CLAW_THEME_DIR/$_slug.theme"
-    [ -r "$_f" ] || { _slug="$CLAW_THEME_DEFAULT"; _f="$CLAW_THEME_DIR/$_slug.theme"; }
+    _f="$(_claw_theme_file "$_slug")"
+    [ -r "$_f" ] || { _slug="$CLAW_THEME_DEFAULT"; _f="$(_claw_theme_file "$_slug")"; }
     [ -r "$_f" ] || return 0
     export CLAW_THEME_SLUG="$_slug"
     while IFS='=' read -r _k _v; do
@@ -71,9 +88,10 @@ claw_theme_fzf() {
 
 claw_theme_list() {
     _cur="$(claw_theme_current)"
-    for _tf in "$CLAW_THEME_DIR"/*.theme; do
+    for _td in "$CLAW_THEME_DIR"/*/; do
+        _s="$(basename "$_td")"
+        _tf="$(_claw_theme_file "$_s")"
         [ -r "$_tf" ] || continue
-        _s="$(basename "$_tf" .theme)"
         _n="$(sed -n 's/^name=//p' "$_tf" | head -n1)"
         if [ "$_s" = "$_cur" ]; then
             printf '  \033[38;2;63;185;80m●\033[0m \033[1m%-18s\033[0m %s\n' "$_s" "$_n"
@@ -86,7 +104,7 @@ claw_theme_list() {
 # Swatch preview for a theme (defaults to active).
 claw_theme_preview() {
     _t="${1:-$(claw_theme_current)}"
-    _f="$CLAW_THEME_DIR/$_t.theme"
+    _f="$(_claw_theme_file "$_t")"
     [ -r "$_f" ] || { printf 'theme not found: %s\n' "$_t" >&2; return 1; }
     _n="$(sed -n 's/^name=//p' "$_f" | head -n1)"
     printf '\n  \033[1m%s\033[0m  \033[38;2;139;148;158m(%s)\033[0m\n\n' "$_n" "$_t"
@@ -103,7 +121,7 @@ claw_theme_preview() {
 claw_theme_set() {
     _t="$1"
     [ -n "$_t" ] || { printf 'usage: claw theme set <slug>\n' >&2; return 1; }
-    [ -r "$CLAW_THEME_DIR/$_t.theme" ] || {
+    [ -r "$(_claw_theme_file "$_t")" ] || {
         printf 'theme not found: %s\n' "$_t" >&2
         printf 'available:\n' >&2; claw_theme_list >&2
         return 1
@@ -111,8 +129,84 @@ claw_theme_set() {
     mkdir -p "$CLAW_THEME_STATE_DIR" 2>/dev/null
     printf '%s\n' "$_t" > "$CLAW_THEME_ACTIVE_FILE"
     claw_theme_load
+    claw_theme_apply_ghostty                     # point Ghostty at this theme's library
     printf '  \033[38;2;63;185;80m✓\033[0m theme set to \033[1m%s\033[0m\n' "$_t"
     printf '  \033[38;2;139;148;158mrun \033[0m\033[1mexec zsh\033[0m\033[38;2;139;148;158m to apply everywhere (prompt, fzf, dashboard)\033[0m\n'
+    printf '  \033[38;2;139;148;158mGhostty: press \033[0m\033[1mSuper+Shift+R\033[0m\033[38;2;139;148;158m to reload terminal colors\033[0m\n'
+}
+
+# Render ONE theme's palette.theme → a Ghostty color include.
+# Usage: _claw_render_ghostty <slug> <out-file>. Parses the file directly (not
+# the active env) so the whole library can be (re)built regardless of which
+# theme is active.
+_claw_render_ghostty() {
+    _rs="$1"; _ro="$2"
+    _rf="$(_claw_theme_file "$_rs")"
+    [ -r "$_rf" ] || return 1
+    _claw_g() { sed -n "s/^$1=//p" "$_rf" | head -n1 | tr -d '\r#'; }
+    _name="$(sed -n 's/^name=//p' "$_rf" | head -n1)"
+    _bg="$(_claw_g bg)"; _bga="$(_claw_g bg_alt)"; _fg="$(_claw_g fg)"
+    _mut="$(_claw_g muted)"; _div="$(_claw_g divider)"
+    _blu="$(_claw_g blue)"; _grn="$(_claw_g green)"; _pur="$(_claw_g purple)"
+    _amb="$(_claw_g amber)"; _red="$(_claw_g red)"; _cyn="$(_claw_g cyan)"
+    [ -n "$_bg" ] || return 1
+    [ -n "$_div" ] || _div="$_bga"
+    {
+        printf '# Generated by `claw theme build` — do not edit by hand.\n'
+        printf '# Source of truth: config/themes/%s/palette.theme  (%s)\n\n' "$_rs" "$_name"
+        printf 'background = %s\n' "$_bg"
+        printf 'foreground = %s\n' "$_fg"
+        printf 'selection-background = %s\n' "$_div"
+        printf 'selection-foreground = %s\n' "$_fg"
+        printf 'cursor-color = %s\n' "$_amb"
+        printf 'cursor-text = %s\n\n' "$_bg"
+        printf 'palette = 0=#%s\n'  "$_bga"
+        printf 'palette = 1=#%s\n'  "$_red"
+        printf 'palette = 2=#%s\n'  "$_grn"
+        printf 'palette = 3=#%s\n'  "$_amb"
+        printf 'palette = 4=#%s\n'  "$_blu"
+        printf 'palette = 5=#%s\n'  "$_pur"
+        printf 'palette = 6=#%s\n'  "$_cyn"
+        printf 'palette = 7=#%s\n'  "$_fg"
+        printf 'palette = 8=#%s\n'  "$_mut"
+        printf 'palette = 9=#%s\n'  "$_red"
+        printf 'palette = 10=#%s\n' "$_grn"
+        printf 'palette = 11=#%s\n' "$_amb"
+        printf 'palette = 12=#%s\n' "$_blu"
+        printf 'palette = 13=#%s\n' "$_pur"
+        printf 'palette = 14=#%s\n' "$_cyn"
+        printf 'palette = 15=#%s\n' "$_fg"
+    } > "$_ro" 2>/dev/null
+}
+
+# Build the LIBRARY: render config/themes/<slug>/ghostty.conf for one theme
+# (default: active) or, with `all`, every theme. These artifacts are committed.
+claw_theme_ghostty() {
+    _gs="${1:-$(claw_theme_current)}"
+    if [ "$_gs" = "all" ]; then claw_theme_build; return; fi
+    _claw_render_ghostty "$_gs" "$CLAW_THEME_DIR/$_gs/ghostty.conf"
+}
+claw_theme_build() {
+    for _bd in "$CLAW_THEME_DIR"/*/; do
+        _bs="$(basename "$_bd")"
+        [ -r "$(_claw_theme_file "$_bs")" ] || continue
+        if _claw_render_ghostty "$_bs" "$CLAW_THEME_DIR/$_bs/ghostty.conf"; then
+            printf '  \033[38;2;63;185;80m✓\033[0m %s/ghostty.conf\n' "$_bs"
+        fi
+    done
+}
+
+# Point the terminal at the ACTIVE theme: copy its library ghostty.conf to the
+# git-ignored include the Ghostty config reads. Renders on the fly if the
+# library artifact is missing (e.g. a stale checkout pre-`claw theme build`).
+claw_theme_apply_ghostty() {
+    _as="$(claw_theme_current)"
+    _src="$CLAW_THEME_DIR/$_as/ghostty.conf"
+    if [ -r "$_src" ]; then
+        cp "$_src" "$CLAW_THEME_GHOSTTY_ACTIVE" 2>/dev/null
+    else
+        _claw_render_ghostty "$_as" "$CLAW_THEME_GHOSTTY_ACTIVE" 2>/dev/null
+    fi
 }
 
 # Load the palette into the environment on every source.
@@ -127,7 +221,10 @@ if [ -n "${BASH_SOURCE:-}" ] && [ "${BASH_SOURCE}" = "${0}" ]; then
         set|use)        claw_theme_set "$@" ;;
         preview|show)   claw_theme_preview "$@" ;;
         fzf)            claw_theme_fzf; printf '\n' ;;
+        build)          claw_theme_build ;;
+        ghostty)        claw_theme_ghostty "$@" ;;
+        apply)          claw_theme_apply_ghostty ;;
         reload|load)    claw_theme_load ;;
-        *)              printf 'usage: theme.sh {list|current|set <slug>|preview [slug]|fzf|reload}\n' >&2; exit 1 ;;
+        *)              printf 'usage: theme.sh {list|current|set <slug>|preview [slug]|fzf|build|ghostty [slug|all]|apply|reload}\n' >&2; exit 1 ;;
     esac
 fi

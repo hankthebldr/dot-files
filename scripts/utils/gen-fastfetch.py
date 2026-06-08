@@ -43,7 +43,7 @@ I = {
     "pubip": "",
 }
 
-# Refined GitHub Dark palette (truecolor ANSI) — matches config/themes/refined-dark.theme.
+# Refined GitHub Dark palette (truecolor ANSI) — matches config/themes/refined-dark/palette.theme.
 # The default Open Claw theme; the gruvbox-y gold (#d29922) is replaced by a
 # cooler amber (#e3b341). fastfetch configs are static so they bake the default
 # palette; the live dashboard (claw-dashboard.py) follows `claw theme` instead.

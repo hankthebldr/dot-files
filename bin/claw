@@ -704,7 +704,7 @@ cmd_install() {
 }
 
 cmd_theme() {
-    # Single-source-of-truth color switcher. list | current | set | preview | fzf.
+    # Single-source-of-truth color switcher. list | current | set | preview | fzf | build | apply.
     local sub="${1:-list}"; shift || true
     case "$sub" in
         ""|list|ls)        DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" list ;;
@@ -712,6 +712,8 @@ cmd_theme() {
         set|use)           DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" set "$@" ;;
         preview|show)      DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" preview "$@" ;;
         fzf)               DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" fzf ;;
+        build)             DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" build ;;
+        apply)             DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" apply ;;
         help|-h|--help)
             cat <<EOF
   ${c_purple}${c_bold}claw theme${c_reset} — Open Claw color palette switcher
@@ -720,9 +722,11 @@ cmd_theme() {
   ${c_white}claw theme current${c_reset}          ${c_dim}print the active palette slug${c_reset}
   ${c_white}claw theme preview [slug]${c_reset}   ${c_dim}show color swatches${c_reset}
   ${c_white}claw theme set <slug>${c_reset}       ${c_dim}switch palette (then: exec zsh)${c_reset}
+  ${c_white}claw theme build${c_reset}            ${c_dim}rebuild every theme's library artifacts (ghostty.conf)${c_reset}
+  ${c_white}claw theme apply${c_reset}            ${c_dim}re-point Ghostty at the active theme's colors${c_reset}
 
-  ${c_dim}Palettes: refined-dark (default) · github-dark · catppuccin-mocha · tokyo-night · rose-pine${c_reset}
-  ${c_dim}Defined in ${DOTFILES}/config/themes/*.theme — the single source of truth.${c_reset}
+  ${c_dim}Palettes: refined-dark (default) · github-dark · catppuccin-mocha · tokyo-night · rose-pine · gruvbox-material${c_reset}
+  ${c_dim}Each theme is a library: ${DOTFILES}/config/themes/<slug>/ (palette.theme + ghostty.conf).${c_reset}
 EOF
             ;;
         *) err "unknown theme subcommand: $sub"; info "try: claw theme help"; return 1 ;;

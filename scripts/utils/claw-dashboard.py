@@ -21,7 +21,11 @@ def rgb(r, g, b): return f"\033[38;2;{r};{g};{b}m"
 RST = "\033[0m"; BOLD = "\033[1m"
 
 def load_palette():
-    """Resolve the active theme and parse config/themes/<slug>.theme → rgb dict."""
+    """Resolve the active theme and parse its palette.theme → rgb dict.
+
+    Each theme is a library dir: config/themes/<slug>/palette.theme. Falls back
+    to the legacy flat config/themes/<slug>.theme for half-migrated checkouts.
+    """
     state = os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state"))
     slug = "refined-dark"
     try:
@@ -30,9 +34,14 @@ def load_palette():
             slug = (open(af).read().strip() or slug).splitlines()[0]
     except Exception:
         pass
-    tf = f"{DOTS}/config/themes/{slug}.theme"
+
+    def _palette_path(s):
+        nested = f"{DOTS}/config/themes/{s}/palette.theme"
+        return nested if os.path.isfile(nested) else f"{DOTS}/config/themes/{s}.theme"
+
+    tf = _palette_path(slug)
     if not os.path.isfile(tf):
-        tf = f"{DOTS}/config/themes/refined-dark.theme"
+        tf = _palette_path("refined-dark")
     pal = {}
     try:
         for line in open(tf, encoding="utf-8"):

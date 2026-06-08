@@ -48,7 +48,7 @@ setopt INC_APPEND_HISTORY     # Write to history file immediately, not when shel
 # ============================================
 
 # Active Open Claw theme → CLAW_C_* / CLAW_RGB_* + the fzf --color string.
-# config/themes/<slug>.theme is the single source of truth for every surface.
+# config/themes/<slug>/palette.theme is the single source of truth for every surface.
 [[ -r "$DOTFILES_DIR/scripts/utils/theme.sh" ]] && source "$DOTFILES_DIR/scripts/utils/theme.sh"
 
 # eza/ls colors — soft "gruvbox-material" listing palette. eza's defaults paint

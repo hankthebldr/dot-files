@@ -458,7 +458,7 @@ claw() {
         fi
         return
     fi
-    # `claw theme ...` — color theme management (palettes in config/themes/*.theme)
+    # `claw theme ...` — color theme management (libraries in config/themes/<slug>/)
     if [[ "$1" == "theme" ]]; then
         shift
         case "$1" in

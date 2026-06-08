@@ -29,3 +29,6 @@ browser-profiles/
 *.tar.gz
 *.tar.xz
 *.zip
+
+# Per-machine active-theme pointer (git-ignored; copied from the theme library)
+terminal/.config/ghostty/theme.conf

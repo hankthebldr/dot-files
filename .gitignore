@@ -204,3 +204,6 @@ config/secrets/.env
 !config/secrets/.env.sops
 tui/**/target/
 tui/claw-tui/target/
+
+# generated per-machine Ghostty colors (claw theme set)
+terminal/.config/ghostty/theme.conf
