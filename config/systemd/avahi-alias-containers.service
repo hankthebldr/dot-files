@@ -1,0 +1,24 @@
+# Publishes `containers.local` as an mDNS alias for THIS host, so any device on
+# the LAN (and this box) resolves it to the workstation — where Caddy serves the
+# container dashboard on :80. `.local` is mDNS territory, so Avahi is the right
+# tool (not Pi-hole/dnsmasq).
+#
+# Install (sudo):
+#   sudo cp ~/.dotfiles/config/systemd/avahi-alias-containers.service \
+#           /etc/systemd/system/
+#   sudo systemctl enable --now avahi-alias-containers.service
+#
+# The primary LAN IP is resolved dynamically at start, so DHCP changes survive a
+# `systemctl restart avahi-alias-containers`.
+[Unit]
+Description=Avahi mDNS alias: containers.local -> this host
+After=avahi-daemon.service network-online.target
+Requires=avahi-daemon.service
+
+[Service]
+ExecStart=/bin/sh -c '/usr/bin/avahi-publish -a -R containers.local "$(ip -4 route get 1.1.1.1 | grep -oE "src [0-9.]+" | awk "{print \\$2}")"'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

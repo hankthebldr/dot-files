@@ -1,0 +1,15 @@
+# Caddy reverse proxy — clean hostnames for self-hosted dashboards on this box.
+# Managed by `claw ai-services` (the `caddy` stack). Add more `host.local`
+# blocks here as you expose services; reload with `claw ai-services restart caddy`.
+#
+# containers.local → Portainer (Docker management UI). Portainer serves HTTPS
+# with a self-signed cert on :9443, so we proxy over TLS and skip verification.
+# Caddy reaches the host's published port via the host-gateway alias.
+
+http://containers.local {
+	reverse_proxy https://host.docker.internal:9443 {
+		transport http {
+			tls_insecure_skip_verify
+		}
+	}
+}

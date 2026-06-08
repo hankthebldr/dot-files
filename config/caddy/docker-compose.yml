@@ -1,0 +1,22 @@
+# Caddy reverse proxy for clean homelab hostnames (containers.local → Portainer,
+# and any others added to ./Caddyfile). Managed by `claw ai-services`.
+#
+# Listens on host :80. Reaches host-published service ports (e.g. Portainer's
+# :9443) via the host-gateway alias, so it needs no shared docker network.
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: claw-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -10,7 +10,6 @@
 021e66612c606dcf2febd4a072da383afbd5e68905c489e2731b4e91a5bbe36e  tui/claw-tui/target/release/.fingerprint/serde_core-2bc79f720cf4b07d/run-build-script-build-script-build.json
 0225b6cff52ab4e22da6756fc2a64be341dc9440bfc25b64f43fdd287d6b5b63  tui/claw-tui/target/release/.fingerprint/libc-db93a1fa5adb186a/build-script-build-script-build
 028e9a053609c0d593e0aca62e82c3545acfd09059f32b98777a6e7f5f8c5cb4  shell/profiles/security/linux.zsh
-03109e33b3ca4dbe3df3827576136e92807cad004176e5d7924f9abd988e765a  vim/.config/nvim/lua/plugins/treesitter.lua
 03597254820f9e53ae43d77c00be786c6402cf55adb29a977a46d9a2351cf061  shell/profiles/demo/logo.txt
 0385a90681a23267aeb24ef42020f5114e7e7d2357ca66e99262cf0ca356350d  tui/claw-tui/target/release/.fingerprint/rustix-826757c06e8fb08f/run-build-script-build-script-build
 03ad1150a6f59d3f7bced14c30e64c4df3fea67b33b3f26613f036fcf3ef0928  claude/skills/nmap-scan-interpret/SKILL.md
@@ -28,6 +27,7 @@
 0787e7fe139d58b9d812517c1bc7476ccf1f2b215d83406f6e9c4177b5bffc10  tui/claw-tui/target/release/deps/libsignal_hook_registry-061dc0addff3a2c3.rmeta
 07f2e67acd675e2b08fdca839105c2ce4818fd31e1c68835435e1c782035b354  claude/skills/iocs-extract/SKILL.md
 087e392c96abcbe8cb5749b18392507bb1c90b36f7689af67ba2757a78276a72  CONTRIBUTING.md
+08e0b521a77cf62d556e2dd7f8bebd7463b24cff9b511b56f30b592ee87d9b71  shell/.zshrc
 08e4dd5cef5d69c1985a96a624b345436e4733b2f67e9d899a5412861874b292  shell/profiles/deck/logo.txt
 0971b0d59207cb337a745e9ce7dd49ba6951542c4c91d47346a9c2acc75aa943  shell/profiles/brainstorm/meta.zsh
 0a6844826ab9b64401dc111470dfda47c0b6a5917b5c4f4f1f6af2bb0cbff701  docs/archive/legacy-pre-mvp/quick-start-guide.md
@@ -43,7 +43,6 @@
 0ecc62d682727f68fc4937eed19960c706714fa084d44f63028d611ae02bf3d7  claude/agent-skills/shadcn/assets/shadcn-small.png
 0ee563f481b284aa102b8f2b897a95a7d7ebaf7ce23dcf88f5846e52a24483e1  shell/profiles/demo/common.zsh
 0f02e324b32d5d19d9f5d2731e1ba29bae9654f182025340fd4f5b269eec93f0  scripts/utils/selfupdate.sh
-0f4fe79fc4ae3592287c3594e8148d36e9ce5d54c3c2a9ee61d2a2187289319f  vim/.config/nvim/lazy-lock.json
 106897c877b7814dbd3e24e2df1618aeef429e1a126af44bf4d0d9c115a58fd4  shell/profiles/tunnels/logo.txt
 128a155c1d179c0b97986250fb2397257c62e864bc552cede5db6b055470ad5a  tui/claw-tui/target/release/.fingerprint/allocator-api2-a9015fbca23f3844/lib-allocator_api2.json
 12af5b1090d621ea0a7ace849b32873bedf982dfd3cb0ed2f9e67f9dab132703  shell/profiles/local.zsh
@@ -93,6 +92,7 @@
 21b8f09b046cff5b03b65fd19d7914d653d7ab1bfff08d03220e862fc588ecb1  claude/scan-skills.sh
 2207f586c5eeeeda2bf3be292604ced243c069a545ace146bf67c8bee55285e5  config/.config/fastfetch/config-ai.jsonc
 22a76ffccabfa2b49052624c90a6734f8dd741a1412cd5bdcc573654fae7e1dd  scripts/install/macos.sh
+22c671f26977534d2a5649e51c0bd79526097be4cb7ee86147e8022d57fd3f2f  vim/.config/nvim/lua/plugins/treesitter.lua
 231cf89a0b13c824415ea247d04835962dcba7e610a792bdb737e500fd3028dc  shell/profiles/brainstorm.zsh
 2405a09a48a95046500eb2ef6d6d4dbcad5767d63a316cad402a99a4d28af089  scripts/utils/ssh-deploy.sh
 240ee81b1e85a0f0a02a85ef4adef694f18f7f0192d6776b68198ef5401e7b81  tui/claw-tui/target/release/deps/libparking_lot-05c0439f5596ebcc.rlib
@@ -115,8 +115,8 @@
 29593e14381e34626f8e0e9c15c59f3394b92a0623af6a6ec94585400123853c  claude/agent-skills/shadcn/rules/forms.md
 297bf6bff1af31b0d3667e9a61c5cb319c0c510a202d05967694dc0222af3abc  tui/claw-tui/target/release/.fingerprint/itertools-d2982e6a9c3f9011/lib-itertools
 29d97cda8939cffc061491807cac57961bb81e50577c8fe90d01d6e07ee898b7  config/themes/github-dark.theme
+29f3ea363a7c124677e9aa358276705f46b1156f414fbffec457dff00b87ebab  vim/.config/nvim/lua/plugins/linting.lua
 29fb84d8ea2e6a1fc6cf4f215d1aed0facafcb17fb2ea2fa8e4a6c5e239acdce  tui/claw-tui/target/release/deps/libcrossterm-0a2d9f6e8dd7bf42.rlib
-2a68736f851c46bdf072cfd3cd6bbdbe21274c905bc1d78366ee3b0b1ae5fbbd  shell/.zshrc
 2ac48b5b2bff1cad92484acb7b4a3955850e622733ad55d66e4d9047af099fa3  vim/.config/nvim/lua/plugins/dashboard.lua
 2af5f3f875edb93be1d17928ec415492d8b45b90e5b4d9bf53e14f6bab8daac5  tui/claw-tui/target/release/.fingerprint/anyhow-4ac2146c46ac0740/lib-anyhow
 2b2dae20a8ba059d78206f7d906a2c4ae650bc156efd5fb2699cd409f39ff8d1  config/ssh/remote-env/vimrc-remote
@@ -132,11 +132,13 @@
 2dc60337a1244508f6f6f750d38750c91218cf9ee3c8655c33badfbd98ae1d2f  tui/claw-tui/target/release/deps/crossterm-0a2d9f6e8dd7bf42.d
 2df00094cd541b23689ccca57b0742d300e42ccdc49d152acdc1028f695fff5e  docs/claude-config-boundaries.md
 2e0b705ff815a00b74738e47573a8102291a9c74a2e98e78c05784090b33ae6b  tui/claw-tui/target/release/deps/unicode_width-4affbc92101e2b4f.d
+2e7b18dc009e840b91b2b6fdfc5fca52c4e805af40e0393ae692325324cff283  scripts/utils/ai-services.sh
 2ea9bb112cc6c7558a4e70161bd4af841e7f96937fcde1eaef3c2496271067e8  shell/profiles/research/meta.zsh
 2f17b412efd0c3975ffcb99517b9fb3dda46a67e9c9f2e9ecfdf9594602fa585  tui/claw-tui/target/release/deps/libmio-d96df4cb0bb1f9a8.rmeta
 2f4dc4936765a2a2287e816cc763a4a02bbc5b1044a6740784088dd89c19d4db  tui/claw-tui/target/release/.fingerprint/linux-raw-sys-d723117a867f7a0d/lib-linux_raw_sys
 2f55f10096aa3ab7d5ba933b1f59a7e2ae5a1ed1f20679ac9e3f2a722f1dcf4c  tui/claw-tui/target/release/deps/serde_core-a7d787dfb433a53a.d
 2f6755b1d79491ad434dcb42a86805069baf86cc764dcee2d0dbe95f7cbc3b23  tui/claw-tui/target/release/.fingerprint/darling_core-638b1d1006307218/lib-darling_core
+2f9427f43801baebcb35f6d440ed303f6529bdf6cdb3b927af2d712ffef96504  vim/.config/nvim/lua/plugins/lsp.lua
 2fa1f318e10a3ab0b1f520f0069ae0ca2a655c1631e319a814fbb0e23edd7e3f  terminal/mbp-m4.terminal
 2facf1829fc6c84839a40b17d26a34a369b94877942522e3a5ae17b8ecbee486  tui/claw-tui/target/release/deps/itertools-d2982e6a9c3f9011.d
 308d0b7416f48bf54ced70e734954f65fff6b4dbc1b7d6d7af413dcaf7672cc4  scripts/install/devops-toolchain.sh
@@ -220,6 +222,7 @@
 48f4f89457f27318fd151662ca28022413f634e08c4df4fc274b41b921720c24  vim/.config/nvim/lua/plugins/colorscheme.lua
 49006070372e2d14d8bf8b4bf3c231abda824fa73c3b4a0e869c1cab2ca296fe  shell/profiles/cortex/meta.zsh
 49149ef418569dfb468faea58f0990bd859e82bb8f94b203f75981da0cc76a63  tui/claw-tui/target/release/deps/libc-dc67ce6863d1818c.d
+4990c11355100e974d302c73ecbdadb11e9bf84634051e81c376aa1a4a2dacda  config/caddy/Caddyfile
 4a69a50953d7e78a967063a1af4aca2438a69e7d1fbbf167ad085adb34150e31  scripts/utils/secret.sh
 4a71da3fc53d8efbedac26946e5b13b53d1edf71583d62088ccc2b8cc7b5fef7  claude/agent-skills/shadcn/rules/styling.md
 4b1236ac16d7afa5c744c5b78b2c748e0dc32ac06f72ea4e68334b210dd88855  tui/claw-tui/target/release/deps/libscopeguard-44ddb96251990afa.rmeta
@@ -381,11 +384,11 @@
 6434f0cab8e97760d4dd9e9f6251e5540eaa069dc6effec38d086656017b1567  claude/commands/scope.md
 64f216045946d56c5326c237b3b8af081fc9f628bbbf7cb4fb8c72c55a754ce6  vim/.config/nvim/lua/core/options.lua
 64faaca2bde95ee9fa299e89bbc82bcfd52b24cc8cdf707b485be0aa72fed86e  config/.config/fastfetch/config-brainstorm.jsonc
-655a7c47361955f4ad5f0a213a43577d153e2e74956e39fe4349fb81b836e04c  vim/.config/nvim/lua/plugins/linting.lua
 656cd5b73b76741162908a5558898d91ab35058cc8e71e36d454443c4127bd8c  tui/claw-tui/target/release/deps/paste-b141aea372dc6196.d
 65ac8604c5acb13882d97dc00e27f6418a311c514defed1572dfbe93d0338d2b  shell/profiles/vault/linux.zsh
 669675dcff8093c67714449996db6a6140efc54bf94e06ea45e167296413b60c  config/.config/fastfetch/logo-research.txt
 669675dcff8093c67714449996db6a6140efc54bf94e06ea45e167296413b60c  shell/profiles/research/logo.txt
+66c9b0230f29d3e9b725260bc6a9d139de8b726580e127b76fa99ab1f6db633a  vim/.config/nvim/lua/plugins/formatting.lua
 66e993cfebe590ba396f79096a6316539a490458ff22d38f74d6e3e0d8b6a880  tui/claw-tui/target/release/deps/libpaste-b141aea372dc6196.so
 6957df9f68b212cea4d25eb71f58599ab437b537a000000d884d28a4386d2d4b  tui/claw-tui/target/release/.fingerprint/rustversion-6782037285cf3eed/build-script-build-script-build.json
 6970ae1438b8208f786affb4b999028751ca9da8335936e4ea8d3734ba395b84  scripts/install/cortex-toolchain.sh
@@ -421,7 +424,6 @@
 725cd53927618401d8434dc673dbadb02e2907efb91699250465e45f44e855a8  config/ssh/tunnels.yml.example
 73292f432e42ac2653cd424f7bd40ed6c37c22314affee36232a83dce14b5a6a  tui/claw-tui/target/release/deps/libstatic_assertions-906bca9d2db732d3.rlib
 73539c1a69a67e6e549d20e8eef272c722e0112527f58846f1b189d0697da73d  config/themes/tokyo-night.theme
-7357feb19df8bd832d0d52cbd9104c6b93a0e6ed63636c5a415031ac56c3595b  vim/.config/nvim/lua/plugins/formatting.lua
 73645e47e73ed9ab435acb7a909cf1c72c77590419fd19bc5754e90088e118f1  docs/superpowers/specs/2026-05-19-18-profile-architecture-design.md
 73b8a9e6953b490a38bedeca18578da5b7907d805513c3f00469b9d0791425fa  shell/profiles/cortex.zsh
 73ddf2a8478a58d763342b5a47db5b5f96d02f59fdccbddb33d9ec635990f221  tui/claw-tui/target/release/deps/libinstability-aaecce65743fe7ea.so
@@ -465,6 +467,7 @@
 80fb9c0b7ea3e11cb35ecf781654e11caeb3ed18df4199b0214457bca52c32d6  tui/claw-tui/target/release/.fingerprint/signal-hook-da276b77d68e152b/lib-signal_hook.json
 817da104a54983e8d56898b2ce5dd222060abb50d045cdbb8517e14739a56d34  tui/claw-tui/target/release/deps/libcfg_if-c00cebc041efbee7.rlib
 8190903df7d82f393aa282f487f2d29afa6aee2a893b15982c29db9ac4ac8dfe  tui/claw-tui/target/release/deps/strsim-646d54800dab0291.d
+819711db70e5e23fed2305bdadf7f778c1d285cf1a902bb8f011f62e18688009  vim/.config/nvim/lazy-lock.json
 81d5da54a61b0f4b29aca8c422b0d0e840bded625fc2d673b3609ffc7216059c  tui/claw-tui/target/release/deps/ryu-2a55fea9e38cd5d2.d
 829b9954867cd0e2deb278b417b747be11c7f2e314d8174b273202a5b9f1c2d9  tui/claw-tui/target/release/deps/librustix-f1d8bd6391a1f502.rmeta
 82fac1cdb5b06ebfa9429bfff8a42fde5a923571d75f66c125a4eabeae8e9e66  tui/claw-tui/target/release/.fingerprint/parking_lot_core-408cc86a6418c84b/run-build-script-build-script-build
@@ -485,7 +488,6 @@
 86abefe89e69336fde614aa560654f8d1f0af0dec2bde3dc7f96f7dc17edd281  scripts/install/packages/common.sh
 870161eac345ef1c7f158ca98559e3847a530ce5f799da3476e24fc4a9472f60  claude/agent-skills/shadcn/cli.md
 871ffce984c01889434e1390dcc483dfad0bd859e1d8f2f771d6433a3e100644  tui/claw-tui/target/release/.fingerprint/parking_lot_core-df9e1f6210c42bce/build-script-build-script-build.json
-87501ecc076b5f54c6343874e5d1218d56de20b4d06a6f173780fd016688a3a4  vim/.config/nvim/lua/plugins/lsp.lua
 87c281bb4993c46494461a7c70083b2b274cc361d55c0689aa2c5935ac991ca4  shell/profiles/deck/linux.zsh
 87c5c666392c4a51b644813ac2606c5967fd30b7373d7c5c843c8c1dd399908c  tui/claw-tui/target/release/.fingerprint/unicode-truncate-33bff54c6eeb8194/lib-unicode_truncate
 880d56fecedae5cb1f6948825f1e0a9dfe591f41fc56e1b0a5d107eb8329fcbb  terminal/.config/wezterm/wezterm.lua
@@ -779,7 +781,6 @@ d6ae90607532cd7ea2978d7876ca80daecbb8dae6a240217c1e3faa3aff5fac2  tui/claw-tui/t
 d6d6bb66488712c57a9d1d49f2ecba60b5f61b9c89498483a658716edf74ef63  scripts/utils/docker-overview.sh
 d6f8a2b57fa17dadf0b2df5433b54eb63052fe7cb2b70b544ca20f75971fe96f  docs/plans/2026-03-28-profile-fastfetch-design.md
 d724401624f1658cfe251513c259537651e1f83cca5df3b6a088ff59e68a1654  tui/claw-tui/target/release/deps/lock_api-1d45f493a0a8bd7c.d
-d7dd32fec123dc01c825aebe6ed75aa1b159a67bd620fdfdeeb2d6e22f715e58  scripts/utils/ai-services.sh
 d8b010e5c7caa339e89013b2bc762df3a39510fea16d6b53e73f90b52746d8f4  scripts/utils/ff-readout.sh
 da0d00e6b3f964627eea2e26d21e8399299808db74c7456cfa775b759a25895b  scripts/utils/claude-snapshot.sh
 da9825a0476af786435759cb3a508e87d73ee0dcd22ca4196993a4ac67d596d2  shell/welcome-tui.zsh
@@ -853,6 +854,7 @@ eea073fec228132aae1c5f37afcfb236002f42a0d6c31bbff1c47dfdfb343603  shell/profiles
 ef746420462698c01a9d9b1abeec8450676c4f2b9ba2e9e0e7c2828715376899  tui/claw-tui/target/release/.fingerprint/parking_lot-05c0439f5596ebcc/lib-parking_lot.json
 ef8a749e4486aa15d814cde50daf172cbbb70bd5a669d7c218d00285a3be7410  config/.config/fastfetch/config-tunnels.jsonc
 efa85f59e938d98a3e44cdf0312de02da30e45b32c48a70abdbdd68569c604f0  tui/claw-tui/target/release/deps/libparking_lot-05c0439f5596ebcc.rmeta
+efea1b8697670b19dfd6abefa273572d612bdaa6ff19824ec632dbfe5052b77f  config/systemd/avahi-alias-containers.service
 f038728011428cda1bc78e8bbed32acde51528a7f48d16718a5767239d1bea2a  terminal/.config/ghostty/config
 f193158f70f374ebab1602557161f24a56c414ecdf4b4db9b6754c95e5a004c4  tui/claw-tui/target/release/deps/heck-985bcca305502b9d.d
 f2470c8a975e179c813e3d99d32de75e421badb96a76f5520158356eb06bf894  tui/claw-tui/target/release/.fingerprint/rustversion-34714431f322e8f7/dep-lib-rustversion
@@ -872,9 +874,11 @@ f78515b5b496c8c771c848dd2b28c84f0b323853a3bd5babc74cec15fb3bc0ed  docs/ADR-002-m
 f815c13a52e713dedb7df66cdbcf392c57b949c0467e23f88752dca394e1cc2c  tui/claw-tui/target/release/.fingerprint/paste-31e719635c64ad4e/build-script-build-script-build.json
 f8e0cc9f3c6971f6bc371522f1050ba55ca56a7c677032a5f4c520d5967e18cc  tui/claw-tui/target/release/.fingerprint/rustversion-6782037285cf3eed/build-script-build-script-build
 f90d173719e8016ef1535dfd0a54eafb22365c7c6377029f4d11e22a89ea63c3  terminal/.stow-local-ignore
+f93b02b79880cfcbafc0bb3b4a7c2f2f2892f7967ef38f4abe6f2cf48ba5a1c2  shell/ghostty-terminfo.zsh
 f97d0e1d70369ed6a34284e2b487b722f21166f59ba3e50758e2bc8fab89ddde  shell/claw-fn.zsh
 f9975531b69b76d86d0dd3c9c779c7bb6a562f32f0486eab60ae0e30b4e34860  tui/claw-tui/target/release/deps/libbitflags-749dfd54144d1d09.rmeta
 f9e4696f553f9ba5711c41cfe535aa81826551744625ee14ba146a05a2d2f9a5  tui/claw-tui/target/release/.fingerprint/strum-1eb2c349128f9895/lib-strum.json
+fa03991f703e67d32bf1dd04c22b70a200dc688942511e312037c84a40f287d6  config/caddy/docker-compose.yml
 fa1ef0f7c15bccaf7bc78cf3c60a09cfe8ff1dfcfd154acbccac93fc905fadf5  scripts/utils/validators.sh
 fa955ecebccf082394699c6214476e264a6881af82ae8bd024f1982143969e7d  tui/claw-tui/target/release/deps/anyhow-4ac2146c46ac0740.d
 faacbf710257e5c519c7fc6f6d573ca82e53a576d3c065ed831958af0002d576  tui/claw-tui/target/release/.fingerprint/signal-hook-cf3c1909f1e41f09/run-build-script-build-script-build.json

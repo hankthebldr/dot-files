@@ -35,6 +35,9 @@ export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 # ── 2. Platform Shims ───────────────────────────────────
 [[ -f "$DOTFILES_DIR/shell/platform.zsh" ]] && source "$DOTFILES_DIR/shell/platform.zsh"
 
+# ── 2.5 Ghostty terminfo guard (before the TUI uses the terminal) ───────
+[[ -f "$DOTFILES_DIR/shell/ghostty-terminfo.zsh" ]] && source "$DOTFILES_DIR/shell/ghostty-terminfo.zsh"
+
 # ── 3. Welcome TUI (BEFORE p10k instant prompt) ─────────
 # P10k instant prompt suppresses all stdout during init.
 # The TUI must run BEFORE that, while we still own the terminal.

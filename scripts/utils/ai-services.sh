@@ -66,6 +66,7 @@ SERVICES=(
   "open-webui|local|3000|ChatGPT-style UI for Ollama|$DOTFILES/config/open-webui/docker-compose.yml"
   "langfuse|local|3000|LLM observability / tracing|$DOTFILES/config/langfuse/docker-compose.yml"
   "portainer|local|9443|Docker management web UI|$DOTFILES/config/portainer/docker-compose.yml"
+  "caddy|local|80|Reverse proxy (containers.local → portainer)|$DOTFILES/config/caddy/docker-compose.yml"
   "dify|upstream|8080|LLM app-builder platform|https://github.com/langgenius/dify::docker::docker-compose.yaml"
   "ragflow|upstream|8081|RAG engine + deep-doc parsing|https://github.com/infiniflow/ragflow::docker::docker-compose.yml"
 )
