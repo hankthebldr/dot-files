@@ -90,16 +90,18 @@ function claw_welcome_tui() {
     local _fzf_color="${CLAW_FZF_COLOR:-bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff}"
 
     # Render the Screen-1 dashboard header. Preference order:
-    #   1. fastfetch config.jsonc — crisp system logo (Apple/distro) + the
-    #      colored two-column readout
-    #   2. branded ASCII fallback
-    # NOTE: claw-dashboard.py is intentionally NOT used here. It renders the
-    # Apple logo from the sparse logo-default.txt placeholder art, which comes
-    # out distorted; fastfetch's built-in system logo is the crisp one.
+    #   1. claw-dashboard.py — framed, centered dashboard: the CRISP system logo
+    #      (Apple/distro, pulled straight from fastfetch) + a dense info grid +
+    #      btop-style resource bars
+    #   2. fastfetch config.jsonc — the two-column readout
+    #   3. branded ASCII fallback
     _claw_tui_header() {
         clear
+        local dash="$_d/scripts/utils/claw-dashboard.py"
         local ff_config="$_d/config/.config/fastfetch/config.jsonc"
-        if command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
+        if command -v python3 &> /dev/null && [[ -f "$dash" ]]; then
+            DOTFILES_DIR="$_d" python3 "$dash"
+        elif command -v fastfetch &> /dev/null && [[ -f "$ff_config" ]]; then
             fastfetch -c "$ff_config"
         else
             # Fallback: branded header if fastfetch is missing
@@ -242,8 +244,15 @@ function claw_welcome_tui() {
             # pick renders something.
             local _ff_profile="$_d/config/.config/fastfetch/config-${key}.jsonc"
             [[ -f "$_ff_profile" ]] || _ff_profile="$_d/config/.config/fastfetch/config.jsonc"
-            if command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
-                echo ""
+            local _dash="$_d/scripts/utils/claw-dashboard.py"
+            # clear first: screen 1 already drew the dashboard, so without this
+            # the picked profile's art stacks UNDER it (the "repasted screen").
+            clear
+            # default → the polished centered dashboard (logo + bars); other
+            # profiles keep their truecolor fastfetch art.
+            if [[ "$key" == "default" ]] && command -v python3 &> /dev/null && [[ -f "$_dash" ]]; then
+                DOTFILES_DIR="$_d" python3 "$_dash"
+            elif command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
                 fastfetch -c "$_ff_profile"
             fi
             # Readout under the art: default keeps its quick-ref card; every
@@ -394,18 +403,24 @@ _claw_default_quickref() {
     local c_white=$'\e[38;2;201;209;217m'
     local c_bold=$'\e[1m'
 
+    # Center the 68-wide box in the terminal so it lines up under the centered
+    # dashboard above (instead of jamming against the left margin).
+    local _bw=68 _cols=${COLUMNS:-100} _m _p
+    _m=$(( (_cols - _bw) / 2 )); (( _m < 0 )) && _m=0
+    _p="$(printf '%*s' "$_m" '')"
+
     echo ""
-    echo "  ${c_purple}╭──────────────────────────────────────────────────────────────────╮${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_cyan}${c_bold}Daily Driver${c_reset}                          ${c_dim}type ${c_white}default-help${c_dim} for full ref${c_reset}  ${c_purple}│${c_reset}"
-    echo "  ${c_purple}├──────────────────────────────────────────────────────────────────┤${c_reset}"
-    echo "  ${c_purple}│${c_reset}                                                                  ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_green}${c_bold}Navigate${c_reset}    ${c_white}z${c_reset} ${c_dim}smart cd${c_reset}   ${c_white}Ctrl+R${c_reset} ${c_dim}history${c_reset}   ${c_white}Ctrl+T${c_reset} ${c_dim}find files${c_reset}     ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_cyan}${c_bold}Files${c_reset}       ${c_white}ls${c_reset} ${c_dim}eza${c_reset}  ${c_white}cat${c_reset} ${c_dim}bat${c_reset}  ${c_white}find${c_reset} ${c_dim}fd${c_reset}  ${c_white}grep${c_reset} ${c_dim}rg${c_reset}  ${c_white}diff${c_reset} ${c_dim}delta${c_reset}      ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_orange}${c_bold}Network${c_reset}     ${c_white}netcheck${c_reset} ${c_dim}diag${c_reset}  ${c_white}ports${c_reset} ${c_dim}listen${c_reset}  ${c_white}myip${c_reset}  ${c_white}dns${c_reset}  ${c_white}headers${c_reset}    ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_red}${c_bold}Tools${c_reset}       ${c_white}tun${c_reset} ${c_dim}tunnels${c_reset}  ${c_white}glg${c_reset} ${c_dim}lazygit${c_reset}  ${c_white}lzd${c_reset} ${c_dim}docker${c_reset}  ${c_white}fkill${c_reset}      ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_purple}${c_bold}System${c_reset}      ${c_white}top${c_reset} ${c_dim}btop${c_reset}  ${c_white}df${c_reset} ${c_dim}duf${c_reset}  ${c_white}du${c_reset} ${c_dim}dust${c_reset}  ${c_white}reload${c_reset}  ${c_white}update${c_reset}     ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}                                                                  ${c_purple}│${c_reset}"
-    echo "  ${c_purple}╰──────────────────────────────────────────────────────────────────╯${c_reset}"
+    echo "${_p}${c_purple}╭──────────────────────────────────────────────────────────────────╮${c_reset}"
+    echo "${_p}${c_purple}│${c_reset}  ${c_cyan}${c_bold}Daily Driver${c_reset}                          ${c_dim}type ${c_white}default-help${c_dim} for full ref${c_reset}  ${c_purple}│${c_reset}"
+    echo "${_p}${c_purple}├──────────────────────────────────────────────────────────────────┤${c_reset}"
+    echo "${_p}${c_purple}│${c_reset}                                                                  ${c_purple}│${c_reset}"
+    echo "${_p}${c_purple}│${c_reset}  ${c_green}${c_bold}Navigate${c_reset}    ${c_white}z${c_reset} ${c_dim}smart cd${c_reset}   ${c_white}Ctrl+R${c_reset} ${c_dim}history${c_reset}   ${c_white}Ctrl+T${c_reset} ${c_dim}find files${c_reset}     ${c_purple}│${c_reset}"
+    echo "${_p}${c_purple}│${c_reset}  ${c_cyan}${c_bold}Files${c_reset}       ${c_white}ls${c_reset} ${c_dim}eza${c_reset}  ${c_white}cat${c_reset} ${c_dim}bat${c_reset}  ${c_white}find${c_reset} ${c_dim}fd${c_reset}  ${c_white}grep${c_reset} ${c_dim}rg${c_reset}  ${c_white}diff${c_reset} ${c_dim}delta${c_reset}      ${c_purple}│${c_reset}"
+    echo "${_p}${c_purple}│${c_reset}  ${c_orange}${c_bold}Network${c_reset}     ${c_white}netcheck${c_reset} ${c_dim}diag${c_reset}  ${c_white}ports${c_reset} ${c_dim}listen${c_reset}  ${c_white}myip${c_reset}  ${c_white}dns${c_reset}  ${c_white}headers${c_reset}    ${c_purple}│${c_reset}"
+    echo "${_p}${c_purple}│${c_reset}  ${c_red}${c_bold}Tools${c_reset}       ${c_white}tun${c_reset} ${c_dim}tunnels${c_reset}  ${c_white}glg${c_reset} ${c_dim}lazygit${c_reset}  ${c_white}lzd${c_reset} ${c_dim}docker${c_reset}  ${c_white}fkill${c_reset}      ${c_purple}│${c_reset}"
+    echo "${_p}${c_purple}│${c_reset}  ${c_purple}${c_bold}System${c_reset}      ${c_white}top${c_reset} ${c_dim}btop${c_reset}  ${c_white}df${c_reset} ${c_dim}duf${c_reset}  ${c_white}du${c_reset} ${c_dim}dust${c_reset}  ${c_white}reload${c_reset}  ${c_white}update${c_reset}     ${c_purple}│${c_reset}"
+    echo "${_p}${c_purple}│${c_reset}                                                                  ${c_purple}│${c_reset}"
+    echo "${_p}${c_purple}╰──────────────────────────────────────────────────────────────────╯${c_reset}"
     echo ""
 }
 

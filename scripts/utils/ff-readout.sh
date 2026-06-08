@@ -99,11 +99,48 @@ row() {
   fi
 }
 
+# pct <resource> → integer 0-100 utilization (fast, best-effort) for the
+# btop-style bars in claw-dashboard.py. CPU is load1/ncpu (an instant proxy —
+# true instantaneous CPU% needs slow sampling that would defeat instant startup).
+pct() {
+  case "$1" in
+    cpu)  local l n
+          if is_mac; then l=$(sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}'); n=$(sysctl -n hw.ncpu 2>/dev/null)
+          else l=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null); n=$(nproc 2>/dev/null); fi
+          [[ -n "$l" && "${n:-0}" -gt 0 ]] && awk -v l="$l" -v n="$n" 'BEGIN{v=l/n*100; if(v>100)v=100; printf "%d",v+0.5}' ;;
+    mem)  if is_mac; then
+            local t; t=$(sysctl -n hw.memsize 2>/dev/null)
+            vm_stat 2>/dev/null | awk -v t="$t" '
+              /page size of/{ps=$8}
+              /Pages active/{gsub(/\./,"",$3);a=$3}
+              /Pages wired/{gsub(/\./,"",$4);w=$4}
+              /occupied by compressor/{gsub(/\./,"",$5);c=$5}
+              END{ps=ps?ps:16384; if(t>0)printf "%d",(a+w+c)*ps*100/t+0.5}'
+          else
+            awk '/MemTotal/{t=$2} /MemAvailable/{m=$2} END{if(t)printf "%d",(t-m)*100/t+0.5}' /proc/meminfo 2>/dev/null
+          fi ;;
+    swap) if is_mac; then
+            sysctl -n vm.swapusage 2>/dev/null \
+              | sed -E 's/.*total = ([0-9.]+)M.*used = ([0-9.]+)M.*/\1 \2/' \
+              | awk '{if($1>0)printf "%d",$2*100/$1+0.5; else print 0}'
+          else
+            free 2>/dev/null | awk '/Swap/{if($2>0)printf "%d",$3*100/$2+0.5; else print 0}'
+          fi ;;
+    disk) df -H / 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5);print $5}' ;;
+    batt) if is_mac; then pmset -g batt 2>/dev/null | grep -oE '[0-9]+%' | head -1 | tr -d '%'
+          else cat /sys/class/power_supply/BAT0/capacity 2>/dev/null; fi ;;
+  esac
+}
+
 case "${1:-all}" in
-  # Machine-readable dump for claw-dashboard.py (one key=value per line).
+  # Machine-readable dump for claw-dashboard.py (one key=value per line),
+  # plus <res>_pct utilization values that feed the resource bars.
   fields)
     for _f in os host kernel uptime load shell term pkgs locale cpu cores mem swap disk ip wifi batt date; do
         printf '%s=%s\n' "$_f" "$(g "$_f")"
+    done
+    for _p in cpu mem swap disk batt; do
+        printf '%s_pct=%s\n' "$_p" "$(pct "$_p")"
     done ;;
   field) shift; g "${1:-os}" ;;
   r1) row "$I_OS"   "OS"     os      "$I_CPU"  "CPU"   cpu ;;
