@@ -138,7 +138,6 @@
 2f4dc4936765a2a2287e816cc763a4a02bbc5b1044a6740784088dd89c19d4db  tui/claw-tui/target/release/.fingerprint/linux-raw-sys-d723117a867f7a0d/lib-linux_raw_sys
 2f55f10096aa3ab7d5ba933b1f59a7e2ae5a1ed1f20679ac9e3f2a722f1dcf4c  tui/claw-tui/target/release/deps/serde_core-a7d787dfb433a53a.d
 2f6755b1d79491ad434dcb42a86805069baf86cc764dcee2d0dbe95f7cbc3b23  tui/claw-tui/target/release/.fingerprint/darling_core-638b1d1006307218/lib-darling_core
-2f9427f43801baebcb35f6d440ed303f6529bdf6cdb3b927af2d712ffef96504  vim/.config/nvim/lua/plugins/lsp.lua
 2fa1f318e10a3ab0b1f520f0069ae0ca2a655c1631e319a814fbb0e23edd7e3f  terminal/mbp-m4.terminal
 2facf1829fc6c84839a40b17d26a34a369b94877942522e3a5ae17b8ecbee486  tui/claw-tui/target/release/deps/itertools-d2982e6a9c3f9011.d
 308d0b7416f48bf54ced70e734954f65fff6b4dbc1b7d6d7af413dcaf7672cc4  scripts/install/devops-toolchain.sh
@@ -397,6 +396,7 @@
 6a0c9d8022c5c67266bd95104b4171b9e065ac8c48fcdec59bb6c336b2ecfd03  shell/profiles/default/linux.zsh
 6a2377a0f3091d7ec2947b645134524f13ba9cf69c5582acfe18ff284c6ebb28  vim/.config/nvim/init.lua
 6a5f2b0cd97a1b54ce3cad32c010d6219ed61b1a344f03a436317efd8ba273dc  tui/claw-tui/target/release/.fingerprint/memchr-968e37e76cd9a1bb/lib-memchr
+6a69da670d11530d37f0f0cfdc7bed30b78ea6434e24f7a73208b982e29d322c  .mypy_cache/.gitignore
 6a71ec6cbbc3c7282ff793520ba60c5472d0f04dd3d6ce660d09067f0ccc2893  tui/claw-tui/target/release/deps/equivalent-627d7e37317e8d7a.d
 6a99c1ff31bee7daf7648f5aa1fe26b4d9d05dfc54d82b9a88c4bc85e7b5a7a7  claude/hooks/_lib.py
 6ae5da4251f222ea3835ea8b2f7d6b14d34316cc689622c0beec76722a645b5c  tmux/.tmux.conf
@@ -464,6 +464,7 @@
 7f3ca3b034424c503e4910b2688c19b860ac3ecbb3484618a08fd15813cc89a7  tui/claw-tui/target/release/.fingerprint/unicode-ident-b5082d00e5e87341/lib-unicode_ident.json
 7f78d9906291a3c15ccd7839042dff52c190e7efb759ee89a804fd31bb114c77  tui/claw-tui/target/release/.fingerprint/syn-3fa4a7af0538f5e9/lib-syn.json
 80022fd818e0b7e7a73ee766678622a5d5107b5b263954afa31f6e4ac10fe9d9  scripts/utils/help.sh
+8030d775cf8cbdd870ae7297a173715ed5089b7b75b888658931c8254e4e159b  vim/.config/nvim/lua/plugins/lsp.lua
 80fb9c0b7ea3e11cb35ecf781654e11caeb3ed18df4199b0214457bca52c32d6  tui/claw-tui/target/release/.fingerprint/signal-hook-da276b77d68e152b/lib-signal_hook.json
 817da104a54983e8d56898b2ce5dd222060abb50d045cdbb8517e14739a56d34  tui/claw-tui/target/release/deps/libcfg_if-c00cebc041efbee7.rlib
 8190903df7d82f393aa282f487f2d29afa6aee2a893b15982c29db9ac4ac8dfe  tui/claw-tui/target/release/deps/strsim-646d54800dab0291.d
@@ -857,6 +858,7 @@ efa85f59e938d98a3e44cdf0312de02da30e45b32c48a70abdbdd68569c604f0  tui/claw-tui/t
 efea1b8697670b19dfd6abefa273572d612bdaa6ff19824ec632dbfe5052b77f  config/systemd/avahi-alias-containers.service
 f038728011428cda1bc78e8bbed32acde51528a7f48d16718a5767239d1bea2a  terminal/.config/ghostty/config
 f193158f70f374ebab1602557161f24a56c414ecdf4b4db9b6754c95e5a004c4  tui/claw-tui/target/release/deps/heck-985bcca305502b9d.d
+f1c13afc555358c9033b0f1f30aaa177fe88bda40f4b8a24598400d547876adc  .mypy_cache/CACHEDIR.TAG
 f2470c8a975e179c813e3d99d32de75e421badb96a76f5520158356eb06bf894  tui/claw-tui/target/release/.fingerprint/rustversion-34714431f322e8f7/dep-lib-rustversion
 f2bf2ed7dfb7ca53ad0a27b91b958c432d94eb7eb242d89ad5832186c9d07d36  claude/mcp.toml
 f33118eaa113ce97c3dabdad8d7e22284dd994f1e0c31ac23cbee76111ca940d  tui/claw-tui/target/release/deps/libstrum-1eb2c349128f9895.rlib

@@ -83,15 +83,19 @@ return {
         float = { border = "rounded" },
       })
 
-      -- Install missing servers, then auto-enable them. Runs AFTER the
-      -- vim.lsp.config() calls above so per-server settings take effect.
+      -- Install + enable EXACTLY these servers. `automatic_enable = true` would
+      -- enable every Mason-installed package — including the formatters/linters
+      -- that mason-tool-installer drops in the same registry (stylua etc.),
+      -- which then get wrongly started as LSP clients. So enable explicitly.
+      local servers = {
+        "lua_ls", "pyright", "ts_ls", "gopls", "bashls",
+        "yamlls", "jsonls", "dockerls", "terraformls",
+      }
       require("mason-lspconfig").setup({
-        ensure_installed = {
-          "lua_ls", "pyright", "ts_ls", "gopls", "bashls",
-          "yamlls", "jsonls", "dockerls", "terraformls",
-        },
-        automatic_enable = true,
+        ensure_installed = servers,
+        automatic_enable = false,
       })
+      vim.lsp.enable(servers)
     end,
   },
 }
