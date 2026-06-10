@@ -30,6 +30,11 @@ def load_palette():
             slug = (open(af).read().strip() or slug).splitlines()[0]
     except Exception:
         pass
+    # Session override (same precedence as theme.sh): CLAW_THEME env beats the
+    # persisted state file — this is how profile loads re-theme the dashboard.
+    env_slug = os.environ.get("CLAW_THEME", "").strip()
+    if env_slug and os.path.isfile(f"{DOTS}/config/themes/{env_slug}.theme"):
+        slug = env_slug
     tf = f"{DOTS}/config/themes/{slug}.theme"
     if not os.path.isfile(tf):
         tf = f"{DOTS}/config/themes/refined-dark.theme"

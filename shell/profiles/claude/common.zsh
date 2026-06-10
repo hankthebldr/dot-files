@@ -1,6 +1,5 @@
 # Claude Code Profile
 # Loadout for AI-assisted development with Claude Code, Agent SDK, and MCP
-export CLAW_PROFILE_THEME="claude"
 
 # ==========================================
 # ENVIRONMENT VARIABLES

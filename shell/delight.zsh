@@ -67,7 +67,8 @@ claw_fact() {
     if command -v gum &>/dev/null; then
         gum style --foreground 141 --border none --margin "0 2" "  $line"
     else
-        printf "  \e[38;2;188;140;255m✦\e[0m \e[38;2;139;148;158m%s\e[0m\n" "$line"
+        printf "  \e[38;2;%sm✦\e[0m \e[38;2;%sm%s\e[0m\n" \
+            "${CLAW_RGB_PURPLE:-188;140;255}" "${CLAW_RGB_MUTED:-139;148;158}" "$line"
     fi
 }
 # One fact per day on interactive login (skip SSH-pipe / non-tty).
@@ -97,7 +98,8 @@ if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_PKG_NUDGE:-1
     if [[ -s "$_pkg_count" ]]; then
         _n=$(cat "$_pkg_count" 2>/dev/null)
         [[ "$_n" =~ ^[0-9]+$ && "$_n" -gt 0 ]] && \
-            printf "  \e[38;2;227;179;65m●\e[0m \e[38;2;139;148;158m%s untracked tool(s) — \e[38;2;201;209;217mclaw pkg track\e[0m\n" "$_n"
+            printf "  \e[38;2;%sm●\e[0m \e[38;2;%sm%s untracked tool(s) — \e[38;2;%smclaw pkg track\e[0m\n" \
+                "${CLAW_RGB_AMBER:-227;179;65}" "${CLAW_RGB_MUTED:-139;148;158}" "$_n" "${CLAW_RGB_FG:-201;209;217}"
     fi
     _pkg_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/pkgscan-$(date +%Y%m%d)"
     if [[ ! -f "$_pkg_stamp" ]]; then
@@ -116,10 +118,10 @@ claw_spin() {
     if command -v gum &>/dev/null; then
         gum spin --spinner dot --title "$msg" -- "$@"
     else
-        printf "  \e[38;2;88;166;255m◐\e[0m %s…" "$msg"
+        printf "  \e[38;2;%sm◐\e[0m %s…" "${CLAW_RGB_BLUE:-88;166;255}" "$msg"
         "$@"; local rc=$?
-        if [[ $rc -eq 0 ]]; then printf "\r  \e[38;2;63;185;80m✓\e[0m %s   \n" "$msg"
-        else printf "\r  \e[38;2;255;123;114m✗\e[0m %s   \n" "$msg"; fi
+        if [[ $rc -eq 0 ]]; then printf "\r  \e[38;2;%sm✓\e[0m %s   \n" "${CLAW_RGB_GREEN:-63;185;80}" "$msg"
+        else printf "\r  \e[38;2;%sm✗\e[0m %s   \n" "${CLAW_RGB_RED:-255;123;114}" "$msg"; fi
         return $rc
     fi
 }

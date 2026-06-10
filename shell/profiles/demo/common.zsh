@@ -1,7 +1,6 @@
 # shell/profiles/demo/common.zsh
 # Aliases / functions / help — work identically on macOS and Linux.
 
-export CLAW_PROFILE_THEME="demo"
 
 # Where demo state lives (saved env, original prompt, etc.) so dmend can
 # restore. One file per concurrent demo session is fine for a single user.

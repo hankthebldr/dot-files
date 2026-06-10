@@ -2,7 +2,6 @@
 # Cross-platform aliases for Blackwell GPU/ML workflows.
 # Per-OS divergence (SSH wrappers vs native CUDA tooling) lives in mac.zsh / linux.zsh.
 
-export CLAW_PROFILE_THEME="blackwell"
 
 # Same identity convention as homelab — both point to the BD790i by default.
 export BD790I_HOST="${BD790I_HOST:-bd790i}"

@@ -23,9 +23,14 @@ CLAW_THEME_DEFAULT="refined-dark"
 # Color keys present in every .theme file (order = swatch/preview order).
 CLAW_THEME_KEYS="bg bg_alt fg muted divider blue green purple amber red cyan"
 
-# slug of the active theme (state file → default).
+# slug of the active theme. Precedence: CLAW_THEME env (session override, set
+# by profile loads) → state file (the user's persisted `claw theme set` pick)
+# → default. The env override lets a profile re-theme one session without
+# touching the persisted choice.
 claw_theme_current() {
-    if [ -r "$CLAW_THEME_ACTIVE_FILE" ]; then
+    if [ -n "${CLAW_THEME:-}" ] && [ -r "$CLAW_THEME_DIR/${CLAW_THEME}.theme" ]; then
+        printf '%s\n' "$CLAW_THEME"
+    elif [ -r "$CLAW_THEME_ACTIVE_FILE" ]; then
         head -n1 "$CLAW_THEME_ACTIVE_FILE" 2>/dev/null
     else
         printf '%s\n' "$CLAW_THEME_DEFAULT"
@@ -113,6 +118,26 @@ claw_theme_set() {
     claw_theme_load
     printf '  \033[38;2;63;185;80m✓\033[0m theme set to \033[1m%s\033[0m\n' "$_t"
     printf '  \033[38;2;139;148;158mrun \033[0m\033[1mexec zsh\033[0m\033[38;2;139;148;158m to apply everywhere (prompt, fzf, dashboard)\033[0m\n'
+}
+
+# Apply a profile's declared palette for THIS SESSION (env override only — the
+# persisted `claw theme set` choice is untouched). Call after sourcing a
+# profile: reads PROFILE_THEME_DEFAULT (set in the profile's meta.zsh), applies
+# it only if that .theme actually exists. claw-fn.zsh and welcome-tui both use
+# this, so `claw load security` re-themes the prompt/menus/dashboard in one move.
+claw_theme_apply_profile() {
+    _pt="${PROFILE_THEME_DEFAULT:-}"
+    [ -n "$_pt" ] || return 0
+    [ -r "$CLAW_THEME_DIR/$_pt.theme" ] || return 0
+    [ "$_pt" = "${CLAW_THEME_SLUG:-}" ] && return 0
+    export CLAW_THEME="$_pt"
+    claw_theme_load
+}
+
+# Drop any session override and reload the persisted palette (used by claw off).
+claw_theme_reset_session() {
+    unset CLAW_THEME
+    claw_theme_load
 }
 
 # Load the palette into the environment on every source.

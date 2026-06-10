@@ -65,17 +65,19 @@ function claw_welcome_tui() {
     # wrapper subshell exits a few ms later (the script itself self-backgrounds).
     "$_d/scripts/utils/tool-updater.sh" &>/dev/null &!
 
-    # Modern GitHub macOS Dark Theme (True Colors)
+    # Colors from the ACTIVE theme (CLAW_RGB_* exported by theme.sh, sourced in
+    # .zshrc step 2b). Fallbacks are the refined-dark values so the TUI renders
+    # correctly even standalone. `claw theme set X` re-themes this menu.
     local c_reset=$'\e[0m'
-    local c_cyan=$'\e[38;2;88;166;255m'    # GitHub Blue: #58a6ff
-    local c_green=$'\e[38;2;63;185;80m'    # GitHub Green: #3fb950
-    local c_pink=$'\e[38;2;255;123;114m'   # GitHub Red/Pink: #ff7b72
-    local c_purple=$'\e[38;2;188;140;255m' # GitHub Purple: #bc8cff
-    local c_orange=$'\e[38;2;227;179;65m'  # GitHub Orange/Gold: #e3b341
-    local c_yellow=$'\e[38;2;227;179;65m'  # GitHub Yellow (using gold)
-    local c_dim=$'\e[38;2;139;148;158m'    # GitHub Muted: #8b949e
-    local c_red=$'\e[38;2;255;123;114m'    # GitHub Red: #ff7b72
-    local c_white=$'\e[38;2;201;209;217m'  # GitHub fg: #c9d1d9
+    local c_cyan=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m'
+    local c_green=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
+    local c_pink=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+    local c_purple=$'\e[38;2;'"${CLAW_RGB_PURPLE:-188;140;255}"$'m'
+    local c_orange=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+    local c_yellow=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+    local c_dim=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+    local c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+    local c_white=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
     local c_bold=$'\e[1m'
 
     # Ensure fzf is installed to run the interactive menu
@@ -85,9 +87,18 @@ function claw_welcome_tui() {
         return
     fi
 
-    # Colors from the active theme (exported by exports.zsh / theme.sh); fall
-    # back to the refined-dark defaults if the dashboard is invoked standalone.
-    local _fzf_color="${CLAW_FZF_COLOR:-bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff}"
+    # fzf colors from the active theme: claw_theme_fzf builds the --color string
+    # from CLAW_C_* (theme.sh, sourced in .zshrc step 2b). CLAW_FZF_COLOR env
+    # remains an explicit user override; static fallback only if theme.sh is
+    # somehow absent.
+    local _fzf_color
+    if [[ -n "${CLAW_FZF_COLOR:-}" ]]; then
+        _fzf_color="$CLAW_FZF_COLOR"
+    elif typeset -f claw_theme_fzf >/dev/null 2>&1; then
+        _fzf_color="$(claw_theme_fzf)"
+    else
+        _fzf_color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff"
+    fi
 
     # Render the Screen-1 dashboard header. Preference order:
     #   1. claw-dashboard.py — framed, centered dashboard: the CRISP system logo
@@ -235,6 +246,10 @@ function claw_welcome_tui() {
             local _profile="$_d/shell/profiles/${key}.zsh"
             if [[ -f "$_profile" ]]; then
                 source "$_profile"
+                # Profile-reactive theming: apply the profile's declared palette
+                # for this session (guarded; no-op if the palette doesn't exist).
+                # The dashboard render below inherits CLAW_THEME via the env.
+                typeset -f claw_theme_apply_profile >/dev/null 2>&1 && claw_theme_apply_profile
             else
                 echo "${c_red}Profile not found: $_profile${c_reset}"
             fi

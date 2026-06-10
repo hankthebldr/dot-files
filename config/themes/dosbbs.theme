@@ -1,0 +1,15 @@
+# dosbbs — amber-phosphor DOS/BBS terminal with CGA accents. Declared by the
+# research profile (PROFILE_THEME_DEFAULT=dosbbs).
+name=DOS BBS
+slug=dosbbs
+bg=120c04
+bg_alt=1d1408
+fg=ffd27d
+muted=8f7340
+divider=33260f
+blue=56b6c2
+green=a8c64b
+purple=c678dd
+amber=ffb000
+red=ff4d3d
+cyan=33d6c5

@@ -34,6 +34,14 @@ export PATH="${DOTFILES_DIR}/scripts/utils:$PATH"
 # ── 2. Platform Shims ───────────────────────────────────
 [[ -f "$DOTFILES_DIR/shell/platform.zsh" ]] && source "$DOTFILES_DIR/shell/platform.zsh"
 
+# ── 2b. Theme engine (single source of truth for ALL colors) ─────────────────
+# Sourcing exports CLAW_C_* / CLAW_RGB_* from the active palette
+# (config/themes/<slug>.theme; precedence: CLAW_THEME env → state file →
+# refined-dark). Loaded BEFORE the welcome TUI and every shell module so menus,
+# dashboards, nudges, and prompts all draw from one palette. `claw theme set X`
+# + exec zsh re-themes everything.
+[[ -f "$DOTFILES_DIR/scripts/utils/theme.sh" ]] && source "$DOTFILES_DIR/scripts/utils/theme.sh"
+
 # ── 3. Welcome TUI (BEFORE p10k instant prompt) ─────────
 # P10k instant prompt suppresses all stdout during init.
 # The TUI must run BEFORE that, while we still own the terminal.
@@ -154,7 +162,10 @@ export CLICOLOR=1
 if [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then
     PROFILE_PATH="$DOTFILES_DIR/shell/profiles/${CLAW_ACTIVE_PROFILE}.zsh"
     # Profile may already be sourced by TUI, but guard for manual CLAW_ACTIVE_PROFILE sets
-    [[ -f "$PROFILE_PATH" && -z "$CLAW_PROFILE_THEME" ]] && source "$PROFILE_PATH"
+    # PROFILE_NAME (set by every profile's meta.zsh) = "already sourced by the
+    # TUI" sentinel. The old sentinel was CLAW_PROFILE_THEME, a dead export
+    # removed in the P2 theme unification.
+    [[ -f "$PROFILE_PATH" && -z "${PROFILE_NAME:-}" ]] && source "$PROFILE_PATH"
 fi
 
 # ── Powerlevel10k prompt — sourced from the REPO, not ~/.p10k.zsh ───────────

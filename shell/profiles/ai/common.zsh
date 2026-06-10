@@ -1,6 +1,5 @@
 # AI & LLM Profile
 # Loadout for Model Ops, Embeddings, Local Inference, and AI Workflows
-export CLAW_PROFILE_THEME="ai"
 
 export AI_WORKSPACE="$HOME/ai_models"
 mkdir -p "$AI_WORKSPACE" 2>/dev/null

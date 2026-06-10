@@ -14,16 +14,20 @@ CLAW_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
 CLAW_USAGE_LOG="$CLAW_CACHE_DIR/usage.tsv"
 
 # ============================================
-# THEME (GitHub Dark — matches system-update.sh)
+# THEME — from the active Open Claw palette (theme.sh single source of truth).
+# Sourcing exports CLAW_RGB_*; fallbacks are refined-dark so claw renders
+# correctly even if theme.sh is missing (e.g. mid-bootstrap).
 # ============================================
+# shellcheck source=/dev/null
+[ -r "$DOTFILES/scripts/utils/theme.sh" ] && . "$DOTFILES/scripts/utils/theme.sh" 2>/dev/null || true
 c_reset=$'\e[0m'
-c_cyan=$'\e[38;2;88;166;255m'
-c_green=$'\e[38;2;63;185;80m'
-c_purple=$'\e[38;2;188;140;255m'
-c_orange=$'\e[38;2;227;179;65m'
-c_red=$'\e[38;2;255;123;114m'
-c_dim=$'\e[38;2;139;148;158m'
-c_white=$'\e[38;2;201;209;217m'
+c_cyan=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m'
+c_green=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
+c_purple=$'\e[38;2;'"${CLAW_RGB_PURPLE:-188;140;255}"$'m'
+c_orange=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+c_dim=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+c_white=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
 c_bold=$'\e[1m'
 
 err()  { printf "  ${c_red}✗${c_reset} %s\n" "$*" >&2; }
