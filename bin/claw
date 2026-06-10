@@ -135,8 +135,7 @@ cmd_help() {
     ${c_white}claw validate${c_reset}         ${c_dim}full top-to-bottom install check + update/missing detection${c_reset}
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
-    ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc)${c_reset}
-    ${c_white}claw tools${c_reset}            ${c_dim}interactive curated CLI tool refresh${c_reset}
+    ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc); ${c_white}--tools${c_dim} curated CLI refresh, ${c_white}--schedule${c_dim} weekly timer${c_reset}
 
   ${c_green}${c_bold}TUIs${c_reset}
     ${c_white}claw tun${c_reset}              ${c_dim}SSH tunnel manager${c_reset}
@@ -438,8 +437,17 @@ cmd_doctor() {
     echo ""
 }
 
+# ONE front door for the three updaters (each keeps its own job):
+#   claw update              system packages (brew/apt/npm/pip…)  → system-update.sh
+#   claw update --tools      interactive curated CLI refresh      → tool-updater.sh
+#   claw update --schedule   weekly auto-update timer             → selfupdate.sh
+# `claw tools` / `claw selfupdate` still work as muscle-memory aliases.
 cmd_update() {
-    bash "$DOTFILES/scripts/utils/system-update.sh" "$@"
+    case "${1:-}" in
+        --tools|tools)       shift; bash "$DOTFILES/scripts/utils/tool-updater.sh" --interactive "$@" ;;
+        --schedule|schedule) shift; bash "$DOTFILES/scripts/utils/selfupdate.sh" "${1:-install}" ;;
+        *)                   bash "$DOTFILES/scripts/utils/system-update.sh" "$@" ;;
+    esac
 }
 
 cmd_tools() {

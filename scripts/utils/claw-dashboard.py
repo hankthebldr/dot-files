@@ -195,23 +195,50 @@ def main():
     # content row = "│" + " " + content(content_w) + " " + "│"  → inner = content_w + 2
     # top         = "╭" + "─" + title + "─"*dash + "╮"          → inner = content_w + 2
     # bottom      = "╰" + "─"*inner + "╯"                        → inner = content_w + 2
-    content_w = max((vis(m) for m in merged), default=20)
-    inner = content_w + 2
-    title = col(" OPEN CLAW ", C["green"])
-    tlen = vis(title)
-    dash = max(0, inner - 1 - tlen)
-    top = col("╭─", C["muted"]) + title + col("─"*dash + "╮", C["muted"])
-    bot = col("╰" + "─"*inner + "╯", C["muted"])
-    bar_ch = col("│", C["muted"])
+    quickref = "--quickref" in sys.argv
+    qr = quickref_rows() if quickref else []
+    # shared width across BOTH boxes so the quickref frame aligns flush with
+    # the dashboard frame above it.
+    content_w = max((vis(m) for m in merged + qr), default=20)
 
     term = shutil.get_terminal_size((100, 30)).columns
-    margin = " " * max(0, (term - (inner + 2)) // 2)
+    margin = " " * max(0, (term - (content_w + 4)) // 2)
 
     print()
-    print(margin + top)
-    for m in merged:
+    frame(merged, " OPEN CLAW ", content_w, margin)
+    if quickref:
+        frame(qr, " Daily Driver ", content_w, margin)
+
+def frame(lines, title_text, content_w, margin):
+    """Print one framed, centered box. All boxes in a run share content_w."""
+    inner = content_w + 2
+    title = col(title_text, C["green"])
+    dash = max(0, inner - 1 - vis(title))
+    bar_ch = col("│", C["muted"])
+    print(margin + col("╭─", C["muted"]) + title + col("─"*dash + "╮", C["muted"]))
+    for m in lines:
         print(margin + bar_ch + " " + pad(m, content_w) + " " + bar_ch)
-    print(margin + bot)
+    print(margin + col("╰" + "─"*inner + "╯", C["muted"]))
+
+def quickref_rows():
+    """The Daily Driver quick-reference, rendered with the dashboard's own
+    width engine (replaces the hand-padded zsh box whose right edge jittered)."""
+    SECTIONS = [
+        ("Navigate", C["green"],  [("z","smart cd"),("Ctrl+R","history"),("Ctrl+T","find files")]),
+        ("Files",    C["blue"],   [("ls","eza"),("cat","bat"),("find","fd"),("grep","rg"),("diff","delta")]),
+        ("Network",  C["amber"],  [("netcheck","diag"),("ports","listen"),("myip",""),("dns",""),("headers","")]),
+        ("Tools",    C["red"],    [("tun","tunnels"),("glg","lazygit"),("lzd","docker"),("fkill","")]),
+        ("System",   C["purple"], [("top","btop"),("df","duf"),("du","dust"),("reload",""),("update","")]),
+    ]
+    rows = [""]
+    for label, accent, pairs in SECTIONS:
+        cells = "  ".join(
+            col(cmd, C["fg"]) + (f" {col(desc, C['muted'])}" if desc else "")
+            for cmd, desc in pairs
+        )
+        rows.append(f"{col(label.ljust(9), accent)} {cells}")
+    rows += ["", col("type ", C["muted"]) + col("default-help", C["fg"]) + col(" for the full reference", C["muted"])]
+    return rows
 
 if __name__ == "__main__":
     main()

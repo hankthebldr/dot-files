@@ -263,17 +263,20 @@ function claw_welcome_tui() {
             # clear first: screen 1 already drew the dashboard, so without this
             # the picked profile's art stacks UNDER it (the "repasted screen").
             clear
-            # default → the polished centered dashboard (logo + bars); other
-            # profiles keep their truecolor fastfetch art.
+            # default → the polished centered dashboard (logo + bars) with the
+            # quick-ref card rendered by the SAME width engine (flush frames);
+            # other profiles keep their truecolor fastfetch art.
+            local _qr_rendered=0
             if [[ "$key" == "default" ]] && command -v python3 &> /dev/null && [[ -f "$_dash" ]]; then
-                DOTFILES_DIR="$_d" python3 "$_dash"
+                DOTFILES_DIR="$_d" python3 "$_dash" --quickref && _qr_rendered=1
             elif command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
                 fastfetch -c "$_ff_profile"
             fi
-            # Readout under the art: default keeps its quick-ref card; every
-            # other profile gets the metadata-driven key-tools/docs/help readout.
+            # Readout under the art: default's quick-ref only as fallback when
+            # the dashboard (which now embeds it) didn't render; other profiles
+            # get the metadata-driven key-tools/docs/help readout.
             if [[ "$key" == "default" ]]; then
-                _claw_default_quickref
+                (( _qr_rendered )) || _claw_default_quickref
             else
                 _claw_profile_readout "$key"
             fi
