@@ -5,6 +5,7 @@
 .git/
 node_modules/
 __pycache__/
+target/
 .venv/
 venv/
 env/
