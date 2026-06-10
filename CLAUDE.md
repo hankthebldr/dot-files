@@ -35,6 +35,36 @@ bash scripts/install/master-setup.sh domains  # All domain toolchain scripts
 
 ## Architecture
 
+### The Spine (consolidation contracts — keep these invariants)
+
+Everything hangs off three contracts. When adding a capability, wire it into
+the spine — do not add a parallel dispatcher, palette, or dashboard.
+
+1. **One dispatcher.** `shell/claw-fn.zsh` defines the ONLY `claw()` shell
+   function (in-shell work: no-args TUI relaunch, `load`/`off`, bare-profile
+   shorthand `claw security` ≡ `claw load security`); everything else passes
+   through to `bin/claw` (bash), which routes to `scripts/`. Never define a
+   second `claw()` — a previous one in aliases.zsh was dead-shadowed for weeks.
+2. **One theme engine.** `scripts/utils/theme.sh` is the single source of
+   truth. Palettes: `config/themes/<slug>.theme`. Precedence: `CLAW_THEME` env
+   (session override, set by profile loads via `PROFILE_THEME_DEFAULT` in
+   meta.zsh) → `$XDG_STATE_HOME/claw/theme` (persisted `claw theme set`) →
+   refined-dark. `.zshrc` step 2b sources it; ALL surfaces consume
+   `CLAW_RGB_*` / `CLAW_C_*` / `claw_theme_fzf` with refined-dark fallbacks —
+   never hardcode hex/ANSI colors in a new surface (the rust TUI reads the
+   same state in `tui/claw-tui/src/theme.rs`).
+3. **One render path.** Login + default profile render
+   `scripts/utils/claw-dashboard.py` (framed, centered, crisp fastfetch system
+   logo + dense grid + btop-style bars; `--quickref` appends the Daily Driver
+   card on the same width engine). fastfetch `config-*.jsonc` is the
+   per-profile art + explicit fallback; the zsh quickref box is the
+   no-python fallback only. Data comes from `ff-readout.sh fields` (incl.
+   `<res>_pct` for the bars).
+
+Also: `claw update` is the one updater front door (`--tools` → tool-updater,
+`--schedule` → selfupdate); superseded/uncalled scripts live in `legacy/`
+(see `legacy/README.md`) — archive there, don't delete or leave strays.
+
 ### Shell Configuration Loading Order (.zshrc)
 
 1. P10k instant prompt (must be first)
