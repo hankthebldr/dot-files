@@ -1,10 +1,14 @@
 return {
   {
     "nvim-treesitter/nvim-treesitter",
+    -- Pin the stable `master` branch: the `main` rewrite removed the
+    -- `nvim-treesitter.configs` module + the setup{} highlight/indent/textobjects
+    -- API this config is written against. master is maintained and works on 0.12.
+    branch = "master",
     build = ":TSUpdate",
     event = { "BufReadPre", "BufNewFile" },
     dependencies = {
-      "nvim-treesitter/nvim-treesitter-textobjects",
+      { "nvim-treesitter/nvim-treesitter-textobjects", branch = "master" },
     },
     config = function()
       require("nvim-treesitter.configs").setup({

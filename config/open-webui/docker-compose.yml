@@ -1,0 +1,28 @@
+# Open WebUI — self-hosted ChatGPT-style front-end for Ollama / OpenAI-compatible
+# APIs. Managed by `claw ai-services` (scripts/utils/ai-services.sh).
+#
+#   UI:      http://localhost:3000
+#   Ollama:  reaches the host daemon at :11434 via host.docker.internal
+#
+# Open WEBUI does its own inference offloading through Ollama, so the container
+# itself needs no GPU. Persistent state (accounts, chats, settings) lives in the
+# named `open-webui` volume and survives `down`/`up`.
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      # Point at the host Ollama daemon (validate confirms it on :11434).
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # Flip to False in ~/.zshrc.local-style env if you want an open instance.
+      - WEBUI_AUTH=${OPEN_WEBUI_AUTH:-True}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - open-webui:/app/backend/data
+
+volumes:
+  open-webui:

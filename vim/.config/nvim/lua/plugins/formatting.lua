@@ -18,9 +18,13 @@ return {
       sh = { "shfmt" },
       terraform = { "terraform_fmt" },
     },
+    -- conform renamed `lsp_fallback = true` → `lsp_format = "fallback"`. Fall
+    -- back to the LSP formatter when no configured formatter is installed, so a
+    -- missing tool (e.g. black) still formats via pyright/gopls instead of
+    -- erroring on save.
     format_on_save = {
       timeout_ms = 500,
-      lsp_fallback = true,
+      lsp_format = "fallback",
     },
   },
 }

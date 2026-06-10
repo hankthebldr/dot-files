@@ -26,6 +26,17 @@ alias llmproxy="litellm --config ~/.litellm/config.yaml"
 alias mar="marimo new"
 alias mart="marimo tutorial"
 
+# --- Self-hosted AI web stacks (open-webui / dify / ragflow / langfuse) ---
+alias aisvc="claw ai-services"
+alias aisup="claw ai-services up"
+alias aisdown="claw ai-services down"
+alias aisst="claw ai-services status"
+alias owui="claw ai-services up open-webui"     # ChatGPT-style Ollama UI :3000
+
+# --- Agent frameworks (CLIs via pipx; libs are per-project) ---
+alias crew="crewai"                              # CrewAI multi-agent CLI
+alias lchain="langchain"                         # LangChain CLI (avoids colorls `lc`)
+
 # --- GPU / Blackwell workstation ---
 # nvidia-smi shortcut + watch mode
 alias smi="nvidia-smi"

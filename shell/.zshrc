@@ -30,11 +30,15 @@ export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
 [[ -d "$HOME/.cargo/bin" ]] && export PATH="$HOME/.cargo/bin:$PATH"
 [[ -d "$HOME/go/bin" ]]     && export PATH="$HOME/go/bin:$PATH"
 export PATH="${DOTFILES_DIR}/scripts/utils:$PATH"
+export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 
 # ── 2. Platform Shims ───────────────────────────────────
 [[ -f "$DOTFILES_DIR/shell/platform.zsh" ]] && source "$DOTFILES_DIR/shell/platform.zsh"
 
-# ── 2b. Theme engine (single source of truth for ALL colors) ─────────────────
+# ── 2b. Ghostty terminfo guard (before the TUI uses the terminal) ───────────
+[[ -f "$DOTFILES_DIR/shell/ghostty-terminfo.zsh" ]] && source "$DOTFILES_DIR/shell/ghostty-terminfo.zsh"
+
+# ── 2c. Theme engine (single source of truth for ALL colors) ─────────────────
 # Sourcing exports CLAW_C_* / CLAW_RGB_* from the active palette
 # (config/themes/<slug>.theme; precedence: CLAW_THEME env → state file →
 # refined-dark). Loaded BEFORE the welcome TUI and every shell module so menus,
@@ -99,7 +103,9 @@ fi
 # Live progress indicator (window title + completion banner + claw_run wrapper)
 [[ -f "$DOTFILES_DIR/shell/progress.zsh" ]] && source "$DOTFILES_DIR/shell/progress.zsh"
 [[ -f "$DOTFILES_DIR/shell/delight.zsh" ]] && source "$DOTFILES_DIR/shell/delight.zsh"
-[[ -f ~/hr-vault-main-pa/_agents/shell-aliases.sh ]] && source ~/hr-vault-main-pa/_agents/shell-aliases.sh
+# Obsidian Vault OS (vault lives under ~/Documents on this machine)
+export VAULT_PATH="$HOME/Documents/hr-vault-main-pa"
+[[ -f "$VAULT_PATH/_agents/shell-aliases.sh" ]] && source "$VAULT_PATH/_agents/shell-aliases.sh"
 
 # ── 7. Tool Initializations (all guarded) ───────────────
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
