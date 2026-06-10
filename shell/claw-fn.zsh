@@ -1,12 +1,34 @@
 # shell/claw-fn.zsh
-# Zsh wrapper around bin/claw that handles `load` and `off` natively in the
-# CURRENT shell. The bash binary at bin/claw can't mutate the parent zsh
-# shell's environment, so those two subcommands need a function.
-#
-# All other subcommands pass through to the bash binary.
+# THE canonical claw() shell wrapper — the single zsh layer over bin/claw.
+# Handles in the CURRENT shell only what must mutate it (the bash binary can't):
+#   claw            → relaunch the welcome TUI in-shell (profile picks persist)
+#   claw load <p>   → source the profile + export CLAW_ACTIVE_PROFILE
+#   claw <p>        → shorthand for `claw load <p>` when <p> is a real profile
+#   claw off        → unload the profile
+# Everything else passes through to the bash binary (bin/claw).
 
 claw() {
+    # Bare-profile shorthand: `claw security` == `claw load security`.
+    # Only rewrites when the arg is an actual profile file, so agents and
+    # subcommands are never shadowed.
+    if [[ -n "${1:-}" && "$1" != "load" && \
+          -f "${DOTFILES_DIR:-$HOME/.dotfiles}/shell/profiles/$1.zsh" ]]; then
+        set -- load "$@"
+    fi
     case "${1:-}" in
+        "")
+            # No args: relaunch the FZF welcome TUI in THIS shell so a profile
+            # pick lands in the current session (bin/claw menu runs in a child
+            # zsh, where a pick can't mutate this shell).
+            local _wt="${DOTFILES_DIR:-$HOME/.dotfiles}/shell/welcome-tui.zsh"
+            if [[ -o interactive && -f "$_wt" ]]; then
+                unset CLAW_ACTIVE_PROFILE CLAW_PROFILE_THEME
+                source "$_wt"
+                claw_welcome_tui
+            else
+                command claw
+            fi
+            ;;
         load)
             shift
             local p="${1:-}"
