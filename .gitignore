@@ -207,3 +207,9 @@ tui/claw-tui/target/
 
 # generated per-machine Ghostty colors (claw theme set)
 terminal/.config/ghostty/theme.conf
+
+# Claude Code skill-system artifacts created when this repo is the cwd
+# (managed-skill symlinks + lockfile belong under ~/, not the dotfiles tree)
+/.agents/
+/.claude/skills/
+/skills-lock.json

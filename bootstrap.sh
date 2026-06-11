@@ -374,6 +374,15 @@ main() {
         log_warning "claw dispatcher not running cleanly — check $SCRIPT_DIR/bin/claw manually"
     fi
 
+    # ── Step 8c: Deploy Claude Code tree (CLAUDE.md, hooks, skills) ──
+    # claude/ can't be stowed (it'd splatter into $HOME and clobber managed
+    # skills), so a dedicated item-level linker handles it and registers the
+    # default-deny scope hooks if Claude Code is installed.
+    if [[ -x "$SCRIPT_DIR/scripts/setup/link-claude.sh" ]]; then
+        log_info "Deploying Claude Code config (claude/ → ~/.claude)"
+        bash "$SCRIPT_DIR/scripts/setup/link-claude.sh" 2>&1 | grep -E '✓|backed up|WARNING' || true
+    fi
+
     # ── Step 9: Full mode extras ─────────────────────────
     step "Finalizing"
     if [[ "$INSTALL_MODE" == "full" ]]; then

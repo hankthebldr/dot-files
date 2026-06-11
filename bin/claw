@@ -171,7 +171,9 @@ cmd_help() {
     ${c_white}claw claude-sync status${c_reset}   ${c_dim}diff live state vs manifests · (alias: csync)${c_reset}
 
   ${c_purple}${c_bold}Knowledge & Secrets${c_reset}
+    ${c_white}claw harness <cmd>${c_reset}      ${c_dim}custom agentic skills: list|new <name>|deploy|path${c_reset}
     ${c_white}claw handoff "topic"${c_reset}   ${c_dim}session note → Obsidian 00-Inbox (backlinked)${c_reset}
+    ${c_white}claw docs-sync${c_reset}         ${c_dim}sync repo docs → Obsidian vault${c_reset}
     ${c_white}claw capture-tasks${c_reset}     ${c_dim}vault '@things' lines → Things 3 tasks${c_reset}
     ${c_white}claw secret <cmd>${c_reset}      ${c_dim}init|env|encrypt|decrypt|doctor (age+sops)${c_reset}
     ${c_white}claw selfupdate install${c_reset} ${c_dim}schedule weekly auto-update${c_reset}
@@ -903,6 +905,63 @@ cmd_run_agent() {
 }
 
 # ============================================
+# HARNESS — custom agentic skills/commands/agents (claude/harness/)
+# ============================================
+cmd_harness() {
+    local sub="${1:-list}"; shift || true
+    local hroot="$DOTFILES/claude/harness"
+    case "$sub" in
+        list|ls)
+            printf "\n  ${c_purple}${c_bold}Custom agentic harness${c_reset} ${c_dim}($hroot)${c_reset}\n\n"
+            local kind dir
+            for kind in skills commands agents plugins; do
+                dir="$hroot/$kind"
+                printf "  ${c_cyan}%s${c_reset}\n" "$kind"
+                if [[ -d "$dir" ]]; then
+                    local found=0 e name
+                    while IFS= read -r e; do
+                        name="$(basename "$e")"
+                        [[ "$name" == _* || "$name" == .* ]] && continue
+                        found=1
+                        # deployed if a matching link exists under ~/.claude
+                        local tgt="$HOME/.claude/$kind/$name"
+                        if [[ -e "$tgt" ]]; then
+                            printf "    ${c_green}✓${c_reset} %s ${c_dim}(deployed)${c_reset}\n" "$name"
+                        else
+                            printf "    ${c_dim}○ %s${c_reset}\n" "$name"
+                        fi
+                    done < <(find "$dir" -mindepth 1 -maxdepth 1 2>/dev/null | sort)
+                    [[ $found -eq 0 ]] && printf "    ${c_dim}(none yet)${c_reset}\n"
+                fi
+            done
+            printf "\n  ${c_dim}claw harness new <name> · deploy · path${c_reset}\n"
+            ;;
+        new)
+            local name="${1:-}"
+            [[ -z "$name" ]] && { err "usage: claw harness new <skill-name>"; return 1; }
+            local dest="$hroot/skills/$name"
+            [[ -e "$dest" ]] && { err "already exists: $dest"; return 1; }
+            mkdir -p "$dest"
+            sed "s/^name: my-skill/name: $name/" "$hroot/skills/_template/SKILL.md" > "$dest/SKILL.md" 2>/dev/null \
+                || cp "$hroot/skills/_template/SKILL.md" "$dest/SKILL.md"
+            ok "scaffolded skill: claude/harness/skills/$name/SKILL.md"
+            info "edit it, then: claw harness deploy"
+            ;;
+        deploy|link|sync)
+            bash "$DOTFILES/scripts/setup/link-claude.sh" "$@"
+            ;;
+        path)
+            echo "$hroot"
+            ;;
+        *)
+            err "unknown: claw harness $sub"
+            info "subcommands: list · new <name> · deploy [--dry-run] · path"
+            return 1
+            ;;
+    esac
+}
+
+# ============================================
 # DISPATCH
 # ============================================
 log_usage "${1:-menu}" "$@"
@@ -922,6 +981,7 @@ case "${1:-menu}" in
     ai-services|aisvc|services) shift; cmd_ai_services "$@" ;;
     docker|containers|dps) shift; cmd_docker "$@" ;;
     skills)         shift; cmd_skills "$@" ;;
+    harness)        shift; cmd_harness "$@" ;;
     obsidian|vault) shift; cmd_obsidian "$@" ;;
     onboard|onboarding|character) shift; cmd_onboard "$@" ;;
     integrity|verify|check) shift; cmd_integrity "$@" ;;
