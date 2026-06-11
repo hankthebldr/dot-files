@@ -1,6 +1,6 @@
 # Open Claw — Cross-Platform CLI Environment
 
-> Modular shell configuration system for macOS and Ubuntu/Debian. Single-command surface (`claw`), 9 workflow profiles with brand-accurate fastfetch dashboards, agent-agnostic launcher, profile-aware Obsidian vault routing, modern CLI tools, SSH tunnel management, and full Neovim IDE — all from one `bootstrap.sh`.
+> Modular shell configuration system for macOS and Ubuntu/Debian. Single-command surface (`claw`), 18 workflow profiles with brand-accurate fastfetch dashboards, agent-agnostic launcher, profile-aware Obsidian vault routing, modern CLI tools, SSH tunnel management, and full Neovim IDE — all from one `bootstrap.sh`.
 
 ## Quick Install
 
@@ -82,7 +82,7 @@ Full reference: [`docs/claw.md`](docs/claw.md).
 
 ## Workflow Profiles
 
-Nine profiles, each with a hand-tuned fastfetch dashboard rendering a real brand logo (chafa half-block, 24-bit color).
+18 profiles (8 core + 10 specialized), each with a fastfetch dashboard rendering a real brand logo (chafa half-block, 24-bit color).
 
 | Profile | Focus | Help | Logo brand |
 |---------|-------|------|------------|
@@ -95,6 +95,20 @@ Nine profiles, each with a hand-tuned fastfetch dashboard rendering a real brand
 | **research** | Datasets · scraping · NLP | `research-help` | Jupyter |
 | **cortex** | Palo Alto XSOAR · XSIAM · PAN-OS | `cortex-help` | Cortex orange |
 | **local** | Custom-built CLI tools (auto-loaded specs) | `local-help` | Raspberry Pi |
+
+**Specialized profiles** (same structure, narrower job):
+
+| Profile | Focus | Help |
+|---------|-------|------|
+| **blackwell** | Local-LLM workstation — big models on the BD790i | `blackwell-help` |
+| **brainstorm** | Capture sparks before they cool (VHS theme) | `brainstorm-help` |
+| **deck** | Ship customer artifacts on a deadline (Cortex deck system) | `deck-help` |
+| **demo** | Screen-share-safe — never leak a secret on stage | `demo-help` |
+| **design** | Diagrams & visual storytelling | `design-help` |
+| **homelab** | BD790i ops — K3s, Tailscale, alerts | `homelab-help` |
+| **pmo** | Things 3 ↔ repo ↔ PR workflow (DOS-BBS theme) | `pmo-help` |
+| **tunnels** | SSH tunnel manager — multi-hop port-forwards | `tunnels-help` |
+| **vault** | Obsidian second-brain organization | `vault-help` |
 
 Each profile provides:
 - Themed fastfetch dashboard (`config/.config/fastfetch/config-<profile>.jsonc`)
@@ -319,7 +333,7 @@ Both share `scripts/utils/tui-style.sh` for consistent visual polish (gum spinne
 │   ├── claw-fn.zsh               # zsh fn for claw load/off (parent shell)
 │   ├── profile-helpers.zsh       # _claw_guard for install-hint aliases
 │   ├── welcome-tui.zsh           # Interactive login dashboard
-│   └── profiles/                 # 9 workflow profiles
+│   └── profiles/                 # 18 workflow profiles
 ├── vim/config/nvim/              # Neovim config (lazy.nvim)
 ├── config/
 │   ├── .config/fastfetch/        # 9 profile-specific dashboards + logos

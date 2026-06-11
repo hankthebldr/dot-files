@@ -234,6 +234,12 @@ CORTEX = [
 ]
 
 # profile -> (logo, keys/accent color, title color, tooling)
+#
+# NOTE: this generator owns ONLY the 9 configs below. The 10 specialized
+# profiles (claude, blackwell, brainstorm, deck, demo, design, homelab, pmo,
+# tunnels, vault) ship hand-maintained config-<name>.jsonc files that this
+# script never reads or overwrites — edit those directly. See CLAUDE.md
+# ("Fastfetch Profile Configs"). Running this generator will NOT touch them.
 CONFIGS = {
     # Startup + default: use the real system icon (Apple on macOS, distro on
     # Linux) — cleaner and more recognizable than the ASCII OPEN CLAW header.
