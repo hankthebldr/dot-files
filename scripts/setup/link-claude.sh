@@ -48,7 +48,8 @@ _run() {
 # Create dst -> src. Already-correct links are a no-op; wrong symlinks are
 # repointed; real files/dirs are backed up first. Never silently destroys data.
 _link() {
-    local src="$1" dst="$2" label="${3:-$(basename "$dst")}"
+    local src="$1" dst="$2"
+    local label="${3:-$(basename "$dst")}"
     [[ -e "$src" ]] || { log_warning "skip $label — source missing: $src"; return 0; }
 
     if [[ -L "$dst" ]]; then
