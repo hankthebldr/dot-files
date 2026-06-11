@@ -38,9 +38,11 @@ check_brew() {
         log_error "Homebrew is not installed. Installing now..."
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-        # Add to PATH for Apple Silicon
+        # Add to PATH for Apple Silicon (guard the append so re-runs don't
+        # stack duplicate shellenv lines in ~/.zprofile).
         if [[ $(uname -m) == 'arm64' ]]; then
-            echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+            local _shellenv='eval "$(/opt/homebrew/bin/brew shellenv)"'
+            grep -qF "$_shellenv" ~/.zprofile 2>/dev/null || echo "$_shellenv" >> ~/.zprofile
             eval "$(/opt/homebrew/bin/brew shellenv)"
         fi
     else

@@ -84,7 +84,8 @@ if [[ -d "$ZSH" ]]; then
 fi
 
 # ── 6. Modular Sources ─────────────────────────────────
-# path.zsh already handled in step 1, but source for any extras
+# PATH is set inline in step 1 (above) — kept there so tools resolve before the
+# welcome TUI runs. There is no separate path.zsh to source.
 [[ -f "$DOTFILES_DIR/shell/exports.zsh" ]] && source "$DOTFILES_DIR/shell/exports.zsh"
 [[ -f "$DOTFILES_DIR/shell/load-env.zsh" ]] && source "$DOTFILES_DIR/shell/load-env.zsh"
 [[ -f "$DOTFILES_DIR/shell/aliases.zsh" ]] && source "$DOTFILES_DIR/shell/aliases.zsh"
@@ -96,8 +97,9 @@ fi
 # Live progress indicator (window title + completion banner + claw_run wrapper)
 [[ -f "$DOTFILES_DIR/shell/progress.zsh" ]] && source "$DOTFILES_DIR/shell/progress.zsh"
 [[ -f "$DOTFILES_DIR/shell/delight.zsh" ]] && source "$DOTFILES_DIR/shell/delight.zsh"
-# Obsidian Vault OS (vault lives under ~/Documents on this machine)
-export VAULT_PATH="$HOME/Documents/hr-vault-main-pa"
+# Obsidian Vault OS. Default assumes the vault lives under ~/Documents; override
+# per-machine by exporting VAULT_PATH in ~/.zshenv (sourced before this file).
+export VAULT_PATH="${VAULT_PATH:-$HOME/Documents/hr-vault-main-pa}"
 [[ -f "$VAULT_PATH/_agents/shell-aliases.sh" ]] && source "$VAULT_PATH/_agents/shell-aliases.sh"
 
 # ── 7. Tool Initializations (all guarded) ───────────────

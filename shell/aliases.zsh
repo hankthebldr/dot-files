@@ -75,10 +75,8 @@ alias .....='cd ../../../..'
 alias ~='cd ~'
 alias -- -='cd -'
 
-# Safety nets
-alias rm='rm -i'
-alias cp='cp -i'
-alias mv='mv -i'
+# Safety nets — rm/cp/mv/ln live in security.zsh (the canonical -iv versions,
+# sourced after this file). Defining them here too just shadowed-then-lost.
 alias mkdir='mkdir -pv'
 
 # ============================================
@@ -380,12 +378,12 @@ alias sysinfo='fastfetch'
 alias fetch='fastfetch'
 
 # ── Network Inspection ──
-alias myip='curl -s ifconfig.me'
+# myip/ports live in security.zsh (HTTPS + all-protocol variants, sourced
+# after this file). Kept out of here to avoid a shadowed duplicate.
 alias localip='local_ip'  # cross-platform via platform.zsh
 alias ips='ip -br addr 2>/dev/null || ifconfig | grep "inet " | grep -v 127.0.0.1'
 alias ping='ping -c 5'
 # speed alias set by platform.zsh (networkQuality on macOS, speedtest on Linux)
-alias ports='lsof -iTCP -sTCP:LISTEN -n -P'
 alias http='httpie'
 
 # DNS & Routing

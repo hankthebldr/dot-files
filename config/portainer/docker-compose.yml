@@ -9,7 +9,9 @@
 # 9000/9001 are taken by RagFlow's MinIO, so this uses Portainer's HTTPS :9443.
 services:
   portainer:
-    image: portainer/portainer-ce:latest
+    # Pinned to the LTS channel instead of :latest so a `docker compose pull`
+    # can't drag in a surprise major version that breaks the data volume schema.
+    image: portainer/portainer-ce:lts
     container_name: portainer
     restart: unless-stopped
     ports:
