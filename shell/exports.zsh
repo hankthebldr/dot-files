@@ -92,8 +92,12 @@ export FZF_DEFAULT_OPTS="
 # Bat (syntax highlighting)
 export BAT_THEME="GitHub"
 
-# Ripgrep
-export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
+# Ripgrep (only when a config actually exists — rg errors on a dangling path)
+if [[ -f "$HOME/.ripgreprc" ]]; then
+    export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
+else
+    unset RIPGREP_CONFIG_PATH
+fi
 
 # Git pager (delta)
 export GIT_PAGER='delta'
