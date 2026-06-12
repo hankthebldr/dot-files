@@ -21,6 +21,13 @@ adjust-cell-height = 0%
 # screen. Tight padding keeps more cells on screen.
 maximize = false
 window-decoration = true
+# Initial size in cells. The claw dashboard box is 68 cols, the generic
+# fastfetch logo 81, and the profile readout + quickref stack ~52 rows tall —
+# Ghostty's built-in default (~80x24) can't center any of it. 140x48 gives the
+# welcome TUI room to center with margins and show the readout without scroll.
+# Only applies to new windows (window-save-state = never keeps it authoritative).
+window-width = 140
+window-height = 48
 window-padding-x = 4
 window-padding-y = 4
 window-padding-balance = true
