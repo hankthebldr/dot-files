@@ -1,0 +1,13 @@
+# OPEN CLAW situational-awareness probe — runs `situation tick` (probe + diff +
+# notify-on-change). A systemd --user unit so it needs no sudo; `loginctl
+# enable-linger $USER` (done by `claw situation install`) keeps it running across
+# logout. notify-send reaches the desktop via the user session bus.
+#
+# Install: claw situation install   (copies this + the .timer to ~/.config/systemd/user/)
+[Unit]
+Description=OPEN CLAW situational-awareness tick (probe + change-notify)
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env bash %h/.dotfiles/scripts/utils/situation.sh tick
