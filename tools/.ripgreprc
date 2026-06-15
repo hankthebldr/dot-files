@@ -1,0 +1,20 @@
+# ripgrep config — loaded via $RIPGREP_CONFIG_PATH (shell/exports.zsh points it
+# here when ~/.ripgreprc exists). One CLI argument per line; # starts a comment.
+
+# Case-insensitive unless the pattern contains an uppercase letter.
+--smart-case
+
+# Search hidden files/dirs, but never descend into .git.
+--hidden
+--glob=!.git/
+
+# Readable output: truncate very long lines, show a preview of the match.
+--max-columns=200
+--max-columns-preview
+
+# Broad noise to skip by default — per-project .gitignore/.ignore still apply.
+--glob=!node_modules/
+--glob=!.venv/
+--glob=!__pycache__/
+--glob=!*.min.js
+--glob=!*.lock

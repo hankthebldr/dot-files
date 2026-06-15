@@ -1,0 +1,10 @@
+# Global fd ignore — lives at $XDG_CONFIG_HOME/fd/ignore, the LOWEST-priority
+# ignore source (global < .gitignore < .ignore < .fdignore), so anything a
+# project defines always wins. Safe to keep broad. Syntax = .gitignore.
+.git/
+node_modules/
+.venv/
+__pycache__/
+.mypy_cache/
+.DS_Store
+*.pyc

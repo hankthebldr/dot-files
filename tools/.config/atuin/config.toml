@@ -1,0 +1,17 @@
+# atuin shell history — tuned for a single-machine homelab (no atuin sync server).
+# Stows to ~/.config/atuin/config.toml.
+
+# No sync server configured → don't make network calls to api.atuin.sh.
+auto_sync = false
+update_check = false
+
+# Correct cursor behavior under vi-mode; fuzzy search; search all of history.
+keymap_mode = "auto"
+search_mode = "fuzzy"
+filter_mode = "global"
+
+# Compact inline UI — don't shove the prompt up the whole screen.
+inline_height = 20
+style = "compact"
+show_preview = true
+enter_accept = true

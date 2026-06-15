@@ -89,8 +89,12 @@ export FZF_DEFAULT_OPTS="
     --color=\"$CLAW_FZF_COLOR\"
 "
 
-# Bat (syntax highlighting)
-export BAT_THEME="GitHub"
+# Bat (syntax highlighting) — dark theme (the built-in "GitHub" theme is LIGHT
+# and washes out on the dark bg). Also use bat as the colored man pager. The
+# theme is also set in tools/.config/bat/config; keep the two in sync.
+export BAT_THEME="gruvbox-dark"
+export MANPAGER="bat -plman"
+export MANROFFOPT="-c"
 
 # Ripgrep (only when a config actually exists — rg errors on a dangling path)
 if [[ -f "$HOME/.ripgreprc" ]]; then

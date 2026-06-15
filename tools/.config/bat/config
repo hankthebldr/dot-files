@@ -1,0 +1,11 @@
+# bat — syntax-highlighted cat. Dark theme to match the GitHub-dark / gruvbox
+# terminal palette; the built-in "GitHub" theme is LIGHT and washes out on a
+# dark background. This theme name also drives delta's syntax-theme.
+--theme="gruvbox-dark"
+--style="numbers,changes,header"
+
+# Treat a few extensionless / non-standard files as the right language.
+--map-syntax "*.jsonc:JSON"
+--map-syntax ".ignore:Git Ignore"
+--map-syntax ".fdignore:Git Ignore"
+--map-syntax "*.conf:INI"
