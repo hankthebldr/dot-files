@@ -17,8 +17,21 @@
     diffFilter = delta --color-only
 
 [delta]
+    features = claw-dark
     navigate = true
     light = false
+
+[delta "claw-dark"]
+    side-by-side = true
+    line-numbers = true
+    hyperlinks = true
+    syntax-theme = gruvbox-dark
+    wrap-max-lines = 2
+    file-style = "#58a6ff" bold
+    file-decoration-style = "#30363d" ul
+    line-numbers-minus-style = "#ff7b72"
+    line-numbers-plus-style = "#3fb950"
+    line-numbers-zero-style = "#6e7681"
 
 [merge]
     conflictstyle = diff3
