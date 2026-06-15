@@ -13,6 +13,13 @@ source "$DOTFILES_DIR/scripts/utils/logger.sh"
 source "$DOTFILES_DIR/scripts/utils/detect-os.sh"
 detect_os
 
+# aichat may already live in ~/.cargo/bin (cargo install) or ~/.local/bin (release
+# binary); neither is guaranteed on a non-login script PATH. Without this, the
+# `command -v aichat` idempotency guard misses an existing install, tries to
+# reinstall, hits cargo's "already installed", and aborts before config + agent
+# registration. Surface those dirs so a re-run completes cleanly.
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+
 CLAW_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claw"
 AGENTS_TOML="$CLAW_CONFIG_DIR/agents.toml"
 AICHAT_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/aichat"
