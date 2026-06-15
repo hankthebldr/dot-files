@@ -9,7 +9,9 @@
 font-family = "JetBrainsMono Nerd Font Mono"
 font-size = 10
 font-feature = "-calt"
-font-thicken = true
+# font-thicken is macOS-only — no-op on the GTK/freetype Linux build. On Linux,
+# heavier strokes come from freetype-load-flags (e.g. hinting, force-autohint).
+# font-thicken = true
 # Tight line height for a dense viewport (was +10%, which loosened rows).
 adjust-cell-height = 0%
 
@@ -36,6 +38,10 @@ window-theme = dark
 gtk-titlebar = true
 gtk-tabs-location = top
 gtk-wide-tabs = false
+# Reuse one GTK process so new windows open instantly and share memory. Ghostty
+# autodetects this but it's unreliable for non-GNOME-launched windows, and the
+# launch dashboard makes cold starts costly — force it on.
+gtk-single-instance = true
 unfocused-split-opacity = 0.85
 
 # ── macOS-only knobs (ignored on Linux) ───────────────────────────────
@@ -44,11 +50,12 @@ macos-option-as-alt = true
 macos-window-shadow = true
 
 # ── Appearance / eye-candy ────────────────────────────────────────────
-# Translucent surface with a blurred backdrop. Blur needs a compositor that
-# supports it (KDE, Hyprland, macOS; GNOME/Mutter shows the transparency but
-# usually skips the blur). Drop opacity toward 0.90 for more glass, 1.0 = solid.
+# Translucent surface. background-blur is honored only on KDE Plasma / macOS;
+# GNOME/Mutter (this box is GNOME/X11) ignores it, so it's left off rather than
+# implying a glass effect that never renders. Opacity works under GNOME's
+# compositor — drop toward 0.90 for more glass, 1.0 = solid.
 background-opacity = 0.93
-background-blur = 20
+# background-blur = 20   # KDE/macOS only — silent no-op on GNOME/Mutter
 # Bold text uses the bright ANSI slots → punchier, still on-palette.
 bold-is-bright = true
 # Nudge legibility when an app paints fg/bg too close together (1.0 = off).
@@ -83,7 +90,10 @@ clipboard-trim-trailing-spaces = true
 
 # ── Shell integration ─────────────────────────────────────────────────
 shell-integration = zsh
-shell-integration-features = cursor,sudo,title
+# ssh-terminfo auto-installs Ghostty's terminfo on remote hosts (no more
+# "unknown terminal: xterm-ghostty" / garbled keys when SSHing the tailnet);
+# ssh-env exports a compatible TERM where terminfo can't be installed.
+shell-integration-features = cursor,sudo,title,ssh-env,ssh-terminfo
 mouse-hide-while-typing = true
 cursor-style = bar
 cursor-style-blink = true
