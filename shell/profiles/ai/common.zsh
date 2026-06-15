@@ -18,6 +18,11 @@ alias oserve="ollama serve"
 alias opull="ollama pull"
 alias orun="ollama run"
 
+# --- Local Hermes (refusal-prone fallback; Nous Hermes via Ollama) ---
+# Shorthand for the `hermes` wrapper (bin/hermes). One-shot: lhermes "prompt"
+# REPL: lhermes. Override model with CLAW_HERMES_MODEL (default hermes3:8b).
+alias lhermes="hermes"
+
 # --- API one-liners ---
 alias oai="openai api chat.completions.create -m gpt-4o"
 alias fab="fabric --pattern"
