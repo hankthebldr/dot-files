@@ -177,6 +177,8 @@ cmd_tick() {
     local ph ch; ph="$(gf "$p" '.homelab_reachable')"; ch="$(gf "$c" '.homelab_reachable')"
     [ "$ph" = "true" ] && [ "$ch" = "false" ] && notify crit "Homelab unreachable" "${HOMELAB_HOST} not responding"
     [ "$ph" = "false" ] && [ "$ch" = "true" ] && notify info "Homelab back" "${HOMELAB_HOST} reachable"
+
+    return 0   # don't leak the last test's status — the systemd unit would show 'failed' on a clean run
 }
 
 cmd_show() {
@@ -196,6 +198,7 @@ cmd_show() {
     else
         cat "$SNAP"
     fi
+    return 0
 }
 
 cmd_alerts() {
