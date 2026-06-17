@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # logo-from-image.sh — convert an image (URL or file) into a fastfetch-ready
-# colored logo file using chafa (half-block, 24-bit truecolor).
+# colored logo file using chafa (quad-block, 24-bit truecolor).
 #
 # Usage:
 #   logo-from-image.sh <profile> <image-url-or-path>
@@ -58,9 +58,17 @@ else
     cp "$WORK/source" "$WORK/image.png"
 fi
 
-# 3. chafa — half-block, truecolor, sized for fastfetch
-echo "  → converting to ${WIDTH}x${HEIGHT} half-block ASCII (24-bit color)"
-chafa -s "${WIDTH}x${HEIGHT}" --symbols=half --colors=truecolor --bg="$BG" "$WORK/image.png" > "$LOGO_FILE"
+# 3. chafa — QUAD blocks, truecolor, sized for fastfetch.
+#   --symbols=quad uses the 2x2 quadrant block elements (U+2596..U+259F) for
+#   4 sub-cells/glyph vs --symbols=half's 2 — roughly double the detail at the
+#   same cell size, while staying within Unicode 1.1 block elements that every
+#   terminal font ships (verified: JetBrainsMono Nerd Font covers them).
+#   Deliberately NOT sextant/octant (U+1FB00 / U+1CC00): higher density but they
+#   tofu in JetBrainsMono Nerd Font (the active Ghostty font) and over SSH.
+#   -f symbols forces text output: without it chafa auto-detects a graphics
+#   terminal (e.g. Ghostty) and would bake the kitty protocol into the .txt.
+echo "  → converting to ${WIDTH}x${HEIGHT} quad-block ASCII (24-bit color)"
+chafa -f symbols -s "${WIDTH}x${HEIGHT}" --symbols=quad --colors=truecolor --bg="$BG" "$WORK/image.png" > "$LOGO_FILE"
 
 # 4. Patch config to use type=data + the new source path
 echo "  → patching $CONFIG_FILE → type:data"
