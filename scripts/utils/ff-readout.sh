@@ -35,7 +35,7 @@ cf() {  # cf <field> → ANSI color for that field's label (color-by-type)
   case "$1" in
     os|host|term)                 printf '%s' "$PURPLE" ;;
     kernel|uptime|load|cpu|cores) printf '%s' "$BLUE" ;;
-    shell|pkgs|mem|swap)          printf '%s' "$GREEN" ;;
+    shell|pkgs|mem|swap|clis)     printf '%s' "$GREEN" ;;
     disk|batt)                    printf '%s' "$ORANGE" ;;
     *)                            printf '%s' "$MUTED" ;;
   esac
@@ -44,6 +44,8 @@ I_OS=$''; I_HOST=$''; I_KERN=$''; I_UP=$''; I_LOAD=$''
 I_SH=$''; I_TERM=$''; I_PKG=$''; I_LOC=$''
 I_CPU=$''; I_CORE=$''; I_MEM=$''; I_SWAP=$''; I_DISK=$''
 I_IP=$''; I_WIFI=$''; I_BATT=$''; I_DATE=$''
+# Local-profile rows reuse existing glyphs (terminal = CLI repos, chip = tools).
+I_CLIS="$I_TERM"; I_TOOLS="$I_KERN"
 
 g() {  # g <field> → value (best-effort, fast, never errors)
   case "$1" in
@@ -80,6 +82,13 @@ g() {  # g <field> → value (best-effort, fast, never errors)
             else iwgetid -r 2>/dev/null; fi ;;
     batt)   if is_mac; then pmset -g batt 2>/dev/null | grep -oE '[0-9]+%' | head -1
             else local c; c=$(cat /sys/class/power_supply/BAT0/capacity 2>/dev/null); [[ -n "$c" ]] && echo "$c%"; fi ;;
+    clis)   local d="${LOCAL_CLI_DIR:-$HOME/Github/local-clis}" t=0 s=0 x
+            [[ -d "$d" ]] || return
+            for x in "$d"/*/; do [[ -d "$x" ]] || continue; t=$((t+1)); [[ -f "${x}.clistartup" ]] && s=$((s+1)); done
+            (( t > 0 )) && printf '%d repos · %d load' "$t" "$s" || printf 'none yet' ;;
+    tools)  local out='' t
+            for t in git make tmux nvim fzf; do command -v "$t" >/dev/null 2>&1 && out="$out $t"; done
+            printf '%s' "${out# }" ;;
     date)   date '+%a %b %d  %H:%M' ;;
   esac
 }
@@ -118,6 +127,12 @@ case "${1:-all}" in
   r7) row "$I_TERM" "Term"   term    "$I_WIFI" "Wi-Fi" wifi ;;
   r8) row "$I_PKG"  "Pkgs"   pkgs    "$I_BATT" "Batt"  batt ;;
   r9) row "$I_LOC"  "Locale" locale  "$I_DATE" "Date"  date ;;
+  # Local profile (config-local.jsonc): compact CLI-dev two-column readout.
+  l1) row "$I_OS"   "OS"     os      "$I_UP"    "Up"    uptime ;;
+  l2) row "$I_KERN" "Kernel" kernel  "$I_CPU"   "CPU"   cpu ;;
+  l3) row "$I_MEM"  "Mem"    mem     "$I_DISK"  "Disk"  disk ;;
+  l4) row "$I_IP"   "IP"     ip      "$I_SH"    "Shell" shell ;;
+  l5) row "$I_CLIS" "CLIs"   clis    "$I_TOOLS" "Tools" tools ;;
   all)
     for r in r1 r2 r3 r4 r5 r6 r7 r8 r9; do "$0" "$r"; done ;;
 esac
