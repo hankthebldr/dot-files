@@ -199,25 +199,41 @@ Re-running just upgrades what's installed.
 
 ## Customizing logos
 
-Each profile's fastfetch dashboard renders an ASCII rendition of a real
-brand logo via `chafa`. To swap:
+Each brand profile ships **two** logo assets so the dashboard looks its best in
+a graphics terminal while still degrading gracefully:
+
+- `logo-<profile>.png` — high-res raster (the **graphics logo**). On a live
+  local Ghostty / Kitty / iTerm tty the `claw_ff` shim (`shell/fastfetch.zsh`)
+  renders it via the kitty/iterm image protocol, pinned to 28×14 cells.
+- `logo-<profile>.txt` — `chafa` **quad-block** 24-bit ANSI (the **text
+  fallback**). Used over SSH, in tmux, on dumb/`linux`/`screen` terminals, or
+  when piped. fastfetch's `--logo-type auto` does *not* detect graphics support
+  or fall back, so the shim scripts the choice.
+
+> Quad blocks (U+2596–259F), not half-blocks — ~2× the detail and font-safe.
+> Sextant/octant are denser still but tofu in `JetBrainsMono Nerd Font` and over
+> SSH, so the recipe deliberately avoids them.
+
+Regenerate **all** brand logos (both tiers) from their canonical sources:
+
+```bash
+bash scripts/utils/regen-logos.sh            # all profiles
+bash scripts/utils/regen-logos.sh local ai   # just these
+```
+
+`regen-logos.sh` is the single source of truth for the brand mapping
+(`claude→anthropic`, `cloud→kubernetes`, `security→kalilinux`, `devops→docker`,
+`ai→huggingface`, `research→jupyter`, `cortex→paloaltosoftware`,
+`local→raspberrypi`). Tunables: `W=`, `H=`, `PNG_PX=`, `BG=`.
+
+Swap a **single** profile to new art (writes both `.png` and `.txt`, patches the
+config to `file-raw`):
 
 ```bash
 bash scripts/utils/logo-from-image.sh <profile> <url-or-path>
-
-# Examples:
 bash scripts/utils/logo-from-image.sh claude  https://cdn.simpleicons.org/anthropic/d97757
 bash scripts/utils/logo-from-image.sh cloud   ~/Downloads/aws-logo.png
 ```
-
-The helper:
-1. Fetches the URL or copies the local file
-2. Rasterizes SVG → PNG (400×400, GitHub Dark bg) via `rsvg-convert`
-3. Converts to 28×14 half-block 24-bit ASCII via `chafa`
-4. Writes `config/.config/fastfetch/logo-<profile>.txt`
-5. Patches `config-<profile>.jsonc` to use `logo.type=file-raw`
-
-Tunables: `WIDTH=`, `HEIGHT=`, `BG=` (hex without `#`).
 
 Requires `chafa` and `librsvg` (`brew install chafa librsvg`).
 

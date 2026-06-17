@@ -253,7 +253,9 @@ function claw_welcome_tui() {
                 DOTFILES_DIR="$_d" python3 "$_dash"
             elif command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
                 echo ""
-                fastfetch -c "$_ff_profile"
+                # claw_ff picks the kitty/iterm raster logo in Ghostty/Kitty/iTerm,
+                # falls back to the config's text logo over SSH/tmux/dumb terminals.
+                if typeset -f claw_ff &> /dev/null; then claw_ff "$key" "$_ff_profile"; else fastfetch -c "$_ff_profile"; fi
             fi
             # Readout under the art: default keeps its quick-ref card; every
             # other profile gets the metadata-driven key-tools/docs/help readout.

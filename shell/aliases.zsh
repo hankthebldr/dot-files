@@ -481,7 +481,8 @@ claw() {
     local ff="$_d/config/.config/fastfetch/config-${profile}.jsonc"
     if command -v fastfetch &>/dev/null && [[ -f "$ff" ]]; then
         echo ""
-        fastfetch -c "$ff"
+        # claw_ff = kitty/iterm raster logo in Ghostty/Kitty/iTerm, text fallback elsewhere.
+        if typeset -f claw_ff &>/dev/null; then claw_ff "$profile" "$ff"; else fastfetch -c "$ff"; fi
     fi
 }
 alias aliases='$EDITOR $DOTFILES_DIR/shell/aliases.zsh'

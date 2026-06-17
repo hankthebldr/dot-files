@@ -38,6 +38,9 @@ export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 # ── 2.5 Ghostty terminfo guard (before the TUI uses the terminal) ───────
 [[ -f "$DOTFILES_DIR/shell/ghostty-terminfo.zsh" ]] && source "$DOTFILES_DIR/shell/ghostty-terminfo.zsh"
 
+# ── 2.6 fastfetch launcher (claw_ff: kitty/iterm logo in Ghostty, text elsewhere) ──
+[[ -f "$DOTFILES_DIR/shell/fastfetch.zsh" ]] && source "$DOTFILES_DIR/shell/fastfetch.zsh"
+
 # ── 3. Welcome TUI (BEFORE p10k instant prompt) ─────────
 # P10k instant prompt suppresses all stdout during init.
 # The TUI must run BEFORE that, while we still own the terminal.
