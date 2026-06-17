@@ -52,8 +52,8 @@ fi
 # 2. Detect format and rasterize SVG → PNG if needed
 KIND=$(file -b --mime-type "$WORK/source")
 if [[ "$KIND" == "image/svg+xml" ]] || head -1 "$WORK/source" | grep -q '<svg\|<?xml'; then
-    echo "  → rasterizing SVG → PNG (400x400, bg #$BG)"
-    rsvg-convert -w 400 -h 400 -b "#$BG" "$WORK/source" -o "$WORK/image.png"
+    echo "  → rasterizing SVG → PNG (512x512, bg #$BG)"
+    rsvg-convert -w 512 -h 512 -b "#$BG" "$WORK/source" -o "$WORK/image.png"
 else
     cp "$WORK/source" "$WORK/image.png"
 fi
@@ -69,6 +69,12 @@ fi
 #   terminal (e.g. Ghostty) and would bake the kitty protocol into the .txt.
 echo "  → converting to ${WIDTH}x${HEIGHT} quad-block ASCII (24-bit color)"
 chafa -f symbols -s "${WIDTH}x${HEIGHT}" --symbols=quad --colors=truecolor --bg="$BG" "$WORK/image.png" > "$LOGO_FILE"
+
+# 3b. Keep the high-res raster as the Ghostty/Kitty/iTerm graphics logo. The
+#     claw_ff shim (shell/fastfetch.zsh) shows this on a live local graphics
+#     terminal and falls back to the .txt above over SSH / tmux / dumb terminals.
+cp "$WORK/image.png" "$LOGO_DIR/logo-$PROFILE.png"
+echo "  → saved graphics logo logo-$PROFILE.png"
 
 # 4. Patch config to use type=data + the new source path
 echo "  → patching $CONFIG_FILE → type:data"
