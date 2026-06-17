@@ -108,7 +108,10 @@ def base_modules():
         mod("memory", "mem", "Memory", GREEN),
         mod("swap", "swap", "Swap", GREEN),
         mod("disk", "disk", "Disk", ORANGE, showReadOnly=False),
-        mod("physicaldisk", "drive", "Drive", ORANGE),
+        # NOTE: physicaldisk is intentionally omitted. It enumerates /sys/block
+        # with no mount filter, so on snap/container hosts it floods the readout
+        # with dozens of squashfs/loop devices ([Virtual, Fixed, Read-only]).
+        # The `disk` module above already conveys storage on macOS + Linux.
         mod("battery", "batt", "Battery", ORANGE),
         mod("poweradapter", "power", "Power", ORANGE),
         mod("sound", "sound", "Sound", RED),

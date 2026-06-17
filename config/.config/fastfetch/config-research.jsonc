@@ -161,11 +161,6 @@
       "showReadOnly": false
     },
     {
-      "type": "physicaldisk",
-      "key": "  Drive",
-      "keyColor": "38;2;227;179;65"
-    },
-    {
       "type": "battery",
       "key": "  Battery",
       "keyColor": "38;2;227;179;65"
