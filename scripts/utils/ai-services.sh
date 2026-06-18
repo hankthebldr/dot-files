@@ -63,6 +63,7 @@ die()   { printf '  %s✗%s %s\n' "$C_RED"   "$C_RST" "$*" >&2; exit 1; }
 #   local    spec = absolute path to the compose file in the repo
 #   upstream spec = <git-url>::<subdir>::<compose-file>
 SERVICES=(
+  "litellm|local|4000|Unified LLM gateway (ollama+vLLM+llama-swap+cloud)|$DOTFILES/config/litellm/docker-compose.yml"
   "open-webui|local|3000|ChatGPT-style UI for Ollama|$DOTFILES/config/open-webui/docker-compose.yml"
   "langfuse|local|3001|LLM observability / tracing|$DOTFILES/config/langfuse/docker-compose.yml"
   "portainer|local|9443|Docker management web UI|$DOTFILES/config/portainer/docker-compose.yml"

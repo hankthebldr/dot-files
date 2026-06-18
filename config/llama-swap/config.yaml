@@ -1,0 +1,35 @@
+# llama-swap — one OpenAI-compatible endpoint that hot-swaps vLLM models on
+# demand and frees VRAM after an idle TTL. The point on a 24 GB box: keep an
+# API up while juggling models without manual docker stop / VRAM thrash.
+#
+# Launch:  llama-swap --config ~/.dotfiles/config/llama-swap/config.yaml --listen 127.0.0.1:8090
+# Use:     curl http://localhost:8090/v1/chat/completions -d '{"model":"Qwen/Qwen2.5-7B-Instruct",...}'
+#          (or front it with LiteLLM's "swap/*" route — see config/litellm/config.yaml)
+#
+# Each entry's `cmd` spawns the backend; llama-swap stops one model before
+# starting another (only one binds :8000 at a time), and kills it after `ttl`
+# idle seconds. `cmd` is a folded scalar (>) so it collapses to one line.
+# NOTE: HF cache path is hardcoded for this box; adjust if it moves. Match the
+# vllm/vllm-openai image tag to what `docker images` actually has.
+
+healthCheckTimeout: 300
+logLevel: info
+
+models:
+  "Qwen/Qwen2.5-7B-Instruct":
+    cmd: >
+      docker run --rm --gpus all --name llamaswap-vllm
+      -v /home/henry/.cache/huggingface:/root/.cache/huggingface
+      -p 8000:8000 vllm/vllm-openai:latest
+      --model Qwen/Qwen2.5-7B-Instruct --port 8000 --max-model-len 8192
+    proxy: http://127.0.0.1:8000
+    ttl: 600
+
+  "Qwen/Qwen2.5-0.5B-Instruct":
+    cmd: >
+      docker run --rm --gpus all --name llamaswap-vllm
+      -v /home/henry/.cache/huggingface:/root/.cache/huggingface
+      -p 8000:8000 vllm/vllm-openai:latest
+      --model Qwen/Qwen2.5-0.5B-Instruct --port 8000 --max-model-len 4096
+    proxy: http://127.0.0.1:8000
+    ttl: 300

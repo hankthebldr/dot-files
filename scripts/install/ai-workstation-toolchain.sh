@@ -322,6 +322,19 @@ install_inference_stack() {
         log_info "llama.cpp: build from source for CUDA backend (no apt package with GPU support)"
     fi
 
+    # llama-swap — one OpenAI endpoint that hot-swaps models + frees VRAM on TTL.
+    # Distributed as prebuilt Go binaries (release tags like v228 aren't valid Go
+    # module semver, so `go install` won't take them — fetch the release asset).
+    if command -v llama-swap &>/dev/null; then
+        log_info "llama-swap present ($(llama-swap --version 2>&1 | head -1))"
+    else
+        local lsver="v228"
+        log_info "Installing llama-swap $lsver → ~/.local/bin ..."
+        run "curl -sL -o /tmp/llama-swap.tgz 'https://github.com/mostlygeek/llama-swap/releases/download/${lsver}/llama-swap_${lsver#v}_linux_amd64.tar.gz'"
+        run "tar xzf /tmp/llama-swap.tgz -C /tmp llama-swap && install -m 0755 /tmp/llama-swap ~/.local/bin/llama-swap && rm -f /tmp/llama-swap.tgz /tmp/llama-swap"
+        log_info "Config: ~/.dotfiles/config/llama-swap/config.yaml — launch: llama-swap --config <it> --listen 127.0.0.1:8090"
+    fi
+
     # Ollama — auto-detects GPU. Already installed by homelab-toolchain, just remind.
     if command -v ollama &>/dev/null; then
         log_info "Ollama detected — restart to pick up new GPU: sudo systemctl restart ollama"

@@ -1,0 +1,43 @@
+# LiteLLM gateway model_list — edit to match the models you actually serve.
+# Clients hit http://localhost:4000/v1 with the LITELLM_MASTER_KEY as the
+# Bearer token and pick a backend by `model_name` below.
+#
+# Routing map on this box:
+#   ollama   → host systemd daemon, always on        (:11434)
+#   swap     → llama-swap, hot-swaps vLLM w/ TTL VRAM unload (:8090)
+#   vllm     → a directly-launched vLLM container     (:8000)
+
+model_list:
+  # ── ollama (always-on, no VRAM juggling) ──────────────────────────────
+  - model_name: qwen-coder
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:7b
+      api_base: http://host.docker.internal:11434
+
+  - model_name: qwen-32b
+    litellm_params:
+      model: ollama_chat/qwen2.5:32b-instruct-q4_K_M
+      api_base: http://host.docker.internal:11434
+
+  # ── llama-swap front (auto-loads/unloads vLLM models on demand) ───────
+  # Wildcard pass-through: request "swap/Qwen/Qwen2.5-7B-Instruct" and LiteLLM
+  # forwards "Qwen/Qwen2.5-7B-Instruct" unchanged to llama-swap, which matches
+  # it against config/llama-swap/config.yaml and spins the backend up.
+  - model_name: "swap/*"
+    litellm_params:
+      model: "openai/*"
+      api_base: http://host.docker.internal:8090/v1
+      api_key: none
+
+  # ── direct vLLM (when you run vllm-serve.sh standalone) ───────────────
+  - model_name: vllm
+    litellm_params:
+      model: openai/served-model
+      api_base: http://host.docker.internal:8000/v1
+      api_key: none
+
+litellm_settings:
+  drop_params: true          # tolerate params a local backend doesn't support
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
