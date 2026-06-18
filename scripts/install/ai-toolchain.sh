@@ -134,9 +134,13 @@ toolchain_extras() {
         log_warning "npm not found — skipping npm-based agent CLIs (install Node.js first)"
         RESULT_SKIPPED+=("npm-agent-clis (no npm)")
     else
+        # Order matters: opencode-ai ships the `opencode` binary that
+        # openwork-orchestrator requires on PATH, so it must install first.
         local npm_agents=(
             "@anthropic-ai/claude-agent-sdk"
             "@google/gemini-cli"
+            "opencode-ai"            # terminal AI coding agent (opencode.ai)
+            "openwork-orchestrator"  # headless OpenWork (Cowork alt) — needs opencode
         )
         local pkg
         for pkg in "${npm_agents[@]}"; do
