@@ -62,8 +62,10 @@ die()   { printf '  %s✗%s %s\n' "$C_RED"   "$C_RST" "$*" >&2; exit 1; }
 # name|kind|port|description|spec
 #   local    spec = absolute path to the compose file in the repo
 #   upstream spec = <git-url>::<subdir>::<compose-file>
+#   host     spec = systemd --user unit name (not docker — a host binary daemon)
 SERVICES=(
   "litellm|local|4000|Unified LLM gateway (ollama+vLLM+llama-swap+cloud)|$DOTFILES/config/litellm/docker-compose.yml"
+  "llama-swap|host|8090|Model hot-swap proxy — vLLM, TTL VRAM unload (systemd --user)|llama-swap.service"
   "open-webui|local|3000|ChatGPT-style UI for Ollama|$DOTFILES/config/open-webui/docker-compose.yml"
   "langfuse|local|3001|LLM observability / tracing|$DOTFILES/config/langfuse/docker-compose.yml"
   "portainer|local|9443|Docker management web UI|$DOTFILES/config/portainer/docker-compose.yml"
@@ -164,6 +166,10 @@ _compose() {
     ( cd "$SVC_DIR" && docker compose -p "claw-$name" "${SVC_FLAGS[@]}" "$@" )
 }
 
+# host (systemd --user) service helpers. spec field = the unit name.
+_is_host() { [[ "$(_field "$1" 2)" == "host" ]]; }
+_systemctl() { systemctl --user "$1" "$(_field "$2" 5)"; }
+
 _port_up() { local p="$1"; { exec 3<>"/dev/tcp/127.0.0.1/$p"; } 2>/dev/null && { exec 3>&-; return 0; }; return 1; }
 _scheme() { case "$1" in 9443|8443|443) printf 'https' ;; *) printf 'http' ;; esac; }
 
@@ -190,6 +196,18 @@ cmd_status() {
         local port; port="$(_field "$n" 3)"
         local kind; kind="$(_field "$n" 2)"
         [[ -n "$kind" ]] || { warn "unknown: $n"; continue; }
+        if [[ "$kind" == "host" ]]; then
+            if _systemctl is-active "$n" &>/dev/null; then
+                if _port_up "$port"; then
+                    ok "$(printf '%-11s' "$n") ${C_MUTED}reachable → $(_scheme "$port")://localhost:$port  (systemd --user)${C_RST}"
+                else
+                    warn "$(printf '%-11s' "$n") ${C_MUTED}active, port $port not answering yet${C_RST}"
+                fi
+            else
+                printf '  %s·%s %-11s %sstopped (systemd --user)%s\n' "$C_MUTED" "$C_RST" "$n" "$C_MUTED" "$C_RST"
+            fi
+            continue
+        fi
         # Container count is the source of truth for "is THIS stack up" — more
         # reliable than a bare port probe (a stack can be mid-restart). Each
         # stack now has a distinct host port, but only this stack's own claw-<n>
@@ -217,11 +235,20 @@ cmd_status() {
 
 cmd_up() {
     local names; names=("$@"); [[ ${#names[@]} -eq 0 ]] && mapfile -t names < <(_all_names)
-    command -v docker &>/dev/null || die "docker not installed"
-    docker info &>/dev/null || die "docker daemon not reachable (is it running / are you in the docker group?)"
     local n
     for n in "${names[@]}"; do
         printf '\n  %s%s▸ %s%s\n' "$C_BOLD" "$C_BLUE" "$n" "$C_RST"
+        if _is_host "$n"; then
+            info "starting (systemd --user)…"
+            if _systemctl start "$n"; then
+                ok "$n up → $(_scheme "$(_field "$n" 3)")://localhost:$(_field "$n" 3)"
+            else
+                warn "$n: systemctl start failed — check: claw ai-services logs $n"
+            fi
+            continue
+        fi
+        command -v docker &>/dev/null || die "docker not installed"
+        docker info &>/dev/null || die "docker daemon not reachable (is it running / are you in the docker group?)"
         _resolve "$n" 1
         info "pulling images (first run can take several minutes)…"
         _compose "$n" pull 2>&1 | tail -3 || warn "$n: pull reported issues (continuing)"
@@ -239,6 +266,11 @@ cmd_down() {
     local names; names=("$@"); [[ ${#names[@]} -eq 0 ]] && mapfile -t names < <(_all_names)
     local n
     for n in "${names[@]}"; do
+        if _is_host "$n"; then
+            info "stopping $n (systemd --user)…"
+            _systemctl stop "$n" && ok "$n stopped" || warn "$n: systemctl stop reported errors"
+            continue
+        fi
         if [[ "$(_field "$n" 2)" == "upstream" && ! -d "$DATA_HOME/$n/.git" ]]; then
             info "$n not prepared — nothing to stop"; continue
         fi
@@ -254,6 +286,7 @@ cmd_pull() {
     local names; names=("$@"); [[ ${#names[@]} -eq 0 ]] && mapfile -t names < <(_all_names)
     local n
     for n in "${names[@]}"; do
+        _is_host "$n" && { info "$n is a host service — no image to pull"; continue; }
         _resolve "$n" 1 || continue
         info "pulling $n images…"; _compose "$n" pull && ok "$n images refreshed"
     done
@@ -261,11 +294,13 @@ cmd_pull() {
 
 cmd_logs() {
     local n="${1:-}"; [[ -n "$n" ]] || die "usage: ai-services logs <svc>"
+    if _is_host "$n"; then journalctl --user -u "$(_field "$n" 5)" -f --lines=100; return; fi
     _resolve "$n" 0; _compose "$n" logs -f --tail=100
 }
 
 cmd_prepare() {
     local n="${1:-}"; [[ -n "$n" ]] || die "usage: ai-services prepare <svc>"
+    _is_host "$n" && { ok "$n is a host service (systemd --user) — no prep needed; start with: claw ai-services up $n"; return; }
     _resolve "$n" 1; ok "$n prepared (start with: claw ai-services up $n)"
 }
 

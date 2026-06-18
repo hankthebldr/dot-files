@@ -1,0 +1,20 @@
+# llama-swap — OpenAI-compatible model hot-swap proxy (systemd --user unit).
+# Managed by `claw ai-services {up,down,status,restart,logs} llama-swap`.
+# Installed/enabled by scripts/install/ai-workstation-toolchain.sh.
+#
+# Runs as a user service so it inherits the docker group + HF cache without
+# root. For it to stay up across logout (headless homelab use):
+#   loginctl enable-linger "$USER"
+[Unit]
+Description=llama-swap — OpenAI-compatible model hot-swap proxy (:8090)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/llama-swap --config %h/.dotfiles/config/llama-swap/config.yaml --listen 127.0.0.1:8090
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

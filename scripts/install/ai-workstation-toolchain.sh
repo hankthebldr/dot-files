@@ -332,8 +332,14 @@ install_inference_stack() {
         log_info "Installing llama-swap $lsver → ~/.local/bin ..."
         run "curl -sL -o /tmp/llama-swap.tgz 'https://github.com/mostlygeek/llama-swap/releases/download/${lsver}/llama-swap_${lsver#v}_linux_amd64.tar.gz'"
         run "tar xzf /tmp/llama-swap.tgz -C /tmp llama-swap && install -m 0755 /tmp/llama-swap ~/.local/bin/llama-swap && rm -f /tmp/llama-swap.tgz /tmp/llama-swap"
-        log_info "Config: ~/.dotfiles/config/llama-swap/config.yaml — launch: llama-swap --config <it> --listen 127.0.0.1:8090"
     fi
+    # Bootstrap the systemd --user unit so `claw ai-services {up,down} llama-swap`
+    # works. Symlinked (not copied) so repo edits propagate. Idempotent.
+    run "mkdir -p ~/.config/systemd/user"
+    run "ln -sf '$DOTFILES_DIR/config/systemd/llama-swap.service' ~/.config/systemd/user/llama-swap.service"
+    run "systemctl --user daemon-reload && systemctl --user enable llama-swap.service"
+    log_info "llama-swap: start with 'claw ai-services up llama-swap' (config: config/llama-swap/config.yaml, :8090)"
+    log_info "  headless/no-login boot? run once: loginctl enable-linger \"\$USER\""
 
     # Ollama — auto-detects GPU. Already installed by homelab-toolchain, just remind.
     if command -v ollama &>/dev/null; then
