@@ -141,6 +141,7 @@ toolchain_extras() {
             "@google/gemini-cli"
             "opencode-ai"            # terminal AI coding agent (opencode.ai)
             "openwork-orchestrator"  # headless OpenWork (Cowork alt) — needs opencode
+            "promptfoo"              # LLM eval + red-team as config (security/CI)
         )
         local pkg
         for pkg in "${npm_agents[@]}"; do

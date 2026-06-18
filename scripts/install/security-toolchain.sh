@@ -75,6 +75,9 @@ TOOLCHAIN_MAP=(
     "r2|radare2|radare2|none|RE framework"
     "capstone|capstone|libcapstone-dev|none|disassembly lib"
 
+    # ── 07. LLM / AI Security ──────────────────────────────────────────────
+    "garak|garak|?|pipx|NVIDIA LLM vulnerability scanner (prompt-injection/jailbreak probes)"
+
     # ── 06. Heavy / GUI ────────────────────────────────────────────────────
     "wireshark|wireshark|wireshark|none|packet GUI"
     "burpsuite|burp-suite|?|manual:https://portswigger.net/burp/releases|web proxy GUI"
