@@ -97,6 +97,8 @@ fi
 [[ -f "$DOTFILES_DIR/shell/claw-completion.zsh" ]] && source "$DOTFILES_DIR/shell/claw-completion.zsh"
 [[ -f "$DOTFILES_DIR/shell/security.zsh" ]] && source "$DOTFILES_DIR/shell/security.zsh"
 [[ -f "$DOTFILES_DIR/shell/obsidian.zsh" ]] && source "$DOTFILES_DIR/shell/obsidian.zsh"
+# clin plugin — rides on obsidian.zsh's vault resolvers (must load after it)
+[[ -f "$DOTFILES_DIR/shell/clin.zsh" ]] && source "$DOTFILES_DIR/shell/clin.zsh"
 # Live progress indicator (window title + completion banner + claw_run wrapper)
 [[ -f "$DOTFILES_DIR/shell/progress.zsh" ]] && source "$DOTFILES_DIR/shell/progress.zsh"
 [[ -f "$DOTFILES_DIR/shell/delight.zsh" ]] && source "$DOTFILES_DIR/shell/delight.zsh"

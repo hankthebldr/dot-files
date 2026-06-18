@@ -165,6 +165,7 @@ function claw_welcome_tui() {
     l2[actions]+="homelab_ssh\t${c_orange}📡 Homelab SSH${c_reset}${c_dim}        Direct topology launcher${c_reset}\n"
     l2[actions]+="tunnel_mgr\t${c_cyan}🔗 Tunnel Manager${c_reset}${c_dim}     Direct FZF tunnel TUI${c_reset}\n"
     l2[actions]+="vault_open\t${c_orange}📓 Open Vault${c_reset}${c_dim}         Launch Obsidian directly${c_reset}\n"
+    l2[actions]+="clin_open\t${c_cyan}📝 Clin Notes${c_reset}${c_dim}         Obsidian-style TUI · active folder${c_reset}\n"
 
     l2[system]=""
     l2[system]+="onboard\t${c_pink}🕹  Onboarding${c_reset}${c_dim}        80s arcade · picks your profile${c_reset}\n"
@@ -309,6 +310,16 @@ function claw_welcome_tui() {
                 fi
             else
                 echo "  ${c_red}✗${c_reset} obsidian helpers not loaded"
+            fi
+            ;;
+        clin_open)
+            # Direct action — open clin (note TUI) scoped to the active profile
+            # folder. `cl` is defined by shell/clin.zsh and reuses the obsidian
+            # resolvers; it warns + hints at install if clin is absent.
+            if typeset -f cl &>/dev/null; then
+                cl
+            else
+                echo "  ${c_red}✗${c_reset} clin plugin not loaded"
             fi
             ;;
         onboard)

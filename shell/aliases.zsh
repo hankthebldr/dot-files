@@ -467,6 +467,17 @@ claw() {
         esac
         return
     fi
+    # `claw clin ...` — clin plugin (Obsidian-style note TUI, theme/vault-synced)
+    if [[ "$1" == "clin" ]]; then
+        shift
+        case "$1" in
+            ""|sync)     bash "$_d/scripts/utils/clin.sh" sync ;;
+            install)     bash "$_d/scripts/utils/clin.sh" install ;;
+            setup)       bash "$_d/scripts/utils/clin.sh" setup ;;
+            *) printf 'usage: claw clin [sync | install | setup]\n' >&2; return 1 ;;
+        esac
+        return
+    fi
     local profile="$1"
     local profile_path="$_d/shell/profiles/${profile}.zsh"
     if [[ ! -f "$profile_path" ]]; then

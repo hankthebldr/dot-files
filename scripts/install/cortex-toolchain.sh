@@ -29,6 +29,7 @@ TOOLCHAIN_MAP=(
     # ── 01. Standalone CLI Tools ───────────────────────────────────────────
     "demisto-sdk|?|?|pipx|XSOAR content development SDK"
     "panos-cli|?|?|go:github.com/PaloAltoNetworks/panos-cli|PAN-OS Go CLI"
+    "clin|?|?|cargo:clin-rs|Obsidian-style note TUI (clin plugin)"
 )
 
 declare -A TOOLCHAIN_SECTIONS=(
