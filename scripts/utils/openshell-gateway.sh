@@ -23,8 +23,10 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd
 # shellcheck disable=SC1091
 source "$DOTFILES_DIR/scripts/utils/logger.sh"
 
-# uv installs the binary under ~/.local/bin — make sure it's findable.
-[[ -d "$HOME/.local/bin" ]] && PATH="$HOME/.local/bin:$PATH"
+# Managed channel is the NVIDIA snap (/snap/bin, already on PATH). Only fall
+# back to a ~/.local/bin (uv-tool) install if no openshell is on PATH at all —
+# never let a stale uv-tool copy shadow the snap.
+command -v openshell &>/dev/null || { [[ -d "$HOME/.local/bin" ]] && PATH="$HOME/.local/bin:$PATH"; }
 
 POLICY="$DOTFILES_DIR/config/agentic/openshell/policy.yaml"
 DRY_RUN=false
