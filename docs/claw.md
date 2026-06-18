@@ -12,6 +12,8 @@ claw mcp              MCP server manager
 claw homelab          homelab SSH topology
 claw toolkit          Open Claw workflow launcher
 claw skills           browse Claude skills
+claw ai-services <c>  manage local AI service stacks (litellm, llama-swap, …)
+claw gateway <c>      OpenShell sandbox / gateway manager
 claw load <profile>   source a profile in current shell
 claw off              unset active profile
 claw <agent>          launch a registered agent (claude, hermes, …)
@@ -134,6 +136,53 @@ documentation. Now: edit one TOML file. The `claw <name>` dispatcher
 resolves the entry, optionally renders the matching profile's fastfetch
 dashboard, then `exec`s the binary. Replacement-shell handoff — no
 nested-shell weirdness.
+
+---
+
+## AI services & gateways
+
+`claw ai-services` manages the local AI service stacks — start/stop/inspect
+them uniformly regardless of how each one actually runs:
+
+```bash
+claw ai-services list                 # registry + live port status
+claw ai-services up   [svc...]        # start (no args = all)
+claw ai-services down [svc...]        # stop
+claw ai-services restart [svc...]
+claw ai-services status [svc...]
+claw ai-services logs <svc>           # follow logs
+claw ai-services url  <svc>           # print the localhost URL
+```
+
+The registry (`scripts/utils/ai-services.sh`) supports three service **kinds**:
+
+| Kind       | Backed by                          | Examples                          |
+|------------|------------------------------------|-----------------------------------|
+| `local`    | docker compose file in this repo   | litellm, open-webui, langfuse     |
+| `upstream` | cloned compose repo (git)          | dify, ragflow                     |
+| `host`     | systemd `--user` unit (no docker)  | llama-swap                        |
+
+`up`/`down`/`status`/`logs` dispatch on the kind, so a compose stack and a
+host daemon are driven by the same commands.
+
+| Service      | Port  | What it is                                              |
+|--------------|-------|---------------------------------------------------------|
+| `litellm`    | 4000  | Unified OpenAI-compatible gateway → ollama, vLLM, llama-swap, cloud. Config `config/litellm/config.yaml`; master key `LITELLM_MASTER_KEY` (set in `.env`). Image **pinned** (`v1.89.2`) — see the OPSEC note in the compose file. |
+| `llama-swap` | 8090  | Hot-swaps vLLM models behind one endpoint, frees VRAM on an idle TTL — the 24 GB juggling fix. Host binary `~/.local/bin/llama-swap`, systemd `--user` unit, config `config/llama-swap/config.yaml`. |
+| `open-webui` | 3000  | ChatGPT-style UI for ollama                             |
+| `langfuse`   | 3001  | LLM observability / tracing                             |
+| `dify`       | 8080  | LLM app-builder platform (upstream)                     |
+| `ragflow`    | 8081  | RAG engine + deep-doc parsing (upstream)                |
+
+**llama-swap as a host service:** the `ai-workstation-toolchain.sh` installer
+fetches the binary and symlinks `config/systemd/llama-swap.service` into
+`~/.config/systemd/user/`, so `claw ai-services up llama-swap` just runs
+`systemctl --user start`. For it to survive logout on a headless box, run once:
+`loginctl enable-linger "$USER"`.
+
+**Related, not services:** agentic coding CLIs (`claw opencode`, `claw openwork`)
+live in the agent registry; LLM red-team/eval tools (`garak`, `promptfoo`) ship
+with the `security` profile. All are installed by the toolchain installers.
 
 ---
 

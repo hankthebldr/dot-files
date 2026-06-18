@@ -27,8 +27,10 @@ alias lhermes="hermes"
 alias oai="openai api chat.completions.create -m gpt-4o"
 alias fab="fabric --pattern"
 
-# --- LiteLLM proxy + Aider (2026 SOTA) ---
-alias llmproxy="litellm --config ~/.litellm/config.yaml"
+# --- LiteLLM gateway + llama-swap (now claw ai-services, not host CLIs) ---
+alias llmgw="claw ai-services up litellm"           # unified OpenAI gateway :4000
+alias swapup="claw ai-services up llama-swap"        # model hot-swap proxy   :8090
+alias swapdown="claw ai-services down llama-swap"
 alias mar="marimo new"
 alias mart="marimo tutorial"
 
@@ -94,8 +96,19 @@ ai-help() {
   printf "  ${bold}${green}Agents${reset} ${dim}(via claw registry — not aliases)${reset}\n"
   printf "  ${purple}claw claude${reset}    ${dim}Anthropic Claude Code${reset}\n"
   printf "  ${purple}claw gemini${reset}    ${dim}Google Gemini CLI (@google/gemini-cli)${reset}\n"
+  printf "  ${purple}claw opencode${reset}  ${dim}terminal AI coding agent (opencode.ai)${reset}\n"
+  printf "  ${purple}claw openwork${reset}  ${dim}headless OpenWork (Cowork alt, on opencode)${reset}\n"
   printf "  ${purple}claw <name>${reset}    ${dim}any registered agent${reset}\n"
   printf "  ${purple}claw agent list${reset} ${dim}see all registered agents${reset}\n"
+  printf "\n"
+  printf "  ${bold}${green}Gateways & serving${reset} ${dim}(claw ai-services)${reset}\n"
+  printf "  ${purple}llmgw${reset}     ${dim}LiteLLM unified OpenAI gateway      :4000${reset}\n"
+  printf "  ${purple}swapup${reset}    ${dim}llama-swap model hot-swap proxy     :8090${reset}\n"
+  printf "  ${purple}aisst${reset}     ${dim}claw ai-services status (all)${reset}\n"
+  printf "\n"
+  printf "  ${bold}${green}LLM security / eval${reset} ${dim}(also in security profile)${reset}\n"
+  printf "  ${purple}garak${reset}     ${dim}NVIDIA LLM vuln scanner (offline probes)${reset}\n"
+  printf "  ${purple}promptfoo${reset} ${dim}eval + red-team as config (CI)${reset}\n"
   printf "\n"
   printf "  ${bold}${green}Other tools${reset} ${dim}(use real binary names)${reset}\n"
   printf "  ${dim}llama-cpp · whisper-cpp · huggingface-cli · qdrant-cli · pinecone-cli${reset}\n"
@@ -114,7 +127,6 @@ ai-help() {
 
   printf "  ${bold}${green}2026 SOTA${reset} ${dim}(installed via: claw install ai-skills)${reset}\n"
   printf "  ${purple}aider${reset}        ${dim}terminal AI pair programmer${reset}\n"
-  printf "  ${purple}llmproxy${reset}     ${dim}LiteLLM multi-provider proxy${reset}\n"
   printf "  ${purple}mar${reset}          ${dim}marimo (reactive notebooks)${reset}\n"
   printf "  ${purple}langgraph${reset}    ${dim}graph-based agent orchestration${reset}\n"
   printf "  ${purple}inspect${reset}      ${dim}Inspect AI (eval framework)${reset}\n"
@@ -137,6 +149,8 @@ _ai_tool_check() {
     ollama claude gemini aider whisper-cpp python3 pip3 dvc mlflow huggingface-cli adk
     # 2026 SOTA additions
     uv litellm marimo langgraph instructor inspect phoenix
+    # agents + gateways + LLM security (added 2026-06)
+    opencode openwork llama-swap garak promptfoo
     # Blackwell / GPU
     nvidia-smi nvcc nvtop nvitop nvidia-ctk
   )
