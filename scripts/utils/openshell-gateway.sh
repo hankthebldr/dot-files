@@ -23,9 +23,10 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd
 # shellcheck disable=SC1091
 source "$DOTFILES_DIR/scripts/utils/logger.sh"
 
-# Managed channel is the NVIDIA snap (/snap/bin, already on PATH). Only fall
-# back to a ~/.local/bin (uv-tool) install if no openshell is on PATH at all —
-# never let a stale uv-tool copy shadow the snap.
+# Managed channel is the unconfined uv-tool install under ~/.local/bin. The
+# NVIDIA snap can't reach an apt docker-ce socket (no docker-snap slot to bind
+# openshell:docker), so it fails `doctor check` here — uv-tool is the one that
+# works. Ensure ~/.local/bin is findable if no openshell is on PATH yet.
 command -v openshell &>/dev/null || { [[ -d "$HOME/.local/bin" ]] && PATH="$HOME/.local/bin:$PATH"; }
 
 POLICY="$DOTFILES_DIR/config/agentic/openshell/policy.yaml"
