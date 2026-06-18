@@ -47,8 +47,8 @@ install_dev_tools() {
                 if [[ ! -d "$HOME/.pyenv" ]]; then
                     log_info "Installing pyenv..."
                     curl -fsSL https://pyenv.run | bash || log_warning "pyenv install failed"
-                    # pyenv's shell init lives in shell/path.zsh + shell/exports.zsh;
-                    # users with existing .zshrc will need to re-source after install.
+                    # pyenv shell init isn't wired into .zshrc; add
+                    # `eval "$(pyenv init -)"` to ~/.zshenv if you use it.
                 fi
 
                 # Rust via rustup (official, user-space — no sudo)

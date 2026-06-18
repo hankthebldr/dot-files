@@ -41,7 +41,9 @@ claw() {
             # Render the profile dashboard inline (skip if non-interactive)
             if [[ -o interactive ]]; then
                 local _ff="${DOTFILES_DIR:-$HOME/.dotfiles}/config/.config/fastfetch/config-$p.jsonc"
-                command -v fastfetch &>/dev/null && [[ -f "$_ff" ]] && fastfetch -c "$_ff" 2>/dev/null
+                # claw_ff = kitty/iterm raster logo in Ghostty/Kitty/iTerm, text fallback elsewhere.
+                if typeset -f claw_ff &>/dev/null; then claw_ff "$p" "$_ff"
+                else command -v fastfetch &>/dev/null && [[ -f "$_ff" ]] && fastfetch -c "$_ff" 2>/dev/null; fi
             fi
             ;;
         off)

@@ -6,9 +6,9 @@
 # that don't share an install shape:
 #
 #   open-webui   local compose   :3000   ChatGPT-style UI for Ollama
+#   langfuse     local compose   :3001   LLM observability / tracing
 #   dify         upstream clone   :8080   LLM app-builder platform
 #   ragflow      upstream clone   :8081   RAG engine w/ deep-doc parsing (GPU)
-#   langfuse     local compose   :3000   LLM observability / tracing
 #
 #   • local    — compose file shipped in the repo at config/<svc>/.
 #   • upstream — shallow git clone of the project's repo into the per-machine
@@ -64,7 +64,7 @@ die()   { printf '  %s✗%s %s\n' "$C_RED"   "$C_RST" "$*" >&2; exit 1; }
 #   upstream spec = <git-url>::<subdir>::<compose-file>
 SERVICES=(
   "open-webui|local|3000|ChatGPT-style UI for Ollama|$DOTFILES/config/open-webui/docker-compose.yml"
-  "langfuse|local|3000|LLM observability / tracing|$DOTFILES/config/langfuse/docker-compose.yml"
+  "langfuse|local|3001|LLM observability / tracing|$DOTFILES/config/langfuse/docker-compose.yml"
   "portainer|local|9443|Docker management web UI|$DOTFILES/config/portainer/docker-compose.yml"
   "caddy|local|80|Reverse proxy (containers.local → portainer)|$DOTFILES/config/caddy/docker-compose.yml"
   "dify|upstream|8080|LLM app-builder platform|https://github.com/langgenius/dify::docker::docker-compose.yaml"
@@ -189,10 +189,10 @@ cmd_status() {
         local port; port="$(_field "$n" 3)"
         local kind; kind="$(_field "$n" 2)"
         [[ -n "$kind" ]] || { warn "unknown: $n"; continue; }
-        # Container count is the source of truth for "is THIS stack up" — a bare
-        # port check is ambiguous when two services share a port (open-webui and
-        # langfuse both default to :3000). Only this stack's own claw-<n> compose
-        # project counts.
+        # Container count is the source of truth for "is THIS stack up" — more
+        # reliable than a bare port probe (a stack can be mid-restart). Each
+        # stack now has a distinct host port, but only this stack's own claw-<n>
+        # compose project counts here.
         local running=0
         if [[ "$kind" == "local" || -d "$DATA_HOME/$n/.git" ]]; then
             _resolve "$n" 0 2>/dev/null && running="$(_compose "$n" ps -q 2>/dev/null | grep -c .)" || running=0

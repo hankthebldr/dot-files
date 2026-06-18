@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Cross-platform CLI configuration system ("dot-files") that bootstraps a complete developer environment on macOS and Ubuntu/Debian. Supports 8 workflow profiles (Default, Cloud, Security, DevOps, AI, Research, Cortex, Local) with modern CLI tool replacements, profile-specific fastfetch dashboards, and an interactive FZF-based welcome TUI.
+Cross-platform CLI configuration system ("dot-files") that bootstraps a complete developer environment on macOS and Ubuntu/Debian. Supports 18 workflow profiles — 8 core (Default, Cloud, Security, DevOps, AI, Research, Cortex, Local) plus specialized ones (Claude, Blackwell, Brainstorm, Deck, Demo, Design, Homelab, PMO, Tunnels, Vault) — with modern CLI tool replacements, profile-specific fastfetch dashboards, and an interactive FZF-based welcome TUI.
 
 Dotfiles are symlinked from `~/.dotfiles` into the home directory. The expected clone path is `~/.dotfiles`.
 
@@ -64,7 +64,8 @@ bash scripts/install/master-setup.sh domains  # All domain toolchain scripts
 
 `shell/profiles/` contains context-specific environments loaded via the welcome TUI:
 - `default.zsh` — Daily driver with help function, tool check, Apple logo fastfetch
-- `cloud.zsh`, `security.zsh`, `devops.zsh`, `ai.zsh`, `research.zsh`, `cortex.zsh`, `local.zsh`
+- 8 core: `cloud.zsh`, `security.zsh`, `devops.zsh`, `ai.zsh`, `research.zsh`, `cortex.zsh`, `local.zsh` (+ default)
+- 10 specialized: `claude.zsh`, `blackwell.zsh`, `brainstorm.zsh`, `deck.zsh`, `demo.zsh`, `design.zsh`, `homelab.zsh`, `pmo.zsh`, `tunnels.zsh`, `vault.zsh` (18 profiles total)
 
 Each profile provides:
 - `CLAW_PROFILE_THEME` export
@@ -79,13 +80,13 @@ Each profile provides:
 - `config.jsonc` + `logo.txt` — Generic pre-menu OPEN CLAW header
 - `config-{profile}.jsonc` + `logo-{profile}.txt` — 8 profile-specific dashboards
 - Each profile config: a shared, icon-rich **System / Desktop / Hardware / Network** base (Nerd Font / Font Awesome glyph per key, GitHub-dark colors) plus a domain-specific **Tooling** section of `command` modules (live tool status, k8s context, docker containers, etc.). fastfetch silently skips modules with no data, so each machine (macOS or Linux, desktop or headless) auto-populates only what it has.
-- The 9 core dashboards (`config.jsonc`, `config-default.jsonc`, `config-{cloud,security,devops,ai,research,cortex,local}.jsonc`) are generated from a single source of truth — `scripts/utils/gen-fastfetch.py`. Edit the icon map / layout / per-profile tooling there and re-run `python3 scripts/utils/gen-fastfetch.py`; do not hand-edit those 9 files.
+- There are 19 fastfetch configs total: the generic `config.jsonc` plus one `config-<profile>.jsonc` per profile. **9 are generated** (`config.jsonc`, `config-default.jsonc`, `config-{cloud,security,devops,ai,research,cortex,local}.jsonc`) from a single source of truth — `scripts/utils/gen-fastfetch.py`. Edit the icon map / layout / per-profile tooling there and re-run `python3 scripts/utils/gen-fastfetch.py`; do not hand-edit those 9 files. The other **10 are hand-maintained** (`config-{claude,blackwell,brainstorm,deck,demo,design,homelab,pmo,tunnels,vault}.jsonc`) and are NOT touched by the generator — edit those directly.
 - Logo variants: same OPEN CLAW geometry, different color palettes and banner text per profile
 - Default profile uses Apple-inspired logo instead of OPEN CLAW face
 
 ### Gamified Onboarding & Integrity Check
 
-`scripts/utils/onboarding.sh` — 80s arcade-themed character-creation flow that asks 6 personality questions (work hours, weapon of choice, prod-incident style, dream homelab, etc.), tallies points against the 8 workflow profiles, announces an RPG-style "class" (e.g. `SKYSURFER` for cloud, `NIGHTHACKER` for security, `NEUROMANCER` for ai), and offers to install the matching toolchain + activate the profile. Surfaced via `claw onboard`, the welcome TUI ("Onboarding" entry), and the bootstrap end-of-install banner. Visual palette: hot pink / neon cyan / synthwave purple. Uses gum if available, falls back to plain `read`.
+`scripts/utils/onboarding.sh` — 80s arcade-themed character-creation flow that asks 6 personality questions (work hours, weapon of choice, prod-incident style, dream homelab, etc.), tallies points against the 8 core workflow profiles, announces an RPG-style "class" (e.g. `SKYSURFER` for cloud, `NIGHTHACKER` for security, `NEUROMANCER` for ai), and offers to install the matching toolchain + activate the profile. Surfaced via `claw onboard`, the welcome TUI ("Onboarding" entry), and the bootstrap end-of-install banner. Visual palette: hot pink / neon cyan / synthwave purple. Uses gum if available, falls back to plain `read`.
 
 `scripts/utils/integrity.sh` — SHA-256 manifest generator and verifier for the entire dotfiles tree. Run after install/pull to detect tampering or partial installs:
 - `claw integrity generate` — writes `config/integrity/manifest.sha256`, sorted byte-wise for deterministic output. Honors `config/integrity/.integrityignore` (gitignore-style globs; auto-created with sane defaults).
@@ -113,6 +114,14 @@ Each profile provides:
 ### Docker container overview
 
 `scripts/utils/docker-overview.sh` (`claw docker`, alias `dover`) — read-only, gruvbox-themed snapshot of every container grouped by compose project, with state dot, status, published host ports, and live CPU/MEM. Complements the interactive tools: `lzd` (lazydocker TUI — logs/exec/graphs), `cto` (ctop — live per-container metrics), and Portainer (web UI via `claw ai-services up portainer`). lazydocker + ctop are flagged in `devops-toolchain.sh`.
+
+### Claude Code Integration (`claude/`)
+
+The `claude/` tree is Henry's Claude Code config, deployed into `~/.claude/` by `scripts/setup/link-claude.sh` (run automatically as bootstrap Step 8c, or on demand via `claw harness deploy`). It is **not** GNU-Stowed — stow would splatter files into `$HOME` and clobber the managed-skill marketplace. The linker is item-level: it backs up real-file collisions, skips managed marketplace symlinks it didn't create, is idempotent, and honors `--dry-run`. It also registers the default-deny scope hooks (`claude/hooks/pre_tool_use.py`) into `~/.claude/settings.json` via `install-hooks.sh`.
+
+Contents: `CLAUDE.md` (global rules), `scope.txt` (recon scope allowlist), `hooks/` (pre/post-tool-use), `commands/` (slash commands), `skills/` (security skills), `agent-skills/` (vendored third-party), and `harness/`.
+
+- **`claude/harness/`** — dedicated workspace for Henry's **custom agentic harness tools**: `skills/`, `commands/`, `agents/`, `plugins/`. Managed via `claw harness {list|new <name>|deploy|path}`. `_template/` and `_`-prefixed dirs are scaffolding and are skipped by the deployer. See `claude/harness/README.md`.
 
 ### Installation Scripts
 
@@ -159,12 +168,12 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | `shell/aliases.zsh` | Core aliases and functions (~680 lines) |
 | `shell/security.zsh` | Safety aliases + network recon |
 | `shell/obsidian.zsh` | Obsidian vault integration |
-| `shell/profiles/*.zsh` | 8 workflow-specific environments |
+| `shell/profiles/*.zsh` | 18 workflow-specific environments (8 core + 10 specialized) |
 | `shell/welcome-tui.zsh` | Login dashboard + default quick-ref |
-| `config/.config/fastfetch/config-*.jsonc` | Profile-specific fastfetch configs (9 total) |
+| `config/.config/fastfetch/config-*.jsonc` | Profile fastfetch configs (19 total: 9 generated + 10 hand-maintained) |
 | `config/.config/colorls/dark_colors.yaml` | colorls GitHub-dark theme (icons via Font Awesome) |
 | `scripts/utils/gen-fastfetch.py` | Generator for the 9 icon-rich fastfetch dashboards |
-| `config/.config/fastfetch/logo-*.txt` | Profile-specific ASCII logos (9 total) |
+| `config/.config/fastfetch/logo-*.txt` | Profile-specific ASCII logos (one per file-logo profile) |
 | `config/ssh/tunnels.yml` | SSH tunnel definitions |
 | `scripts/utils/tunnel-manager.sh` | SSH tunnel manager TUI |
 | `scripts/utils/ai-services.sh` | Unified manager for self-hosted AI web stacks (open-webui/dify/ragflow/langfuse) |
@@ -175,6 +184,8 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | `scripts/utils/logger.sh` | Shared logging utilities |
 | `scripts/utils/detect-os.sh` | OS detection (macOS, Ubuntu, Kali, etc.) |
 | `scripts/setup/symlinks.sh` | GNU Stow symlink deployment |
+| `scripts/setup/link-claude.sh` | Item-level deployer for `claude/` → `~/.claude` (hooks, skills, harness) |
+| `claude/harness/` | Custom agentic harness tools (skills/commands/agents/plugins) — `claw harness` |
 | `tmux/.tmux.conf` | Tmux config (GitHub dark, cross-platform clipboard) |
 | `terminal/.config/starship.toml` | Starship prompt config |
 | `bootstrap.sh` | Primary cross-platform setup (9 steps) |

@@ -1,5 +1,8 @@
-# Starship Prompt Configuration
-# Move to ~/.config/starship.toml after installation
+# Starship Prompt Configuration — UNUSED / ALTERNATE PROMPT.
+# The active zsh prompt is Powerlevel10k (shell/.p10k.zsh, wired in shell/.zshrc);
+# starship is NOT sourced anywhere, so editing this file changes nothing as-is.
+# Kept as a ready-to-go alternate. To switch: remove the p10k init from .zshrc and
+# add `eval "$(starship init zsh)"`. This file stows to ~/.config/starship.toml.
 
 # Get editor completions based on the config schema
 "$schema" = 'https://starship.rs/config-schema.json'

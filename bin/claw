@@ -124,6 +124,7 @@ cmd_help() {
   ${c_cyan}${c_bold}Workflows${c_reset}
     ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
     ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
+    ${c_white}claw situation${c_reset}        ${c_dim}fleet/system awareness snapshot (show|probe|tick|alerts|install)${c_reset}
     ${c_white}claw restore-shell${c_reset}    ${c_dim}re-link ~/.zshrc, ~/.p10k.zsh, … to the repo (fix clobbered symlinks)${c_reset}
     ${c_white}claw lock-shell${c_reset}       ${c_dim}make ~/.zshrc & ~/.p10k.zsh immutable so p10k configure can't clobber them${c_reset}
     ${c_white}claw unlock-shell${c_reset}     ${c_dim}lift the immutable lock (before re-stow / running the wizard)${c_reset}
@@ -171,7 +172,9 @@ cmd_help() {
     ${c_white}claw claude-sync status${c_reset}   ${c_dim}diff live state vs manifests · (alias: csync)${c_reset}
 
   ${c_purple}${c_bold}Knowledge & Secrets${c_reset}
+    ${c_white}claw harness <cmd>${c_reset}      ${c_dim}custom agentic skills: list|new <name>|deploy|path${c_reset}
     ${c_white}claw handoff "topic"${c_reset}   ${c_dim}session note → Obsidian 00-Inbox (backlinked)${c_reset}
+    ${c_white}claw docs-sync${c_reset}         ${c_dim}sync repo docs → Obsidian vault${c_reset}
     ${c_white}claw capture-tasks${c_reset}     ${c_dim}vault '@things' lines → Things 3 tasks${c_reset}
     ${c_white}claw secret <cmd>${c_reset}      ${c_dim}init|env|encrypt|decrypt|doctor (age+sops)${c_reset}
     ${c_white}claw selfupdate install${c_reset} ${c_dim}schedule weekly auto-update${c_reset}
@@ -468,6 +471,11 @@ cmd_homelab() {
     bash "$DOTFILES/scripts/utils/homelab.sh" "$@"
 }
 
+cmd_situation() {
+    # Fleet/system situational-awareness model: probe|tick|show|alerts|install.
+    DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/situation.sh" "$@"
+}
+
 cmd_toolkit() {
     bash "$DOTFILES/scripts/utils/toolkit.sh" "$@"
 }
@@ -704,7 +712,7 @@ cmd_install() {
 }
 
 cmd_theme() {
-    # Single-source-of-truth color switcher. list | current | set | preview | fzf.
+    # Single-source-of-truth color switcher. list | current | set | preview | fzf | build | apply.
     local sub="${1:-list}"; shift || true
     case "$sub" in
         ""|list|ls)        DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" list ;;
@@ -712,6 +720,8 @@ cmd_theme() {
         set|use)           DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" set "$@" ;;
         preview|show)      DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" preview "$@" ;;
         fzf)               DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" fzf ;;
+        build)             DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" build ;;
+        apply)             DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" apply ;;
         help|-h|--help)
             cat <<EOF
   ${c_purple}${c_bold}claw theme${c_reset} — Open Claw color palette switcher
@@ -720,9 +730,11 @@ cmd_theme() {
   ${c_white}claw theme current${c_reset}          ${c_dim}print the active palette slug${c_reset}
   ${c_white}claw theme preview [slug]${c_reset}   ${c_dim}show color swatches${c_reset}
   ${c_white}claw theme set <slug>${c_reset}       ${c_dim}switch palette (then: exec zsh)${c_reset}
+  ${c_white}claw theme build${c_reset}            ${c_dim}rebuild every theme's library artifacts (ghostty.conf)${c_reset}
+  ${c_white}claw theme apply${c_reset}            ${c_dim}re-point Ghostty at the active theme's colors${c_reset}
 
-  ${c_dim}Palettes: refined-dark (default) · github-dark · catppuccin-mocha · tokyo-night · rose-pine${c_reset}
-  ${c_dim}Defined in ${DOTFILES}/config/themes/*.theme — the single source of truth.${c_reset}
+  ${c_dim}Palettes: refined-dark (default) · github-dark · catppuccin-mocha · tokyo-night · rose-pine · gruvbox-material${c_reset}
+  ${c_dim}Each theme is a library: ${DOTFILES}/config/themes/<slug>/ (palette.theme + ghostty.conf).${c_reset}
 EOF
             ;;
         *) err "unknown theme subcommand: $sub"; info "try: claw theme help"; return 1 ;;
@@ -899,6 +911,63 @@ cmd_run_agent() {
 }
 
 # ============================================
+# HARNESS — custom agentic skills/commands/agents (claude/harness/)
+# ============================================
+cmd_harness() {
+    local sub="${1:-list}"; shift || true
+    local hroot="$DOTFILES/claude/harness"
+    case "$sub" in
+        list|ls)
+            printf "\n  ${c_purple}${c_bold}Custom agentic harness${c_reset} ${c_dim}($hroot)${c_reset}\n\n"
+            local kind dir
+            for kind in skills commands agents plugins; do
+                dir="$hroot/$kind"
+                printf "  ${c_cyan}%s${c_reset}\n" "$kind"
+                if [[ -d "$dir" ]]; then
+                    local found=0 e name
+                    while IFS= read -r e; do
+                        name="$(basename "$e")"
+                        [[ "$name" == _* || "$name" == .* ]] && continue
+                        found=1
+                        # deployed if a matching link exists under ~/.claude
+                        local tgt="$HOME/.claude/$kind/$name"
+                        if [[ -e "$tgt" ]]; then
+                            printf "    ${c_green}✓${c_reset} %s ${c_dim}(deployed)${c_reset}\n" "$name"
+                        else
+                            printf "    ${c_dim}○ %s${c_reset}\n" "$name"
+                        fi
+                    done < <(find "$dir" -mindepth 1 -maxdepth 1 2>/dev/null | sort)
+                    [[ $found -eq 0 ]] && printf "    ${c_dim}(none yet)${c_reset}\n"
+                fi
+            done
+            printf "\n  ${c_dim}claw harness new <name> · deploy · path${c_reset}\n"
+            ;;
+        new)
+            local name="${1:-}"
+            [[ -z "$name" ]] && { err "usage: claw harness new <skill-name>"; return 1; }
+            local dest="$hroot/skills/$name"
+            [[ -e "$dest" ]] && { err "already exists: $dest"; return 1; }
+            mkdir -p "$dest"
+            sed "s/^name: my-skill/name: $name/" "$hroot/skills/_template/SKILL.md" > "$dest/SKILL.md" 2>/dev/null \
+                || cp "$hroot/skills/_template/SKILL.md" "$dest/SKILL.md"
+            ok "scaffolded skill: claude/harness/skills/$name/SKILL.md"
+            info "edit it, then: claw harness deploy"
+            ;;
+        deploy|link|sync)
+            bash "$DOTFILES/scripts/setup/link-claude.sh" "$@"
+            ;;
+        path)
+            echo "$hroot"
+            ;;
+        *)
+            err "unknown: claw harness $sub"
+            info "subcommands: list · new <name> · deploy [--dry-run] · path"
+            return 1
+            ;;
+    esac
+}
+
+# ============================================
 # DISPATCH
 # ============================================
 log_usage "${1:-menu}" "$@"
@@ -918,6 +987,7 @@ case "${1:-menu}" in
     ai-services|aisvc|services) shift; cmd_ai_services "$@" ;;
     docker|containers|dps) shift; cmd_docker "$@" ;;
     skills)         shift; cmd_skills "$@" ;;
+    harness)        shift; cmd_harness "$@" ;;
     obsidian|vault) shift; cmd_obsidian "$@" ;;
     onboard|onboarding|character) shift; cmd_onboard "$@" ;;
     integrity|verify|check) shift; cmd_integrity "$@" ;;
@@ -943,5 +1013,6 @@ case "${1:-menu}" in
     uninstall|remove) shift; cmd_uninstall "$@" ;;
     claude-sync|csync) shift; cmd_claude "$@" ;;
     agent)          shift; cmd_agent "$@" ;;
+    situation|sit)  shift; cmd_situation "$@" ;;
     *)              cmd_run_agent "$@" ;;
 esac

@@ -237,9 +237,13 @@ cmd_verify() {
     awk '{$1=""; sub(/^  /,""); print}' "$MANIFEST_FILE" | LC_ALL=C sort > "$manifest_paths"
     awk '{$1=""; sub(/^  /,""); print}' "$current"        | LC_ALL=C sort > "$current_paths"
 
+    # comm does its OWN collation comparison and rejects input unless it's
+    # sorted under the SAME locale. The path lists above are byte-sorted
+    # (LC_ALL=C), so comm must run under LC_ALL=C too or it errors with
+    # "input is not in sorted order" and silently produces wrong results.
     local missing extra
-    missing="$(comm -23 "$manifest_paths" "$current_paths")"   # in manifest, not on disk
-    extra="$(  comm -13 "$manifest_paths" "$current_paths")"   # on disk, not in manifest
+    missing="$(LC_ALL=C comm -23 "$manifest_paths" "$current_paths")"   # in manifest, not on disk
+    extra="$(  LC_ALL=C comm -13 "$manifest_paths" "$current_paths")"   # on disk, not in manifest
 
     # Changed = paths in both with different hashes. Cheap implementation:
     # diff -u sorted manifests, keep lines starting with - that aren't only
@@ -249,8 +253,8 @@ cmd_verify() {
         | awk '/^< /{print substr($0,3)} /^> /{print substr($0,3)}' \
         | awk '{$1=""; sub(/^  /,""); print}' \
         | LC_ALL=C sort -u \
-        | comm -12 - "$manifest_paths" \
-        | comm -12 - "$current_paths")"
+        | LC_ALL=C comm -12 - "$manifest_paths" \
+        | LC_ALL=C comm -12 - "$current_paths")"
 
     local m_count e_count c_count
     m_count=$(printf '%s\n' "$missing" | grep -c '[^[:space:]]' || true)

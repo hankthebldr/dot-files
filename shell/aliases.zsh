@@ -75,10 +75,8 @@ alias .....='cd ../../../..'
 alias ~='cd ~'
 alias -- -='cd -'
 
-# Safety nets
-alias rm='rm -i'
-alias cp='cp -i'
-alias mv='mv -i'
+# Safety nets — rm/cp/mv/ln live in security.zsh (the canonical -iv versions,
+# sourced after this file). Defining them here too just shadowed-then-lost.
 alias mkdir='mkdir -pv'
 
 # ============================================
@@ -380,12 +378,12 @@ alias sysinfo='fastfetch'
 alias fetch='fastfetch'
 
 # ── Network Inspection ──
-alias myip='curl -s ifconfig.me'
+# myip/ports live in security.zsh (HTTPS + all-protocol variants, sourced
+# after this file). Kept out of here to avoid a shadowed duplicate.
 alias localip='local_ip'  # cross-platform via platform.zsh
 alias ips='ip -br addr 2>/dev/null || ifconfig | grep "inet " | grep -v 127.0.0.1'
 alias ping='ping -c 5'
 # speed alias set by platform.zsh (networkQuality on macOS, speedtest on Linux)
-alias ports='lsof -iTCP -sTCP:LISTEN -n -P'
 alias http='httpie'
 
 # DNS & Routing
@@ -458,7 +456,7 @@ claw() {
         fi
         return
     fi
-    # `claw theme ...` — color theme management (palettes in config/themes/*.theme)
+    # `claw theme ...` — color theme management (libraries in config/themes/<slug>/)
     if [[ "$1" == "theme" ]]; then
         shift
         case "$1" in
@@ -483,7 +481,8 @@ claw() {
     local ff="$_d/config/.config/fastfetch/config-${profile}.jsonc"
     if command -v fastfetch &>/dev/null && [[ -f "$ff" ]]; then
         echo ""
-        fastfetch -c "$ff"
+        # claw_ff = kitty/iterm raster logo in Ghostty/Kitty/iTerm, text fallback elsewhere.
+        if typeset -f claw_ff &>/dev/null; then claw_ff "$profile" "$ff"; else fastfetch -c "$ff"; fi
     fi
 }
 alias aliases='$EDITOR $DOTFILES_DIR/shell/aliases.zsh'

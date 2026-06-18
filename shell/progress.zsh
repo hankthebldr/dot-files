@@ -3,9 +3,10 @@
 # Two layers, both opt-out via `progress off`:
 #
 #   1. PASSIVE (auto): preexec/precmd hooks update the terminal window
-#      title with live elapsed time + truncated cmd, every 1s, for any
-#      command running longer than $CLAW_PROGRESS_THRESHOLD. Does NOT
-#      touch stdout/stderr — won't clobber tool output.
+#      title with the project/cwd location + live elapsed time + truncated
+#      cmd, every 1s, for any command running longer than
+#      $CLAW_PROGRESS_THRESHOLD. Does NOT touch stdout/stderr — won't
+#      clobber tool output. (The idle title shows user@host: cwd.)
 #
 #   2. ACTIVE (opt-in): `claw_run <cmd>` wraps a command with a themed
 #      gum spinner. Output is preserved; spinner runs on stderr.
@@ -38,6 +39,23 @@ __claw_progress_set_title() {
   # OSC 0 sets window+icon title in most terminals (Ghostty, iTerm2,
   # Terminal.app, Alacritty, Wezterm, kitty, gnome-terminal, etc.)
   printf "\033]0;%s\007" "$1"
+}
+
+# Location label for the running title: "<repo>[/subdir]" when inside a git
+# work tree (so you see the PROJECT, not just the leaf dir), else the
+# ~-abbreviated cwd. Returns via REPLY. Called from the background updater
+# (cwd is fixed for one command's lifetime), so the prompt path stays
+# fork-free even though this forks `git`.
+__claw_progress_loc() {
+  local root
+  if root=$(command git rev-parse --show-toplevel 2>/dev/null) && [[ -n "$root" ]]; then
+    REPLY="${root:t}${PWD#$root}"        # e.g. dot-files/shell  (repo root → dot-files)
+  else
+    REPLY="${PWD/#$HOME/~}"              # e.g. ~/work/scratch
+  fi
+  # Cap length so the title stays readable; keep the most-specific tail.
+  (( ${#REPLY} > 40 )) && REPLY="…${REPLY[-39,-1]}"
+  return 0   # don't leak the arithmetic's truthiness as the function's status
 }
 
 # Push the session label into tmux (window-scoped user option) only when it
@@ -115,13 +133,16 @@ __claw_progress_glyph_run="\033[38;5;215m⏳\033[0m"   # orange
 # ─── Title-bar updater (background loop) ────────────────────────────────
 __claw_progress_updater() {
   local pid="$1" cmd="$2" t0="$3" lbl="$4"
+  # Resolve the project/cwd location once — it's fixed for this command's life.
+  local loc; __claw_progress_loc; loc="$REPLY"
   # Wait until threshold before painting anything
   sleep "$CLAW_PROGRESS_THRESHOLD"
   while kill -0 "$pid" 2>/dev/null; do
     local elapsed=$(( $(date +%s) - t0 ))
     local short="${cmd:0:60}"
     [[ ${#cmd} -gt 60 ]] && short="${short}…"
-    __claw_progress_set_title "${lbl:+[$lbl] }⏳ ${elapsed}s — ${short}"
+    # [profile] project/subdir ⏳ 30s — command
+    __claw_progress_set_title "${lbl:+[$lbl] }${loc:+$loc }⏳ ${elapsed}s — ${short}"
     sleep 1
   done
 }

@@ -35,7 +35,7 @@ cf() {  # cf <field> → ANSI color for that field's label (color-by-type)
   case "$1" in
     os|host|term)                 printf '%s' "$PURPLE" ;;
     kernel|uptime|load|cpu|cores) printf '%s' "$BLUE" ;;
-    shell|pkgs|mem|swap)          printf '%s' "$GREEN" ;;
+    shell|pkgs|mem|swap|clis)     printf '%s' "$GREEN" ;;
     disk|batt)                    printf '%s' "$ORANGE" ;;
     *)                            printf '%s' "$MUTED" ;;
   esac
@@ -44,6 +44,8 @@ I_OS=$''; I_HOST=$''; I_KERN=$''; I_UP=$''; I_LOAD=$''
 I_SH=$''; I_TERM=$''; I_PKG=$''; I_LOC=$''
 I_CPU=$''; I_CORE=$''; I_MEM=$''; I_SWAP=$''; I_DISK=$''
 I_IP=$''; I_WIFI=$''; I_BATT=$''; I_DATE=$''
+# Local-profile rows reuse existing glyphs (terminal = CLI repos, chip = tools).
+I_CLIS="$I_TERM"; I_TOOLS="$I_KERN"
 
 g() {  # g <field> → value (best-effort, fast, never errors)
   case "$1" in
@@ -68,15 +70,25 @@ g() {  # g <field> → value (best-effort, fast, never errors)
     cores)  if is_mac; then sysctl -n hw.ncpu 2>/dev/null; else nproc 2>/dev/null; fi ;;
     mem)    if is_mac; then echo "$(( $(sysctl -n hw.memsize 2>/dev/null) / 1073741824 )) GiB"
             else awk '/MemTotal/{printf "%.0f GiB", $2/1048576}' /proc/meminfo 2>/dev/null; fi ;;
+    mem_pct) if is_mac; then memory_pressure 2>/dev/null | awk -F: '/free percentage/{gsub(/[ %]/,"",$2); print 100-$2}'
+            else free 2>/dev/null | awk '/^Mem:/{a=($7!=""?$7:$4); if($2>0) printf "%d", ($2-a)/$2*100}'; fi ;;
     swap)   if is_mac; then sysctl -n vm.swapusage 2>/dev/null | sed -E 's/.*used = ([0-9.]+[KMG]).*/\1 used/'
             else free -h 2>/dev/null | awk '/Swap/{print $3" / "$2}'; fi ;;
     disk)   df -H / 2>/dev/null | awk 'NR==2{print $3" / "$2}' ;;
+    disk_pct) df -H / 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5); print $5}' ;;
     ip)     if is_mac; then ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null
             else hostname -I 2>/dev/null | awk '{print $1}'; fi ;;
     wifi)   if is_mac; then networksetup -getairportnetwork en0 2>/dev/null | sed 's/.*Network: //'
             else iwgetid -r 2>/dev/null; fi ;;
     batt)   if is_mac; then pmset -g batt 2>/dev/null | grep -oE '[0-9]+%' | head -1
             else local c; c=$(cat /sys/class/power_supply/BAT0/capacity 2>/dev/null); [[ -n "$c" ]] && echo "$c%"; fi ;;
+    clis)   local d="${LOCAL_CLI_DIR:-$HOME/Github/local-clis}" t=0 s=0 x
+            [[ -d "$d" ]] || return
+            for x in "$d"/*/; do [[ -d "$x" ]] || continue; t=$((t+1)); [[ -f "${x}.clistartup" ]] && s=$((s+1)); done
+            (( t > 0 )) && printf '%d repos · %d load' "$t" "$s" || printf 'none yet' ;;
+    tools)  local out='' t
+            for t in git make tmux nvim fzf; do command -v "$t" >/dev/null 2>&1 && out="$out $t"; done
+            printf '%s' "${out# }" ;;
     date)   date '+%a %b %d  %H:%M' ;;
   esac
 }
@@ -102,7 +114,7 @@ row() {
 case "${1:-all}" in
   # Machine-readable dump for claw-dashboard.py (one key=value per line).
   fields)
-    for _f in os host kernel uptime load shell term pkgs locale cpu cores mem swap disk ip wifi batt date; do
+    for _f in os host kernel uptime load shell term pkgs locale cpu cores mem mem_pct swap disk disk_pct ip wifi batt date; do
         printf '%s=%s\n' "$_f" "$(g "$_f")"
     done ;;
   field) shift; g "${1:-os}" ;;
@@ -115,6 +127,12 @@ case "${1:-all}" in
   r7) row "$I_TERM" "Term"   term    "$I_WIFI" "Wi-Fi" wifi ;;
   r8) row "$I_PKG"  "Pkgs"   pkgs    "$I_BATT" "Batt"  batt ;;
   r9) row "$I_LOC"  "Locale" locale  "$I_DATE" "Date"  date ;;
+  # Local profile (config-local.jsonc): compact CLI-dev two-column readout.
+  l1) row "$I_OS"   "OS"     os      "$I_UP"    "Up"    uptime ;;
+  l2) row "$I_KERN" "Kernel" kernel  "$I_CPU"   "CPU"   cpu ;;
+  l3) row "$I_MEM"  "Mem"    mem     "$I_DISK"  "Disk"  disk ;;
+  l4) row "$I_IP"   "IP"     ip      "$I_SH"    "Shell" shell ;;
+  l5) row "$I_CLIS" "CLIs"   clis    "$I_TOOLS" "Tools" tools ;;
   all)
     for r in r1 r2 r3 r4 r5 r6 r7 r8 r9; do "$0" "$r"; done ;;
 esac

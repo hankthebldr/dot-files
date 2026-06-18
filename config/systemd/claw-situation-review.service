@@ -1,0 +1,12 @@
+# One-shot week-1 review of the situational-awareness alerts: summarizes what
+# fired and pipes a tier-2 go/no-go judgment through a LOCAL model (Hermes via
+# Ollama → Claude → manual), then writes the note to the vault + notifies.
+# Sovereign by design — the judgment runs on-box, not in a cloud session.
+# Scheduled by: claw situation schedule-review <YYYY-MM-DD> [HH:MM]
+[Unit]
+Description=OPEN CLAW situation week-1 review (local-model tier-2 go/no-go)
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env bash %h/.dotfiles/scripts/utils/situation.sh review

@@ -1,6 +1,9 @@
 # Langfuse self-hosted — LLM observability behind Tailscale.
-# Reachable at: http://<bd790i.tailnet>:3000 after `docker compose up -d`.
+# Reachable at: http://<bd790i.tailnet>:3001 after `docker compose up -d`.
 # Default admin signup is enabled; lock down after first user.
+#
+# Host port is 3001 (not 3000) so this can run alongside open-webui, which
+# owns :3000. The container still listens on 3000 internally.
 services:
   langfuse-db:
     image: postgres:16
@@ -16,10 +19,10 @@ services:
     restart: unless-stopped
     depends_on: [langfuse-db]
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       DATABASE_URL: postgresql://langfuse:${LANGFUSE_DB_PASSWORD:-changeme}@langfuse-db:5432/langfuse
-      NEXTAUTH_URL: ${LANGFUSE_PUBLIC_URL:-http://localhost:3000}
+      NEXTAUTH_URL: ${LANGFUSE_PUBLIC_URL:-http://localhost:3001}
       NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-CHANGE_ME_RUN_openssl_rand_base64_32}
       SALT: ${LANGFUSE_SALT:-CHANGE_ME_RUN_openssl_rand_base64_32}
       TELEMETRY_ENABLED: "false"

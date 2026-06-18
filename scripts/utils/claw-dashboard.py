@@ -21,7 +21,11 @@ def rgb(r, g, b): return f"\033[38;2;{r};{g};{b}m"
 RST = "\033[0m"; BOLD = "\033[1m"
 
 def load_palette():
-    """Resolve the active theme and parse config/themes/<slug>.theme → rgb dict."""
+    """Resolve the active theme and parse its palette.theme → rgb dict.
+
+    Each theme is a library dir: config/themes/<slug>/palette.theme. Falls back
+    to the legacy flat config/themes/<slug>.theme for half-migrated checkouts.
+    """
     state = os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state"))
     slug = "refined-dark"
     try:
@@ -30,9 +34,14 @@ def load_palette():
             slug = (open(af).read().strip() or slug).splitlines()[0]
     except Exception:
         pass
-    tf = f"{DOTS}/config/themes/{slug}.theme"
+
+    def _palette_path(s):
+        nested = f"{DOTS}/config/themes/{s}/palette.theme"
+        return nested if os.path.isfile(nested) else f"{DOTS}/config/themes/{s}.theme"
+
+    tf = _palette_path(slug)
     if not os.path.isfile(tf):
-        tf = f"{DOTS}/config/themes/refined-dark.theme"
+        tf = _palette_path("refined-dark")
     pal = {}
     try:
         for line in open(tf, encoding="utf-8"):
@@ -76,7 +85,8 @@ def pad(s, w): return s + " "*max(0, w-vis(s))
 G = dict(os="", host="", kernel="", uptime="", load="",
          shell="", term="", pkgs="", cpu="", cores="",
          mem="", disk="", ip="", wifi="", batt="",
-         clock="", user="", paw="")
+         clock="", user="", paw="",
+         git="", k8s="⎈", docker="")
 
 def fields():
     try:
@@ -88,7 +98,23 @@ def fields():
     for line in out.splitlines():
         if "=" in line:
             k, v = line.split("=", 1); d[k.strip()] = v.strip()
+    if d.get("cpu"):
+        d["cpu"] = _clean_cpu(d["cpu"])
     return d
+
+def _clean_cpu(s):
+    """Trim marketing noise so the CPU name fits the column.
+    'AMD Ryzen 9 7945HX with Radeon Graphics' → 'Ryzen 9 7945HX'."""
+    for junk in ("(R)", "(TM)", "(tm)", " CPU", " Processor"):
+        s = s.replace(junk, "")
+    for tail in (" with ", " w/ "):
+        i = s.find(tail)
+        if i != -1:
+            s = s[:i]
+    for vendor in ("AMD ", "Intel ", "Intel Core ", "Apple "):
+        if s.startswith(vendor):
+            s = s[len(vendor):]
+    return " ".join(s.split())
 
 # ── Logo: the SYSTEM logo (Apple on macOS, distro on Linux), gradient-colored ─
 APPLE_CMAP = {"1":(255,140,0), "2":(245,200,66), "3":GREEN, "4":RED, "5":PURPLE, "6":BLUE}
@@ -134,10 +160,12 @@ def grid(d):
         (("host","Host","host"),       ("cores","Cores","cores")),
         (("kernel","Kernel","kernel"), ("mem","Mem","mem")),
         (("uptime","Up","uptime"),     ("disk","Disk","disk")),
+        (("pkgs","Pkgs","pkgs"),       ("load","Load","load")),
         (("shell","Shell","shell"),    ("ip","IP","ip")),
         (("term","Term","term"),       ("wifi","WiFi","wifi")),
     ]
-    ACCENTS = [C["blue"], C["purple"], C["cyan"], C["green"], C["amber"], C["red"]]
+    ACCENTS = [C["blue"], C["purple"], C["cyan"], C["green"],
+               C["amber"], C["red"], C["blue"]]
     rows=[]; lw = 26  # left-cell display width before the divider
     for ((lg,ll,lf),(rg,rl,rf)), accent in zip(ROWS, ACCENTS):
         lc = cell(G[lg], ll, _short(d.get(lf,""),13), accent)
@@ -147,10 +175,64 @@ def grid(d):
 
 def _short(s, n): return s if len(s) <= n else s[:n-1]+"…"
 
+# ── Usage bars (mem / disk) ──────────────────────────────────────────────────
+def bar(pct, width=16):
+    """A [████░░░░] meter; green < 70%, amber < 90%, red above."""
+    pct = max(0, min(100, int(pct)))
+    fill = round(pct / 100 * width)
+    accent = C["green"] if pct < 70 else (C["amber"] if pct < 90 else C["red"])
+    if NOCOLOR:
+        return "█" * fill + "░" * (width - fill)
+    return accent + "█" * fill + C["muted"] + "░" * (width - fill) + RST
+
+def usage_lines(d):
+    out = []
+    for gkey, label, pctkey, valkey, accent in (
+            ("mem", "Mem", "mem_pct", "mem", C["green"]),
+            ("disk", "Disk", "disk_pct", "disk", C["amber"])):
+        pct = d.get(pctkey, "")
+        if not pct.isdigit():
+            continue
+        p = int(pct)
+        out.append(f"{col(G[gkey], accent)} {col(label.ljust(5), accent)} "
+                   f"{bar(p)} {col(f'{p:>3}%', C['fg'])}  {col(d.get(valkey,''), C['muted'])}")
+    return out
+
+# ── Dev context (git / k8s / docker) — only what's present, fast & guarded ────
+def _run(cmd, timeout=1.5):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except Exception:
+        return ""
+
+def context_lines():
+    parts = []
+    branch = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    if branch and branch != "HEAD":
+        dirty = _run(["git", "status", "--porcelain"])
+        mark = col("●", C["amber"]) if dirty else col("✓", C["green"])
+        parts.append(f"{col(G['git'], C['purple'])} {col(branch, C['fg'])} {mark}")
+    if shutil.which("kubectl") and os.path.isfile(os.path.expanduser("~/.kube/config")):
+        kctx = _run(["kubectl", "config", "current-context"])
+        if kctx:
+            parts.append(f"{col(G['k8s'], C['blue'])} {col(_short(kctx, 20), C['fg'])}")
+    if shutil.which("docker"):
+        ids = _run(["docker", "ps", "-q"])
+        if ids:
+            n = len([x for x in ids.splitlines() if x.strip()])
+            parts.append(f"{col(G['docker'], C['cyan'])} {col(f'{n} running', C['fg'])}")
+    return ["   ".join(parts)] if parts else []
+
 def palette():
     dots = "".join(col("●", c) for c in (C["blue"],C["green"],C["purple"],C["amber"],
                                          C["red"],C["cyan"],C["muted"],C["fg"]))
-    return "  " + dots
+    # Label the swatch with the active theme + profile (exported by the shell).
+    theme = os.environ.get("CLAW_THEME_NAME", "")
+    prof = os.environ.get("CLAW_ACTIVE_PROFILE", "")
+    tag = "  ".join(t for t in (theme, (prof and prof + " profile")) if t)
+    label = ("  " + col(tag, C["muted"])) if tag else ""
+    return "  " + dots + label
 
 # ── Compose + frame + center ─────────────────────────────────────────────────
 def main():
@@ -166,7 +248,14 @@ def main():
         f"{col(G['clock'],C['muted'])} {col(when, C['muted'])}" + (f"  {col('· up '+up, C['muted'])}" if up else ""),
         col("─"*42, C["muted"]),
     ]
-    body = header + grid(d) + ["", palette()]
+    body = header + grid(d)
+    usage = usage_lines(d)
+    if usage:
+        body += [""] + usage
+    ctx = context_lines()
+    if ctx:
+        body += [""] + ctx
+    body += ["", palette()]
 
     # merge logo (left) with body (right), row by row
     lw = max(vis(l) for l in logo) + 2
@@ -180,14 +269,28 @@ def main():
     width = max(vis(m) for m in merged) + 2
     title = grad(" OPEN CLAW ", BLUE, GREEN)
     tlen = vis(title)
-    top = col("╭─", C["muted"]) + title + col("─"*(width-2-tlen) + "╮", C["muted"])
+    # Every framed line is `│ <content padded to width-1> │` → display width+2.
+    # The top rule must span the same width+2 (was width+1: a one-column-short
+    # top-right corner — the "rough edge"). Dashes after the title = width-1-tlen.
+    top = col("╭─", C["muted"]) + title + col("─"*(width-1-tlen) + "╮", C["muted"])
     bot = col("╰" + "─"*width + "╯", C["muted"])
     bar = col("│", C["muted"])
 
     # horizontal centering — pad every framed line to the terminal centre.
     term = shutil.get_terminal_size((80, 24)).columns
-    box_w = width + 4                       # borders + the leading "│ "
+    box_w = width + 2                       # true outer display width of a row
     margin = " " * max(0, (term - box_w) // 2)
+
+    # Publish width + margin so sibling renderers (the default quickref) can
+    # match this box exactly and stack flush beneath it.
+    try:
+        sd = os.path.join(os.environ.get("XDG_STATE_HOME",
+                          os.path.expanduser("~/.local/state")), "claw")
+        os.makedirs(sd, exist_ok=True)
+        with open(os.path.join(sd, "dash_box"), "w") as f:
+            f.write(f"{box_w} {len(margin)}\n")
+    except Exception:
+        pass
 
     print()
     print(margin + top)

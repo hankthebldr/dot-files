@@ -48,7 +48,7 @@ setopt INC_APPEND_HISTORY     # Write to history file immediately, not when shel
 # ============================================
 
 # Active Open Claw theme → CLAW_C_* / CLAW_RGB_* + the fzf --color string.
-# config/themes/<slug>.theme is the single source of truth for every surface.
+# config/themes/<slug>/palette.theme is the single source of truth for every surface.
 [[ -r "$DOTFILES_DIR/scripts/utils/theme.sh" ]] && source "$DOTFILES_DIR/scripts/utils/theme.sh"
 
 # eza/ls colors — soft "gruvbox-material" listing palette. eza's defaults paint
@@ -89,11 +89,19 @@ export FZF_DEFAULT_OPTS="
     --color=\"$CLAW_FZF_COLOR\"
 "
 
-# Bat (syntax highlighting)
-export BAT_THEME="GitHub"
+# Bat (syntax highlighting) — dark theme (the built-in "GitHub" theme is LIGHT
+# and washes out on the dark bg). Also use bat as the colored man pager. The
+# theme is also set in tools/.config/bat/config; keep the two in sync.
+export BAT_THEME="gruvbox-dark"
+export MANPAGER="bat -plman"
+export MANROFFOPT="-c"
 
-# Ripgrep
-export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
+# Ripgrep (only when a config actually exists — rg errors on a dangling path)
+if [[ -f "$HOME/.ripgreprc" ]]; then
+    export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
+else
+    unset RIPGREP_CONFIG_PATH
+fi
 
 # Git pager (delta)
 export GIT_PAGER='delta'

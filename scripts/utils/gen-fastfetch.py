@@ -43,7 +43,7 @@ I = {
     "pubip": "",
 }
 
-# Refined GitHub Dark palette (truecolor ANSI) — matches config/themes/refined-dark.theme.
+# Refined GitHub Dark palette (truecolor ANSI) — matches config/themes/refined-dark/palette.theme.
 # The default Open Claw theme; the gruvbox-y gold (#d29922) is replaced by a
 # cooler amber (#e3b341). fastfetch configs are static so they bake the default
 # palette; the live dashboard (claw-dashboard.py) follows `claw theme` instead.
@@ -108,7 +108,10 @@ def base_modules():
         mod("memory", "mem", "Memory", GREEN),
         mod("swap", "swap", "Swap", GREEN),
         mod("disk", "disk", "Disk", ORANGE, showReadOnly=False),
-        mod("physicaldisk", "drive", "Drive", ORANGE),
+        # NOTE: physicaldisk is intentionally omitted. It enumerates /sys/block
+        # with no mount filter, so on snap/container hosts it floods the readout
+        # with dozens of squashfs/loop devices ([Virtual, Fixed, Read-only]).
+        # The `disk` module above already conveys storage on macOS + Linux.
         mod("battery", "batt", "Battery", ORANGE),
         mod("poweradapter", "power", "Power", ORANGE),
         mod("sound", "sound", "Sound", RED),
@@ -234,6 +237,12 @@ CORTEX = [
 ]
 
 # profile -> (logo, keys/accent color, title color, tooling)
+#
+# NOTE: this generator owns ONLY the 9 configs below. The 10 specialized
+# profiles (claude, blackwell, brainstorm, deck, demo, design, homelab, pmo,
+# tunnels, vault) ship hand-maintained config-<name>.jsonc files that this
+# script never reads or overwrites — edit those directly. See CLAUDE.md
+# ("Fastfetch Profile Configs"). Running this generator will NOT touch them.
 CONFIGS = {
     # Startup + default: use the real system icon (Apple on macOS, distro on
     # Linux) — cleaner and more recognizable than the ASCII OPEN CLAW header.
@@ -245,6 +254,8 @@ CONFIGS = {
     "config-ai.jsonc":      (file_logo("ai"),        PURPLE,           GREEN,  AI),
     "config-research.jsonc":(file_logo("research"),  ORANGE,           BLUE,   RESEARCH),
     "config-cortex.jsonc":  (file_logo("cortex"),    "38;2;255;102;0", RED,    CORTEX),
+    # local is special-cased in main() -> build_local_readout() (compact
+    # two-column readout, no physicaldisk flood); this tuple is unused for it.
     "config-local.jsonc":   (file_logo("local"),     GREEN,            BLUE,   None),
 }
 
@@ -294,12 +305,58 @@ def build_readout():
     }
 
 
+# The local readout (title + blank + 5 rows + colors ≈ 8 lines) sits beside the
+# 14-line raspberry-pi logo; ~3 leading `break`s drop it down to center.
+LOCAL_VCENTER = 3
+
+
+def build_local_readout():
+    """Local profile: raspberry-pi logo + compact TWO-COLUMN readout.
+
+    The shared base_modules() layout (~45 rows) overflowed far past the 14-line
+    logo AND its `physicaldisk` module flooded the screen with every snap/loop
+    squashfs device ([Virtual, Fixed, Read-only]). Local instead renders the
+    two-column engine from scripts/utils/ff-readout.sh (rows l1..l5 — OS/Uptime,
+    Kernel/CPU, Mem/Disk, IP/Shell, local-CLIs/key-tools). The `disk` field is
+    `df -H /` (root only), so no container/loop volumes appear, and the block is
+    vertically centered against the logo. Each row is its own one-line `command`
+    module so nothing depends on multi-line module output.
+    """
+    rows = [
+        {"type": "command", "key": " ",
+         "text": f"~/.dotfiles/scripts/utils/ff-readout.sh {r}"}
+        for r in ("l1", "l2", "l3", "l4", "l5")
+    ]
+    leading = [{"type": "break"} for _ in range(LOCAL_VCENTER)]
+    return {
+        "$schema": SCHEMA,
+        "logo": file_logo("local"),
+        "display": {"separator": "", "color": {"keys": GREEN, "title": BLUE},
+                    "key": {"width": 0}},
+        "modules": [
+            *leading,
+            # key:" " + keyWidth:0 prints nothing; the title and each readout row
+            # carry their own 2-space indent so they line up (see build_readout).
+            {"type": "title",
+             "format": "  {user-name-colored}@{host-name-colored}", "key": " "},
+            {"type": "break"},  # blank line under the title
+            *rows,
+            {"type": "colors", "paddingLeft": 2, "symbol": "circle"},
+        ],
+    }
+
+
 def main():
     out_dir = os.path.join(os.path.dirname(__file__), "..", "..",
                            "config", ".config", "fastfetch")
     out_dir = os.path.abspath(out_dir)
     for name, (logo, keys, title, tools) in CONFIGS.items():
-        cfg = build_readout() if name in ("config.jsonc", "config-default.jsonc") else build(logo, keys, title, tools)
+        if name in ("config.jsonc", "config-default.jsonc"):
+            cfg = build_readout()
+        elif name == "config-local.jsonc":
+            cfg = build_local_readout()
+        else:
+            cfg = build(logo, keys, title, tools)
         path = os.path.join(out_dir, name)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)

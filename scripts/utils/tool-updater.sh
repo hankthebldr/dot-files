@@ -98,17 +98,37 @@ run_cargo() { for t in $*; do nice -n 19 cargo install "$t" 2>/dev/null; done; }
 # SILENT MODE (default — preserves prior behavior)
 # ============================================
 if [[ $INTERACTIVE -eq 0 ]]; then
+    # Single-flight lock: mkdir is atomic, so two concurrent shell logins can't
+    # both kick off cargo/go builds at once. Stale lock from a dead PID is
+    # reclaimed. Failures land in a log instead of being swallowed by /dev/null.
+    LOCK_DIR="$CACHE_DIR/.update.lock"
+    ERR_LOG="$CACHE_DIR/last-error.log"
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        echo "$$" > "$LOCK_DIR/pid"
+    else
+        # Lock held — reclaim only if the owning PID is gone.
+        old_pid="$(cat "$LOCK_DIR/pid" 2>/dev/null || echo '')"
+        if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
+            exit 0   # another updater is genuinely running
+        fi
+        rm -rf "$LOCK_DIR" 2>/dev/null
+        mkdir "$LOCK_DIR" 2>/dev/null || exit 0
+        echo "$$" > "$LOCK_DIR/pid"
+    fi
     (
+        trap 'rm -rf "$LOCK_DIR" 2>/dev/null' EXIT
         for entry in "${CATEGORIES[@]}"; do
             IFS='|' read -r name interval tools <<< "$entry"
             if needs_update "$name" "$interval"; then
                 if command -v "$name" &>/dev/null; then
-                    "run_$name" $tools
+                    if ! "run_$name" $tools 2>>"$ERR_LOG"; then
+                        echo "[$(date '+%F %T')] $name update returned nonzero" >> "$ERR_LOG"
+                    fi
                 fi
                 mark_updated "$name"
             fi
         done
-    ) &> /dev/null &
+    ) >/dev/null 2>>"$ERR_LOG" &
     exit 0
 fi
 

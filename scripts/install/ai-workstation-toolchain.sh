@@ -37,7 +37,9 @@
 # module fails to build (DKMS), `sudo dmesg | grep -i nvidia` is the next step.
 ################################################################################
 
-set -e
+# pipefail so a failed `curl` in a `curl | gpg --dearmor` keyring import is not
+# masked by gpg's success — matches lib/toolchain-runner.sh's convention.
+set -eo pipefail
 
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 source "$DOTFILES_DIR/scripts/utils/logger.sh"

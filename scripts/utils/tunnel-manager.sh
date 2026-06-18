@@ -286,6 +286,11 @@ build_ssh_cmd() {
     cmd+=("-p" "$fport")
     cmd+=("${fuser}@${fhost}")
 
+    # Expose the argv as a global array so callers can exec it verbatim with
+    # "${BUILT_SSH_CMD[@]}" — no `eval`, so key paths/hostnames containing
+    # spaces survive intact. The echo is kept for topology/preview callers
+    # that just want a human-readable rendering of the command.
+    BUILT_SSH_CMD=("${cmd[@]}")
     echo "${cmd[@]}"
 }
 
@@ -302,10 +307,12 @@ connect_tunnel() {
     draw_topology "$name"
     echo "  ${c_cyan}Connecting...${c_reset}"
 
-    local cmd
-    cmd=$(build_ssh_cmd "$name")
+    # Populate BUILT_SSH_CMD in the current shell (NOT a $(...) subshell, which
+    # would discard the array) then exec the argv directly — quoting-safe.
+    BUILT_SSH_CMD=()
+    build_ssh_cmd "$name" >/dev/null
 
-    if eval "$cmd" 2>/dev/null; then
+    if "${BUILT_SSH_CMD[@]}" 2>/dev/null; then
         sleep 1
         if [[ "$(tunnel_status "$name")" == "active" ]]; then
             echo "  ${c_green}✓ Tunnel '$name' is now active.${c_reset}"

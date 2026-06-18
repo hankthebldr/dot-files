@@ -38,6 +38,9 @@ export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 # ── 2.5 Ghostty terminfo guard (before the TUI uses the terminal) ───────
 [[ -f "$DOTFILES_DIR/shell/ghostty-terminfo.zsh" ]] && source "$DOTFILES_DIR/shell/ghostty-terminfo.zsh"
 
+# ── 2.6 fastfetch launcher (claw_ff: kitty/iterm logo in Ghostty, text elsewhere) ──
+[[ -f "$DOTFILES_DIR/shell/fastfetch.zsh" ]] && source "$DOTFILES_DIR/shell/fastfetch.zsh"
+
 # ── 3. Welcome TUI (BEFORE p10k instant prompt) ─────────
 # P10k instant prompt suppresses all stdout during init.
 # The TUI must run BEFORE that, while we still own the terminal.
@@ -84,19 +87,22 @@ if [[ -d "$ZSH" ]]; then
 fi
 
 # ── 6. Modular Sources ─────────────────────────────────
-# path.zsh already handled in step 1, but source for any extras
+# PATH is set inline in step 1 (above) — kept there so tools resolve before the
+# welcome TUI runs. There is no separate path.zsh to source.
 [[ -f "$DOTFILES_DIR/shell/exports.zsh" ]] && source "$DOTFILES_DIR/shell/exports.zsh"
 [[ -f "$DOTFILES_DIR/shell/load-env.zsh" ]] && source "$DOTFILES_DIR/shell/load-env.zsh"
 [[ -f "$DOTFILES_DIR/shell/aliases.zsh" ]] && source "$DOTFILES_DIR/shell/aliases.zsh"
 [[ -f "$DOTFILES_DIR/shell/profile-helpers.zsh" ]] && source "$DOTFILES_DIR/shell/profile-helpers.zsh"
 [[ -f "$DOTFILES_DIR/shell/claw-fn.zsh" ]] && source "$DOTFILES_DIR/shell/claw-fn.zsh"
+[[ -f "$DOTFILES_DIR/shell/claw-completion.zsh" ]] && source "$DOTFILES_DIR/shell/claw-completion.zsh"
 [[ -f "$DOTFILES_DIR/shell/security.zsh" ]] && source "$DOTFILES_DIR/shell/security.zsh"
 [[ -f "$DOTFILES_DIR/shell/obsidian.zsh" ]] && source "$DOTFILES_DIR/shell/obsidian.zsh"
 # Live progress indicator (window title + completion banner + claw_run wrapper)
 [[ -f "$DOTFILES_DIR/shell/progress.zsh" ]] && source "$DOTFILES_DIR/shell/progress.zsh"
 [[ -f "$DOTFILES_DIR/shell/delight.zsh" ]] && source "$DOTFILES_DIR/shell/delight.zsh"
-# Obsidian Vault OS (vault lives under ~/Documents on this machine)
-export VAULT_PATH="$HOME/Documents/hr-vault-main-pa"
+# Obsidian Vault OS. Default assumes the vault lives under ~/Documents; override
+# per-machine by exporting VAULT_PATH in ~/.zshenv (sourced before this file).
+export VAULT_PATH="${VAULT_PATH:-$HOME/Documents/hr-vault-main-pa}"
 [[ -f "$VAULT_PATH/_agents/shell-aliases.sh" ]] && source "$VAULT_PATH/_agents/shell-aliases.sh"
 
 # ── 7. Tool Initializations (all guarded) ───────────────

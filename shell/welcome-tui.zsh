@@ -222,6 +222,12 @@ function claw_welcome_tui() {
         _claw_tui_log "pick:$key"
     fi
 
+    # Wipe the Screen-1 dashboard before rendering the post-pick art. fzf runs in
+    # an inline height region and leaves the header dashboard on screen when it
+    # exits; without this clear the profile art (or, for `default`, a second copy
+    # of the same dashboard) stacks underneath it — the "doubled boxes" bug.
+    clear
+
     # Process choice directly into the shell session
     case "$key" in
         skip)
@@ -247,7 +253,9 @@ function claw_welcome_tui() {
                 DOTFILES_DIR="$_d" python3 "$_dash"
             elif command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
                 echo ""
-                fastfetch -c "$_ff_profile"
+                # claw_ff picks the kitty/iterm raster logo in Ghostty/Kitty/iTerm,
+                # falls back to the config's text logo over SSH/tmux/dumb terminals.
+                if typeset -f claw_ff &> /dev/null; then claw_ff "$key" "$_ff_profile"; else fastfetch -c "$_ff_profile"; fi
             fi
             # Readout under the art: default keeps its quick-ref card; every
             # other profile gets the metadata-driven key-tools/docs/help readout.
@@ -387,6 +395,8 @@ function claw_welcome_tui() {
 # Displayed inline after default profile loads
 # ============================================
 _claw_default_quickref() {
+    emulate -L zsh
+    setopt extendedglob
     local c_reset=$'\e[0m'
     local c_cyan=$'\e[38;2;88;166;255m'
     local c_green=$'\e[38;2;63;185;80m'
@@ -397,19 +407,66 @@ _claw_default_quickref() {
     local c_white=$'\e[38;2;201;209;217m'
     local c_bold=$'\e[1m'
 
-    echo ""
-    echo "  ${c_purple}╭──────────────────────────────────────────────────────────────────╮${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_cyan}${c_bold}Daily Driver${c_reset}                          ${c_dim}type ${c_white}default-help${c_dim} for full ref${c_reset}  ${c_purple}│${c_reset}"
-    echo "  ${c_purple}├──────────────────────────────────────────────────────────────────┤${c_reset}"
-    echo "  ${c_purple}│${c_reset}                                                                  ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_green}${c_bold}Navigate${c_reset}    ${c_white}z${c_reset} ${c_dim}smart cd${c_reset}   ${c_white}Ctrl+R${c_reset} ${c_dim}history${c_reset}   ${c_white}Ctrl+T${c_reset} ${c_dim}find files${c_reset}     ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_cyan}${c_bold}Files${c_reset}       ${c_white}ls${c_reset} ${c_dim}eza${c_reset}  ${c_white}cat${c_reset} ${c_dim}bat${c_reset}  ${c_white}find${c_reset} ${c_dim}fd${c_reset}  ${c_white}grep${c_reset} ${c_dim}rg${c_reset}  ${c_white}diff${c_reset} ${c_dim}delta${c_reset}      ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_orange}${c_bold}Network${c_reset}     ${c_white}netcheck${c_reset} ${c_dim}diag${c_reset}  ${c_white}ports${c_reset} ${c_dim}listen${c_reset}  ${c_white}myip${c_reset}  ${c_white}dns${c_reset}  ${c_white}headers${c_reset}    ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_red}${c_bold}Tools${c_reset}       ${c_white}tun${c_reset} ${c_dim}tunnels${c_reset}  ${c_white}glg${c_reset} ${c_dim}lazygit${c_reset}  ${c_white}lzd${c_reset} ${c_dim}docker${c_reset}  ${c_white}fkill${c_reset}      ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}  ${c_purple}${c_bold}System${c_reset}      ${c_white}top${c_reset} ${c_dim}btop${c_reset}  ${c_white}df${c_reset} ${c_dim}duf${c_reset}  ${c_white}du${c_reset} ${c_dim}dust${c_reset}  ${c_white}reload${c_reset}  ${c_white}update${c_reset}     ${c_purple}│${c_reset}"
-    echo "  ${c_purple}│${c_reset}                                                                  ${c_purple}│${c_reset}"
-    echo "  ${c_purple}╰──────────────────────────────────────────────────────────────────╯${c_reset}"
-    echo ""
+    # Visible width of a string (ANSI SGR stripped). Content is ASCII so char
+    # count == display width — no emoji in the body, so this is exact.
+    _vis() { local s="${1//$'\e'\[[0-9;]#m/}"; print -rn -- ${#s}; }
+
+    local title="${c_cyan}${c_bold}Daily Driver${c_reset}"
+    local hint="${c_dim}type ${c_white}default-help${c_dim} for full ref${c_reset}"
+
+    local -a rows=(
+      "${c_green}${c_bold}Navigate${c_reset}    ${c_white}z${c_reset} ${c_dim}smart cd${c_reset}   ${c_white}Ctrl+R${c_reset} ${c_dim}history${c_reset}   ${c_white}Ctrl+T${c_reset} ${c_dim}find files${c_reset}"
+      "${c_cyan}${c_bold}Files${c_reset}       ${c_white}ls${c_reset} ${c_dim}eza${c_reset}  ${c_white}cat${c_reset} ${c_dim}bat${c_reset}  ${c_white}find${c_reset} ${c_dim}fd${c_reset}  ${c_white}grep${c_reset} ${c_dim}rg${c_reset}  ${c_white}diff${c_reset} ${c_dim}delta${c_reset}"
+      "${c_orange}${c_bold}Network${c_reset}     ${c_white}netcheck${c_reset} ${c_dim}diag${c_reset}  ${c_white}ports${c_reset} ${c_dim}listen${c_reset}  ${c_white}myip${c_reset}  ${c_white}dns${c_reset}  ${c_white}headers${c_reset}"
+      "${c_red}${c_bold}Tools${c_reset}       ${c_white}tun${c_reset} ${c_dim}tunnels${c_reset}  ${c_white}glg${c_reset} ${c_dim}lazygit${c_reset}  ${c_white}lzd${c_reset} ${c_dim}docker${c_reset}  ${c_white}fkill${c_reset}"
+      "${c_purple}${c_bold}System${c_reset}      ${c_white}top${c_reset} ${c_dim}btop${c_reset}  ${c_white}df${c_reset} ${c_dim}duf${c_reset}  ${c_white}du${c_reset} ${c_dim}dust${c_reset}  ${c_white}reload${c_reset}  ${c_white}update${c_reset}"
+    )
+
+    # Inner content width = widest row, or the title+hint header, whichever wins.
+    local W=0 r vl
+    for r in "$rows[@]"; do vl=$(_vis "$r"); (( vl > W )) && W=$vl; done
+    local tvl=$(_vis "$title") hvl=$(_vis "$hint")
+    (( tvl + 2 + hvl > W )) && W=$(( tvl + 2 + hvl ))
+
+    local cols=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
+    local mar
+
+    # Match the dashboard box (it publishes "<box_w> <margin>") so the two stack
+    # flush. A quickref row is `│ <W> │` = W+4 wide, so W = box_w-4. Only adopt it
+    # when the dashboard is at least as wide as our content; otherwise self-center.
+    local dbf="${XDG_STATE_HOME:-$HOME/.local/state}/claw/dash_box"
+    if [[ -r "$dbf" ]]; then
+        local _db=("${(@s: :)$(<$dbf)}")
+        local dbox=${_db[1]:-0} dmar=${_db[2]:--1}
+        # Adopt only if the published box still fits this terminal (guards
+        # against a stale file or a resize between the two renders).
+        if (( dbox - 4 >= W )) && (( dmar >= 0 )) && (( dmar + dbox <= cols )); then
+            W=$(( dbox - 4 )); mar=$dmar
+        fi
+    fi
+    if [[ -z "$mar" ]]; then                       # no usable dashboard geometry
+        mar=$(( (cols - (W + 4)) / 2 )); (( mar < 0 )) && mar=0
+    fi
+    local M="${(l:$mar:: :)}"                      # left margin spaces
+    local bar="${(l:$((W+2))::─:)}"               # horizontal rule, W+2 wide
+    local blank="${(l:$W:: :)}"                    # full-width empty content
+
+    # Title row: title left, hint right-justified to the box edge.
+    local gap=$(( W - tvl - hvl )); (( gap < 1 )) && gap=1
+    local trow="${title}${(l:$gap:: :)}${hint}"
+
+    print -r -- ""
+    print -r -- "${M}${c_purple}╭${bar}╮${c_reset}"
+    print -r -- "${M}${c_purple}│${c_reset} ${trow} ${c_purple}│${c_reset}"
+    print -r -- "${M}${c_purple}├${bar}┤${c_reset}"
+    print -r -- "${M}${c_purple}│${c_reset} ${blank} ${c_purple}│${c_reset}"
+    for r in "$rows[@]"; do
+        vl=$(_vis "$r"); local p=$(( W - vl )); (( p < 0 )) && p=0
+        print -r -- "${M}${c_purple}│${c_reset} ${r}${(l:$p:: :)} ${c_purple}│${c_reset}"
+    done
+    print -r -- "${M}${c_purple}│${c_reset} ${blank} ${c_purple}│${c_reset}"
+    print -r -- "${M}${c_purple}╰${bar}╯${c_reset}"
+    print -r -- ""
 }
 
 # ============================================

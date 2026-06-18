@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # logo-from-image.sh — convert an image (URL or file) into a fastfetch-ready
-# colored logo file using chafa (half-block, 24-bit truecolor).
+# colored logo file using chafa (quad-block, 24-bit truecolor).
 #
 # Usage:
 #   logo-from-image.sh <profile> <image-url-or-path>
@@ -52,15 +52,29 @@ fi
 # 2. Detect format and rasterize SVG → PNG if needed
 KIND=$(file -b --mime-type "$WORK/source")
 if [[ "$KIND" == "image/svg+xml" ]] || head -1 "$WORK/source" | grep -q '<svg\|<?xml'; then
-    echo "  → rasterizing SVG → PNG (400x400, bg #$BG)"
-    rsvg-convert -w 400 -h 400 -b "#$BG" "$WORK/source" -o "$WORK/image.png"
+    echo "  → rasterizing SVG → PNG (512x512, bg #$BG)"
+    rsvg-convert -w 512 -h 512 -b "#$BG" "$WORK/source" -o "$WORK/image.png"
 else
     cp "$WORK/source" "$WORK/image.png"
 fi
 
-# 3. chafa — half-block, truecolor, sized for fastfetch
-echo "  → converting to ${WIDTH}x${HEIGHT} half-block ASCII (24-bit color)"
-chafa -s "${WIDTH}x${HEIGHT}" --symbols=half --colors=truecolor --bg="$BG" "$WORK/image.png" > "$LOGO_FILE"
+# 3. chafa — QUAD blocks, truecolor, sized for fastfetch.
+#   --symbols=quad uses the 2x2 quadrant block elements (U+2596..U+259F) for
+#   4 sub-cells/glyph vs --symbols=half's 2 — roughly double the detail at the
+#   same cell size, while staying within Unicode 1.1 block elements that every
+#   terminal font ships (verified: JetBrainsMono Nerd Font covers them).
+#   Deliberately NOT sextant/octant (U+1FB00 / U+1CC00): higher density but they
+#   tofu in JetBrainsMono Nerd Font (the active Ghostty font) and over SSH.
+#   -f symbols forces text output: without it chafa auto-detects a graphics
+#   terminal (e.g. Ghostty) and would bake the kitty protocol into the .txt.
+echo "  → converting to ${WIDTH}x${HEIGHT} quad-block ASCII (24-bit color)"
+chafa -f symbols -s "${WIDTH}x${HEIGHT}" --symbols=quad --colors=truecolor --bg="$BG" "$WORK/image.png" > "$LOGO_FILE"
+
+# 3b. Keep the high-res raster as the Ghostty/Kitty/iTerm graphics logo. The
+#     claw_ff shim (shell/fastfetch.zsh) shows this on a live local graphics
+#     terminal and falls back to the .txt above over SSH / tmux / dumb terminals.
+cp "$WORK/image.png" "$LOGO_DIR/logo-$PROFILE.png"
+echo "  → saved graphics logo logo-$PROFILE.png"
 
 # 4. Patch config to use type=data + the new source path
 echo "  → patching $CONFIG_FILE → type:data"
