@@ -53,7 +53,7 @@ dpresent() {
 # Office365 / PPTX from marp output. Opens the latest .pptx in PowerPoint.
 dpptx-open() {
     local latest
-    latest="$(ls -t ./*.pptx 2>/dev/null | head -1)"
+    latest="$(command ls -t ./*.pptx 2>/dev/null | head -1)"
     if [[ -z "$latest" ]]; then
         echo "no .pptx in CWD — run: dexport slides.md pptx" >&2
         return 1

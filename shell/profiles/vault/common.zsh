@@ -45,7 +45,7 @@ vtags() {
         # Frontmatter tags
         find "$vault" -name "*.md" -print0 2>/dev/null \
             | xargs -0 awk '/^tags:/,/^[^[:space:]-]/{ print }' 2>/dev/null \
-            | grep -oE '[a-zA-Z][a-zA-Z0-9/_-]+' 2>/dev/null
+            | command grep -oE '[a-zA-Z][a-zA-Z0-9/_-]+' 2>/dev/null
         # Inline #tags
         rg -oh '#[a-zA-Z][a-zA-Z0-9/_-]+' "$vault" 2>/dev/null | sed 's/^#//'
     } | sort -u | head -50

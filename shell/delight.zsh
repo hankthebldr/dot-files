@@ -112,7 +112,7 @@ if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_PKG_NUDGE:-1
     if [[ ! -f "$_pkg_stamp" ]]; then
         mkdir -p "${_pkg_stamp:h}" 2>/dev/null && touch "$_pkg_stamp"
         ( bash "$DOTFILES_DIR/scripts/utils/pkg-manifest.sh" scan 2>/dev/null \
-            | grep -cE '^    [a-zA-Z0-9]' > "$_pkg_count" 2>/dev/null ) &!
+            | command grep -cE '^    [a-zA-Z0-9]' > "$_pkg_count" 2>/dev/null ) &!
     fi
     unset _pkg_count _pkg_stamp _n
 fi

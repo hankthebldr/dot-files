@@ -158,7 +158,7 @@ dgif() {
     ffmpeg -i "$input" -vf "fps=15,scale=1280:-1:flags=lanczos" "$tmpdir/frame_%04d.png" 2>/dev/null
     gifski -o "$output" --fps 15 --quality 80 "$tmpdir"/frame_*.png
     rm -rf "$tmpdir"
-    echo "✓ $output  ($(du -h "$output" | cut -f1))"
+    echo "✓ $output  ($(command du -h "$output" | cut -f1))"
 }
 
 # ==========================================

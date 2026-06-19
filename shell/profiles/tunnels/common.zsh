@@ -113,7 +113,7 @@ tls() {
             # Skip the literal glob when no files match, and non-socket entries.
             [[ -S "$sock" ]] || continue
             found=1
-            local owner_pid; owner_pid=$(ssh -O check -S "$sock" - 2>&1 | grep -oE '[0-9]+' | head -1)
+            local owner_pid; owner_pid=$(ssh -O check -S "$sock" - 2>&1 | command grep -oE '[0-9]+' | head -1)
             printf "    %s  \e[2m(pid %s)\e[0m\n" "${sock##*/}" "${owner_pid:-?}"
         done
     fi

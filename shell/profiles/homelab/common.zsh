@@ -57,7 +57,7 @@ hsync() {
 halloc() {
     if typeset -f _hl_kubectl &>/dev/null; then
         _hl_kubectl top nodes 2>/dev/null \
-            || _hl_kubectl describe node | grep -E "(Name:|cpu|memory|pods)" | head -20
+            || _hl_kubectl describe node | command grep -E "(Name:|cpu|memory|pods)" | head -20
     fi
 }
 

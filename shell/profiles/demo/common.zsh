@@ -79,7 +79,7 @@ dmend() {
 # dmstatus  — am I in demo mode?
 dmstatus() {
     if [[ -f "$DEMO_STATE_FILE" ]]; then
-        local started; started="$(grep DEMO_STARTED_AT "$DEMO_STATE_FILE" | cut -d= -f2)"
+        local started; started="$(command grep DEMO_STARTED_AT "$DEMO_STATE_FILE" | cut -d= -f2)"
         local elapsed=$(( $(date +%s) - started ))
         printf "✓ DEMO MODE active — running for %dm %ds\n" $((elapsed/60)) $((elapsed%60))
     else
@@ -110,7 +110,7 @@ dmsanitize() {
 # Doesn't delete — just lists. Useful BEFORE a screen-share to manually
 # scrub or run `history -d <n>` on flagged entries.
 dmscan-history() {
-    fc -l -100 2>/dev/null | grep -iE \
+    fc -l -100 2>/dev/null | command grep -iE \
         '(password|secret|token|api[_-]?key|bearer|aws_secret|ssh-rsa|BEGIN PRIVATE)' \
         || echo "✓ no obvious secrets in last 100 history lines"
 }
