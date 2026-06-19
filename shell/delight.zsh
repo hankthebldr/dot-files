@@ -54,22 +54,29 @@ if [[ -o interactive ]] && command -v onefetch &>/dev/null; then
 fi
 
 # ── Fact / quote of the day (cached daily, interactive only) ────────────────
-# Uses a curated facts file if present, else `fortune`. Rendered with gum/glow
-# if available. Silent if neither source exists.
+# Uses a curated facts file if present, else `fortune`. Silent if neither exists.
 claw_fact() {
     local facts="${DOTFILES_DIR:-$HOME/.dotfiles}/config/facts.txt" line
     if [[ -f "$facts" ]]; then
-        line=$(LC_ALL=C sort -R "$facts" 2>/dev/null | grep -v '^#' | grep -v '^$' | head -1)
+        # Filter + pick in pure zsh — NOT `sort -R | grep`. Interactive shells
+        # expand aliases inside $(...), and aliases.zsh maps grep→rg; ripgrep
+        # then prefixes every line with "line:col:" (the "1:1:" that leaked into
+        # the fact on login). Reading natively is alias-proof and subprocess-free.
+        local -a pool; local l
+        while IFS= read -r l; do
+            [[ -z "$l" || "$l" == '#'* ]] && continue
+            pool+=("$l")
+        done < "$facts"
+        (( ${#pool[@]} )) && line="${pool[RANDOM % ${#pool[@]} + 1]}"
     elif command -v fortune &>/dev/null; then
         line=$(fortune -s 2>/dev/null)
     fi
     [[ -z "$line" ]] && return
-    if command -v gum &>/dev/null; then
-        gum style --foreground 141 --border none --margin "0 2" "  $line"
-    else
-        printf "  \e[38;2;%sm✦\e[0m \e[38;2;%sm%s\e[0m\n" \
-            "${CLAW_RGB_PURPLE:-188;140;255}" "${CLAW_RGB_MUTED:-139;148;158}" "$line"
-    fi
+    # Themed printf (no `gum style`): gum also probes the terminal on each call,
+    # which can desync right after the dashboard moves the cursor. printf is
+    # query-free + deterministic, and renders backticks/em-dashes literally.
+    printf "  \e[38;2;%sm✦\e[0m \e[38;2;%sm%s\e[0m\n" \
+        "${CLAW_RGB_PURPLE:-188;140;255}" "${CLAW_RGB_MUTED:-139;148;158}" "$line"
 }
 # One fact per day on interactive login (skip SSH-pipe / non-tty).
 if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_FACT:-1}" == 1 ]]; then
