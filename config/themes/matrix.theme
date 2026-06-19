@@ -1,0 +1,16 @@
+# matrix — phosphor-green ops terminal. Declared by the security / cortex /
+# homelab / blackwell / tunnels profiles (PROFILE_THEME_DEFAULT=matrix).
+# Red stays red — error semantics survive the green wash.
+name=Matrix
+slug=matrix
+bg=0a0e0a
+bg_alt=101810
+fg=b8e6b8
+muted=4f7a4f
+divider=1e3a1e
+blue=39d4a3
+green=00e756
+purple=8affc1
+amber=c8e64b
+red=ff5f56
+cyan=4dffb8

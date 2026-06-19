@@ -3,7 +3,6 @@
 # for the interactive flow, and provides standalone aliases for muscle-memory
 # operations (quick local forward, SOCKS proxy, multi-hop).
 
-export CLAW_PROFILE_THEME="tunnels"
 
 # Where ControlMaster sockets live. Match tunnel-manager.sh's CONTROL_DIR.
 export TUNNEL_CONTROL_DIR="${TUNNEL_CONTROL_DIR:-/tmp/ssh-tunnels}"

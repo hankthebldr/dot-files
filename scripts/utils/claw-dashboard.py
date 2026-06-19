@@ -1,31 +1,27 @@
 #!/usr/bin/env python3
-"""claw-dashboard — the Open Claw login dashboard.
+"""claw-dashboard — the Open Claw login dashboard (polished, centered).
 
-A self-contained, fully-controlled replacement for the fastfetch command-module
-readout (which rendered an ugly "Command" label on every row). Renders a framed,
-icon-rich, multi-colored two-column system dashboard beside the system logo,
-horizontally centered in the terminal. Data comes from
-scripts/utils/ff-readout.sh `fields` (the same cross-platform probe the shell
-readout uses). Colors come from the ACTIVE Open Claw theme
-(config/themes/<slug>.theme) — the single source of truth. No fastfetch dep.
+A framed, horizontally-centered dashboard: the CRISP system logo (Apple on
+macOS, distro on Linux — pulled straight from fastfetch, not a sparse ASCII
+placeholder) beside a dense two-column info grid and btop-style resource bars
+(CPU / Mem / Swap / Disk / Battery, green→amber→red gradient).
 
-Usage: claw-dashboard.py            (auto-detects width; degrades without color)
+Data + utilization percentages come from scripts/utils/ff-readout.sh `fields`
+(the same fast, cross-platform probe the shell readout uses). Colors follow the
+active Open Claw theme (config/themes/<slug>.theme — single source of truth).
+
+Usage: claw-dashboard.py        (auto width; degrades cleanly without color/tty)
 """
 from __future__ import annotations
 import os, re, shutil, subprocess, sys, datetime, platform
 
 DOTS = os.environ.get("DOTFILES_DIR", os.path.expanduser("~/.dotfiles"))
 
-# ── Palette (loaded from the active theme — single source of truth) ──────────
+# ── Palette (active theme — single source of truth) ──────────────────────────
 def rgb(r, g, b): return f"\033[38;2;{r};{g};{b}m"
 RST = "\033[0m"; BOLD = "\033[1m"
 
 def load_palette():
-    """Resolve the active theme and parse its palette.theme → rgb dict.
-
-    Each theme is a library dir: config/themes/<slug>/palette.theme. Falls back
-    to the legacy flat config/themes/<slug>.theme for half-migrated checkouts.
-    """
     state = os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state"))
     slug = "refined-dark"
     try:
@@ -34,11 +30,17 @@ def load_palette():
             slug = (open(af).read().strip() or slug).splitlines()[0]
     except Exception:
         pass
-
+    # Theme palette path: prefer the subdir library layout
+    # (config/themes/<slug>/palette.theme), fall back to the legacy flat file
+    # (config/themes/<slug>.theme) so both layouts resolve.
     def _palette_path(s):
         nested = f"{DOTS}/config/themes/{s}/palette.theme"
         return nested if os.path.isfile(nested) else f"{DOTS}/config/themes/{s}.theme"
-
+    # Session override (same precedence as theme.sh): CLAW_THEME env beats the
+    # persisted state file — this is how profile loads re-theme the dashboard.
+    env_slug = os.environ.get("CLAW_THEME", "").strip()
+    if env_slug and os.path.isfile(_palette_path(env_slug)):
+        slug = env_slug
     tf = _palette_path(slug)
     if not os.path.isfile(tf):
         tf = _palette_path("refined-dark")
@@ -69,24 +71,16 @@ C = {k: rgb(*v) for k, v in dict(blue=BLUE, green=GREEN, purple=PURPLE, amber=AM
                                  red=RED, muted=MUTED, fg=FG, cyan=CYAN).items()}
 NOCOLOR = bool(os.environ.get("NO_COLOR")) or not sys.stdout.isatty()
 def col(s, c): return s if NOCOLOR else f"{c}{s}{RST}"
-def grad(text, a, b):
-    if NOCOLOR or not text: return text
-    n = max(1, len(text)-1); out=[]
-    for i, ch in enumerate(text):
-        t=i/n; r=round(a[0]+(b[0]-a[0])*t); g=round(a[1]+(b[1]-a[1])*t); bl=round(a[2]+(b[2]-a[2])*t)
-        out.append(rgb(r,g,bl)+ch)
-    return "".join(out)+RST
 
-_ANSI = re.compile(r"\033\[[0-9;]*m")
-def vis(s): return len(_ANSI.sub("", s))                  # mono-cell display width
+_ANSI = re.compile(r"\033\[[0-9;?]*[A-Za-z]")
+def vis(s): return len(_ANSI.sub("", s))                 # mono-cell display width
 def pad(s, w): return s + " "*max(0, w-vis(s))
+def _short(s, n): s = s or "—"; return s if len(s) <= n else s[:n-1]+"…"
 
 # ── Nerd Font glyphs (Font Awesome — 1 cell in a *Mono Nerd Font) ────────────
 G = dict(os="", host="", kernel="", uptime="", load="",
-         shell="", term="", pkgs="", cpu="", cores="",
-         mem="", disk="", ip="", wifi="", batt="",
-         clock="", user="", paw="",
-         git="", k8s="⎈", docker="")
+         shell="", term="", pkgs="", locale="", cpu="", cores="",
+         mem="", disk="", ip="", wifi="", batt="", clock="", user="")
 
 def fields():
     try:
@@ -98,206 +92,159 @@ def fields():
     for line in out.splitlines():
         if "=" in line:
             k, v = line.split("=", 1); d[k.strip()] = v.strip()
-    if d.get("cpu"):
-        d["cpu"] = _clean_cpu(d["cpu"])
     return d
 
-def _clean_cpu(s):
-    """Trim marketing noise so the CPU name fits the column.
-    'AMD Ryzen 9 7945HX with Radeon Graphics' → 'Ryzen 9 7945HX'."""
-    for junk in ("(R)", "(TM)", "(tm)", " CPU", " Processor"):
-        s = s.replace(junk, "")
-    for tail in (" with ", " w/ "):
-        i = s.find(tail)
-        if i != -1:
-            s = s[:i]
-    for vendor in ("AMD ", "Intel ", "Intel Core ", "Apple "):
-        if s.startswith(vendor):
-            s = s[len(vendor):]
-    return " ".join(s.split())
-
-# ── Logo: the SYSTEM logo (Apple on macOS, distro on Linux), gradient-colored ─
-APPLE_CMAP = {"1":(255,140,0), "2":(245,200,66), "3":GREEN, "4":RED, "5":PURPLE, "6":BLUE}
-_PLACE = re.compile(r"\$([1-9])")
-
-def _render_placeholder(path, cmap):
-    """Render a fastfetch $N-placeholder logo file into truecolor ANSI lines."""
-    raw = open(path, encoding="utf-8").read().rstrip("\n")
-    out = []
-    for ln in raw.split("\n"):
-        if NOCOLOR:
-            out.append(_PLACE.sub("", ln)); continue
-        out.append(_PLACE.sub(lambda m: rgb(*cmap.get(m.group(1), FG)), ln) + RST)
-    return out
-
+# ── Logo: the CRISP system logo straight from fastfetch (Apple/distro) ────────
 def logo_lines():
-    # macOS → the Apple logo we already ship (logo-default.txt, $N placeholders).
     if platform.system() == "Darwin":
-        p = f"{DOTS}/config/.config/fastfetch/logo-default.txt"
-        if os.path.isfile(p):
-            try: return [""] + _render_placeholder(p, APPLE_CMAP) + [""]
-            except Exception: pass
-    # Linux → a compact gradient Tux; other → minimal mark.
-    tux = ["", grad("    .--.   ", FG, MUTED), grad("   |o_o |  ", FG, MUTED),
-           grad("   |:_/ |  ", AMBER, AMBER), grad("  //   \\ \\ ", FG, MUTED),
-           grad(" (|     | )", FG, MUTED), grad("/'\\_   _/`\\ ", AMBER, AMBER),
-           grad("\\___)=(___/ ", AMBER, AMBER), ""]
-    return tux
+        cmd = ["fastfetch", "--logo-type", "builtin", "--logo", "macos", "-s", " "]
+    else:                                            # auto-detect the distro logo
+        cmd = ["fastfetch", "--logo-type", "builtin", "-s", " "]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=5).stdout
+    except Exception:
+        out = ""
+    if out.strip():
+        # strip cursor-positioning / erase escapes, KEEP SGR color (…m)
+        cur = re.compile(r"\033\[\??[0-9;]*[A-Za-ln-z]")
+        lines = [cur.sub("", ln).rstrip() for ln in out.split("\n")]
+        while lines and not _ANSI.sub("", lines[0]).strip(): lines.pop(0)
+        while lines and not _ANSI.sub("", lines[-1]).strip(): lines.pop()
+        if lines:
+            return lines
+    # fallback mark if fastfetch is missing
+    return [col(r"  /\_/\  ", C["muted"]), col(r" ( o.o ) ", C["muted"]),
+            col(r"  > ^ <  ", C["muted"])]
 
-# ── Two-column info grid — one accent colour per LINE (multi-coloured rows) ──
-def cell(glyph, label, value, accent):
-    if not value or value == "n/a":
-        value = col("—", C["muted"])
-    else:
-        value = col(value, C["fg"])
-    return f"{col(glyph, accent)} {col(label.ljust(6), accent)} {value}"
+# ── btop-style resource bars (green→amber→red gradient per cell) ──────────────
+def _gyr(t, invert=False):
+    if invert: t = 1.0 - t
+    g=(63,185,80); a=(227,179,65); r=(255,123,114)
+    if t < 0.5: u=t/0.5;       c=tuple(round(g[i]+(a[i]-g[i])*u) for i in range(3))
+    else:       u=(t-0.5)/0.5; c=tuple(round(a[i]+(r[i]-a[i])*u) for i in range(3))
+    return rgb(*c)
 
-def grid(d):
-    # (glyph, label, field) for left & right columns; one accent per row so each
-    # line reads in its own colour (blue→purple→cyan→green→amber→red).
-    ROWS = [
-        (("os","OS","os"),             ("cpu","CPU","cpu")),
-        (("host","Host","host"),       ("cores","Cores","cores")),
-        (("kernel","Kernel","kernel"), ("mem","Mem","mem")),
-        (("uptime","Up","uptime"),     ("disk","Disk","disk")),
-        (("pkgs","Pkgs","pkgs"),       ("load","Load","load")),
-        (("shell","Shell","shell"),    ("ip","IP","ip")),
-        (("term","Term","term"),       ("wifi","WiFi","wifi")),
-    ]
-    ACCENTS = [C["blue"], C["purple"], C["cyan"], C["green"],
-               C["amber"], C["red"], C["blue"]]
-    rows=[]; lw = 26  # left-cell display width before the divider
-    for ((lg,ll,lf),(rg,rl,rf)), accent in zip(ROWS, ACCENTS):
-        lc = cell(G[lg], ll, _short(d.get(lf,""),13), accent)
-        rc = cell(G[rg], rl, _short(d.get(rf,""),15), accent)
-        rows.append(pad(lc, lw) + col("│ ", C["muted"]) + rc)
+def bar(p, width=12, invert=False):
+    try: p = max(0, min(100, int(p)))
+    except Exception: p = 0
+    filled = round(p/100*width)
+    if NOCOLOR:
+        return "[" + "█"*filled + "░"*(width-filled) + "]"
+    cells = []
+    for i in range(width):
+        t = i/(width-1) if width > 1 else 0
+        cells.append((_gyr(t, invert) if i < filled else C["muted"]) +
+                     ("█" if i < filled else "░"))
+    return col("[", C["muted"]) + "".join(cells) + RST + col("]", C["muted"])
+
+def bar_rows(d):
+    SPEC = [("cpu","CPU",False), ("mem","Mem",False), ("swap","Swap",False),
+            ("disk","Disk",False), ("batt","Batt",True)]   # batt: full = green
+    rows = []
+    for f, label, inv in SPEC:
+        raw = d.get(f+"_pct", "")
+        try: p = int(raw)
+        except Exception: p = 0
+        rows.append(f"{col(G.get(f,''),C['muted'])} {col(label.ljust(5),C['fg'])} "
+                    f"{bar(p, 12, inv)} {col(str(p).rjust(3)+'%', C['muted'])}")
     return rows
 
-def _short(s, n): return s if len(s) <= n else s[:n-1]+"…"
+# ── Dense two-column info grid (one accent colour per row) ───────────────────
+def info_rows(d):
+    L = [("os","OS"),("host","Host"),("kernel","Kernel"),("uptime","Up"),
+         ("shell","Shell"),("term","Term"),("pkgs","Pkgs"),("locale","Locale")]
+    R = [("cpu","CPU"),("cores","Cores"),("mem","Mem"),("disk","Disk"),
+         ("ip","IP"),("wifi","WiFi"),("batt","Batt"),("load","Load")]
+    ACC = [C["blue"],C["purple"],C["cyan"],C["green"],C["amber"],C["red"],C["blue"],C["green"]]
+    rows = []; LW = 25
+    for (lf,ll),(rf,rl),acc in zip(L, R, ACC):
+        lc = f"{col(G.get(lf,''),acc)} {col(ll.ljust(6),acc)} {col(_short(d.get(lf,''),13),C['fg'])}"
+        rc = f"{col(G.get(rf,''),acc)} {col(rl.ljust(5),acc)} {col(_short(d.get(rf,''),14),C['fg'])}"
+        rows.append(pad(lc, LW) + col("│ ", C["muted"]) + rc)
+    return rows
 
-# ── Usage bars (mem / disk) ──────────────────────────────────────────────────
-def bar(pct, width=16):
-    """A [████░░░░] meter; green < 70%, amber < 90%, red above."""
-    pct = max(0, min(100, int(pct)))
-    fill = round(pct / 100 * width)
-    accent = C["green"] if pct < 70 else (C["amber"] if pct < 90 else C["red"])
-    if NOCOLOR:
-        return "█" * fill + "░" * (width - fill)
-    return accent + "█" * fill + C["muted"] + "░" * (width - fill) + RST
-
-def usage_lines(d):
-    out = []
-    for gkey, label, pctkey, valkey, accent in (
-            ("mem", "Mem", "mem_pct", "mem", C["green"]),
-            ("disk", "Disk", "disk_pct", "disk", C["amber"])):
-        pct = d.get(pctkey, "")
-        if not pct.isdigit():
-            continue
-        p = int(pct)
-        out.append(f"{col(G[gkey], accent)} {col(label.ljust(5), accent)} "
-                   f"{bar(p)} {col(f'{p:>3}%', C['fg'])}  {col(d.get(valkey,''), C['muted'])}")
-    return out
-
-# ── Dev context (git / k8s / docker) — only what's present, fast & guarded ────
-def _run(cmd, timeout=1.5):
-    try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        return r.stdout.strip() if r.returncode == 0 else ""
-    except Exception:
-        return ""
-
-def context_lines():
-    parts = []
-    branch = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
-    if branch and branch != "HEAD":
-        dirty = _run(["git", "status", "--porcelain"])
-        mark = col("●", C["amber"]) if dirty else col("✓", C["green"])
-        parts.append(f"{col(G['git'], C['purple'])} {col(branch, C['fg'])} {mark}")
-    if shutil.which("kubectl") and os.path.isfile(os.path.expanduser("~/.kube/config")):
-        kctx = _run(["kubectl", "config", "current-context"])
-        if kctx:
-            parts.append(f"{col(G['k8s'], C['blue'])} {col(_short(kctx, 20), C['fg'])}")
-    if shutil.which("docker"):
-        ids = _run(["docker", "ps", "-q"])
-        if ids:
-            n = len([x for x in ids.splitlines() if x.strip()])
-            parts.append(f"{col(G['docker'], C['cyan'])} {col(f'{n} running', C['fg'])}")
-    return ["   ".join(parts)] if parts else []
-
-def palette():
+def palette_dots():
     dots = "".join(col("●", c) for c in (C["blue"],C["green"],C["purple"],C["amber"],
                                          C["red"],C["cyan"],C["muted"],C["fg"]))
-    # Label the swatch with the active theme + profile (exported by the shell).
-    theme = os.environ.get("CLAW_THEME_NAME", "")
-    prof = os.environ.get("CLAW_ACTIVE_PROFILE", "")
-    tag = "  ".join(t for t in (theme, (prof and prof + " profile")) if t)
-    label = ("  " + col(tag, C["muted"])) if tag else ""
-    return "  " + dots + label
+    return "  " + dots
 
-# ── Compose + frame + center ─────────────────────────────────────────────────
+# ── Compose: logo | (header + info + bars), framed, centered ─────────────────
 def main():
     d = fields()
-    user = os.environ.get("USER","")
-    host = d.get("host","") or os.uname().nodename
+    user = os.environ.get("USER", "")
+    host = d.get("host", "") or os.uname().nodename
     when = datetime.datetime.now().strftime("%a %b %d · %H:%M")
-    up = d.get("uptime","")
+    up = d.get("uptime", "")
 
     logo = logo_lines()
     header = [
-        f"{col(G['user'],C['green'])} {grad(f'{user}@{host}', GREEN, CYAN)}",
-        f"{col(G['clock'],C['muted'])} {col(when, C['muted'])}" + (f"  {col('· up '+up, C['muted'])}" if up else ""),
-        col("─"*42, C["muted"]),
+        f"{col(G['user'],C['green'])} {col(f'{user}@{host}', C['green'])}",
+        f"{col(G['clock'],C['muted'])} {col(when, C['muted'])}"
+        + (f"  {col('· up '+up, C['muted'])}" if up else ""),
     ]
-    body = header + grid(d)
-    usage = usage_lines(d)
-    if usage:
-        body += [""] + usage
-    ctx = context_lines()
-    if ctx:
-        body += [""] + ctx
-    body += ["", palette()]
+    body = header + [""] + info_rows(d) + [""] + bar_rows(d) + ["", palette_dots()]
 
-    # merge logo (left) with body (right), row by row
-    lw = max(vis(l) for l in logo) + 2
-    n = max(len(logo), len(body))
-    merged=[]
+    # merge logo (left) with body (right), vertically centered against each other
+    lw = max((vis(l) for l in logo), default=0) + 3
+    pad_top = max(0, (len(body) - len(logo)) // 2)
+    lpad_top = max(0, (len(logo) - len(body)) // 2)
+    n = max(len(logo) + lpad_top, len(body) + pad_top)
+    merged = []
     for i in range(n):
-        lft = pad(logo[i] if i < len(logo) else "", lw)
-        rgt = body[i] if i < len(body) else ""
-        merged.append(lft + rgt)
+        li = i - lpad_top
+        bi = i - pad_top
+        lft = pad(logo[li] if 0 <= li < len(logo) else "", lw)
+        rgt = body[bi] if 0 <= bi < len(body) else ""
+        merged.append((lft + rgt).rstrip())
 
-    width = max(vis(m) for m in merged) + 2
-    title = grad(" OPEN CLAW ", BLUE, GREEN)
-    tlen = vis(title)
-    # Every framed line is `│ <content padded to width-1> │` → display width+2.
-    # The top rule must span the same width+2 (was width+1: a one-column-short
-    # top-right corner — the "rough edge"). Dashes after the title = width-1-tlen.
-    top = col("╭─", C["muted"]) + title + col("─"*(width-1-tlen) + "╮", C["muted"])
-    bot = col("╰" + "─"*width + "╯", C["muted"])
-    bar = col("│", C["muted"])
+    # One inner width shared by all three borders so the right edge lines up:
+    # content row = "│" + " " + content(content_w) + " " + "│"  → inner = content_w + 2
+    # top         = "╭" + "─" + title + "─"*dash + "╮"          → inner = content_w + 2
+    # bottom      = "╰" + "─"*inner + "╯"                        → inner = content_w + 2
+    quickref = "--quickref" in sys.argv
+    qr = quickref_rows() if quickref else []
+    # shared width across BOTH boxes so the quickref frame aligns flush with
+    # the dashboard frame above it.
+    content_w = max((vis(m) for m in merged + qr), default=20)
 
-    # horizontal centering — pad every framed line to the terminal centre.
-    term = shutil.get_terminal_size((80, 24)).columns
-    box_w = width + 2                       # true outer display width of a row
-    margin = " " * max(0, (term - box_w) // 2)
-
-    # Publish width + margin so sibling renderers (the default quickref) can
-    # match this box exactly and stack flush beneath it.
-    try:
-        sd = os.path.join(os.environ.get("XDG_STATE_HOME",
-                          os.path.expanduser("~/.local/state")), "claw")
-        os.makedirs(sd, exist_ok=True)
-        with open(os.path.join(sd, "dash_box"), "w") as f:
-            f.write(f"{box_w} {len(margin)}\n")
-    except Exception:
-        pass
+    term = shutil.get_terminal_size((100, 30)).columns
+    margin = " " * max(0, (term - (content_w + 4)) // 2)
 
     print()
-    print(margin + top)
-    for m in merged:
-        print(margin + bar + " " + pad(m, width-1) + bar)
-    print(margin + bot)
-    print()
+    frame(merged, " OPEN CLAW ", content_w, margin)
+    if quickref:
+        frame(qr, " Daily Driver ", content_w, margin)
+
+def frame(lines, title_text, content_w, margin):
+    """Print one framed, centered box. All boxes in a run share content_w."""
+    inner = content_w + 2
+    title = col(title_text, C["green"])
+    dash = max(0, inner - 1 - vis(title))
+    bar_ch = col("│", C["muted"])
+    print(margin + col("╭─", C["muted"]) + title + col("─"*dash + "╮", C["muted"]))
+    for m in lines:
+        print(margin + bar_ch + " " + pad(m, content_w) + " " + bar_ch)
+    print(margin + col("╰" + "─"*inner + "╯", C["muted"]))
+
+def quickref_rows():
+    """The Daily Driver quick-reference, rendered with the dashboard's own
+    width engine (replaces the hand-padded zsh box whose right edge jittered)."""
+    SECTIONS = [
+        ("Navigate", C["green"],  [("z","smart cd"),("Ctrl+R","history"),("Ctrl+T","find files")]),
+        ("Files",    C["blue"],   [("ls","eza"),("cat","bat"),("find","fd"),("grep","rg"),("diff","delta")]),
+        ("Network",  C["amber"],  [("netcheck","diag"),("ports","listen"),("myip",""),("dns",""),("headers","")]),
+        ("Tools",    C["red"],    [("tun","tunnels"),("glg","lazygit"),("lzd","docker"),("fkill","")]),
+        ("System",   C["purple"], [("top","btop"),("df","duf"),("du","dust"),("reload",""),("update","")]),
+    ]
+    rows = [""]
+    for label, accent, pairs in SECTIONS:
+        cells = "  ".join(
+            col(cmd, C["fg"]) + (f" {col(desc, C['muted'])}" if desc else "")
+            for cmd, desc in pairs
+        )
+        rows.append(f"{col(label.ljust(9), accent)} {cells}")
+    rows += ["", col("type ", C["muted"]) + col("default-help", C["fg"]) + col(" for the full reference", C["muted"])]
+    return rows
 
 if __name__ == "__main__":
     main()

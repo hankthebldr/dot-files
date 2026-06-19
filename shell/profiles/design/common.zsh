@@ -1,7 +1,6 @@
 # shell/profiles/design/common.zsh
 # Aliases / functions / help — work identically on macOS and Linux.
 
-export CLAW_PROFILE_THEME="design"
 
 # Where new design assets land if no current project context. Override via
 # DESIGN_HOME if you keep assets elsewhere.

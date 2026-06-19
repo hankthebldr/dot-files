@@ -1,6 +1,5 @@
 # Research Profile
 # Loadout for Data Exploration, OSINT, Scraping, and Text Analytics
-export CLAW_PROFILE_THEME="research"
 
 export RESEARCH_WORKSPACE="$HOME/research"
 mkdir -p "$RESEARCH_WORKSPACE" 2>/dev/null

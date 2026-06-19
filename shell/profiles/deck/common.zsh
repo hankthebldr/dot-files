@@ -3,7 +3,6 @@
 # OS-specific bits (screencapture / spectacle / office365 / libreoffice) live
 # in mac.zsh and linux.zsh.
 
-export CLAW_PROFILE_THEME="deck"
 
 # Where new deck drafts live. Override via DECK_HOME in shell env if you
 # keep customer-facing material elsewhere (e.g. a synced Drive folder).

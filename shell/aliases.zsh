@@ -31,10 +31,8 @@ if command -v colorls &> /dev/null; then
     alias lcd='colorls -d'                                   # dirs only
 fi
 
-# Open Claw & Toolkit
-# claw() function defined below — inline profile switcher
-alias openclaw='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/openclaw.sh'
-alias oc='openclaw'
+# Open Claw & Toolkit — claw() lives in shell/claw-fn.zsh (the canonical
+# wrapper); openclaw.sh was its pre-claw predecessor, archived to legacy/.
 alias tk='$DOTFILES_DIR/scripts/utils/toolkit.sh'
 
 # Better cat (bat) — function wrapper to avoid breaking pipes
@@ -445,46 +443,10 @@ alias zshrc='$EDITOR ~/.zshrc'
 alias reload='source ~/.zshrc'
 
 # Profile switching (inline, no restart needed)
-claw() {
-    local _d="${DOTFILES_DIR:-$HOME/.dotfiles}"
-    if [[ -z "$1" ]]; then
-        # No args: re-launch FZF profile menu
-        if [[ -f "$_d/shell/welcome-tui.zsh" ]]; then
-            unset CLAW_ACTIVE_PROFILE CLAW_PROFILE_THEME
-            source "$_d/shell/welcome-tui.zsh"
-            claw_welcome_tui
-        fi
-        return
-    fi
-    # `claw theme ...` — color theme management (libraries in config/themes/<slug>/)
-    if [[ "$1" == "theme" ]]; then
-        shift
-        case "$1" in
-            ""|list|ls)  claw_theme_list ;;
-            set)         claw_theme_set "$2" ;;
-            preview)     claw_theme_preview "$2" ;;
-            *) printf 'usage: claw theme [list | set <slug> | preview <slug>]\n' >&2; return 1 ;;
-        esac
-        return
-    fi
-    local profile="$1"
-    local profile_path="$_d/shell/profiles/${profile}.zsh"
-    if [[ ! -f "$profile_path" ]]; then
-        echo "Unknown profile: $profile"
-        echo "Available: default security cloud devops ai research cortex local"
-        return 1
-    fi
-    export CLAW_ACTIVE_PROFILE="$profile"
-    unset CLAW_PROFILE_THEME
-    source "$profile_path"
-    # Show profile fastfetch if available
-    local ff="$_d/config/.config/fastfetch/config-${profile}.jsonc"
-    if command -v fastfetch &>/dev/null && [[ -f "$ff" ]]; then
-        echo ""
-        # claw_ff = kitty/iterm raster logo in Ghostty/Kitty/iTerm, text fallback elsewhere.
-        if typeset -f claw_ff &>/dev/null; then claw_ff "$profile" "$ff"; else fastfetch -c "$ff"; fi
-    fi
-}
+# claw() — see shell/claw-fn.zsh (sourced after this file; the single canonical
+# wrapper). The inline twin that used to live here was dead code: claw-fn.zsh
+# loads later and shadowed it. Its useful behaviors (no-args in-shell TUI
+# relaunch, bare-profile shorthand) moved into claw-fn.zsh.
 alias aliases='$EDITOR $DOTFILES_DIR/shell/aliases.zsh'
 alias vim='nvim'
 alias vimrc='$EDITOR ~/.config/nvim/init.lua'

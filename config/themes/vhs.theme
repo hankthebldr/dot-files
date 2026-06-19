@@ -1,0 +1,15 @@
+# vhs — warm retro video: cream text with magenta/cyan chroma fringe.
+# Declared by the design / brainstorm profiles (PROFILE_THEME_DEFAULT=vhs).
+name=VHS
+slug=vhs
+bg=15121c
+bg_alt=201a2a
+fg=f5ead6
+muted=9a8fa3
+divider=352c42
+blue=5fb7ff
+green=6ee787
+purple=d18aff
+amber=ffb454
+red=ff6188
+cyan=53e0dc

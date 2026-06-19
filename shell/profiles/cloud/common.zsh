@@ -1,7 +1,6 @@
 # shell/profiles/cloud/common.zsh
 # Aliases / exports / help — work identically on macOS and Linux.
 
-export CLAW_PROFILE_THEME="cloud"
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 
 # ==========================================

@@ -14,16 +14,20 @@ CLAW_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
 CLAW_USAGE_LOG="$CLAW_CACHE_DIR/usage.tsv"
 
 # ============================================
-# THEME (GitHub Dark — matches system-update.sh)
+# THEME — from the active Open Claw palette (theme.sh single source of truth).
+# Sourcing exports CLAW_RGB_*; fallbacks are refined-dark so claw renders
+# correctly even if theme.sh is missing (e.g. mid-bootstrap).
 # ============================================
+# shellcheck source=/dev/null
+[ -r "$DOTFILES/scripts/utils/theme.sh" ] && . "$DOTFILES/scripts/utils/theme.sh" 2>/dev/null || true
 c_reset=$'\e[0m'
-c_cyan=$'\e[38;2;88;166;255m'
-c_green=$'\e[38;2;63;185;80m'
-c_purple=$'\e[38;2;188;140;255m'
-c_orange=$'\e[38;2;227;179;65m'
-c_red=$'\e[38;2;255;123;114m'
-c_dim=$'\e[38;2;139;148;158m'
-c_white=$'\e[38;2;201;209;217m'
+c_cyan=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m'
+c_green=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
+c_purple=$'\e[38;2;'"${CLAW_RGB_PURPLE:-188;140;255}"$'m'
+c_orange=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+c_dim=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+c_white=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
 c_bold=$'\e[1m'
 
 err()  { printf "  ${c_red}✗${c_reset} %s\n" "$*" >&2; }
@@ -128,11 +132,11 @@ cmd_help() {
     ${c_white}claw restore-shell${c_reset}    ${c_dim}re-link ~/.zshrc, ~/.p10k.zsh, … to the repo (fix clobbered symlinks)${c_reset}
     ${c_white}claw lock-shell${c_reset}       ${c_dim}make ~/.zshrc & ~/.p10k.zsh immutable so p10k configure can't clobber them${c_reset}
     ${c_white}claw unlock-shell${c_reset}     ${c_dim}lift the immutable lock (before re-stow / running the wizard)${c_reset}
+    ${c_white}claw storage${c_reset}          ${c_dim}storage usage analysis + offload candidates (storage-doctor)${c_reset}
     ${c_white}claw validate${c_reset}         ${c_dim}full top-to-bottom install check + update/missing detection${c_reset}
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
-    ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc)${c_reset}
-    ${c_white}claw tools${c_reset}            ${c_dim}interactive curated CLI tool refresh${c_reset}
+    ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc); ${c_white}--tools${c_dim} curated CLI refresh, ${c_white}--schedule${c_dim} weekly timer${c_reset}
 
   ${c_green}${c_bold}TUIs${c_reset}
     ${c_white}claw tun${c_reset}              ${c_dim}SSH tunnel manager${c_reset}
@@ -451,8 +455,17 @@ cmd_doctor() {
     echo ""
 }
 
+# ONE front door for the three updaters (each keeps its own job):
+#   claw update              system packages (brew/apt/npm/pip…)  → system-update.sh
+#   claw update --tools      interactive curated CLI refresh      → tool-updater.sh
+#   claw update --schedule   weekly auto-update timer             → selfupdate.sh
+# `claw tools` / `claw selfupdate` still work as muscle-memory aliases.
 cmd_update() {
-    bash "$DOTFILES/scripts/utils/system-update.sh" "$@"
+    case "${1:-}" in
+        --tools|tools)       shift; bash "$DOTFILES/scripts/utils/tool-updater.sh" --interactive "$@" ;;
+        --schedule|schedule) shift; bash "$DOTFILES/scripts/utils/selfupdate.sh" "${1:-install}" ;;
+        *)                   bash "$DOTFILES/scripts/utils/system-update.sh" "$@" ;;
+    esac
 }
 
 cmd_tools() {
@@ -1008,6 +1021,7 @@ case "${1:-menu}" in
     capture-tasks)  shift; bash "$DOTFILES/scripts/utils/capture-tasks.sh" "$@" ;;
     cheatsheet|cheat) bash "$DOTFILES/scripts/utils/cheatsheet.sh" ;;
     theme|themes|colors) shift; cmd_theme "$@" ;;
+    storage)        shift; bash "$DOTFILES/scripts/utils/storage-doctor.sh" "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;

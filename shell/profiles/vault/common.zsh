@@ -3,7 +3,6 @@
 # Builds ON TOP OF the global shell/obsidian.zsh module (which provides
 # o/on/os/ov/otoday/ocapture/ovaults/ovuse and the _CLAW_OBSIDIAN_VAULTS map).
 
-export CLAW_PROFILE_THEME="vault"
 
 # ==========================================
 # VAULT-NATIVE ALIASES

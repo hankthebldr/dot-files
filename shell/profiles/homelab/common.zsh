@@ -2,7 +2,6 @@
 # Cross-platform aliases / help for the BD790i homelab.
 # Per-OS divergence (SSH wrappers vs native daemon control) lives in mac.zsh / linux.zsh.
 
-export CLAW_PROFILE_THEME="homelab"
 
 # BD790i identity — override via env if hostname differs (e.g. Tailscale IP).
 # Examples: BD790I_HOST=100.64.0.5  or  BD790I_HOST=bd790i.tail-scale.ts.net
