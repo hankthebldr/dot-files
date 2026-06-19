@@ -80,7 +80,8 @@ def _short(s, n): s = s or "—"; return s if len(s) <= n else s[:n-1]+"…"
 # ── Nerd Font glyphs (Font Awesome — 1 cell in a *Mono Nerd Font) ────────────
 G = dict(os="", host="", kernel="", uptime="", load="",
          shell="", term="", pkgs="", locale="", cpu="", cores="",
-         mem="", disk="", ip="", wifi="", batt="", clock="", user="")
+         mem="", disk="", ip="", wifi="", batt="", clock="", user="",
+         git="", k8s="⎈", docker="")
 
 def fields():
     try:
@@ -168,6 +169,36 @@ def palette_dots():
                                          C["red"],C["cyan"],C["muted"],C["fg"]))
     return "  " + dots
 
+# ── Dev context (git / k8s / docker) — only what's present, fast & guarded ────
+def _run(cmd, timeout=1.5):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except Exception:
+        return ""
+
+def context_lines():
+    """One line of live dev context: current git branch (+ dirty marker), the
+    active kube-context, and running-container count. Each segment is emitted
+    only when its tool/state is actually present, so the row stays empty (and is
+    skipped by the caller) on a bare machine."""
+    parts = []
+    branch = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    if branch and branch != "HEAD":
+        dirty = _run(["git", "status", "--porcelain"])
+        mark = col("●", C["amber"]) if dirty else col("✓", C["green"])
+        parts.append(f"{col(G['git'], C['purple'])} {col(_short(branch, 22), C['fg'])} {mark}")
+    if shutil.which("kubectl") and os.path.isfile(os.path.expanduser("~/.kube/config")):
+        kctx = _run(["kubectl", "config", "current-context"])
+        if kctx:
+            parts.append(f"{col(G['k8s'], C['blue'])} {col(_short(kctx, 20), C['fg'])}")
+    if shutil.which("docker"):
+        ids = _run(["docker", "ps", "-q"])
+        if ids:
+            n = len([x for x in ids.splitlines() if x.strip()])
+            parts.append(f"{col(G['docker'], C['cyan'])} {col(f'{n} running', C['fg'])}")
+    return ["   ".join(parts)] if parts else []
+
 # ── Compose: logo | (header + info + bars), framed, centered ─────────────────
 def main():
     d = fields()
@@ -182,7 +213,11 @@ def main():
         f"{col(G['clock'],C['muted'])} {col(when, C['muted'])}"
         + (f"  {col('· up '+up, C['muted'])}" if up else ""),
     ]
-    body = header + [""] + info_rows(d) + [""] + bar_rows(d) + ["", palette_dots()]
+    body = header + [""] + info_rows(d) + [""] + bar_rows(d)
+    ctx = context_lines()                            # git / k8s / docker, if present
+    if ctx:
+        body += [""] + ctx
+    body += ["", palette_dots()]
 
     # merge logo (left) with body (right), vertically centered against each other
     lw = max((vis(l) for l in logo), default=0) + 3
