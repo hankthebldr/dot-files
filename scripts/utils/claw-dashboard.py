@@ -13,7 +13,7 @@ active Open Claw theme (config/themes/<slug>.theme — single source of truth).
 Usage: claw-dashboard.py        (auto width; degrades cleanly without color/tty)
 """
 from __future__ import annotations
-import os, re, shutil, subprocess, sys, datetime, platform
+import os, re, shutil, subprocess, sys, datetime, platform, json, stat
 
 DOTS = os.environ.get("DOTFILES_DIR", os.path.expanduser("~/.dotfiles"))
 
@@ -81,7 +81,8 @@ def _short(s, n): s = s or "—"; return s if len(s) <= n else s[:n-1]+"…"
 G = dict(os="", host="", kernel="", uptime="", load="",
          shell="", term="", pkgs="", locale="", cpu="", cores="",
          mem="", disk="", ip="", wifi="", batt="", clock="", user="",
-         git="", k8s="⎈", docker="")
+         git="", k8s="⎈", docker="",
+         tailscale="", tunnel="", cloud="")
 
 def fields():
     try:
@@ -199,6 +200,84 @@ def context_lines():
             parts.append(f"{col(G['docker'], C['cyan'])} {col(f'{n} running', C['fg'])}")
     return ["   ".join(parts)] if parts else []
 
+# ── Infra context (tailscale / ssh tunnels / cloud identity) ─────────────────
+# All local-state reads: a tailscale daemon query (no internet hop), a socket
+# stat, and cloud *config files* — never a `sts`/`gcloud`/`az` API round-trip.
+def _tunnel_count():
+    """Live ControlMaster sockets the tunnel-manager opens in /tmp/ssh-tunnels.
+    Counts actual sockets (S_ISSOCK), so plain files left behind don't inflate."""
+    d = "/tmp/ssh-tunnels"
+    try:
+        return sum(1 for f in os.listdir(d)
+                   if stat.S_ISSOCK(os.stat(os.path.join(d, f)).st_mode))
+    except Exception:
+        return 0
+
+def _aws_profile():
+    p = os.environ.get("AWS_PROFILE") or os.environ.get("AWS_DEFAULT_PROFILE")
+    if p:
+        return p
+    # No env override → "default" only if a config actually defines it.
+    if os.path.isfile(os.path.expanduser("~/.aws/config")) or \
+       os.path.isfile(os.path.expanduser("~/.aws/credentials")):
+        return "default"
+    return ""
+
+def _gcp_project():
+    base = os.path.expanduser("~/.config/gcloud")
+    try:
+        name = open(os.path.join(base, "active_config")).read().strip()
+        if not name:
+            return ""
+        for line in open(os.path.join(base, "configurations", f"config_{name}")):
+            if line.strip().startswith("project"):
+                return line.split("=", 1)[1].strip()
+    except Exception:
+        pass
+    return ""
+
+def _az_subscription():
+    try:
+        # azureProfile.json is UTF-8 *with BOM* — utf-8-sig strips it.
+        data = json.loads(open(os.path.expanduser("~/.azure/azureProfile.json"),
+                               encoding="utf-8-sig").read())
+        for s in data.get("subscriptions", []):
+            if s.get("isDefault"):
+                return s.get("name", "")
+    except Exception:
+        pass
+    return ""
+
+def infra_lines():
+    parts = []
+    if shutil.which("tailscale"):
+        out = _run(["tailscale", "status", "--json"], timeout=1.0)
+        if out:
+            try:
+                ts = json.loads(out)
+                if ts.get("BackendState") == "Running":
+                    peers = ts.get("Peer") or {}
+                    online = sum(1 for p in peers.values() if p.get("Online"))
+                    seg = f"{col(G['tailscale'], C['green'])} {col(f'{online}/{len(peers)}', C['fg'])}"
+                    if (ts.get("ExitNodeStatus") or {}).get("Online"):
+                        seg += col(" ⇄exit", C["amber"])
+                    parts.append(seg)
+            except Exception:
+                pass
+    n = _tunnel_count()
+    if n:
+        parts.append(f"{col(G['tunnel'], C['blue'])} {col(f'{n} tun', C['fg'])}")
+    clouds = []
+    aws = _aws_profile()
+    if aws:               clouds.append(f"aws:{_short(aws, 14)}")
+    gcp = _gcp_project()
+    if gcp:               clouds.append(f"gcp:{_short(gcp, 18)}")
+    az = _az_subscription()
+    if az:                clouds.append(f"az:{_short(az, 16)}")
+    if clouds:
+        parts.append(f"{col(G['cloud'], C['cyan'])} {col('  '.join(clouds), C['fg'])}")
+    return ["   ".join(parts)] if parts else []
+
 # ── Compose: logo | (header + info + bars), framed, centered ─────────────────
 def main():
     d = fields()
@@ -214,7 +293,7 @@ def main():
         + (f"  {col('· up '+up, C['muted'])}" if up else ""),
     ]
     body = header + [""] + info_rows(d) + [""] + bar_rows(d)
-    ctx = context_lines()                            # git / k8s / docker, if present
+    ctx = [l for l in context_lines() + infra_lines() if l]   # dev + infra rows
     if ctx:
         body += [""] + ctx
     body += ["", palette_dots()]
