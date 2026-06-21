@@ -47,3 +47,28 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"mode"* ]]
 }
+
+@test "frame: viewfinder top line spans COLUMNS and carries corner glyphs" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=40 TERM=xterm-256color bash -c "source '$PROG'; claw_frame_top"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\xE2\x8C\x9C'* ]]   # ⌜ top-left
+  [[ "$output" == *$'\xE2\x8C\x9D'* ]]   # ⌝ top-right
+}
+
+@test "frame: dumb terminal falls back to ASCII corners" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=40 TERM=dumb bash -c "source '$PROG'; claw_frame_top"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"+"* ]]
+  [[ "$output" != *$'\xE2\x8C\x9C'* ]]   # no unicode corner
+}
+
+@test "frame: claw_card wraps a title and body" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=40 TERM=xterm-256color bash -c "source '$PROG'; printf 'line one\nline two\n' | claw_card 'My Title'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"My Title"* ]]
+  [[ "$output" == *"line one"* ]]
+  [[ "$output" == *"line two"* ]]
+}
