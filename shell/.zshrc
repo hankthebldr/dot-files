@@ -79,6 +79,13 @@ if [[ -d "$ZSH" ]]; then
     HYPHEN_INSENSITIVE="true"
     COMPLETION_WAITING_DOTS="true"
     zstyle ':omz:update' mode auto
+    # Keep auto-updates, but silence OMZ's post-update promo banner ("Hooray!" +
+    # ASCII art + X/Discord/swag footer) so it never crashes the branded login.
+    # The instant-prompt force-silent guard misses here: .p10k.zsh sets
+    # POWERLEVEL9K_INSTANT_PROMPT at step 11, after oh-my-zsh.sh (step 5) runs the
+    # update check. 'silent' still surfaces update *errors*; use 'minimal' for a
+    # one-line confirmation, or 'mode disabled' to update only via omz/claw update.
+    zstyle ':omz:update' verbose silent
 
     plugins=(
         git gh github aliases sudo vi-mode copybuffer copypath copyfile cp
