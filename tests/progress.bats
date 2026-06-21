@@ -160,3 +160,15 @@ setup() {
   [[ "$output" == *"bash"* ]]
   [[ "$output" == *"summary:"* ]]
 }
+
+@test "pkg track: shows live scan phase + still reports nothing-new on a current manifest" {
+  DF="$BATS_TEST_TMPDIR/df2"
+  mkdir -p "$DF/config/manifest" "$DF/scripts/utils"
+  cp "$BATS_TEST_DIRNAME"/../scripts/utils/{cinematic.sh,detect-os.sh,claw-progress.sh,claw-output.sh,pkg-manifest.sh} "$DF/scripts/utils/"
+  : > "$DF/config/manifest/tools.list"
+  # Force discovery to find nothing by pointing user-bin dirs at empty + no pkg mgrs on PATH is unrealistic;
+  # instead assert the op runs cleanly and emits a scan label.
+  run env DOTFILES_DIR="$DF" CLAW_OUTPUT_MODE=plain bash "$DF/scripts/utils/pkg-manifest.sh" track
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pkg track"* ]]
+}

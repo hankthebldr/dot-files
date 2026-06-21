@@ -57,6 +57,21 @@ _discover() {
 # Ignore obvious non-CLI noise (drivers, python shims, dir headers).
 _discover_clean() { _discover | grep -vE '^\s*$|:$|^(chromedriver|geckodriver|activate|python[0-9.]*|pip[0-9.]*)$' | sort -u; }
 
+# Per-source discovery that announces a scan phase for the live panel, then
+# feeds the same clean tool list. Used by pkg_track / pkg_scan.
+# NOTE (deviation from plan Task 7): the claw_prog_* announce calls are
+# redirected to stderr (>&2). These run inside `< <( … )` process substitution
+# whose stdout is the tool-id stream the caller's `while read` consumes; in rich
+# mode an un-redirected repaint would inject ANSI escapes into that stream and
+# corrupt parsing. Sending the panel to stderr keeps stdout = clean tool ids.
+_discover_announced() {
+    local src
+    for src in brew cargo pipx npm userbin; do
+        { claw_prog_item "$src"; claw_prog_phase scan; } >&2
+    done
+    _discover_clean
+}
+
 # ── commands ────────────────────────────────────────────────────────────────
 pkg_list() {
     local n; n=$(_m_ids | grep -c . || true)
@@ -71,7 +86,7 @@ pkg_scan() {
     while IFS= read -r t; do
         [[ -z "$t" ]] && continue
         _m_has "$t" || untracked+=("$t")
-    done < <(_discover_clean)
+    done < <(claw_prog_begin "pkg scan" 0 >&2; _discover_announced; claw_prog_end >&2)
     if (( ${#untracked[@]} == 0 )); then
         log_success "manifest is current — no untracked tools"
         return 0
@@ -102,7 +117,7 @@ pkg_track() {
         src="$(_infer_source "$t")"
         printf '%s|%s\n' "$t" "$src" >> "$MANIFEST"
         added+=("$t($src)")
-    done < <(_discover_clean)
+    done < <(claw_prog_begin "pkg track" 0 >&2; _discover_announced; claw_prog_end >&2)
     if (( ${#added[@]} == 0 )); then log_success "nothing new to track"; return 0; fi
     log_success "tracked ${#added[@]}: ${c_dim}${added[*]}${c_reset}"
     if (( commit )) && command -v git &>/dev/null && git -C "$DOTFILES" rev-parse &>/dev/null; then
