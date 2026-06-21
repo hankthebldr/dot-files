@@ -7,8 +7,7 @@
 > engine ([`scripts/utils/theme.sh`](../../../scripts/utils/theme.sh), spine
 > contract #2).
 >
-> **Status:** draft, pending operator review. Not yet decomposed into an
-> implementation plan.
+> **Status:** Phase 1 implemented (engine + settings + pkg-manifest instrumentation). Phase 2 (provision two-tier, claw update, claw config hub) pending.
 
 ---
 
