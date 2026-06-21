@@ -41,3 +41,9 @@ setup() {
   [[ "$output" == *"frame"* ]]
   [[ "$output" == *"banner"* ]]
 }
+
+@test "claw output: dispatches through bin/claw" {
+  run env DOTFILES_DIR="$BATS_TEST_DIRNAME/.." bash "$BATS_TEST_DIRNAME/../bin/claw" output status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"mode"* ]]
+}

@@ -137,6 +137,7 @@ cmd_help() {
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
     ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc); ${c_white}--tools${c_dim} curated CLI refresh, ${c_white}--schedule${c_dim} weekly timer${c_reset}
+    ${c_white}claw output${c_reset}           ${c_dim}display settings: mode auto|rich|plain · frame viewfinder|none · banner on|off${c_reset}
 
   ${c_green}${c_bold}TUIs${c_reset}
     ${c_white}claw tun${c_reset}              ${c_dim}SSH tunnel manager${c_reset}
@@ -1021,6 +1022,7 @@ case "${1:-menu}" in
     capture-tasks)  shift; bash "$DOTFILES/scripts/utils/capture-tasks.sh" "$@" ;;
     cheatsheet|cheat) bash "$DOTFILES/scripts/utils/cheatsheet.sh" ;;
     theme|themes|colors) shift; cmd_theme "$@" ;;
+    output)         shift; bash "$DOTFILES/scripts/utils/claw-output.sh" "$@" ;;
     storage)        shift; bash "$DOTFILES/scripts/utils/storage-doctor.sh" "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
