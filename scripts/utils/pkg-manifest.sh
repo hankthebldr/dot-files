@@ -29,6 +29,8 @@ _U="$DOTFILES/scripts/utils"
 source "$_U/cinematic.sh" 2>/dev/null || { log_info(){ echo "▸ $*"; }; log_success(){ echo "✓ $*"; }; log_warning(){ echo "! $*"; }; log_skip(){ echo "· $*"; }; c_white=''; c_dim=''; c_green=''; c_reset=''; c_cyan=''; }
 # shellcheck source=/dev/null
 source "$_U/detect-os.sh" 2>/dev/null && detect_os || PKG_MANAGER=brew
+# shellcheck source=/dev/null
+source "$_U/claw-progress.sh" 2>/dev/null || true
 export USER="${USER:-$(id -un 2>/dev/null||echo user)}"
 mkdir -p "$(dirname "$MANIFEST")" "$HOME/.local/bin" 2>/dev/null || true
 [[ -f "$MANIFEST" ]] || : > "$MANIFEST"
@@ -119,33 +121,50 @@ pkg_add() {
     log_success "added $id|$src to manifest"
 }
 
+# Returns: 0 installed · 10 already-present (skip) · 1 failed/unknown.
 _install_via() {  # _install_via <id> <source>
     local id="$1" src="$2"
-    command -v "$id" &>/dev/null && { log_skip "$id (present)"; return 0; }
+    command -v "$id" &>/dev/null && return 10
     case "$src" in
-        brew)    command -v brew &>/dev/null && brew install "$id" ;;
-        apt)     sudo apt-get install -y "$id" ;;
-        cargo)   cargo install "$id" ;;
-        pipx)    pipx install "$id" ;;
-        gem)     gem install "$id" ;;
-        npm)     npm install -g "$id" ;;
-        go:*)    go install "${src#go:}@latest" ;;
-        eget|eget:*) command -v eget &>/dev/null && eget "${src#eget:}" --to "$HOME/.local/bin/$id" 2>/dev/null || { eget "$id" --to "$HOME/.local/bin/$id" 2>/dev/null; } ;;
-        curl:*)  curl -fsSL "${src#curl:}" | sh ;;
-        manual)  log_info "$id — manual install (no source recorded)"; return 0 ;;
-        *)       log_warning "$id — unknown source '$src'"; return 1 ;;
+        brew)    claw_prog_run install -- brew install "$id" ;;
+        apt)     claw_prog_run install -- sudo apt-get install -y "$id" ;;
+        cargo)   claw_prog_run build   -- cargo install "$id" ;;
+        pipx)    claw_prog_run install -- pipx install "$id" ;;
+        gem)     claw_prog_run install -- gem install "$id" ;;
+        npm)     claw_prog_run install -- npm install -g "$id" ;;
+        go:*)    claw_prog_run build   -- go install "${src#go:}@latest" ;;
+        eget|eget:*)
+                 claw_prog_run download -- sh -c 'command -v eget >/dev/null && eget "$1" --to "$2" 2>/dev/null || eget "$3" --to "$2" 2>/dev/null' \
+                     _ "${src#eget:}" "$HOME/.local/bin/$id" "$id" ;;
+        curl:*)  claw_prog_run install -- sh -c "curl -fsSL \"\$1\" | sh" _ "${src#curl:}" ;;
+        manual)  return 10 ;;   # nothing to install — treat as present/skip
+        *)       return 1 ;;
     esac
 }
 
 pkg_install() {
-    local want="${1:-all}" id src ok=0 fail=0
+    local want="${1:-all}" id src rc
+    local -a tools=()
     while IFS='|' read -r id src _; do
         [[ "$id" =~ ^#|^$ ]] && continue
         id="${id// /}"; src="${src// /}"
         [[ "$want" != "all" && "$want" != "$id" ]] && continue
-        if _install_via "$id" "$src"; then log_success "$id"; ok=$((ok+1)); else log_warning "$id failed"; fail=$((fail+1)); fi
+        tools+=("$id|$src")
     done < "$MANIFEST"
-    log_info "installed ok=$ok failed=$fail"
+
+    claw_prog_begin "pkg install" "${#tools[@]}"
+    local entry
+    for entry in "${tools[@]}"; do
+        id="${entry%%|*}"; src="${entry#*|}"
+        claw_prog_item "$id" "$src"
+        _install_via "$id" "$src"; rc=$?
+        case "$rc" in
+            0)  claw_prog_ok ;;
+            10) claw_prog_skip "present" ;;
+            *)  claw_prog_fail ;;
+        esac
+    done
+    claw_prog_end
 }
 
 pkg_update() {

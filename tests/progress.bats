@@ -147,3 +147,16 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"summary:"* ]]
 }
+
+@test "pkg install: drives the progress panel (plain) with per-tool result + summary" {
+  DF="$BATS_TEST_TMPDIR/df"
+  mkdir -p "$DF/config/manifest" "$DF/scripts/utils"
+  cp "$BATS_TEST_DIRNAME"/../scripts/utils/{cinematic.sh,detect-os.sh,claw-progress.sh,claw-output.sh} "$DF/scripts/utils/"
+  cp "$BATS_TEST_DIRNAME/../scripts/utils/pkg-manifest.sh" "$DF/scripts/utils/"
+  # a tool guaranteed present so _install_via takes the skip path, plus a real one
+  printf 'bash|manual\n' > "$DF/config/manifest/tools.list"
+  run env DOTFILES_DIR="$DF" CLAW_OUTPUT_MODE=plain bash "$DF/scripts/utils/pkg-manifest.sh" install all
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"bash"* ]]
+  [[ "$output" == *"summary:"* ]]
+}
