@@ -72,3 +72,36 @@ setup() {
   [[ "$output" == *"line one"* ]]
   [[ "$output" == *"line two"* ]]
 }
+
+@test "engine: plain mode emits clean per-item lines + summary" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain TERM=xterm-256color bash -c "
+    source '$PROG'
+    claw_prog_begin demo 3
+    claw_prog_item awscli brew;   claw_prog_phase install; claw_prog_ok
+    claw_prog_item kubectl brew;  claw_prog_ok
+    claw_prog_item helm brew;     claw_prog_fail 'network timeout'
+    claw_prog_end
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"demo (3)"* ]]
+  [[ "$output" == *"awscli"* ]]
+  [[ "$output" == *"helm"* ]]
+  [[ "$output" == *"network timeout"* ]]
+  [[ "$output" == *"summary:"* ]]
+}
+
+@test "engine: summary tally counts ok/fail/skip correctly" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain TERM=xterm-256color bash -c "
+    source '$PROG'
+    claw_prog_begin demo 0
+    claw_prog_item a; claw_prog_ok
+    claw_prog_item b; claw_prog_ok
+    claw_prog_item c; claw_prog_skip
+    claw_prog_item d; claw_prog_fail
+    claw_prog_end
+  "
+  [[ "$output" == *$'\xE2\x9C\x93'"2"* ]]   # ✓2
+  [[ "$output" == *$'\xE2\x9C\x97'"1"* ]]   # ✗1
+}

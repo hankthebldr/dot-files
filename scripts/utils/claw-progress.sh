@@ -77,3 +77,70 @@ claw_card() {  # claw_card <title>   (body on stdin)
   local line; while IFS= read -r line; do printf '  %s\n' "$line"; done
   claw_frame_bottom
 }
+
+# ── progress engine (Phase 1: foreground, single-process) ───────────────────
+_CLAW_PROG_OP=""; _CLAW_PROG_TOTAL=0; _CLAW_PROG_DONE=0
+_CLAW_PROG_OK=0;  _CLAW_PROG_FAIL=0;  _CLAW_PROG_SKIP=0
+_CLAW_PROG_ITEM=""; _CLAW_PROG_SRC=""; _CLAW_PROG_PHASE=""; _CLAW_PROG_NOTE=""
+_CLAW_PROG_T0=0; _CLAW_PROG_MODE="plain"
+
+_claw_prog_detect_mode() {
+  local m; m="$(_claw_output_get mode)"
+  case "$m" in plain) echo plain; return ;; rich) echo rich; return ;; esac
+  if [[ -t 1 && "${CLAW_PROGRESS_ENABLED:-1}" != 0 && "${TERM:-}" != dumb && -z "${CI:-}" ]]; then
+    echo rich
+  else
+    echo plain
+  fi
+}
+
+_claw_dur() {  # _claw_dur <seconds> → "Ns" or "MmSSs"
+  local s="$1"
+  if (( s < 60 )); then printf '%ds' "$s"; else printf '%dm%02ds' $(( s/60 )) $(( s%60 )); fi
+}
+
+claw_prog_begin() {
+  _CLAW_PROG_OP="$1"; _CLAW_PROG_TOTAL="${2:-0}"
+  _CLAW_PROG_DONE=0; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_SKIP=0
+  _CLAW_PROG_ITEM=""; _CLAW_PROG_SRC=""; _CLAW_PROG_PHASE=""; _CLAW_PROG_NOTE=""
+  _CLAW_PROG_T0="$(date +%s)"
+  _CLAW_PROG_MODE="$(_claw_prog_detect_mode)"
+  if [[ "$_CLAW_PROG_MODE" == plain ]]; then
+    if (( _CLAW_PROG_TOTAL > 0 )); then
+      printf '%s%s (%d)%s\n' "$(_c blue)" "$_CLAW_PROG_OP" "$_CLAW_PROG_TOTAL" "$(_creset)"
+    else
+      printf '%s%s%s\n' "$(_c blue)" "$_CLAW_PROG_OP" "$(_creset)"
+    fi
+  fi
+  # rich mode draw is added in Task 5
+}
+
+claw_prog_item()  { _CLAW_PROG_ITEM="$1"; _CLAW_PROG_SRC="${2:-}"; _CLAW_PROG_PHASE=""; _CLAW_PROG_NOTE=""; _claw_prog_repaint; }
+claw_prog_phase() { _CLAW_PROG_PHASE="$1"; _claw_prog_repaint; }
+claw_prog_note()  { _CLAW_PROG_NOTE="$1"; _claw_prog_repaint; }
+
+# A finalize helper: glyph, color, tally var name.
+_claw_prog_finalize() {  # _claw_prog_finalize <glyph-name> <color> <msg>
+  _CLAW_PROG_DONE=$(( _CLAW_PROG_DONE + 1 ))
+  local line; line="$(printf '  %s%s%s %s%s' "$2" "$(_claw_glyph "$1")" "$(_creset)" "$_CLAW_PROG_ITEM" "${3:+ ${3}}")"
+  _claw_prog_scrollback "$line"
+}
+claw_prog_ok()   { _CLAW_PROG_OK=$((   _CLAW_PROG_OK+1   )); _claw_prog_finalize ok   "$(_c green)" "${1:-}"; }
+claw_prog_fail() { _CLAW_PROG_FAIL=$(( _CLAW_PROG_FAIL+1 )); _claw_prog_finalize fail "$(_c red)"   "${1:-}"; }
+claw_prog_skip() { _CLAW_PROG_SKIP=$(( _CLAW_PROG_SKIP+1 )); _claw_prog_finalize skip "$(_c muted)" "${1:-}"; }
+
+claw_prog_end() {
+  local dur; dur="$(_claw_dur $(( $(date +%s) - _CLAW_PROG_T0 )))"
+  local summary; summary="$(printf '%s%s%d%s %s%s%d%s %s%s%d%s %s· %s%s' \
+    "$(_c green)" "$(_claw_glyph ok)"   "$_CLAW_PROG_OK"   "$(_creset)" \
+    "$(_c red)"   "$(_claw_glyph fail)" "$_CLAW_PROG_FAIL" "$(_creset)" \
+    "$(_c muted)" "$(_claw_glyph skip)" "$_CLAW_PROG_SKIP" "$(_creset)" \
+    "$(_c muted)" "$dur" "$(_creset)")"
+  _claw_prog_teardown    # rich teardown (added Task 5; no-op in plain)
+  printf '  summary: %s\n' "$summary"
+}
+
+# Plain-mode stubs; Task 5 overrides repaint/scrollback/teardown for rich mode.
+_claw_prog_repaint()    { :; }
+_claw_prog_scrollback() { printf '%s\n' "$1"; }
+_claw_prog_teardown()   { :; }
