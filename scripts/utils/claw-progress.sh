@@ -112,7 +112,7 @@ claw_prog_begin() {
       printf '%s%s%s\n' "$(_c blue)" "$_CLAW_PROG_OP" "$(_creset)"
     fi
   fi
-  # rich mode draw is added in Task 5
+  [[ "$_CLAW_PROG_MODE" == rich ]] && _claw_prog_begin_rich
 }
 
 claw_prog_item()  { _CLAW_PROG_ITEM="$1"; _CLAW_PROG_SRC="${2:-}"; _CLAW_PROG_PHASE=""; _CLAW_PROG_NOTE=""; _claw_prog_repaint; }
@@ -140,7 +140,101 @@ claw_prog_end() {
   printf '  summary: %s\n' "$summary"
 }
 
-# Plain-mode stubs; Task 5 overrides repaint/scrollback/teardown for rich mode.
-_claw_prog_repaint()    { :; }
-_claw_prog_scrollback() { printf '%s\n' "$1"; }
-_claw_prog_teardown()   { :; }
+# ── rich-mode pinned panel (Task 5) ─────────────────────────────────────────
+_CLAW_PANEL_H=4
+_CLAW_PANEL_DRAWN=0
+_CLAW_SPIN_FRAMES='|/-\'
+_CLAW_SPIN_I=0
+
+_claw_logfile() {
+  local d="${XDG_STATE_HOME:-$HOME/.local/state}/claw/logs"
+  mkdir -p "$d" 2>/dev/null || true
+  printf '%s/%s-%s.log' "$d" "${_CLAW_PROG_OP:-op}" "${_CLAW_PROG_T0:-0}"
+}
+
+# Build the bar string: <full×k><empty×(width-k)>.
+_claw_prog_bar() {
+  local width=14 k=0
+  if (( _CLAW_PROG_TOTAL > 0 )); then
+    k=$(( _CLAW_PROG_DONE * width / _CLAW_PROG_TOTAL ))
+    (( k > width )) && k=$width
+  fi
+  local i out=""
+  for ((i=0;i<k;i++));      do out+="$(_claw_glyph bar_full)";  done
+  for ((i=k;i<width;i++));  do out+="$(_claw_glyph bar_empty)"; done
+  printf '%s' "$out"
+}
+
+# Print the 4 panel lines (no cursor moves; caller positions the cursor).
+# Bar line: "  <op>  <bar>  <count> <dur> · ✓<ok> ✗<fail> ·<skip>"
+_claw_panel_render() {
+  local dur; dur="$(_claw_dur $(( $(date +%s) - _CLAW_PROG_T0 )))"
+  local count=""
+  (( _CLAW_PROG_TOTAL > 0 )) && count="$(printf '%d/%d' "$_CLAW_PROG_DONE" "$_CLAW_PROG_TOTAL")"
+  claw_frame_top
+  printf '\033[2K  %s%s%s  %s  %s%s%s%s · %s%s%d %s%s%d %s%s%d%s\n' \
+    "$(_c blue)"  "$_CLAW_PROG_OP" "$(_creset)" \
+    "$(_claw_prog_bar)" \
+    "$(_c muted)" "${count:+$count }" "$dur" "$(_creset)" \
+    "$(_c green)" "$(_claw_glyph ok)"   "$_CLAW_PROG_OK" \
+    "$(_c red)"   "$(_claw_glyph fail)" "$_CLAW_PROG_FAIL" \
+    "$(_c muted)" "$(_claw_glyph skip)" "$_CLAW_PROG_SKIP" "$(_creset)"
+  local spin="${_CLAW_SPIN_FRAMES:$(( _CLAW_SPIN_I % ${#_CLAW_SPIN_FRAMES} )):1}"
+  printf '\033[2K  %s%s%s %s %s%s%s%s\n' \
+    "$(_c amber)" "${_CLAW_PROG_ITEM:+$spin}" "$(_creset)" \
+    "${_CLAW_PROG_ITEM:-…}" \
+    "$(_c muted)" "${_CLAW_PROG_PHASE:+${_CLAW_PROG_PHASE} }${_CLAW_PROG_NOTE}" \
+    "${_CLAW_PROG_SRC:+  ($_CLAW_PROG_SRC)}" "$(_creset)"
+  claw_frame_bottom
+}
+
+_claw_prog_repaint() {
+  [[ "$_CLAW_PROG_MODE" == rich ]] || return 0
+  if (( _CLAW_PANEL_DRAWN )); then printf '\033[%dA' "$_CLAW_PANEL_H"; fi
+  _claw_panel_render
+  _CLAW_PANEL_DRAWN=1
+}
+
+_claw_prog_scrollback() {  # insert a line above the pinned panel
+  if [[ "$_CLAW_PROG_MODE" != rich ]]; then printf '%s\n' "$1"; return; fi
+  if (( _CLAW_PANEL_DRAWN )); then printf '\033[%dA' "$_CLAW_PANEL_H"; fi
+  printf '\033[2K%s\n' "$1"     # the freed line, cleared then written
+  _claw_panel_render
+  _CLAW_PANEL_DRAWN=1
+}
+
+_claw_prog_teardown() {
+  [[ "$_CLAW_PROG_MODE" == rich ]] || return 0
+  if (( _CLAW_PANEL_DRAWN )); then
+    printf '\033[%dA' "$_CLAW_PANEL_H"
+    local i; for ((i=0;i<_CLAW_PANEL_H;i++)); do printf '\033[2K\n'; done
+    printf '\033[%dA' "$_CLAW_PANEL_H"
+  fi
+  printf '\033[?25h'    # ensure cursor visible
+  _CLAW_PANEL_DRAWN=0
+}
+
+claw_prog_run() {  # claw_prog_run <phase> -- <cmd...>
+  local phase="$1"; shift
+  [[ "${1:-}" == "--" ]] && shift
+  _CLAW_PROG_PHASE="$phase"
+  local log; log="$(_claw_logfile)"
+  if [[ "$_CLAW_PROG_MODE" != rich ]]; then
+    "$@" >>"$log" 2>&1; return $?
+  fi
+  _claw_prog_repaint
+  "$@" >>"$log" 2>&1 &
+  local pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    _CLAW_SPIN_I=$(( _CLAW_SPIN_I + 1 )); _claw_prog_repaint; sleep 1
+  done
+  wait "$pid"; return $?
+}
+
+# Rich mode: hide cursor + guarantee teardown on signals.
+_claw_prog_begin_rich() {
+  [[ "$_CLAW_PROG_MODE" == rich ]] || return 0
+  printf '\033[?25l'
+  trap '_claw_prog_teardown' EXIT INT TERM
+  _claw_prog_repaint
+}

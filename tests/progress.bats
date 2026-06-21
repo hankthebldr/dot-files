@@ -105,3 +105,45 @@ setup() {
   [[ "$output" == *$'\xE2\x9C\x93'"2"* ]]   # ✓2
   [[ "$output" == *$'\xE2\x9C\x97'"1"* ]]   # ✗1
 }
+
+@test "claw_prog_run returns the command's real exit code (plain)" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    claw_prog_begin demo 1
+    claw_prog_item thing
+    claw_prog_run install -- false
+    echo \"rc=\$?\"
+    claw_prog_end
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"rc=1"* ]]
+}
+
+@test "claw_prog_run captures command output to a logfile, not the screen" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain XDG_STATE_HOME="$BATS_TEST_TMPDIR/state" bash -c "
+    source '$PROG'
+    claw_prog_begin demo 1
+    claw_prog_item thing
+    claw_prog_run install -- sh -c 'echo NOISE_FROM_TOOL'
+    claw_prog_ok
+    claw_prog_end
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"NOISE_FROM_TOOL"* ]]          # not on screen
+  run grep -rl "NOISE_FROM_TOOL" "$BATS_TEST_TMPDIR/state/claw/logs"
+  [ "$status" -eq 0 ]                              # captured in a logfile
+}
+
+@test "rich mode forced into a pipe still returns rc and prints a summary" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=rich TERM=xterm-256color COLUMNS=60 bash -c "
+    source '$PROG'
+    claw_prog_begin demo 1
+    claw_prog_item thing brew; claw_prog_phase install; claw_prog_ok
+    claw_prog_end
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"summary:"* ]]
+}
