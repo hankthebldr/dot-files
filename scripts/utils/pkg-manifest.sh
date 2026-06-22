@@ -40,18 +40,48 @@ _m_ids()    { grep -vE '^\s*#|^\s*$' "$MANIFEST" 2>/dev/null | cut -d'|' -f1 | t
 _m_source() { grep -E "^\s*$1\s*\|" "$MANIFEST" 2>/dev/null | head -1 | cut -d'|' -f2 | tr -d ' '; }
 _m_has()    { _m_ids | grep -qxF "$1"; }
 
+# ── memoized package-manager inventories ────────────────────────────────────
+# brew/cargo/pipx/npm are slow to shell out to, and BOTH discovery and per-tool
+# source inference need each manager's full install list. Re-deriving them on
+# every _infer_source call turned `pkg track` into O(tools × managers) forks —
+# ~200 tools meant hundreds of `brew leaves`/`cargo install --list`/… runs and a
+# multi-minute apparent hang. Computing each list once (guarded by
+# _PKG_CACHE_DONE) makes it O(managers). Warm in the PARENT before the discovery
+# loop so the discovery subshell inherits the populated globals (a subshell
+# can't write them back), and the inference loop reads them in-memory.
+# The lists use the SAME parse the discovery channel always used, so
+# _infer_source membership checks stay behavior-identical.
+_PKG_CACHE_DONE=""
+_PKG_BREW="" _PKG_CARGO="" _PKG_PIPX="" _PKG_NPM=""
+_pkg_warm_cache() {
+    [[ -n "$_PKG_CACHE_DONE" ]] && return 0
+    _PKG_CACHE_DONE=1
+    command -v brew  &>/dev/null && _PKG_BREW="$(brew leaves 2>/dev/null | sed 's#.*/##')"
+    command -v cargo &>/dev/null && _PKG_CARGO="$(cargo install --list 2>/dev/null | grep -E '^\S+ v' | awk '{print $1}')"
+    command -v pipx  &>/dev/null && _PKG_PIPX="$(pipx list --short 2>/dev/null | awk '{print $1}')"
+    command -v npm   &>/dev/null && _PKG_NPM="$(npm ls -g --depth=0 --parseable 2>/dev/null | sed 's#.*/##' | grep -v '^npm$')"
+    return 0
+}
+
 # ── discover installed CLI tools from user-managed sources ──────────────────
 # Only the channels a user adds *CLI tools* through — avoids dragging in the
 # entire apt system package set. Each prints bare tool ids on stdout.
 _discover() {
-    { command -v brew  &>/dev/null && brew leaves 2>/dev/null | sed 's#.*/##'; } || true
-    { command -v cargo &>/dev/null && cargo install --list 2>/dev/null | grep -E '^\S+ v' | awk '{print $1}'; } || true
-    { command -v pipx  &>/dev/null && pipx list --short 2>/dev/null | awk '{print $1}'; } || true
-    { command -v npm   &>/dev/null && npm ls -g --depth=0 --parseable 2>/dev/null | sed 's#.*/##' | grep -v '^npm$'; } || true
-    # user-space binaries (eget/go/manual installs land here)
-    local d
+    _pkg_warm_cache
+    [[ -n "$_PKG_BREW"  ]] && printf '%s\n' "$_PKG_BREW"
+    [[ -n "$_PKG_CARGO" ]] && printf '%s\n' "$_PKG_CARGO"
+    [[ -n "$_PKG_PIPX"  ]] && printf '%s\n' "$_PKG_PIPX"
+    [[ -n "$_PKG_NPM"   ]] && printf '%s\n' "$_PKG_NPM"
+    # user-space binaries (eget/go/manual installs land here). A plain glob is
+    # used instead of `find -printf '%f'` — that GNU-only flag fails silently on
+    # macOS BSD find, which had quietly killed this whole channel there. Pure
+    # bash builtins ([[ -f/-x ]] + ${f##*/}) are portable and fork-free.
+    local d f
     for d in "$HOME/.local/bin" "$HOME/go/bin"; do
-        [[ -d "$d" ]] && find "$d" -maxdepth 1 -type f -perm -u+x -printf '%f\n' 2>/dev/null
+        [[ -d "$d" ]] || continue
+        for f in "$d"/*; do
+            [[ -f "$f" && -x "$f" ]] && printf '%s\n' "${f##*/}"
+        done
     done
 }
 # Ignore obvious non-CLI noise (drivers, python shims, dir headers).
@@ -83,6 +113,7 @@ pkg_list() {
 
 pkg_scan() {
     local untracked=() t
+    _pkg_warm_cache   # warm once in the parent; the discovery subshell inherits it
     while IFS= read -r t; do
         [[ -z "$t" ]] && continue
         _m_has "$t" || untracked+=("$t")
@@ -97,13 +128,17 @@ pkg_scan() {
     return 0
 }
 
-# Best-effort source inference for a discovered tool.
+# Best-effort source inference for a discovered tool. Pure in-memory lookups
+# against the memoized inventories — NO per-call package-manager shell-outs (see
+# _pkg_warm_cache). grep -qxF keeps the exact whole-line matching the originals
+# used; the cheap per-tool grep is over a string already in memory.
 _infer_source() {
     local id="$1"
-    command -v brew  &>/dev/null && brew leaves 2>/dev/null | sed 's#.*/##' | grep -qxF "$id" && { echo brew; return; }
-    command -v cargo &>/dev/null && cargo install --list 2>/dev/null | grep -qE "^$id v" && { echo cargo; return; }
-    command -v pipx  &>/dev/null && pipx list --short 2>/dev/null | awk '{print $1}' | grep -qxF "$id" && { echo pipx; return; }
-    command -v npm   &>/dev/null && npm ls -g --depth=0 --parseable 2>/dev/null | sed 's#.*/##' | grep -qxF "$id" && { echo npm; return; }
+    _pkg_warm_cache
+    grep -qxF "$id" <<<"$_PKG_BREW"  && { echo brew;  return; }
+    grep -qxF "$id" <<<"$_PKG_CARGO" && { echo cargo; return; }
+    grep -qxF "$id" <<<"$_PKG_PIPX"  && { echo pipx;  return; }
+    grep -qxF "$id" <<<"$_PKG_NPM"   && { echo npm;   return; }
     [[ -x "$HOME/.local/bin/$id" || -x "$HOME/go/bin/$id" ]] && { echo eget; return; }   # user binary — assume eget-fetchable
     echo manual
 }
@@ -111,6 +146,9 @@ _infer_source() {
 pkg_track() {
     local commit=0; [[ "${1:-}" == "--commit" ]] && commit=1
     local added=() t src
+    _pkg_warm_cache   # warm once in the parent: discovery subshell + the
+                      # per-tool _infer_source loop below both read the cache,
+                      # so the package managers run once, not once per tool.
     while IFS= read -r t; do
         [[ -z "$t" ]] && continue
         _m_has "$t" && continue
