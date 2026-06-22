@@ -136,7 +136,7 @@ cmd_help() {
     ${c_white}claw validate${c_reset}         ${c_dim}full top-to-bottom install check + update/missing detection${c_reset}
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
-    ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc); ${c_white}--tools${c_dim} curated CLI refresh, ${c_white}--schedule${c_dim} weekly timer${c_reset}
+    ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc); ${c_white}--tools${c_dim} curated CLI refresh, ${c_white}--schedule${c_dim} weekly timer · alias: ${c_white}claw upgrade${c_reset}
     ${c_white}claw output${c_reset}           ${c_dim}display settings: mode auto|rich|plain · frame viewfinder|none · banner on|off${c_reset}
 
   ${c_green}${c_bold}TUIs${c_reset}
@@ -992,7 +992,7 @@ case "${1:-menu}" in
     validate)       shift; cmd_validate "$@" ;;
     stats)          cmd_stats ;;
     tui-stats)      cmd_tui_stats ;;
-    update)         shift; cmd_update "$@" ;;
+    update|upgrade) shift; cmd_update "$@" ;;
     tools)          shift; cmd_tools "$@" ;;
     tun|tunnel)     shift; cmd_tun "$@" ;;
     mcp)            shift; cmd_mcp "$@" ;;

@@ -76,3 +76,13 @@ setup() {
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+@test "claw upgrade: aliases claw update (routes to system-update, not the agent runner)" {
+  DF="$BATS_TEST_TMPDIR/df"; mkdir -p "$DF/scripts/utils"
+  # stub the updater so the dispatch is exercised without a real system upgrade
+  printf '#!/usr/bin/env bash\necho "SYSTEM_UPDATE_RAN $*"\n' > "$DF/scripts/utils/system-update.sh"
+  run env DOTFILES_DIR="$DF" bash "$BATS_TEST_DIRNAME/../bin/claw" upgrade
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SYSTEM_UPDATE_RAN"* ]]
+  [[ "$output" != *"unknown subcommand"* ]]
+}
