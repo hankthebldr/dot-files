@@ -30,7 +30,7 @@ jobs:
           # codes (unused palette vars, color in printf format) are excluded.
           EXCL="SC1090,SC1091,SC2034,SC2059,SC2015,SC2154"
           fail=0
-          for f in scripts/install/lib/toolchain-runner.sh scripts/install/provision.sh                    scripts/install/nextgen-toolchain.sh scripts/utils/pkg-manifest.sh                    scripts/utils/secret.sh scripts/utils/ai.sh scripts/utils/selfupdate.sh                    scripts/utils/capture-tasks.sh scripts/utils/handoff.sh                    scripts/utils/cheatsheet.sh scripts/utils/docs-to-vault.sh; do
+          for f in scripts/install/lib/toolchain-runner.sh scripts/install/provision.sh                    scripts/install/nextgen-toolchain.sh scripts/utils/pkg-manifest.sh                    scripts/utils/secret.sh scripts/utils/ai.sh scripts/utils/selfupdate.sh                    scripts/utils/capture-tasks.sh scripts/utils/handoff.sh                    scripts/utils/cheatsheet.sh scripts/utils/docs-to-vault.sh                    scripts/utils/claw-progress.sh scripts/utils/claw-output.sh; do
             shellcheck -S warning -e "$EXCL" "$f" || fail=1
           done
           exit $fail
