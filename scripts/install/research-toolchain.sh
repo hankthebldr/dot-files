@@ -47,6 +47,7 @@ TOOLCHAIN_MAP=(
     "tldr|tldr|tldr|cargo:tealdeer|fast tldr in Rust"
     "pandoc|pandoc|pandoc|none|universal doc converter"
     "fzf|fzf|fzf|none|fuzzy finder"
+    "clin|?|?|cargo:clin-rs|Obsidian-style note TUI (clin plugin)"
 )
 
 declare -A TOOLCHAIN_SECTIONS=(

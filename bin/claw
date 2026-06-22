@@ -138,6 +138,7 @@ cmd_help() {
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
     ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc); ${c_white}--tools${c_dim} curated CLI refresh, ${c_white}--schedule${c_dim} weekly timer · alias: ${c_white}claw upgrade${c_reset}
     ${c_white}claw output${c_reset}           ${c_dim}display settings: mode auto|rich|plain · frame viewfinder|none · banner on|off${c_reset}
+    ${c_white}progress {on|off|status}${c_reset} ${c_dim}live progress panel master switch for long pkg ops (shell fn · CLAW_PROGRESS_ENABLED)${c_reset}
 
   ${c_green}${c_bold}TUIs${c_reset}
     ${c_white}claw tun${c_reset}              ${c_dim}SSH tunnel manager${c_reset}
@@ -170,7 +171,7 @@ cmd_help() {
   ${c_red}${c_bold}Install${c_reset}
     ${c_white}claw install <toolchain>${c_reset}  ${c_dim}opt-in toolchain installer (cloud/security/…)${c_reset}
     ${c_white}claw provision${c_reset}            ${c_dim}fresh box → fully configured in one pass (--dry-run --minimal)${c_reset}
-    ${c_white}claw pkg {list|scan|track|install|update}${c_reset} ${c_dim}self-aware tool registry${c_reset}
+    ${c_white}claw pkg {list|scan|track|add|install|update}${c_reset} ${c_dim}self-aware tool registry (live panel on install/track/scan)${c_reset}
     ${c_white}claw uninstall${c_reset}            ${c_dim}reverse bootstrap (soft scope · --dry-run --yes)${c_reset}
     ${c_white}claw claude-sync snapshot${c_reset} ${c_dim}capture Mac Claude state → manifests${c_reset}
     ${c_white}claw claude-sync sync${c_reset}     ${c_dim}replay manifests on this machine (BD790i etc.)${c_reset}
