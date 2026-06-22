@@ -279,19 +279,19 @@ fn ui(f: &mut Frame, app: &mut App) {
         ])
     }).collect();
     let table = Table::new(rows, [Constraint::Length(10), Constraint::Min(10)])
-        .block(Block::default().borders(Borders::LEFT).border_style(Style::default().fg(theme::RULE)));
+        .block(Block::default().borders(Borders::LEFT).border_style(Style::default().fg(theme::rule())));
     f.render_widget(table, head[1]);
 
     let items: Vec<ListItem> = app.items.iter().map(|it| {
         let style = match it.kind {
             Kind::Header => theme::title(),
-            Kind::Action => Style::default().fg(theme::ORANGE),
+            Kind::Action => Style::default().fg(theme::orange()),
             Kind::Profile => theme::value(),
         };
         ListItem::new(Line::from(Span::styled(it.label.clone(), style)))
     }).collect();
     let list = List::new(items)
-        .block(Block::default().borders(Borders::TOP).border_style(Style::default().fg(theme::RULE)))
+        .block(Block::default().borders(Borders::TOP).border_style(Style::default().fg(theme::rule())))
         .highlight_style(theme::selected())
         .highlight_symbol("❯ ");
     f.render_stateful_widget(list, root[1], &mut app.state);
@@ -300,7 +300,7 @@ fn ui(f: &mut Frame, app: &mut App) {
         Span::styled("  ↑/↓", theme::pointer()), Span::styled(" navigate  ", theme::value()),
         Span::styled("⏎", theme::pointer()), Span::styled(" select  ", theme::value()),
         Span::styled("esc", theme::pointer()), Span::styled(" bare shell", theme::value()),
-    ])).style(Style::default().fg(theme::MUTED));
+    ])).style(Style::default().fg(theme::muted()));
     f.render_widget(bar, root[2]);
 }
 

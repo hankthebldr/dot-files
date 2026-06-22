@@ -41,6 +41,10 @@ still fall to the shell sub-TUIs. → backlog (M3–M4).
 ## 2. Daily driver
 - **Movement:** `z <dir>` (zoxide), `ctrl-r` (atuin), `fzf` everywhere.
 - **Modern CLI:** `ls`→eza, `cat`→bat, `grep`→rg, `find`→fd, `cd`→z, `top`→btop.
+- **Display & progress:** `claw output` persists how surfaces render
+  (`mode auto|rich|plain · frame viewfinder|none · banner on|off`; env
+  `CLAW_OUTPUT_*` → state file → default), `claw output status` shows the
+  resolved set, and `progress on|off` is the master switch for the live pkg-op panel.
 - **Delight (Wave 1):** `cpv`/`mvv` (rsync progress), `dlv <url>` (aria2/xh),
   `xtract` (pv archive), `weather`, fact-of-the-day on first login of the day,
   `onefetch` on entering a repo (`CLAW_ONEFETCH=1`).
@@ -80,6 +84,13 @@ claw pkg track --commit           # → logged to config/manifest/tools.list, co
 claw pkg update                   # → topgrade updates EVERYTHING incl. new tool
 claw selfupdate install           # → weekly auto-update (systemd/launchd)
 ```
+**Live progress:** each long-running `claw pkg` step (`install`/`track`/`scan`)
+renders an inline, themed status panel — a phase-driven bar framed in viewfinder
+corner brackets (`⌜⌝⌞⌟`), rich on a TTY and degrading to clean plain log lines
+over SSH/CI; raw output is captured off-screen to `${XDG_STATE_HOME}/claw/logs/`.
+`progress off` is the master kill-switch (toggles the exported
+`CLAW_PROGRESS_ENABLED`); tune the panel's defaults with `claw output`.
+
 On the next box, `claw provision` reinstalls it. `claw doctor` / `claw validate`
 / `claw integrity` verify health and tamper-state.
 **Friction:** `claw pkg track` is manual — no auto-detect hook on shell exit or a

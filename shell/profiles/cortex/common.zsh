@@ -1,6 +1,5 @@
 # Cortex Profile (Palo Alto Networks Toolset)
 # Loadout for Cortex XSOAR, XSIAM, XDR, and PAN-OS APIs
-export CLAW_PROFILE_THEME="cortex"
 
 # ==========================================
 # ENVIRONMENT VARIABLES

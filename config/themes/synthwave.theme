@@ -1,0 +1,15 @@
+# synthwave — neon on deep indigo, Miami-grid energy. Declared by the
+# devops / demo profiles (PROFILE_THEME_DEFAULT=synthwave).
+name=Synthwave
+slug=synthwave
+bg=1a1025
+bg_alt=241435
+fg=e8d9ff
+muted=8a7aa8
+divider=3a2a55
+blue=00b3ff
+green=00ffa3
+purple=b967ff
+amber=ffd319
+red=ff2975
+cyan=00fff0

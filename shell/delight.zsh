@@ -54,21 +54,29 @@ if [[ -o interactive ]] && command -v onefetch &>/dev/null; then
 fi
 
 # ── Fact / quote of the day (cached daily, interactive only) ────────────────
-# Uses a curated facts file if present, else `fortune`. Rendered with gum/glow
-# if available. Silent if neither source exists.
+# Uses a curated facts file if present, else `fortune`. Silent if neither exists.
 claw_fact() {
     local facts="${DOTFILES_DIR:-$HOME/.dotfiles}/config/facts.txt" line
     if [[ -f "$facts" ]]; then
-        line=$(LC_ALL=C sort -R "$facts" 2>/dev/null | grep -v '^#' | grep -v '^$' | head -1)
+        # Filter + pick in pure zsh — NOT `sort -R | grep`. Interactive shells
+        # expand aliases inside $(...), and aliases.zsh maps grep→rg; ripgrep
+        # then prefixes every line with "line:col:" (the "1:1:" that leaked into
+        # the fact on login). Reading natively is alias-proof and subprocess-free.
+        local -a pool; local l
+        while IFS= read -r l; do
+            [[ -z "$l" || "$l" == '#'* ]] && continue
+            pool+=("$l")
+        done < "$facts"
+        (( ${#pool[@]} )) && line="${pool[RANDOM % ${#pool[@]} + 1]}"
     elif command -v fortune &>/dev/null; then
         line=$(fortune -s 2>/dev/null)
     fi
     [[ -z "$line" ]] && return
-    if command -v gum &>/dev/null; then
-        gum style --foreground 141 --border none --margin "0 2" "  $line"
-    else
-        printf "  \e[38;2;188;140;255m✦\e[0m \e[38;2;139;148;158m%s\e[0m\n" "$line"
-    fi
+    # Themed printf (no `gum style`): gum also probes the terminal on each call,
+    # which can desync right after the dashboard moves the cursor. printf is
+    # query-free + deterministic, and renders backticks/em-dashes literally.
+    printf "  \e[38;2;%sm✦\e[0m \e[38;2;%sm%s\e[0m\n" \
+        "${CLAW_RGB_PURPLE:-188;140;255}" "${CLAW_RGB_MUTED:-139;148;158}" "$line"
 }
 # One fact per day on interactive login (skip SSH-pipe / non-tty).
 if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_FACT:-1}" == 1 ]]; then
@@ -97,13 +105,14 @@ if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_PKG_NUDGE:-1
     if [[ -s "$_pkg_count" ]]; then
         _n=$(cat "$_pkg_count" 2>/dev/null)
         [[ "$_n" =~ ^[0-9]+$ && "$_n" -gt 0 ]] && \
-            printf "  \e[38;2;227;179;65m●\e[0m \e[38;2;139;148;158m%s untracked tool(s) — \e[38;2;201;209;217mclaw pkg track\e[0m\n" "$_n"
+            printf "  \e[38;2;%sm●\e[0m \e[38;2;%sm%s untracked tool(s) — \e[38;2;%smclaw pkg track\e[0m\n" \
+                "${CLAW_RGB_AMBER:-227;179;65}" "${CLAW_RGB_MUTED:-139;148;158}" "$_n" "${CLAW_RGB_FG:-201;209;217}"
     fi
     _pkg_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/pkgscan-$(date +%Y%m%d)"
     if [[ ! -f "$_pkg_stamp" ]]; then
         mkdir -p "${_pkg_stamp:h}" 2>/dev/null && touch "$_pkg_stamp"
         ( bash "$DOTFILES_DIR/scripts/utils/pkg-manifest.sh" scan 2>/dev/null \
-            | grep -cE '^    [a-zA-Z0-9]' > "$_pkg_count" 2>/dev/null ) &!
+            | command grep -cE '^    [a-zA-Z0-9]' > "$_pkg_count" 2>/dev/null ) &!
     fi
     unset _pkg_count _pkg_stamp _n
 fi
@@ -116,10 +125,10 @@ claw_spin() {
     if command -v gum &>/dev/null; then
         gum spin --spinner dot --title "$msg" -- "$@"
     else
-        printf "  \e[38;2;88;166;255m◐\e[0m %s…" "$msg"
+        printf "  \e[38;2;%sm◐\e[0m %s…" "${CLAW_RGB_BLUE:-88;166;255}" "$msg"
         "$@"; local rc=$?
-        if [[ $rc -eq 0 ]]; then printf "\r  \e[38;2;63;185;80m✓\e[0m %s   \n" "$msg"
-        else printf "\r  \e[38;2;255;123;114m✗\e[0m %s   \n" "$msg"; fi
+        if [[ $rc -eq 0 ]]; then printf "\r  \e[38;2;%sm✓\e[0m %s   \n" "${CLAW_RGB_GREEN:-63;185;80}" "$msg"
+        else printf "\r  \e[38;2;%sm✗\e[0m %s   \n" "${CLAW_RGB_RED:-255;123;114}" "$msg"; fi
         return $rc
     fi
 }

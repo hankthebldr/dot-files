@@ -1,6 +1,5 @@
 # Local CLI Profile
 # Loadout for custom built and local CLI repositories
-export CLAW_PROFILE_THEME="local"
 
 # ==========================================
 # UNIFIED CLI STARTUP SPEC PARSER

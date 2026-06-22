@@ -2,7 +2,6 @@
 # Aliases / functions / help — work identically on macOS and Linux.
 # OS-specific bits (WORDLISTS path, install hints) live in {mac,linux}.zsh.
 
-export CLAW_PROFILE_THEME="security"
 export PENTEST_WORKSPACE="${PENTEST_WORKSPACE:-$HOME/pentest}"
 
 # WORDLISTS path is set by {mac,linux}.zsh before this file is consumed by

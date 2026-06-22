@@ -1,6 +1,5 @@
 # Claude Code Profile
 # Loadout for AI-assisted development with Claude Code, Agent SDK, and MCP
-export CLAW_PROFILE_THEME="claude"
 
 # ==========================================
 # ENVIRONMENT VARIABLES
@@ -8,9 +7,17 @@ export CLAW_PROFILE_THEME="claude"
 export CLAUDE_WORKSPACE="$HOME/projects"
 mkdir -p "$CLAUDE_WORKSPACE" 2>/dev/null
 
-# Claude config paths
-export CLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claude"
-export MCP_CONFIG="$CLAUDE_CONFIG_DIR/claude_desktop_config.json"
+# Claude Code (CLI) config paths
+# DO NOT set CLAUDE_CONFIG_DIR — that env var relocates the *Claude Code CLI*
+# config dir away from its default ~/.claude (where link-claude.sh deploys
+# CLAUDE.md, hooks, skills, commands, settings.json, keybindings). Pointing it
+# at ~/.config/claude lands the CLI on an empty parallel tree: no memory, no
+# hooks, default keybindings — which looks like "Claude is broken / input is
+# weird" the moment this profile is active. See docs/claude-config-boundaries.md.
+# MCP/registry config is owned by Claude Desktop (macOS) or `claude mcp` (CLI).
+if [[ "$OSTYPE" == darwin* ]]; then
+  export MCP_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+fi
 
 # ==========================================
 # CLAUDE CODE ALIASES

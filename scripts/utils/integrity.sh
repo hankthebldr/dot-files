@@ -28,8 +28,12 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# pwd -P: resolve to the PHYSICAL path. When invoked via the ~/.dotfiles
+# symlink, the logical path makes `find` see a symlink argument (which it does
+# not follow) → 0 files hashed → an empty manifest that verify vacuously
+# passes. That silently disabled tamper detection.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd -P)"
 MANIFEST_DIR="$REPO_ROOT/config/integrity"
 MANIFEST_FILE="$MANIFEST_DIR/manifest.sha256"
 IGNORE_FILE="$MANIFEST_DIR/.integrityignore"

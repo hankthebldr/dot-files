@@ -1,7 +1,6 @@
 # shell/profiles/brainstorm/common.zsh
 # Ideation mode — capture sparks before they cool. OS-agnostic core.
 
-export CLAW_PROFILE_THEME="brainstorm"
 
 # Where today's brainstorm log lives. Append-only by design.
 BRAINSTORM_ROOT="${BRAINSTORM_ROOT:-$(_claw_obsidian_vault 2>/dev/null || echo "$HOME")/_brainstorm}"

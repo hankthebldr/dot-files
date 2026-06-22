@@ -1,6 +1,5 @@
 # DevOps Profile
 # Loadout for Build, Deploy, Monitoring, and Incident Response
-export CLAW_PROFILE_THEME="devops"
 
 export DEVOPS_WORKSPACE="$HOME/devops"
 mkdir -p "$DEVOPS_WORKSPACE" 2>/dev/null

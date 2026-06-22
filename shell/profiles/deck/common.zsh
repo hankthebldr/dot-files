@@ -3,7 +3,6 @@
 # OS-specific bits (screencapture / spectacle / office365 / libreoffice) live
 # in mac.zsh and linux.zsh.
 
-export CLAW_PROFILE_THEME="deck"
 
 # Where new deck drafts live. Override via DECK_HOME in shell env if you
 # keep customer-facing material elsewhere (e.g. a synced Drive folder).
@@ -159,7 +158,7 @@ dgif() {
     ffmpeg -i "$input" -vf "fps=15,scale=1280:-1:flags=lanczos" "$tmpdir/frame_%04d.png" 2>/dev/null
     gifski -o "$output" --fps 15 --quality 80 "$tmpdir"/frame_*.png
     rm -rf "$tmpdir"
-    echo "✓ $output  ($(du -h "$output" | cut -f1))"
+    echo "✓ $output  ($(command du -h "$output" | cut -f1))"
 }
 
 # ==========================================
