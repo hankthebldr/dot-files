@@ -18,7 +18,7 @@ _security_install_hint() {
             echo "sudo apt install tshark    # GUI: wireshark-qt"
             ;;
         metasploit)
-            if [[ -f /etc/os-release ]] && grep -qE '^ID=(parrot|kali)' /etc/os-release; then
+            if [[ -f /etc/os-release ]] && command grep -qE '^ID=(parrot|kali)' /etc/os-release; then
                 echo "sudo apt install metasploit-framework"
             else
                 echo "see scripts/install/security-toolchain.sh (Rapid7 omnibus)"

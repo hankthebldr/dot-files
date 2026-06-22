@@ -35,10 +35,18 @@ export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 # ── 2. Platform Shims ───────────────────────────────────
 [[ -f "$DOTFILES_DIR/shell/platform.zsh" ]] && source "$DOTFILES_DIR/shell/platform.zsh"
 
-# ── 2.5 Ghostty terminfo guard (before the TUI uses the terminal) ───────
+# ── 2b. Ghostty terminfo guard (before the TUI uses the terminal) ───────────
 [[ -f "$DOTFILES_DIR/shell/ghostty-terminfo.zsh" ]] && source "$DOTFILES_DIR/shell/ghostty-terminfo.zsh"
 
-# ── 2.6 fastfetch launcher (claw_ff: kitty/iterm logo in Ghostty, text elsewhere) ──
+# ── 2c. Theme engine (single source of truth for ALL colors) ─────────────────
+# Sourcing exports CLAW_C_* / CLAW_RGB_* from the active palette
+# (config/themes/<slug>.theme; precedence: CLAW_THEME env → state file →
+# refined-dark). Loaded BEFORE the welcome TUI and every shell module so menus,
+# dashboards, nudges, and prompts all draw from one palette. `claw theme set X`
+# + exec zsh re-themes everything.
+[[ -f "$DOTFILES_DIR/scripts/utils/theme.sh" ]] && source "$DOTFILES_DIR/scripts/utils/theme.sh"
+
+# ── 2d. fastfetch launcher (claw_ff: kitty/iterm logo in Ghostty, text elsewhere) ──
 [[ -f "$DOTFILES_DIR/shell/fastfetch.zsh" ]] && source "$DOTFILES_DIR/shell/fastfetch.zsh"
 
 # ── 3. Welcome TUI (BEFORE p10k instant prompt) ─────────
@@ -71,6 +79,13 @@ if [[ -d "$ZSH" ]]; then
     HYPHEN_INSENSITIVE="true"
     COMPLETION_WAITING_DOTS="true"
     zstyle ':omz:update' mode auto
+    # Keep auto-updates, but silence OMZ's post-update promo banner ("Hooray!" +
+    # ASCII art + X/Discord/swag footer) so it never crashes the branded login.
+    # The instant-prompt force-silent guard misses here: .p10k.zsh sets
+    # POWERLEVEL9K_INSTANT_PROMPT at step 11, after oh-my-zsh.sh (step 5) runs the
+    # update check. 'silent' still surfaces update *errors*; use 'minimal' for a
+    # one-line confirmation, or 'mode disabled' to update only via omz/claw update.
+    zstyle ':omz:update' verbose silent
 
     plugins=(
         git gh github aliases sudo vi-mode copybuffer copypath copyfile cp
@@ -97,6 +112,8 @@ fi
 [[ -f "$DOTFILES_DIR/shell/claw-completion.zsh" ]] && source "$DOTFILES_DIR/shell/claw-completion.zsh"
 [[ -f "$DOTFILES_DIR/shell/security.zsh" ]] && source "$DOTFILES_DIR/shell/security.zsh"
 [[ -f "$DOTFILES_DIR/shell/obsidian.zsh" ]] && source "$DOTFILES_DIR/shell/obsidian.zsh"
+# clin plugin — rides on obsidian.zsh's vault resolvers (must load after it)
+[[ -f "$DOTFILES_DIR/shell/clin.zsh" ]] && source "$DOTFILES_DIR/shell/clin.zsh"
 # Live progress indicator (window title + completion banner + claw_run wrapper)
 [[ -f "$DOTFILES_DIR/shell/progress.zsh" ]] && source "$DOTFILES_DIR/shell/progress.zsh"
 [[ -f "$DOTFILES_DIR/shell/delight.zsh" ]] && source "$DOTFILES_DIR/shell/delight.zsh"
@@ -166,7 +183,10 @@ export CLICOLOR=1
 if [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then
     PROFILE_PATH="$DOTFILES_DIR/shell/profiles/${CLAW_ACTIVE_PROFILE}.zsh"
     # Profile may already be sourced by TUI, but guard for manual CLAW_ACTIVE_PROFILE sets
-    [[ -f "$PROFILE_PATH" && -z "$CLAW_PROFILE_THEME" ]] && source "$PROFILE_PATH"
+    # PROFILE_NAME (set by every profile's meta.zsh) = "already sourced by the
+    # TUI" sentinel. The old sentinel was CLAW_PROFILE_THEME, a dead export
+    # removed in the P2 theme unification.
+    [[ -f "$PROFILE_PATH" && -z "${PROFILE_NAME:-}" ]] && source "$PROFILE_PATH"
 fi
 
 # ── Powerlevel10k prompt — sourced from the REPO, not ~/.p10k.zsh ───────────

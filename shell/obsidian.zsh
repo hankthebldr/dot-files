@@ -91,7 +91,7 @@ alias obs='claw_open "obsidian://"'
 function o() {
     local dir="$(_claw_obsidian_dir)"
     mkdir -p "$dir" 2>/dev/null
-    cd "$dir" && ls -lt
+    cd "$dir" && command ls -lt
 }
 
 # on: Open Note (New or Existing) in the active profile-scoped folder.

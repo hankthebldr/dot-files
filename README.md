@@ -312,6 +312,8 @@ claw tools       # curated tools only (eza/bat/zoxide/fd/rg/bottom/
 
 Both share `scripts/utils/tui-style.sh` for consistent visual polish (gum spinners, sectioned headers, summary cards).
 
+Long-running single-process ops (`claw pkg install`/`track`/`scan`) render an inline themed **progress panel** framed in viewfinder corner brackets — rich on a TTY, degrading to clean plain log lines over SSH/CI; raw command output is captured off-screen to `${XDG_STATE_HOME}/claw/logs/`. Toggle it with `progress on|off`; tune display defaults (`mode`/`frame`/`banner`) with `claw output`.
+
 ---
 
 ## Repository Structure
@@ -381,6 +383,10 @@ nvim                  # Neovim IDE
 tun                   # SSH tunnel manager
 halp <cmd>            # tldr simplified man pages
 reload                # reload shell config
+
+# Display & progress
+claw output           # persist display: mode rich/plain · frame · banner
+progress on / off     # live progress panel for long pkg ops (master switch)
 ```
 
 ---
@@ -395,6 +401,8 @@ reload                # reload shell config
 - **Vault routing:** override per-shell with `export OBSIDIAN_VAULT_OVERRIDE=<name-or-path>`
 - **SSH tunnels:** `config/ssh/tunnels.yml` (see `.example`)
 - **Profile-load breadcrumbs:** `export CLAW_VAULT_BREADCRUMBS=1`
+- **Display:** persist render settings with `claw output` (`mode` rich/plain · `frame` viewfinder/none · `banner` on/off); state in `${XDG_STATE_HOME}/claw/output`
+- **Live progress:** master switch `progress on|off|status` (exports `CLAW_PROGRESS_ENABLED`); panel defaults tuned via `claw output`
 
 ---
 

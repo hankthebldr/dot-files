@@ -1,6 +1,5 @@
 # Default Profile
 # Standard Developer Loadout — the base experience all other profiles extend
-export CLAW_PROFILE_THEME="default"
 
 # ==========================================
 # QUICK REFERENCE HELP

@@ -20,6 +20,7 @@ claw <agent>          launch a registered agent (claude, hermes, …)
 claw agent list       list registered agents
 claw agent add        claw agent add <name> <command> [profile]
 claw install <tc>     opt-in toolchain installer (cloud/security/…)
+claw output           display settings (mode/frame/banner, persisted)
 claw help             this list
 ```
 
@@ -30,8 +31,8 @@ claw help             this list
 
 ## Profiles
 
-Nine profiles ship in `shell/profiles/`. Pick one from the welcome menu
-on shell login, or load on demand with `claw load <name>`:
+18 profiles ship in `shell/profiles/` (8 core + 10 specialized). Pick one
+from the welcome menu on shell login, or load on demand with `claw load <name>`:
 
 | Profile  | What it's for                           | Logo brand        |
 |----------|-----------------------------------------|-------------------|
@@ -206,6 +207,63 @@ shell init via `welcome-tui.zsh` — you'll never notice it. The
 
 ---
 
+## Output settings
+
+`claw output` persists how claw surfaces render. State lives at
+`${XDG_STATE_HOME:-~/.local/state}/claw/output`; resolution mirrors the theme
+engine — `CLAW_OUTPUT_*` env (session override) → state file → built-in default.
+
+```bash
+claw output                       # same as `status` — show the resolved settings
+claw output status
+claw output mode auto|rich|plain  # auto = rich on a TTY, plain over SSH/CI
+claw output frame viewfinder|none # ⌜⌝⌞⌟ corner brackets vs. a plain rule
+claw output banner on|off
+claw output get <key>             # print one resolved value (mode | frame | banner)
+```
+
+Defaults: `mode=auto`, `frame=viewfinder`, `banner=on`. `mode plain` forces clean
+log lines everywhere (handy in scripts); `frame none` swaps the viewfinder brackets
+for a single horizontal rule. Backed by `scripts/utils/claw-output.sh`.
+
+---
+
+## Live progress panel
+
+Long-running single-process claw ops (`claw pkg install` / `track` / `scan`)
+render an inline, themed, phase-driven status panel framed in viewfinder corner
+brackets (`⌜⌝⌞⌟`): a progress bar, ok/fail/skip tallies, elapsed time, and the
+current item + phase. Raw tool output is captured off-screen to
+`${XDG_STATE_HOME:-~/.local/state}/claw/logs/<op>-<t0>.log` so the panel stays
+clean — `tail` that file to see what a command actually printed.
+
+Rich mode renders only when **all** of these hold:
+
+- stdout is a TTY
+- `CLAW_PROGRESS_ENABLED` ≠ `0` (see the master switch below)
+- `TERM` ≠ `dumb`
+- `CI` is unset
+- resolved `claw output mode` ≠ `plain`
+
+Otherwise it degrades to plain, append-only log lines (the SSH/CI path). Force
+either end with `claw output mode rich|plain`. Engine: `scripts/utils/claw-progress.sh`.
+
+### Master switch — `progress`
+
+`progress` is a shell function (`shell/progress.zsh`) that toggles
+`CLAW_PROGRESS_ENABLED`, the master on/off for the live panel:
+
+```bash
+progress status   # show state + thresholds
+progress off      # disable the live panel
+progress on       # re-enable
+```
+
+`progress on|off` **exports** `CLAW_PROGRESS_ENABLED`, so the child `bash` that
+draws the panel honors the toggle.
+
+---
+
 ## Where each TUI lives
 
 `claw` is a thin dispatcher. The actual work happens in:
@@ -221,6 +279,8 @@ shell init via `welcome-tui.zsh` — you'll never notice it. The
 | `claw homelab`| `scripts/utils/homelab.sh`                      |
 | `claw toolkit`| `scripts/utils/toolkit.sh`                      |
 | `claw skills` | inline in `bin/claw` (FZF over `~/.claude/skills`) |
+| `claw output` | `scripts/utils/claw-output.sh`                  |
+| live progress panel | `scripts/utils/claw-progress.sh` (sourced by `pkg-manifest.sh`) |
 
 If a subcommand misbehaves, debug the underlying script directly — `claw`
 just routes argv to it.

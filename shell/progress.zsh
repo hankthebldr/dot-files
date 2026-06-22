@@ -206,11 +206,11 @@ fi
 progress() {
   case "${1:-status}" in
     on)
-      CLAW_PROGRESS_ENABLED=1
+      export CLAW_PROGRESS_ENABLED=1
       print "\033[38;5;78m✓\033[0m progress: \033[1mon\033[0m  (threshold ${CLAW_PROGRESS_THRESHOLD}s, banner ≥${CLAW_PROGRESS_BANNER_SEC}s)"
       ;;
     off)
-      CLAW_PROGRESS_ENABLED=0
+      export CLAW_PROGRESS_ENABLED=0
       [[ -n "$__claw_progress_pid" ]] && kill "$__claw_progress_pid" 2>/dev/null
       __claw_progress_reset_title
       print "\033[38;5;245m∅\033[0m progress: \033[1moff\033[0m"

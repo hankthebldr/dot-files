@@ -3,7 +3,6 @@
 # for the interactive flow, and provides standalone aliases for muscle-memory
 # operations (quick local forward, SOCKS proxy, multi-hop).
 
-export CLAW_PROFILE_THEME="tunnels"
 
 # Where ControlMaster sockets live. Match tunnel-manager.sh's CONTROL_DIR.
 export TUNNEL_CONTROL_DIR="${TUNNEL_CONTROL_DIR:-/tmp/ssh-tunnels}"
@@ -114,7 +113,7 @@ tls() {
             # Skip the literal glob when no files match, and non-socket entries.
             [[ -S "$sock" ]] || continue
             found=1
-            local owner_pid; owner_pid=$(ssh -O check -S "$sock" - 2>&1 | grep -oE '[0-9]+' | head -1)
+            local owner_pid; owner_pid=$(ssh -O check -S "$sock" - 2>&1 | command grep -oE '[0-9]+' | head -1)
             printf "    %s  \e[2m(pid %s)\e[0m\n" "${sock##*/}" "${owner_pid:-?}"
         done
     fi

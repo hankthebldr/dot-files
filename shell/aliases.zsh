@@ -31,10 +31,8 @@ if command -v colorls &> /dev/null; then
     alias lcd='colorls -d'                                   # dirs only
 fi
 
-# Open Claw & Toolkit
-# claw() function defined below — inline profile switcher
-alias openclaw='${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/openclaw.sh'
-alias oc='openclaw'
+# Open Claw & Toolkit — claw() lives in shell/claw-fn.zsh (the canonical
+# wrapper); openclaw.sh was its pre-claw predecessor, archived to legacy/.
 alias tk='$DOTFILES_DIR/scripts/utils/toolkit.sh'
 
 # Better cat (bat) — function wrapper to avoid breaking pipes
@@ -421,8 +419,8 @@ netcheck() {
     echo "  ${c_dim}────────────────────────────────────${c_reset}"
     printf "  %-18s %s\n" "Local IP:" "$(local_ip 2>/dev/null)"
     printf "  %-18s %s\n" "Public IP:" "$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo 'unreachable')"
-    printf "  %-18s %s\n" "Gateway:" "$(ip route 2>/dev/null | grep default | awk '{print $3}' || route -n get default 2>/dev/null | grep gateway | awk '{print $2}' || echo 'n/a')"
-    printf "  %-18s %s\n" "DNS:" "$(cat /etc/resolv.conf 2>/dev/null | grep nameserver | head -1 | awk '{print $2}' || echo 'n/a')"
+    printf "  %-18s %s\n" "Gateway:" "$(ip route 2>/dev/null | command grep default | awk '{print $3}' || route -n get default 2>/dev/null | command grep gateway | awk '{print $2}' || echo 'n/a')"
+    printf "  %-18s %s\n" "DNS:" "$(cat /etc/resolv.conf 2>/dev/null | command grep nameserver | head -1 | awk '{print $2}' || echo 'n/a')"
     printf "  %-18s " "Internet:"
     if ping -c1 -W2 1.1.1.1 &>/dev/null; then echo "${c_green}online${c_reset}"; else echo "${c_red}offline${c_reset}"; fi
     printf "  %-18s " "DNS resolve:"
@@ -464,6 +462,17 @@ claw() {
             set)         claw_theme_set "$2" ;;
             preview)     claw_theme_preview "$2" ;;
             *) printf 'usage: claw theme [list | set <slug> | preview <slug>]\n' >&2; return 1 ;;
+        esac
+        return
+    fi
+    # `claw clin ...` — clin plugin (Obsidian-style note TUI, theme/vault-synced)
+    if [[ "$1" == "clin" ]]; then
+        shift
+        case "$1" in
+            ""|sync)     bash "$_d/scripts/utils/clin.sh" sync ;;
+            install)     bash "$_d/scripts/utils/clin.sh" install ;;
+            setup)       bash "$_d/scripts/utils/clin.sh" setup ;;
+            *) printf 'usage: claw clin [sync | install | setup]\n' >&2; return 1 ;;
         esac
         return
     fi
@@ -660,7 +669,7 @@ gcommit() {
 unalias gclean 2>/dev/null
 gclean() {
     local branches
-    branches=$(git branch --merged | grep -v '\*\|main\|master\|develop' | \
+    branches=$(git branch --merged | command grep -v '\*\|main\|master\|develop' | \
         fzf -m --header='Select merged branches to delete (TAB to multi-select)' \
         --color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950")
     if [[ -n "$branches" ]]; then
@@ -777,7 +786,7 @@ extract() {
 
 # Find process by name
 psgrep() {
-    ps aux | grep -v grep | grep -i -e VSZ -e "$1"
+    ps aux | command grep -v grep | command grep -i -e VSZ -e "$1"
 }
 
 # Docker cleanup

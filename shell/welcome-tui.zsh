@@ -65,17 +65,19 @@ function claw_welcome_tui() {
     # wrapper subshell exits a few ms later (the script itself self-backgrounds).
     "$_d/scripts/utils/tool-updater.sh" &>/dev/null &!
 
-    # Modern GitHub macOS Dark Theme (True Colors)
+    # Colors from the ACTIVE theme (CLAW_RGB_* exported by theme.sh, sourced in
+    # .zshrc step 2b). Fallbacks are the refined-dark values so the TUI renders
+    # correctly even standalone. `claw theme set X` re-themes this menu.
     local c_reset=$'\e[0m'
-    local c_cyan=$'\e[38;2;88;166;255m'    # GitHub Blue: #58a6ff
-    local c_green=$'\e[38;2;63;185;80m'    # GitHub Green: #3fb950
-    local c_pink=$'\e[38;2;255;123;114m'   # GitHub Red/Pink: #ff7b72
-    local c_purple=$'\e[38;2;188;140;255m' # GitHub Purple: #bc8cff
-    local c_orange=$'\e[38;2;227;179;65m'  # GitHub Orange/Gold: #e3b341
-    local c_yellow=$'\e[38;2;227;179;65m'  # GitHub Yellow (using gold)
-    local c_dim=$'\e[38;2;139;148;158m'    # GitHub Muted: #8b949e
-    local c_red=$'\e[38;2;255;123;114m'    # GitHub Red: #ff7b72
-    local c_white=$'\e[38;2;201;209;217m'  # GitHub fg: #c9d1d9
+    local c_cyan=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m'
+    local c_green=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
+    local c_pink=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+    local c_purple=$'\e[38;2;'"${CLAW_RGB_PURPLE:-188;140;255}"$'m'
+    local c_orange=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+    local c_yellow=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+    local c_dim=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+    local c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+    local c_white=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
     local c_bold=$'\e[1m'
 
     # Ensure fzf is installed to run the interactive menu
@@ -85,12 +87,23 @@ function claw_welcome_tui() {
         return
     fi
 
-    # Colors from the active theme (exported by exports.zsh / theme.sh); fall
-    # back to the refined-dark defaults if the dashboard is invoked standalone.
-    local _fzf_color="${CLAW_FZF_COLOR:-bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff}"
+    # fzf colors from the active theme: claw_theme_fzf builds the --color string
+    # from CLAW_C_* (theme.sh, sourced in .zshrc step 2b). CLAW_FZF_COLOR env
+    # remains an explicit user override; static fallback only if theme.sh is
+    # somehow absent.
+    local _fzf_color
+    if [[ -n "${CLAW_FZF_COLOR:-}" ]]; then
+        _fzf_color="$CLAW_FZF_COLOR"
+    elif typeset -f claw_theme_fzf >/dev/null 2>&1; then
+        _fzf_color="$(claw_theme_fzf)"
+    else
+        _fzf_color="bg+:#161b22,fg+:#c9d1d9,prompt:#58a6ff,header:#8b949e,pointer:#3fb950,hl:#bc8cff,hl+:#bc8cff"
+    fi
 
     # Render the Screen-1 dashboard header. Preference order:
-    #   1. claw-dashboard.py — the framed, gradient, two-column dashboard (best)
+    #   1. claw-dashboard.py — framed, centered dashboard: the CRISP system logo
+    #      (Apple/distro, pulled straight from fastfetch) + a dense info grid +
+    #      btop-style resource bars
     #   2. fastfetch config.jsonc — the two-column readout
     #   3. branded ASCII fallback
     _claw_tui_header() {
@@ -165,6 +178,7 @@ function claw_welcome_tui() {
     l2[actions]+="homelab_ssh\t${c_orange}📡 Homelab SSH${c_reset}${c_dim}        Direct topology launcher${c_reset}\n"
     l2[actions]+="tunnel_mgr\t${c_cyan}🔗 Tunnel Manager${c_reset}${c_dim}     Direct FZF tunnel TUI${c_reset}\n"
     l2[actions]+="vault_open\t${c_orange}📓 Open Vault${c_reset}${c_dim}         Launch Obsidian directly${c_reset}\n"
+    l2[actions]+="clin_open\t${c_cyan}📝 Clin Notes${c_reset}${c_dim}         Obsidian-style TUI · active folder${c_reset}\n"
 
     l2[system]=""
     l2[system]+="onboard\t${c_pink}🕹  Onboarding${c_reset}${c_dim}        80s arcade · picks your profile${c_reset}\n"
@@ -239,28 +253,40 @@ function claw_welcome_tui() {
             local _profile="$_d/shell/profiles/${key}.zsh"
             if [[ -f "$_profile" ]]; then
                 source "$_profile"
+                # Profile-reactive theming: apply the profile's declared palette
+                # for this session (guarded; no-op if the palette doesn't exist).
+                # The dashboard render below inherits CLAW_THEME via the env.
+                typeset -f claw_theme_apply_profile >/dev/null 2>&1 && claw_theme_apply_profile
             else
                 echo "${c_red}Profile not found: $_profile${c_reset}"
             fi
-            # Display profile-specific art. default → the framed claw-dashboard
-            # (system logo + two-column readout); other profiles keep their
-            # truecolor fastfetch art. Falls back so EVERY pick renders something.
-            local _dash="$_d/scripts/utils/claw-dashboard.py"
+            # Display profile-specific art via fastfetch — crisp system logo +
+            # colored two-column readout (config-default.jsonc for the default
+            # profile, the per-profile config otherwise). Falls back so EVERY
+            # pick renders something.
             local _ff_profile="$_d/config/.config/fastfetch/config-${key}.jsonc"
             [[ -f "$_ff_profile" ]] || _ff_profile="$_d/config/.config/fastfetch/config.jsonc"
+            local _dash="$_d/scripts/utils/claw-dashboard.py"
+            # clear first: screen 1 already drew the dashboard, so without this
+            # the picked profile's art stacks UNDER it (the "repasted screen").
+            clear
+            # default → the polished centered dashboard (logo + bars) with the
+            # quick-ref card rendered by the SAME width engine (flush frames);
+            # other profiles keep their truecolor fastfetch art.
+            local _qr_rendered=0
             if [[ "$key" == "default" ]] && command -v python3 &> /dev/null && [[ -f "$_dash" ]]; then
-                echo ""
-                DOTFILES_DIR="$_d" python3 "$_dash"
+                DOTFILES_DIR="$_d" python3 "$_dash" --quickref && _qr_rendered=1
             elif command -v fastfetch &> /dev/null && [[ -f "$_ff_profile" ]]; then
                 echo ""
                 # claw_ff picks the kitty/iterm raster logo in Ghostty/Kitty/iTerm,
                 # falls back to the config's text logo over SSH/tmux/dumb terminals.
                 if typeset -f claw_ff &> /dev/null; then claw_ff "$key" "$_ff_profile"; else fastfetch -c "$_ff_profile"; fi
             fi
-            # Readout under the art: default keeps its quick-ref card; every
-            # other profile gets the metadata-driven key-tools/docs/help readout.
+            # Readout under the art: default's quick-ref only as fallback when
+            # the dashboard (which now embeds it) didn't render; other profiles
+            # get the metadata-driven key-tools/docs/help readout.
             if [[ "$key" == "default" ]]; then
-                _claw_default_quickref
+                (( _qr_rendered )) || _claw_default_quickref
             else
                 _claw_profile_readout "$key"
             fi
@@ -309,6 +335,16 @@ function claw_welcome_tui() {
                 fi
             else
                 echo "  ${c_red}✗${c_reset} obsidian helpers not loaded"
+            fi
+            ;;
+        clin_open)
+            # Direct action — open clin (note TUI) scoped to the active profile
+            # folder. `cl` is defined by shell/clin.zsh and reuses the obsidian
+            # resolvers; it warns + hints at install if clin is absent.
+            if typeset -f cl &>/dev/null; then
+                cl
+            else
+                echo "  ${c_red}✗${c_reset} clin plugin not loaded"
             fi
             ;;
         onboard)

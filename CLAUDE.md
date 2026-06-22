@@ -35,6 +35,36 @@ bash scripts/install/master-setup.sh domains  # All domain toolchain scripts
 
 ## Architecture
 
+### The Spine (consolidation contracts — keep these invariants)
+
+Everything hangs off three contracts. When adding a capability, wire it into
+the spine — do not add a parallel dispatcher, palette, or dashboard.
+
+1. **One dispatcher.** `shell/claw-fn.zsh` defines the ONLY `claw()` shell
+   function (in-shell work: no-args TUI relaunch, `load`/`off`, bare-profile
+   shorthand `claw security` ≡ `claw load security`); everything else passes
+   through to `bin/claw` (bash), which routes to `scripts/`. Never define a
+   second `claw()` — a previous one in aliases.zsh was dead-shadowed for weeks.
+2. **One theme engine.** `scripts/utils/theme.sh` is the single source of
+   truth. Palettes: `config/themes/<slug>.theme`. Precedence: `CLAW_THEME` env
+   (session override, set by profile loads via `PROFILE_THEME_DEFAULT` in
+   meta.zsh) → `$XDG_STATE_HOME/claw/theme` (persisted `claw theme set`) →
+   refined-dark. `.zshrc` step 2b sources it; ALL surfaces consume
+   `CLAW_RGB_*` / `CLAW_C_*` / `claw_theme_fzf` with refined-dark fallbacks —
+   never hardcode hex/ANSI colors in a new surface (the rust TUI reads the
+   same state in `tui/claw-tui/src/theme.rs`).
+3. **One render path.** Login + default profile render
+   `scripts/utils/claw-dashboard.py` (framed, centered, crisp fastfetch system
+   logo + dense grid + btop-style bars; `--quickref` appends the Daily Driver
+   card on the same width engine). fastfetch `config-*.jsonc` is the
+   per-profile art + explicit fallback; the zsh quickref box is the
+   no-python fallback only. Data comes from `ff-readout.sh fields` (incl.
+   `<res>_pct` for the bars).
+
+Also: `claw update` is the one updater front door (`--tools` → tool-updater,
+`--schedule` → selfupdate); superseded/uncalled scripts live in `legacy/`
+(see `legacy/README.md`) — archive there, don't delete or leave strays.
+
 ### Shell Configuration Loading Order (.zshrc)
 
 1. P10k instant prompt (must be first)
@@ -46,6 +76,7 @@ bash scripts/install/master-setup.sh domains  # All domain toolchain scripts
 7. `shell/aliases.zsh` - All aliases and shell functions (~680 lines)
 8. `shell/security.zsh` - Safe file ops, network recon, scanning aliases
 9. `shell/obsidian.zsh` - Obsidian vault integration (`on`, `os`, `ov`)
+9b. `shell/clin.zsh` - Clin plugin (`cl`, `cln`); rides on obsidian.zsh resolvers, loads right after it
 10. Tool init: zoxide, direnv, atuin, thefuck, eza, zsh-syntax-highlighting (all guarded)
 11. P10k theme config (profile-aware)
 12. Welcome TUI (`claw_welcome_tui`) — interactive shells only, SSH-safe
@@ -123,6 +154,18 @@ Contents: `CLAUDE.md` (global rules), `scope.txt` (recon scope allowlist), `hook
 
 - **`claude/harness/`** — dedicated workspace for Henry's **custom agentic harness tools**: `skills/`, `commands/`, `agents/`, `plugins/`. Managed via `claw harness {list|new <name>|deploy|path}`. `_template/` and `_`-prefixed dirs are scaffolding and are skipped by the deployer. See `claude/harness/README.md`.
 
+### Clin Plugin (Obsidian sub-profile)
+
+`clin` ([reekta92/clin-rs](https://github.com/reekta92/clin-rs)) is a TUI note manager inspired by Obsidian. The "clin plugin" packages it as a self-contained module **inside the Obsidian sub-profile** rather than scattering it across the tree — it rides on `shell/obsidian.zsh`'s resolvers so clin inherits the exact same profile-scoped vault routing as `o`/`on`/`os`/`ov`. Two halves:
+
+- **`shell/clin.zsh`** (interactive, sourced in `.zshrc` immediately after `obsidian.zsh`) — reuses `_claw_obsidian_vault` / `_claw_obsidian_folder` / `_claw_obsidian_dir`:
+  - `cl` — open clin in the **active profile's folder** (`CORTEX`, `Secops`, `_agents`…). Renders a per-shell ephemeral config and launches `clin --config`, so it never clobbers the persistent config and two shells on different profiles don't fight.
+  - `cln "Title"` — create a note in that folder (mirrors `on`), then open clin.
+  - `clin-sync` — re-render the persistent config; `clin-help` — quick-reference card. All guarded — missing clin just prints an install hint.
+- **`scripts/utils/clin.sh`** (POSIX engine, mirrors `theme.sh`) — `install` (`cargo install clin-rs`), `render <out> [vault] [folder]`, `sync`, `setup`. Renders clin's `~/.config/clin/config.toml` from the **two existing sources of truth**: the active palette (`theme.sh` → `CLAW_C_*`, written to clin's `[ui]` per-color keys) and the Obsidian vault/folder (`[core] storage_path`/`default_folder`). Slugs map to clin's built-in themes where one exists (`catppuccin-mocha`→`catppuccin_mocha`, `tokyo-night`→`tokyo_night`, `rose-pine`→`rose_pine`, `gruvbox-material`→`gruvbox`), else `default` + the per-color overlay.
+- **Theme-synced**: `claw theme set <slug>` re-renders clin's config so the note TUI tracks the active palette. The persistent config is a **managed file** (sentinel on line 1); `sync` refuses to overwrite a hand-tuned config unless `CLAW_CLIN_MANAGED=force`, and `CLAW_CLIN_MANAGED=0` opts out entirely.
+- **Surfaced**: `claw clin {sync|install|setup}` dispatch, a "Clin Notes" entry in the welcome TUI (Direct Actions), and install rows in the `cortex` + `research` toolchains (`cargo:clin-rs`).
+
 ### Installation Scripts
 
 Two entry points:
@@ -168,6 +211,8 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | `shell/aliases.zsh` | Core aliases and functions (~680 lines) |
 | `shell/security.zsh` | Safety aliases + network recon |
 | `shell/obsidian.zsh` | Obsidian vault integration |
+| `shell/clin.zsh` | Clin plugin — interactive `cl`/`cln` (reuses obsidian resolvers) |
+| `scripts/utils/clin.sh` | Clin plugin engine — install + theme/vault-synced config render |
 | `shell/profiles/*.zsh` | 18 workflow-specific environments (8 core + 10 specialized) |
 | `shell/welcome-tui.zsh` | Login dashboard + default quick-ref |
 | `config/.config/fastfetch/config-*.jsonc` | Profile fastfetch configs (19 total: 9 generated + 10 hand-maintained) |

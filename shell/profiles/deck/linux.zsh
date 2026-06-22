@@ -98,7 +98,7 @@ dpresent() {
 # Open the latest .pptx in LibreOffice Impress.
 dpptx-open() {
     local latest
-    latest="$(ls -t ./*.pptx 2>/dev/null | head -1)"
+    latest="$(command ls -t ./*.pptx 2>/dev/null | head -1)"
     if [[ -z "$latest" ]]; then
         echo "no .pptx in CWD — run: dexport slides.md pptx" >&2
         return 1

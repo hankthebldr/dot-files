@@ -14,7 +14,12 @@ _tn_copy_proxy() {
 # tnet  — concise summary of macOS network state. Helpful before opening tunnels.
 tnet() {
     printf "\n  \e[36m▸\e[0m \e[1mNetwork\e[0m\n"
-    printf "  \e[2mssid:\e[0m       %s\n" "$(networksetup -getairportnetwork en0 2>/dev/null | awk -F': ' '{print $2}')"
+    # macOS 14.4+ neutered `networksetup -getairportnetwork` (always "not
+    # associated") and removed `airport`; read the SSID from `ipconfig getsummary`.
+    local _wif _ssid
+    _wif=$(networksetup -listallhardwareports 2>/dev/null | awk '/Wi-Fi/{getline;print $2;exit}'); _wif=${_wif:-en0}
+    _ssid=$(ipconfig getsummary "$_wif" 2>/dev/null | awk '/^[[:space:]]*SSID[[:space:]]*:/{sub(/^[[:space:]]*SSID[[:space:]]*:[[:space:]]*/,"");print;exit}')
+    printf "  \e[2mssid:\e[0m       %s\n" "${_ssid:-—}"
     printf "  \e[2mlocal IP:\e[0m   %s\n" "$(local_ip 2>/dev/null)"
     printf "  \e[2mpublic IP:\e[0m  %s\n" "$(curl -fsS --max-time 2 https://api.ipify.org 2>/dev/null || echo '?')"
     if command -v tailscale &>/dev/null; then

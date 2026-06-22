@@ -2,7 +2,6 @@
 # Project management orchestration. OS-agnostic helpers; per-OS bits (Things 3
 # vs taskwarrior) live in {mac,linux}.zsh.
 
-export CLAW_PROFILE_THEME="pmo"
 
 # Where notes about the active sprint / plan live (vault-bound)
 PMO_NOTES_ROOT="${PMO_NOTES_ROOT:-$(_claw_obsidian_vault 2>/dev/null || echo "$HOME")/_pmo}"

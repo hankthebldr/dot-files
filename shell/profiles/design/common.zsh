@@ -1,7 +1,6 @@
 # shell/profiles/design/common.zsh
 # Aliases / functions / help — work identically on macOS and Linux.
 
-export CLAW_PROFILE_THEME="design"
 
 # Where new design assets land if no current project context. Override via
 # DESIGN_HOME if you keep assets elsewhere.
@@ -153,7 +152,7 @@ fresize() {
     local size="${2:?missing size — e.g. 800x or 50%}"
     local output="${input%.*}-resized.${input##*.}"
     convert "$input" -resize "$size" "$output"
-    echo "✓ $output  ($(du -h "$output" | cut -f1))"
+    echo "✓ $output  ($(command du -h "$output" | cut -f1))"
 }
 
 # foptim <image>  — optimize for web (strip metadata, resize to max 1920, recompress)
@@ -161,8 +160,8 @@ foptim() {
     local input="${1:?usage: foptim <image>}"
     local output="${input%.*}-optim.${input##*.}"
     convert "$input" -strip -resize "1920x1920>" -quality 85 "$output"
-    local before; before="$(du -k "$input" | cut -f1)"
-    local after; after="$(du -k "$output" | cut -f1)"
+    local before; before="$(command du -k "$input" | cut -f1)"
+    local after; after="$(command du -k "$output" | cut -f1)"
     printf "✓ %s  (%dk → %dk · %d%% smaller)\n" \
         "$output" "$before" "$after" "$(( 100 - (after * 100 / before) ))"
 }
