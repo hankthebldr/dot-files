@@ -135,6 +135,10 @@ claw_theme_set() {
     printf '%s\n' "$_t" > "$CLAW_THEME_ACTIVE_FILE"
     claw_theme_load
     claw_theme_apply_ghostty                     # point Ghostty at this theme's library
+    # clin plugin: re-render its config so the note TUI tracks the new palette.
+    if command -v clin >/dev/null 2>&1 && [ -r "${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/clin.sh" ]; then
+        sh "${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/clin.sh" sync >/dev/null 2>&1 || true
+    fi
     printf '  \033[38;2;63;185;80m✓\033[0m theme set to \033[1m%s\033[0m\n' "$_t"
     printf '  \033[38;2;139;148;158mrun \033[0m\033[1mexec zsh\033[0m\033[38;2;139;148;158m to apply everywhere (prompt, fzf, dashboard)\033[0m\n'
     printf '  \033[38;2;139;148;158mGhostty: press \033[0m\033[1mSuper+Shift+R\033[0m\033[38;2;139;148;158m to reload terminal colors\033[0m\n'
