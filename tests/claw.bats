@@ -56,3 +56,23 @@ setup() {
   [[ "$output" == *"OS"* ]]          # readout present
   [[ "$output" == *"╭"* ]]           # framed
 }
+
+# Regression for the WiFi-detection bug: macOS 14.4+ removed `airport` and made
+# `networksetup -getairportnetwork` always say "not associated", so the dashboard
+# read "offline" while connected. The fix reads the SSID from `ipconfig getsummary`;
+# these pin the parser (the part that's testable without a real Wi-Fi radio / mac).
+@test "ff-readout wifi: SSID parser extracts the SSID from ipconfig getsummary output" {
+  src="$BATS_TEST_DIRNAME/../scripts/utils/ff-readout.sh"
+  run bash -c 'set -- _none_; source "'"$src"'" >/dev/null 2>&1
+    printf "%s\n" "  BSSID : aa:bb:cc:dd:ee:ff" "  SSID : Cafe WiFi 5G" "  Security : WPA2 Personal" | _ffr_ssid_from_summary'
+  [ "$status" -eq 0 ]
+  [ "$output" = "Cafe WiFi 5G" ]
+}
+
+@test "ff-readout wifi: SSID parser is empty for the not-associated string (drives link-state fallback)" {
+  src="$BATS_TEST_DIRNAME/../scripts/utils/ff-readout.sh"
+  run bash -c 'set -- _none_; source "'"$src"'" >/dev/null 2>&1
+    printf "%s\n" "You are not associated with an AirPort network." | _ffr_ssid_from_summary'
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}

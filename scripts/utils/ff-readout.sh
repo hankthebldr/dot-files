@@ -14,6 +14,15 @@
 set -u
 is_mac() { [[ "$(uname -s)" == "Darwin" ]]; }
 
+# Extract the SSID from `ipconfig getsummary <iface>` output (read on stdin).
+# macOS 14.4+ removed the `airport` CLI and made `networksetup -getairportnetwork`
+# always report "not associated" (SSID now needs a Location-Services entitlement
+# the CLI lacks), so `ipconfig getsummary` is the reliable modern source. Matches
+# the `SSID :` line only — anchored so the `BSSID :` line is never mistaken for it.
+_ffr_ssid_from_summary() {
+  awk '/^[[:space:]]*SSID[[:space:]]*:/{sub(/^[[:space:]]*SSID[[:space:]]*:[[:space:]]*/,"");print;exit}'
+}
+
 # ── Palette: per-type label colors sourced from the active Open Claw theme ───
 # theme.sh exports CLAW_RGB_* for the active palette (GitHub-dark fallback keeps
 # this script standalone). Labels are colored by type via cf(), mirroring the
@@ -78,7 +87,16 @@ g() {  # g <field> → value (best-effort, fast, never errors)
     disk_pct) df -H / 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5); print $5}' ;;
     ip)     if is_mac; then ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null
             else hostname -I 2>/dev/null | awk '{print $1}'; fi ;;
-    wifi)   if is_mac; then networksetup -getairportnetwork en0 2>/dev/null | sed 's/.*Network: //'
+    wifi)   if is_mac; then
+              # Resolve the Wi-Fi interface (en0 on ~all Macs), read its SSID via
+              # ipconfig getsummary, and fall back to link state so an unknown SSID
+              # never reads as "offline" while we're actually associated.
+              local _w _s
+              _w=$(networksetup -listallhardwareports 2>/dev/null | awk '/Wi-Fi/{getline;print $2;exit}'); _w=${_w:-en0}
+              _s=$(ipconfig getsummary "$_w" 2>/dev/null | _ffr_ssid_from_summary)
+              if [ -n "$_s" ]; then echo "$_s"
+              elif ifconfig "$_w" 2>/dev/null | grep -q 'status: active'; then echo "connected"
+              else echo "offline"; fi
             else iwgetid -r 2>/dev/null; fi ;;
     batt)   if is_mac; then pmset -g batt 2>/dev/null | grep -oE '[0-9]+%' | head -1
             else local c; c=$(cat /sys/class/power_supply/BAT0/capacity 2>/dev/null); [[ -n "$c" ]] && echo "$c%"; fi ;;
