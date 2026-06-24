@@ -12,6 +12,7 @@ claw mcp              MCP server manager
 claw homelab          homelab SSH topology
 claw toolkit          Open Claw workflow launcher
 claw skills           browse Claude skills
+claw harness <cmd>    custom agentic tooling: new <kind> <name> · list [--all|--fzf] · sync · deploy · path
 claw ai-services <c>  manage local AI service stacks (litellm, llama-swap, …)
 claw gateway <c>      OpenShell sandbox / gateway manager
 claw load <profile>   source a profile in current shell
