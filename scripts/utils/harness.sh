@@ -120,6 +120,8 @@ harness_list(){
     return 0
   fi
 
+  [[ $use_fzf -eq 1 ]] && ! command -v fzf >/dev/null 2>&1 && log_warning "fzf not on PATH — showing plain list"
+
   printf "\n  Custom agentic harness (%s)\n\n" "$HARNESS"
   local last="" kind name df
   while IFS=$'\t' read -r kind name df; do

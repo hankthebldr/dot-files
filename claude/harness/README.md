@@ -35,7 +35,7 @@ deployer — use them for scaffolding and notes.
 ```bash
 claw harness new <kind> <name>   # scaffold skill|command|agent|plugin from _templates/
 claw harness new <name>          # bare = skill (back-compat)
-claw harness list [--all] [--fzf]# names + descriptions + deploy state
+claw harness list [--all] [--fzf]  # names + descriptions + deploy state
 claw harness sync [--dry-run]    # git pull --ff-only + redeploy in one step
 claw harness deploy [--dry-run]  # symlink it all into ~/.claude (idempotent)
 claw harness path                # print the harness root
