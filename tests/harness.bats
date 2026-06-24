@@ -65,3 +65,19 @@ run_h() { run env DOTFILES_DIR="$DF" bash "$H" "$@"; }
   run env DOTFILES_DIR="$DF" bash "$BATS_TEST_DIRNAME/../bin/claw" harness path
   [[ "$output" == *"/claude/harness"* ]]
 }
+
+@test "list: shows the skill's description, not just its name" {
+  run_h new foo
+  run_h list
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Use when"* ]]   # from the template description
+}
+
+@test "list --all: also walks claude/skills and claude/agent-skills" {
+  mkdir -p "$DF/claude/skills/sec-skill" "$DF/claude/agent-skills/vend-skill"
+  printf -- '---\nname: sec-skill\ndescription: Use when security.\n---\n' > "$DF/claude/skills/sec-skill/SKILL.md"
+  printf -- '---\nname: vend-skill\ndescription: Use when vendored.\n---\n' > "$DF/claude/agent-skills/vend-skill/SKILL.md"
+  run_h list --all
+  [[ "$output" == *"sec-skill"* ]]
+  [[ "$output" == *"vend-skill"* ]]
+}

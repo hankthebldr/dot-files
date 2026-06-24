@@ -60,25 +60,72 @@ harness_new(){
   log_info "edit it, then: claw harness deploy"
 }
 
-# Basic listing — names + deploy state. Enriched in a later task.
+# _desc <file> — extract the YAML frontmatter `description:` as one trimmed line.
+# Handles inline (`description: text`) and folded (`description: >-` then indented).
+_desc(){
+  awk '
+    /^---[[:space:]]*$/ { fm++; if (fm==2) exit; next }
+    fm==1 {
+      if ($0 ~ /^description:/) {
+        sub(/^description:[[:space:]]*/, "")
+        if ($0 ~ /^[>|]-?[[:space:]]*$/) { folded=1; next }   # folder marker only
+        print; exit
+      }
+      if (folded) {
+        if ($0 ~ /^[A-Za-z0-9_-]+:/) exit                     # next key ends it
+        sub(/^[[:space:]]+/, ""); printf "%s ", $0
+      }
+    }
+  ' "$1" 2>/dev/null | tr -s ' ' | sed 's/[[:space:]]*$//' | cut -c1-72
+}
+
+# _emit_item <kind> <name> <descfile> — print one formatted row.
+_emit_item(){
+  local kind="$1" name="$2" df="$3" mark="○"
+  [[ -e "$CLAUDE_DST/$kind/$name" || -e "$CLAUDE_DST/$kind/${name%.md}" ]] && mark="✓"
+  local d; d="$(_desc "$df" 2>/dev/null)"; [[ -z "$d" ]] && d="(no description)"
+  printf "    %s %-22s %s\n" "$mark" "$name" "$d"
+}
+
 harness_list(){
-  printf "\n  Custom agentic harness (%s)\n\n" "$HARNESS"
-  local kind dir e name found
-  for kind in skills commands agents plugins; do
-    dir="$HARNESS/$kind"; printf "  %s\n" "$kind"; found=0
-    if [[ -d "$dir" ]]; then
+  local all=0 use_fzf=0 a
+  for a in "$@"; do case "$a" in --all) all=1 ;; --fzf) use_fzf=1 ;; esac; done
+
+  _walk(){  # emits "kind\tname\tdescfile" rows
+    local kind dir e name df
+    for kind in skills commands agents plugins; do
+      dir="$HARNESS/$kind"; [[ -d "$dir" ]] || continue
       while IFS= read -r e; do
         name="$(basename "$e")"; [[ "$name" == _* || "$name" == .* ]] && continue
-        found=1
-        if [[ -e "$CLAUDE_DST/$kind/$name" || -e "$CLAUDE_DST/$kind/${name%.md}" ]]; then
-          printf "    ✓ %s\n" "$name"
-        else
-          printf "    ○ %s\n" "$name"
-        fi
+        if [[ -d "$e" ]]; then df="$e/SKILL.md"; else df="$e"; fi
+        printf '%s\t%s\t%s\n' "$kind" "$name" "$df"
       done < <(find "$dir" -mindepth 1 -maxdepth 1 2>/dev/null | sort)
+    done
+    if [[ $all -eq 1 ]]; then
+      for kind in skills agent-skills; do
+        dir="$DOTFILES_DIR/claude/$kind"; [[ -d "$dir" ]] || continue
+        while IFS= read -r e; do
+          name="$(basename "$e")"; [[ "$name" == _* || "$name" == .* ]] && continue
+          printf '%s\t%s\t%s\n' "repo:$kind" "$name" "$e/SKILL.md"
+        done < <(find "$dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+      done
     fi
-    [[ $found -eq 0 ]] && printf "    (none yet)\n"
-  done
+  }
+
+  if [[ $use_fzf -eq 1 ]] && command -v fzf >/dev/null 2>&1; then
+    local fzf_opts=(); command -v claw_theme_fzf >/dev/null 2>&1 && IFS=' ' read -r -a fzf_opts <<< "$(claw_theme_fzf 2>/dev/null)"
+    _walk | awk -F'\t' '{printf "%s\t%s\t%s\n",$1,$2,$3}' \
+      | fzf --with-nth=1,2 --delimiter='\t' "${fzf_opts[@]}" \
+            --preview 'cat {3} 2>/dev/null' --preview-window=right:60%
+    return 0
+  fi
+
+  printf "\n  Custom agentic harness (%s)\n\n" "$HARNESS"
+  local last="" kind name df
+  while IFS=$'\t' read -r kind name df; do
+    [[ "$kind" != "$last" ]] && { printf "  %s\n" "$kind"; last="$kind"; }
+    _emit_item "${kind#repo:}" "$name" "$df"
+  done < <(_walk)
 }
 
 harness_deploy(){ bash "$DOTFILES_DIR/scripts/setup/link-claude.sh" "$@"; }
