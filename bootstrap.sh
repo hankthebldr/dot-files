@@ -277,7 +277,7 @@ main() {
 
     # Install brew-only tools (not available via apt or need newer versions)
     if command -v brew &>/dev/null; then
-        local brew_extras=(yq gum eza zoxide atuin btop lazygit lazydocker git-delta dust duf procs glow fastfetch vivid)
+        local brew_extras=(bash yq gum eza zoxide atuin btop lazygit lazydocker git-delta dust duf procs glow fastfetch vivid)
         for tool in "${brew_extras[@]}"; do
             if ! command -v "$tool" &>/dev/null; then
                 log_info "Installing $tool via brew..."
