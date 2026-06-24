@@ -169,8 +169,9 @@ install_appimage() {
     local display_name="$3"      # shown in app grid
     local categories="$4"        # e.g. "Development;IDE;"
     local extra_flags="$5"       # e.g. "--no-sandbox"
+    local app_lower=$(printf '%s' "$app_name" | tr '[:upper:]' '[:lower:]')
     local dest="$HOME/Applications/${app_name}.AppImage"
-    local desktop="$HOME/.local/share/applications/${app_name,,}.desktop"
+    local desktop="$HOME/.local/share/applications/${app_lower}.desktop"
 
     run "mkdir -p '$HOME/Applications' '$HOME/.local/share/applications'"
     log_info "  ↓ downloading $display_name AppImage"
@@ -186,8 +187,8 @@ Name=${display_name}
 Exec=${dest} ${extra_flags} %U
 Terminal=false
 Type=Application
-Icon=${app_name,,}
-StartupWMClass=${app_name,,}
+Icon=${app_lower}
+StartupWMClass=${app_lower}
 Comment=${display_name}
 Categories=${categories}
 EOF

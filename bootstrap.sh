@@ -277,7 +277,7 @@ main() {
 
     # Install brew-only tools (not available via apt or need newer versions)
     if command -v brew &>/dev/null; then
-        local brew_extras=(yq gum eza zoxide atuin btop lazygit lazydocker git-delta dust duf procs glow fastfetch vivid)
+        local brew_extras=(bash yq gum eza zoxide atuin btop lazygit lazydocker git-delta dust duf procs glow fastfetch vivid)
         for tool in "${brew_extras[@]}"; do
             if ! command -v "$tool" &>/dev/null; then
                 log_info "Installing $tool via brew..."
@@ -364,9 +364,37 @@ main() {
     # Git tracks the executable bit but a fresh clone over a different
     # umask (or a bad mirror) can drop it. Belt-and-suspenders.
     log_info "Setting executable bits on bin/ + scripts/"
+    # Why an explicit allowlist instead of `find scripts -name '*.sh' -exec chmod +x`:
+    #   1. Many *.sh files in scripts/ are SOURCE-ONLY libraries (logger.sh,
+    #      detect-os.sh, validators.sh, tui-style.sh, claw-output.sh,
+    #      symlinks.sh, …) — marking them +x is misleading and invites a
+    #      caller to exec a library that has no shebang/main.
+    #   2. The recursive form also DEFEATS the `chmod -x` opt-out pattern:
+    #      Step 9b's integrity.sh records the executable bit, so a user (or
+    #      previous run) who deliberately unsets +x on a vendored script
+    #      would have it silently re-armed on every bootstrap, producing
+    #      spurious integrity drift.
+    # The list below is the surgical set of true entry points (CLIs invoked
+    # directly by claw, the welcome TUI, or the bootstrap itself).
     chmod +x "$SCRIPT_DIR/bin/claw" 2>/dev/null || true
-    find "$SCRIPT_DIR/scripts" -type f -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
-    log_success "claw + scripts marked executable"
+    # Toolchain installers, master-setup, brew/macos/desktop-linux helpers, etc.
+    for f in "$SCRIPT_DIR"/scripts/install/*.sh; do
+        [[ -f "$f" ]] && chmod +x "$f" 2>/dev/null || true
+    done
+    # The Claude tree linker is exec'd; symlinks.sh is sourced, not exec'd.
+    chmod +x "$SCRIPT_DIR/scripts/setup/link-claude.sh" 2>/dev/null || true
+    # Utility entry points (TUIs, managers, dashboards). Libraries omitted.
+    for util in theme toolkit tunnel-manager ai-services homelab \
+                system-update tool-updater mcp-manager onboarding \
+                integrity selfupdate help cheatsheet docker-overview \
+                ssh-deploy storage-doctor uninstall; do
+        f="$SCRIPT_DIR/scripts/utils/$util.sh"
+        [[ -f "$f" ]] && chmod +x "$f" 2>/dev/null || true
+    done
+    # claw-dashboard ships as a Python script (not .sh) but is exec'd directly.
+    [[ -f "$SCRIPT_DIR/scripts/utils/claw-dashboard.py" ]] && \
+        chmod +x "$SCRIPT_DIR/scripts/utils/claw-dashboard.py" 2>/dev/null || true
+    log_success "claw + entry-point scripts marked executable"
 
     # Verify claw is reachable after a synthetic PATH refresh
     if [[ -x "$SCRIPT_DIR/bin/claw" ]] && "$SCRIPT_DIR/bin/claw" help &>/dev/null; then

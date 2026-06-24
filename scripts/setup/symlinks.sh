@@ -70,6 +70,10 @@ _module_already_linked() {
     local module="$1"
     local src_dir="$DOTFILES_DIR/$module"
     local src_file rel target_path expected_resolved actual_resolved
+    local found_any=
+    # Exclude stow plumbing only, NOT .gitconfig — the original `! -name '.git*'`
+    # glob also swallowed .gitconfig (the entire payload of the git/ module),
+    # so a real stow conflict on git/ silently reported "already linked."
     while IFS= read -r src_file; do
         rel="${src_file#$src_dir/}"
         target_path="$TARGET_DIR/$rel"
@@ -77,7 +81,12 @@ _module_already_linked() {
         expected_resolved="$(readlink -f "$src_file" 2>/dev/null)"
         actual_resolved="$(readlink -f "$target_path" 2>/dev/null)"
         [[ "$expected_resolved" == "$actual_resolved" ]] || return 1
-    done < <(find "$src_dir" -mindepth 1 -maxdepth 1 \! -name '.git*')
+        found_any=1
+    done < <(find "$src_dir" -mindepth 1 -maxdepth 1 \
+        \! -name '.git' \! -name '.gitignore' \! -name '.stow-local-ignore')
+    # Empty walk == unverifiable, not verified-good. Force the caller to
+    # treat the original stow failure as real (warn the user).
+    [[ -n "$found_any" ]] || return 1
     return 0
 }
 

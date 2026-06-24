@@ -26,6 +26,19 @@
 ################################################################################
 set -uo pipefail
 
+# Require bash >= 4 for `declare -A` (associative arrays) used by every
+# *-toolchain.sh that sources this runner. macOS ships /bin/bash 3.2, and
+# `#!/usr/bin/env bash` resolves to it on a fresh box before Homebrew bash
+# is on PATH. Re-exec under a modern bash if available, else fail loudly
+# instead of dying cryptically at the first `declare -A` line.
+if (( BASH_VERSINFO[0] < 4 )); then
+    for _b in /opt/homebrew/bin/bash /usr/local/bin/bash /home/linuxbrew/.linuxbrew/bin/bash; do
+        [[ -x "$_b" ]] && exec "$_b" "$0" "$@"
+    done
+    echo "error: toolchain installer requires bash >= 4 (found ${BASH_VERSION}). Install with: brew install bash" >&2
+    exit 1
+fi
+
 _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _UTILS_DIR="$(cd "$_LIB_DIR/../../utils" && pwd)"
 

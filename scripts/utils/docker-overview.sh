@@ -12,6 +12,14 @@
 ################################################################################
 set -uo pipefail
 
+if [[ -z "${BASH_VERSINFO:-}" || "${BASH_VERSINFO[0]}" -lt 4 ]]; then
+    if command -v bash >/dev/null 2>&1 && [[ "$(bash -c 'echo ${BASH_VERSINFO[0]}')" -ge 4 ]]; then
+        exec bash "$0" "$@"
+    fi
+    printf 'docker-overview: requires bash 4+ (found %s); install via '\''brew install bash'\''\n' "${BASH_VERSION:-unknown}" >&2
+    exit 1
+fi
+
 DOTFILES="${DOTFILES_DIR:-$HOME/.dotfiles}"
 [[ -r "$DOTFILES/scripts/utils/theme.sh" ]] && source "$DOTFILES/scripts/utils/theme.sh" 2>/dev/null || true
 _c() { printf '\033[38;2;%sm' "$1"; }
