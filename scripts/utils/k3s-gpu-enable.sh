@@ -85,7 +85,8 @@ run "kubectl -n kube-system rollout status ds/nvidia-device-plugin-daemonset --t
 
 # ── 2. GPU node discovery / taint ────────────────────────────────────────────
 if [[ "$DRY_RUN" == "false" ]]; then
-    mapfile -t gpu_nodes < <(kubectl get nodes -l "$GPU_LABEL" -o name 2>/dev/null)
+    gpu_nodes=()
+    while IFS= read -r line; do gpu_nodes+=("$line"); done < <(kubectl get nodes -l "$GPU_LABEL" -o name 2>/dev/null)
     if [[ ${#gpu_nodes[@]} -eq 0 ]]; then
         log_warning "No nodes labelled '$GPU_LABEL' yet."
         log_warning "Join a GPU worker so it gets labelled:"
