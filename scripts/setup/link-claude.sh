@@ -52,6 +52,15 @@ _link() {
     local label="${3:-$(basename "$dst")}"
     [[ -e "$src" ]] || { log_warning "skip $label — source missing: $src"; return 0; }
 
+    # If dst already resolves to the SAME real file as src — e.g. dst is reached
+    # through a parent dir that is itself a symlink into this repo (~/.claude/
+    # commands -> repo/claude/commands) — it is already effectively linked.
+    # Backing it up + re-linking would move the real file to backup and leave a
+    # self-referential symlink (ELOOP). Treat as already-correct and skip.
+    if [[ -e "$dst" && "$(readlink -f "$dst" 2>/dev/null)" == "$(readlink -f "$src" 2>/dev/null)" ]]; then
+        return 0
+    fi
+
     if [[ -L "$dst" ]]; then
         local cur; cur="$(readlink -f "$dst" 2>/dev/null || true)"
         if [[ "$cur" == "$(readlink -f "$src")" ]]; then
