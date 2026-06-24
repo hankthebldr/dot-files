@@ -190,7 +190,11 @@ cmd_list() {
 }
 
 cmd_status() {
-    local names; names=("$@"); [[ ${#names[@]} -eq 0 ]] && mapfile -t names < <(_all_names)
+    local names=("$@") _n
+    if [[ ${#names[@]} -eq 0 ]]; then
+        names=()
+        while IFS= read -r _n; do names+=("$_n"); done < <(_all_names)
+    fi
     local n
     for n in "${names[@]}"; do
         local port; port="$(_field "$n" 3)"
@@ -234,7 +238,11 @@ cmd_status() {
 }
 
 cmd_up() {
-    local names; names=("$@"); [[ ${#names[@]} -eq 0 ]] && mapfile -t names < <(_all_names)
+    local names=("$@") _n
+    if [[ ${#names[@]} -eq 0 ]]; then
+        names=()
+        while IFS= read -r _n; do names+=("$_n"); done < <(_all_names)
+    fi
     local n
     for n in "${names[@]}"; do
         printf '\n  %s%s▸ %s%s\n' "$C_BOLD" "$C_BLUE" "$n" "$C_RST"
@@ -263,7 +271,11 @@ cmd_up() {
 }
 
 cmd_down() {
-    local names; names=("$@"); [[ ${#names[@]} -eq 0 ]] && mapfile -t names < <(_all_names)
+    local names=("$@") _n
+    if [[ ${#names[@]} -eq 0 ]]; then
+        names=()
+        while IFS= read -r _n; do names+=("$_n"); done < <(_all_names)
+    fi
     local n
     for n in "${names[@]}"; do
         if _is_host "$n"; then
@@ -283,7 +295,11 @@ cmd_down() {
 cmd_restart() { cmd_down "$@"; cmd_up "$@"; }
 
 cmd_pull() {
-    local names; names=("$@"); [[ ${#names[@]} -eq 0 ]] && mapfile -t names < <(_all_names)
+    local names=("$@") _n
+    if [[ ${#names[@]} -eq 0 ]]; then
+        names=()
+        while IFS= read -r _n; do names+=("$_n"); done < <(_all_names)
+    fi
     local n
     for n in "${names[@]}"; do
         _is_host "$n" && { info "$n is a host service — no image to pull"; continue; }
