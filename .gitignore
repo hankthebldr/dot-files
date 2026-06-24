@@ -186,6 +186,8 @@ Cookies
 History
 **/Local Storage/
 **/*.plist
+# …but a macOS Quick Action / .workflow bundle's Info.plist IS source we ship.
+!terminal/macos/**/*.plist
 .superpowers/
 
 # Claude Code worktrees (ephemeral agent workspaces)
