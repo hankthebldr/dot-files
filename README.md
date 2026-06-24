@@ -74,7 +74,7 @@ claw agent add        register a new agent in agents.toml
 claw install <tc>     opt-in toolchain installer (cloud/security/…)
 ```
 
-`bin/claw` is added to PATH via `shell/path.zsh`. A zsh wrapper at `shell/claw-fn.zsh` intercepts `claw load`/`claw off` so they actually mutate the parent shell (the bash binary alone can't).
+`bin/claw` is added to PATH inline in `shell/.zshrc` (step 1, before the welcome TUI). A zsh wrapper at `shell/claw-fn.zsh` intercepts `claw load`/`claw off` so they actually mutate the parent shell (the bash binary alone can't).
 
 Full reference: [`docs/claw.md`](docs/claw.md).
 
@@ -325,9 +325,8 @@ Long-running single-process ops (`claw pkg install`/`track`/`scan`) render an in
 ├── bin/
 │   └── claw                      # Single dispatcher (~250 lines)
 ├── shell/
-│   ├── .zshrc                    # Main config (cross-platform)
+│   ├── .zshrc                    # Main config; PATH set inline (brew, cargo, go, bin/claw)
 │   ├── platform.zsh              # Cross-platform shims (clip/open/IP)
-│   ├── path.zsh                  # PATH (brew, cargo, go, bin/claw)
 │   ├── exports.zsh               # Environment variables
 │   ├── aliases.zsh               # ~680 lines of aliases & functions
 │   ├── security.zsh              # Safety aliases + network recon

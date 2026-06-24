@@ -67,19 +67,16 @@ Also: `claw update` is the one updater front door (`--tools` → tool-updater,
 
 ### Shell Configuration Loading Order (.zshrc)
 
-1. P10k instant prompt (must be first)
-2. Oh-My-Zsh framework + conditional plugins (macOS/Ubuntu)
-3. `DOTFILES_DIR` + `shell/platform.zsh` (cross-platform shims)
-4. `shell/path.zsh` - PATH setup (homebrew macOS/Linux, cargo, go)
-5. `shell/exports.zsh` - Environment variables (FZF, BAT, GIT_PAGER, XDG, history)
-6. `shell/load-env.zsh` - `.env` file loading (silent, guarded)
-7. `shell/aliases.zsh` - All aliases and shell functions (~680 lines)
-8. `shell/security.zsh` - Safe file ops, network recon, scanning aliases
-9. `shell/obsidian.zsh` - Obsidian vault integration (`on`, `os`, `ov`)
-9b. `shell/clin.zsh` - Clin plugin (`cl`, `cln`); rides on obsidian.zsh resolvers, loads right after it
-10. Tool init: zoxide, direnv, atuin, thefuck, eza, zsh-syntax-highlighting (all guarded)
-11. P10k theme config (profile-aware)
-12. Welcome TUI (`claw_welcome_tui`) — interactive shells only, SSH-safe
+Mirrors the numbered steps in `shell/.zshrc` (see its header comment):
+
+1. **PATH + `DOTFILES_DIR`** — set **inline** (homebrew, `$HOME/.local/bin`, cargo, go, `scripts/utils`, `bin/claw`). Deliberately inline and FIRST — **there is no `shell/path.zsh`** — so every tool resolves before the welcome TUI runs at step 3.
+2. `shell/platform.zsh` (cross-platform shims) → `ghostty-terminfo.zsh` → `scripts/utils/theme.sh` (theme engine, single color source) → `shell/fastfetch.zsh`
+3. Welcome TUI (`claw_welcome_tui`) — runs BEFORE p10k, while the shell still owns the terminal; interactive-only, SSH-safe
+4. P10k instant prompt — **disabled on purpose** (the TUI provides the immediate visual feedback instant prompt was designed for)
+5. Oh-My-Zsh framework + conditional plugins (macOS/Ubuntu/Debian)
+6. Modular sources: `exports.zsh`, `load-env.zsh` (`.env`, silent/guarded), `aliases.zsh` (~680 lines), `profile-helpers.zsh`, `claw-fn.zsh`, `claw-completion.zsh`, `security.zsh`, `obsidian.zsh`, `clin.zsh` (after obsidian — rides its vault resolvers), `progress.zsh`, `delight.zsh`, vault-os aliases
+7. Tool init (all guarded): zoxide, direnv, atuin, thefuck, zsh-syntax-highlighting, gcloud SDK
+8. P10k theme config — sources the tuned prompt straight from `shell/.p10k.zsh` in the repo (not `~/.p10k.zsh`), profile-aware; then symlink-drift guard, terraform completion, FZF keybindings, `~/.zshrc.local` overrides, appended external-tool PATH
 
 ### Cross-Platform Layer
 
@@ -203,10 +200,9 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 
 | File | Purpose |
 |------|---------|
-| `.zshrc` | Main shell config, sources all modules |
+| `.zshrc` | Main shell config; sets PATH **inline** (step 1: brew, `~/.local/bin`, cargo, go, `bin/claw`) and sources all modules |
 | `shell/.p10k.zsh` | Pre-themed Powerlevel10k prompt (GitHub-dark, Nerd Font); stowed to `~/.p10k.zsh` |
 | `shell/platform.zsh` | Cross-platform shims (clipboard, open, IP, VPN) |
-| `shell/path.zsh` | PATH setup (brew macOS/Linux, cargo, go) |
 | `shell/exports.zsh` | Environment variables (FZF, BAT, GIT_PAGER, XDG) |
 | `shell/aliases.zsh` | Core aliases and functions (~680 lines) |
 | `shell/security.zsh` | Safety aliases + network recon |

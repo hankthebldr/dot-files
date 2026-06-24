@@ -24,8 +24,8 @@ claw output           display settings (mode/frame/banner, persisted)
 claw help             this list
 ```
 
-`claw` lives at `bin/claw` in this repo and is auto-added to `PATH` via
-`shell/path.zsh`. Open any new shell after install and you're good.
+`claw` lives at `bin/claw` in this repo and is auto-added to `PATH` inline in
+`shell/.zshrc` (step 1). Open any new shell after install and you're good.
 
 ---
 
