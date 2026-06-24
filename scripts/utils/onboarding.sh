@@ -21,6 +21,18 @@
 
 set -e
 
+# Bash 4+ required for `declare -A` (associative arrays, used for SCORES).
+# macOS ships bash 3.2; re-exec under Homebrew/Linuxbrew bash if available.
+if (( BASH_VERSINFO[0] < 4 )); then
+    for _claw_newer_bash in /opt/homebrew/bin/bash /usr/local/bin/bash /home/linuxbrew/.linuxbrew/bin/bash; do
+        if [[ -x "$_claw_newer_bash" ]]; then
+            exec "$_claw_newer_bash" "$0" "$@"
+        fi
+    done
+    echo "onboarding.sh needs bash >= 4 (got $BASH_VERSION). Install via 'brew install bash'." >&2
+    exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 STATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/claw"
