@@ -56,3 +56,12 @@ run_h() { run env DOTFILES_DIR="$DF" bash "$H" "$@"; }
   run_h list
   [ "$status" -eq 0 ]; [[ "$output" == *"foo"* ]]; [[ "$output" == *"○"* ]]
 }
+
+@test "claw harness: routes new/list/path through the engine" {
+  cp "$BATS_TEST_DIRNAME/../bin/claw" "$DF/bin-claw" 2>/dev/null || true
+  run env DOTFILES_DIR="$DF" bash "$BATS_TEST_DIRNAME/../bin/claw" harness new skill plumbed
+  [ "$status" -eq 0 ]
+  [ -f "$DF/claude/harness/skills/plumbed/SKILL.md" ]
+  run env DOTFILES_DIR="$DF" bash "$BATS_TEST_DIRNAME/../bin/claw" harness path
+  [[ "$output" == *"/claude/harness"* ]]
+}
