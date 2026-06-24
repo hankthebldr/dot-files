@@ -1,0 +1,58 @@
+#!/usr/bin/env bats
+# Tests for the `claw harness` engine (scripts/utils/harness.sh).
+
+setup() {
+  export DF="$BATS_TEST_TMPDIR/df"
+  mkdir -p "$DF/scripts/utils" "$DF/scripts/setup" \
+           "$DF/claude/harness/"{skills,commands,agents,plugins,_templates}
+  cp "$BATS_TEST_DIRNAME/../scripts/utils/harness.sh" "$DF/scripts/utils/"
+  cp "$BATS_TEST_DIRNAME/../scripts/utils/logger.sh"  "$DF/scripts/utils/"
+  cp -R "$BATS_TEST_DIRNAME/../claude/harness/_templates/." "$DF/claude/harness/_templates/"
+  printf '#!/usr/bin/env bash\necho "LINK_CLAUDE_RAN $*"\n' > "$DF/scripts/setup/link-claude.sh"
+  export HOME="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$HOME/.claude/"{skills,commands,agents,plugins}
+  export H="$DF/scripts/utils/harness.sh"
+}
+
+run_h() { run env DOTFILES_DIR="$DF" bash "$H" "$@"; }
+
+@test "new skill: bare name defaults to skill and substitutes __NAME__" {
+  run_h new foo
+  [ "$status" -eq 0 ]
+  [ -f "$DF/claude/harness/skills/foo/SKILL.md" ]
+  grep -q "^name: foo$" "$DF/claude/harness/skills/foo/SKILL.md"
+}
+
+@test "new command/agent/plugin each scaffold the right file" {
+  run_h new command bar; [ "$status" -eq 0 ]; [ -f "$DF/claude/harness/commands/bar.md" ]
+  run_h new agent baz;   [ "$status" -eq 0 ]; [ -f "$DF/claude/harness/agents/baz.md" ]
+  grep -q "^name: baz$" "$DF/claude/harness/agents/baz.md"
+  run_h new plugin qux;  [ "$status" -eq 0 ]; [ -f "$DF/claude/harness/plugins/qux/plugin.json" ]
+  grep -q '"name": "qux"' "$DF/claude/harness/plugins/qux/plugin.json"
+}
+
+@test "new: refuses to clobber an existing tool" {
+  run_h new foo; [ "$status" -eq 0 ]
+  run_h new foo; [ "$status" -ne 0 ]; [[ "$output" == *"already exists"* ]]
+}
+
+@test "new: rejects an invalid name" {
+  run_h new "bad name/with slash"
+  [ "$status" -ne 0 ]; [[ "$output" == *"invalid name"* ]]
+}
+
+@test "path: prints the harness root" {
+  run_h path
+  [ "$status" -eq 0 ]; [[ "$output" == *"/claude/harness"* ]]
+}
+
+@test "deploy: delegates to link-claude.sh" {
+  run_h deploy --dry-run
+  [ "$status" -eq 0 ]; [[ "$output" == *"LINK_CLAUDE_RAN --dry-run"* ]]
+}
+
+@test "list: shows a scaffolded skill with a not-deployed marker" {
+  run_h new foo
+  run_h list
+  [ "$status" -eq 0 ]; [[ "$output" == *"foo"* ]]; [[ "$output" == *"○"* ]]
+}
