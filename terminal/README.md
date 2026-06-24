@@ -64,6 +64,48 @@ Note: the existing `.terminal` plist contains base64-encoded color blobs
 because that's how macOS stores them — it works but isn't editable by
 hand. For palette changes, switch to iTerm2 or Wezterm.
 
+## Making Ghostty the default terminal
+
+The Ghostty config (`terminal/.config/ghostty/config`) is the canonical
+cross-platform experience — authored on the BD790i (GNOME/X11), stowed identically
+to macOS. It tracks `claw theme set` (writes a git-ignored `theme.conf` include),
+ships ssh-terminfo, and uses `⌘`/`Super` keybinds that work on both platforms.
+
+### macOS
+
+macOS has **no OS-level "default terminal"** setting (unlike Linux's
+`x-terminal-emulator`). The practical equivalent — login item + Dock pin + a Finder
+"Open in Ghostty" Quick Action — is applied idempotently by:
+
+```bash
+bash ~/.dotfiles/scripts/setup/macos-default-terminal.sh
+```
+
+The Quick Action bundle lives in the repo at `terminal/macos/Open in Ghostty.workflow`
+and is copied to `~/Library/Services/`. If it doesn't appear in a folder's right-click
+**Quick Actions** menu, enable it under *System Settings → Keyboard → Keyboard
+Shortcuts → Services*, or relaunch Finder (`killall Finder`).
+
+### Linux / BD790i (GNOME)
+
+Linux *does* have a real default. On the BD790i:
+
+```bash
+# 1. Debian/Ubuntu alternatives system (terminal-launching apps honor this)
+sudo update-alternatives --install /usr/bin/x-terminal-emulator \
+     x-terminal-emulator "$(command -v ghostty)" 50
+sudo update-alternatives --config x-terminal-emulator      # pick ghostty
+
+# 2. Nautilus right-click "Open Terminal" (via nautilus-open-any-terminal)
+gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal ghostty
+
+# 3. GNOME Ctrl+Alt+T — rebind the custom shortcut to ghostty
+#    Settings → Keyboard → Custom Shortcuts → command: ghostty
+
+# 4. Tools that read $TERMINAL (rofi, i3/sway, xdg) — put in ~/.zshrc.local:
+export TERMINAL=ghostty
+```
+
 ## Stow integration (one-shot)
 
 The dot-files bootstrap symlinks `terminal/` via GNU Stow:
