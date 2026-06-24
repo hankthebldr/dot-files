@@ -80,4 +80,6 @@ run_h() { run env DOTFILES_DIR="$DF" bash "$H" "$@"; }
   run_h list --all
   [[ "$output" == *"sec-skill"* ]]
   [[ "$output" == *"vend-skill"* ]]
+  [[ "$output" == *"Use when security."* ]]
+  [[ "$output" == *"Use when vendored."* ]]
 }
