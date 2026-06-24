@@ -83,3 +83,18 @@ run_h() { run env DOTFILES_DIR="$DF" bash "$H" "$@"; }
   [[ "$output" == *"Use when security."* ]]
   [[ "$output" == *"Use when vendored."* ]]
 }
+
+@test "sync: errors clearly when DOTFILES_DIR is not a git repo" {
+  run_h sync
+  [ "$status" -ne 0 ]; [[ "$output" == *"not a git repo"* ]]
+}
+
+@test "sync --dry-run: in a git repo with no upstream, mutates nothing" {
+  ( cd "$DF" && git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm init )
+  before="$(git -C "$DF" rev-parse HEAD)"
+  run_h sync --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"LINK_CLAUDE_RAN --dry-run"* ]]
+  after="$(git -C "$DF" rev-parse HEAD)"
+  [ "$before" = "$after" ]            # no new commit
+}

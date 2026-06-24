@@ -131,10 +131,40 @@ harness_list(){
 harness_deploy(){ bash "$DOTFILES_DIR/scripts/setup/link-claude.sh" "$@"; }
 harness_path(){ echo "$HARNESS"; }
 
+harness_sync(){
+  local dry=0; [[ "${1:-}" == "--dry-run" || "${1:-}" == "-n" ]] && dry=1
+  git -C "$DOTFILES_DIR" rev-parse --git-dir >/dev/null 2>&1 \
+    || { log_error "$DOTFILES_DIR is not a git repo"; return 1; }
+
+  if [[ $dry -eq 1 ]]; then
+    log_info "fetching origin…"
+    git -C "$DOTFILES_DIR" fetch --quiet 2>/dev/null || log_warning "fetch failed (offline?)"
+    if git -C "$DOTFILES_DIR" rev-parse '@{u}' >/dev/null 2>&1; then
+      local n; n="$(git -C "$DOTFILES_DIR" rev-list --count HEAD..'@{u}' 2>/dev/null || echo 0)"
+      log_info "$n commit(s) incoming:"
+      git -C "$DOTFILES_DIR" log --oneline HEAD..'@{u}' 2>/dev/null || true
+    else
+      log_warning "no upstream tracking branch — nothing to pull"
+    fi
+    log_info "deploy preview:"
+    bash "$DOTFILES_DIR/scripts/setup/link-claude.sh" --dry-run
+    return 0
+  fi
+
+  log_info "pulling (ff-only)…"
+  if ! git -C "$DOTFILES_DIR" pull --ff-only; then
+    log_error "can't fast-forward (branch diverged). Reconcile manually, then re-run."
+    return 1
+  fi
+  bash "$DOTFILES_DIR/scripts/setup/link-claude.sh"
+  log_success "harness synced + deployed"
+}
+
 main(){
   local sub="${1:-list}"; shift || true
   case "$sub" in
     new)          harness_new "$@" ;;
+    sync)         harness_sync "$@" ;;
     list|ls)      harness_list "$@" ;;
     deploy|link)  harness_deploy "$@" ;;
     path)         harness_path ;;
