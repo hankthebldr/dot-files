@@ -33,15 +33,15 @@ deployer — use them for scaffolding and notes.
 ## Workflow
 
 ```bash
-claw harness new <name>      # scaffold a new skill from the template
-claw harness list            # show everything in the harness + deploy state
-claw harness deploy          # symlink it all into ~/.claude (idempotent)
-claw harness deploy --dry-run
+claw harness new <kind> <name>   # scaffold skill|command|agent|plugin from _templates/
+claw harness new <name>          # bare = skill (back-compat)
+claw harness list [--all] [--fzf]# names + descriptions + deploy state
+claw harness sync [--dry-run]    # git pull --ff-only + redeploy in one step
+claw harness deploy [--dry-run]  # symlink it all into ~/.claude (idempotent)
+claw harness path                # print the harness root
 ```
 
-`claw harness deploy` is a thin wrapper over `scripts/setup/link-claude.sh`,
-which also runs at the end of `bootstrap.sh`, so a fresh box gets the whole
-harness wired up automatically.
+Templates live in `_templates/` (skipped by the deployer). The engine is `scripts/utils/harness.sh`; `cmd_harness` in `bin/claw` is a thin dispatch to it.
 
 ## Conventions
 
