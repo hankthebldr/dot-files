@@ -1,7 +1,12 @@
-# Ghostty — cross-platform config (macOS + Linux/GNOME)
-# Theme: follows `claw theme set <slug>` — the active palette is regenerated
-#        into ./theme.conf (git-ignored) and included below, so the terminal
-#        recolors with the prompt, fzf, dashboard and fastfetch as one surface.
+# Ghostty — cross-platform base config (macOS + Linux/GNOME)
+# Layering (Ghostty has no OS-conditional include, so we compose with files):
+#   1. this file        — directives valid on BOTH platforms
+#   2. ?os-active.conf   — per-OS knobs; a symlink → os-macos.conf | os-linux.conf
+#                          created by scripts/setup/symlinks.sh (git-ignored).
+#   3. ?theme.conf       — active palette, written by `claw theme build`
+#                          (git-ignored). LAST so its colors win.
+# The leading `?` makes each include optional: a fresh checkout (before stow /
+# theme build has run) still loads cleanly instead of erroring on a missing file.
 # Font:  JetBrainsMono Nerd Font Mono @ 10pt
 # Keys:  Mac-style — ⌘/Super for copy/paste/tab/window/find/clear
 
@@ -9,18 +14,17 @@
 font-family = "JetBrainsMono Nerd Font Mono"
 font-size = 10
 font-feature = "-calt"
-# font-thicken is macOS-only — no-op on the GTK/freetype Linux build. On Linux,
-# heavier strokes come from freetype-load-flags (e.g. hinting, force-autohint).
-# font-thicken = true
+# Heavier strokes are platform-specific and live in the OS layers:
+#   macOS → font-thicken;  Linux → freetype-load-flags  (see os-*.conf).
 # Tight line height for a dense viewport (was +10%, which loosened rows).
 adjust-cell-height = 0%
 
 # ── Window ────────────────────────────────────────────────────────────
-# Decorated, movable window. `window-decoration = true` + `gtk-titlebar = true`
-# give the GTK frame + titlebar back, so the window has a border and can be
-# dragged/resized on GNOME. `maximize = false` opens it floating (a maximized
-# window can't be moved); maximize manually with Super+Up if you want full
-# screen. Tight padding keeps more cells on screen.
+# Decorated, movable window. `window-decoration = true` is honored on both
+# platforms; the GTK titlebar/tabs knobs that pair with it on Linux live in
+# os-linux.conf. `maximize = false` opens floating (a maximized window can't be
+# moved); maximize manually with Super+Up / ⌘ controls. Tight padding keeps
+# more cells on screen.
 maximize = false
 window-decoration = true
 # Initial size in cells. The claw dashboard box is 68 cols, the generic
@@ -35,44 +39,20 @@ window-padding-y = 4
 window-padding-balance = true
 window-save-state = never
 window-theme = dark
-gtk-titlebar = true
-gtk-tabs-location = top
-gtk-wide-tabs = false
-# Reuse one GTK process so new windows open instantly and share memory. Ghostty
-# autodetects this but it's unreliable for non-GNOME-launched windows, and the
-# launch dashboard makes cold starts costly — force it on.
-gtk-single-instance = true
 unfocused-split-opacity = 0.85
-
-# ── macOS-only knobs (ignored on Linux) ───────────────────────────────
-macos-titlebar-style = hidden
-macos-option-as-alt = true
-macos-window-shadow = true
 
 # ── Appearance / eye-candy ────────────────────────────────────────────
 # Translucent surface. background-blur is honored only on KDE Plasma / macOS;
-# GNOME/Mutter (this box is GNOME/X11) ignores it, so it's left off rather than
-# implying a glass effect that never renders. Opacity works under GNOME's
-# compositor — drop toward 0.90 for more glass, 1.0 = solid.
+# GNOME/Mutter ignores it, so it's left to the OS layers rather than implying a
+# glass effect that never renders. Opacity works under both compositors —
+# drop toward 0.90 for more glass, 1.0 = solid.
 background-opacity = 0.93
-# background-blur = 20   # KDE/macOS only — silent no-op on GNOME/Mutter
 # Bold text uses the bright ANSI slots → punchier, still on-palette.
 bold-is-bright = true
 # Nudge legibility when an app paints fg/bg too close together (1.0 = off).
 minimum-contrast = 1.05
 # Don't flash the cell-size overlay every time the window resizes.
 resize-overlay = never
-
-# ── Quick terminal (drop-down, Guake/Yakuake-style) ───────────────────
-# macOS-only in Ghostty 1.3.1: the GTK/Linux build rejects the
-# `toggle_quick_terminal` action, so the keybind is commented out to keep this
-# shared config valid on Linux. The position/animation tuning below is inert on
-# Linux but harmless, and ready for when you're on macOS — just uncomment the
-# keybind there. (Linux GNOME drop-down: use a Custom Shortcut → `ghostty`.)
-quick-terminal-position = top
-quick-terminal-animation-duration = 0.15
-quick-terminal-autohide = true
-# keybind = global:super+grave=toggle_quick_terminal   # macOS only
 
 # ── Custom shader (off by default) ────────────────────────────────────
 # Drop a .glsl in this dir (e.g. from github.com/hackr-sh/ghostty-shaders —
@@ -104,12 +84,12 @@ scrollback-limit = 100000000
 confirm-close-surface = false
 bell-features = system,attention
 
-# ── Colors — baseline (Gruvbox Material dark) ─────────────────────────
-# This inline palette is the FALLBACK, used on a fresh checkout before any
-# theme has been generated. `claw theme set <slug>` writes the active palette
-# to ./theme.conf and the include at the end of this file overrides these — so
-# the terminal tracks the same single source of truth (config/themes/<slug>.theme)
-# as the p10k prompt, EZA_COLORS, fzf, the dashboard and the fastfetch readout.
+# ── Colors — baseline fallback (Gruvbox Material dark) ────────────────
+# Used on a fresh checkout before any theme is generated. `claw theme build`
+# writes the active palette to ./theme.conf and the include below overrides
+# these — so the terminal tracks the same single source of truth
+# (config/themes/<slug>.theme) as the p10k prompt, EZA_COLORS, fzf, the
+# dashboard and the fastfetch readout.
 background = 1d2021
 foreground = d4be98
 selection-background = 45403d
@@ -133,13 +113,10 @@ palette = 13=#d3869b
 palette = 14=#89b482
 palette = 15=#d4be98
 
-# Active theme override (generated by `claw theme set`; git-ignored, optional).
-# Must come AFTER the baseline palette so its values win when present.
-config-file = ?theme.conf
-
-# ── Keybindings ───────────────────────────────────────────────────────
+# ── Keybindings (cross-platform) ──────────────────────────────────────
 # Ghostty's "cmd" binds to ⌘ on macOS and to Super (Win key) on Linux,
-# so a single keybind line works on both platforms.
+# so a single keybind line works on both platforms. Platform-only binds
+# (macOS quick-terminal, Linux Ctrl+Shift fallbacks) live in os-*.conf.
 
 # Clipboard (Mac-style)
 keybind = cmd+c=copy_to_clipboard
@@ -189,7 +166,6 @@ keybind = cmd+comma=open_config
 keybind = cmd+shift+r=reload_config
 keybind = cmd+shift+i=inspector:toggle
 
-# Linux-only safety: also accept the standard Ctrl+Shift+C/V so muscle
-# memory from other Linux terminals still works.
-keybind = ctrl+shift+c=copy_to_clipboard
-keybind = ctrl+shift+v=paste_from_clipboard
+# ── OS + theme layers (must come LAST; theme wins on color) ────────────
+config-file = ?os-active.conf
+config-file = ?theme.conf

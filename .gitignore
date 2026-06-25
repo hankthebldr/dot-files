@@ -209,6 +209,9 @@ tui/claw-tui/target/
 
 # generated per-machine Ghostty colors (claw theme set)
 terminal/.config/ghostty/theme.conf
+# per-OS include symlink (os-active.conf → os-macos.conf|os-linux.conf),
+# created by scripts/setup/symlinks.sh:link_ghostty_os_active — host-specific
+terminal/.config/ghostty/os-active.conf
 
 # Claude Code skill-system artifacts created when this repo is the cwd
 # (managed-skill symlinks + lockfile belong under ~/, not the dotfiles tree)
