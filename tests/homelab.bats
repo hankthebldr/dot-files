@@ -54,9 +54,32 @@ setup() {
 
 @test "dashboard homelab_lines: empty list when cache absent" {
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/none"
-  run env NO_COLOR=1 python3 -c "import importlib.util as u; \
+  run env NO_COLOR=1 python3 -c "import sys; sys.argv=['d']; \
+    import importlib.util as u; \
     s=u.spec_from_file_location('d','$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py'); \
     m=u.module_from_spec(s); s.loader.exec_module(m); print('LINES=%d'%len(m.homelab_lines()))"
   [ "$status" -eq 0 ]
   [[ "$output" == *"LINES=0"* ]]
+}
+
+@test "dashboard homelab_lines: stale cache emits 'stale' not 'updated'" {
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.stale.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run env NO_COLOR=1 python3 -c "import sys; sys.argv=['d']; \
+    import importlib.util as u; s=u.spec_from_file_location('d','$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py'); \
+    m=u.module_from_spec(s); s.loader.exec_module(m); print('\n'.join(m.homelab_lines()))"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stale"* ]]
+  [[ "$output" != *"updated"* ]]
+}
+
+@test "dashboard homelab_lines: down service renders ollama from mixed cache" {
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.mixed.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run env NO_COLOR=1 python3 -c "import sys; sys.argv=['d']; \
+    import importlib.util as u; s=u.spec_from_file_location('d','$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py'); \
+    m=u.module_from_spec(s); s.loader.exec_module(m); print('\n'.join(m.homelab_lines()))"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"k3s"* ]]
+  [[ "$output" == *"ollama"* ]]
 }
