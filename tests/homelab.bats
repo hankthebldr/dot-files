@@ -83,3 +83,20 @@ setup() {
   [[ "$output" == *"k3s"* ]]
   [[ "$output" == *"ollama"* ]]
 }
+
+@test "welcome-tui _claw_homelab_block: prints fleet summary from cache" {
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.up.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run zsh -c "source '$BATS_TEST_DIRNAME/../shell/welcome-tui.zsh'; _claw_homelab_block"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"HR-TRUST"* ]]
+  [[ "$output" == *"bd790i"* ]]
+  [[ "$output" == *"2/2 up"* ]]   # proves the jq/read field-split works, not just a substring
+}
+
+@test "welcome-tui _claw_homelab_block: silent when cache absent" {
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/none"
+  run zsh -c "source '$BATS_TEST_DIRNAME/../shell/welcome-tui.zsh'; _claw_homelab_block"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}

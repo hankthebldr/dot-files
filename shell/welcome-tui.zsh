@@ -212,6 +212,7 @@ function claw_welcome_tui() {
             _claw_tui_log "group:$tok"
             clear
             printf "\n  ${c_purple}${c_bold}Open Claw${c_reset} ${c_dim}▸${c_reset} ${c_white}%s${c_reset}\n\n" "${l2_title[$tok]}"
+            [[ "$tok" == hardware ]] && _claw_homelab_block
             local sel2 itok
             sel2=$(echo -e "${l2[$tok]}" | column -s $'\t' -t | fzf \
                 --height=~14 --reverse --margin=0,0,0,4 --ansi \
@@ -566,4 +567,64 @@ _claw_profile_readout() {
     (( ${#refs[@]} )) && \
         printf "  ${c_cyan}${c_bold}📖 Docs & help${c_reset}  %s\n" "${(j:   ·   :)refs}"
     echo ""
+}
+
+# _claw_homelab_block — compact HR-TRUST fleet summary for the login footer and
+# the hardware-group picker. Reads ~/.cache/claw/homelab.json ONLY (the
+# situation poller writes it); never probes the network. Silent if absent.
+_claw_homelab_block() {
+    local cache="${XDG_CACHE_HOME:-$HOME/.cache}/claw/homelab.json"
+    [[ -r "$cache" ]] || return 0
+    command -v jq &> /dev/null || return 0
+
+    # Theme tokens (CLAW_RGB_* with refined-dark fallbacks — spine contract #2).
+    local c_reset=$'\e[0m'
+    local c_green=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
+    local c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+    local c_amber=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+    local c_dim=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+    local c_white=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
+    local c_bold=$'\e[1m'
+
+    # Fleet name + per-machine up/total service rollup + route + age.
+    local fleet route ts up_total summary
+    fleet=$(jq -r '.fleet // "fleet"' "$cache" 2>/dev/null)
+    route=$(jq -r '.route.path // ""' "$cache" 2>/dev/null)
+    ts=$(jq -r '.ts // ""' "$cache" 2>/dev/null)
+    [[ -z "$fleet" || "$fleet" == "null" ]] && return 0
+
+    # Build "host ●U/T" segments, dot colored by whether all services are up.
+    summary=$(jq -r '
+      .machines[]? |
+      (.services | length) as $t |
+      ([.services[]? | select(.state=="up")] | length) as $u |
+      "\(.id)\u0001\(.state)\u0001\($u)\u0001\($t)"' "$cache" 2>/dev/null)
+
+    # Staleness from ts (epoch diff); >300s → amber "stale".
+    local age_label="" now then diff
+    if [[ -n "$ts" && "$ts" != "null" ]]; then
+        now=$(date -u +%s 2>/dev/null)
+        then=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$ts" +%s 2>/dev/null \
+               || date -u -d "$ts" +%s 2>/dev/null)
+        if [[ -n "$then" ]]; then
+            diff=$(( now - then )); (( diff < 0 )) && diff=0
+            if (( diff < 60 )); then age_label="${diff}s ago"; else age_label="$(( diff / 60 ))m ago"; fi
+            (( diff > 300 )) && age_label="stale ${age_label}"
+        fi
+    fi
+
+    printf "  ${c_white}${c_bold}📡 %s${c_reset}" "$fleet"
+    [[ -n "$route" ]] && printf "  ${c_dim}%s${c_reset}" "$route"
+    [[ -n "$age_label" ]] && printf "  ${c_dim}· %s${c_reset}" "$age_label"
+    printf "\n"
+
+    local id st u t dot
+    while IFS=$'\001' read -r id st u t; do
+        [[ -z "$id" ]] && continue
+        if [[ "$st" != "up" ]]; then dot="${c_red}●${c_reset}"
+        elif [[ "$u" == "$t" ]]; then dot="${c_green}●${c_reset}"
+        else dot="${c_amber}●${c_reset}"; fi
+        printf "    %s ${c_white}%s${c_reset} ${c_dim}%s/%s up${c_reset}" "$dot" "$id" "$u" "$t"
+    done <<< "$summary"
+    printf "\n"
 }
