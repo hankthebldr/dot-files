@@ -7,45 +7,55 @@ _hl_kubectl() { kubectl "$@"; }
 _hl_ollama()  { ollama "$@"; }
 _hl_docker()  { docker "$@"; }
 
+# Theme tokens for status dots (CLAW_RGB_* with refined-dark fallbacks).
+_hl_c() {
+    _HL_RESET=$'\e[0m'
+    _HL_GREEN=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
+    _HL_RED=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+    _HL_AMBER=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+    _HL_DIM=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+}
+
 # Status helpers — quick local readouts.
 _hl_status_tailscale() {
+    _hl_c
     if command -v tailscale &>/dev/null; then
         local state; state=$(tailscale status --json 2>/dev/null | jq -r '.BackendState' 2>/dev/null)
         if [[ "$state" == "Running" ]]; then
             local ip; ip=$(tailscale ip -4 2>/dev/null | head -1)
-            printf "  \e[32m●\e[0m tailscale  \e[2mrunning · %s\e[0m\n" "$ip"
+            printf "  ${_HL_GREEN}●${_HL_RESET} tailscale  ${_HL_DIM}running · %s${_HL_RESET}\n" "$ip"
         else
-            printf "  \e[33m○\e[0m tailscale  \e[2m%s\e[0m\n" "${state:-down}"
+            printf "  ${_HL_RED}●${_HL_RESET} tailscale  ${_HL_DIM}%s${_HL_RESET}\n" "${state:-down}"
         fi
     else
-        printf "  \e[33m○\e[0m tailscale  \e[2mnot installed\e[0m\n"
+        printf "  ${_HL_RED}●${_HL_RESET} tailscale  ${_HL_DIM}not installed${_HL_RESET}\n"
     fi
 }
-
 _hl_status_docker() {
+    _hl_c
     if command -v docker &>/dev/null && systemctl is-active docker &>/dev/null; then
         local n; n=$(docker ps -q 2>/dev/null | wc -l | tr -d ' ')
-        printf "  \e[32m●\e[0m docker     \e[2m%s container(s)\e[0m\n" "$n"
+        printf "  ${_HL_GREEN}●${_HL_RESET} docker     ${_HL_DIM}%s container(s)${_HL_RESET}\n" "$n"
     else
-        printf "  \e[33m○\e[0m docker     \e[2minactive\e[0m\n"
+        printf "  ${_HL_RED}●${_HL_RESET} docker     ${_HL_DIM}inactive${_HL_RESET}\n"
     fi
 }
-
 _hl_status_k3s() {
+    _hl_c
     if command -v kubectl &>/dev/null && kubectl get nodes &>/dev/null; then
         local ready; ready=$(kubectl get nodes --no-headers 2>/dev/null | awk '{print $2}')
-        printf "  \e[32m●\e[0m k3s        \e[2mnode %s\e[0m\n" "${ready:-?}"
+        printf "  ${_HL_GREEN}●${_HL_RESET} k3s        ${_HL_DIM}node %s${_HL_RESET}\n" "${ready:-?}"
     else
-        printf "  \e[33m○\e[0m k3s        \e[2mnot reachable\e[0m\n"
+        printf "  ${_HL_RED}●${_HL_RESET} k3s        ${_HL_DIM}not reachable${_HL_RESET}\n"
     fi
 }
-
 _hl_status_ollama() {
+    _hl_c
     if command -v ollama &>/dev/null && systemctl is-active ollama &>/dev/null; then
         local n; n=$(ollama list 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
-        printf "  \e[32m●\e[0m ollama     \e[2m%s model(s)\e[0m\n" "$n"
+        printf "  ${_HL_GREEN}●${_HL_RESET} ollama     ${_HL_DIM}%s model(s)${_HL_RESET}\n" "$n"
     else
-        printf "  \e[33m○\e[0m ollama     \e[2minactive\e[0m\n"
+        printf "  ${_HL_RED}●${_HL_RESET} ollama     ${_HL_DIM}inactive${_HL_RESET}\n"
     fi
 }
 

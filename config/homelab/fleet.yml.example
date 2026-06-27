@@ -1,0 +1,17 @@
+# EXAMPLE fleet inventory. Copy to config/homelab/fleet.yml (committed) or
+# $XDG_CONFIG_HOME/claw/fleet.yml (machine-local, untracked) and edit.
+# Service kinds: native | ssh | http | tcp | kube. See docs/superpowers/specs/2026-06-27-homelab-fleet-status-design.md
+fleet:
+  name: MY-LAB
+  poll_seconds: 60
+machines:
+  - id: box1
+    host: box1.tailnet.ts.net
+    user: me
+    ssh: true
+    services: [tailscale, docker]
+services:
+  tailscale: { kind: native }
+  docker:    { kind: ssh, cmd: "docker ps -q | wc -l" }
+identity:
+  github: { kind: gh }

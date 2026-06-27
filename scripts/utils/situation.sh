@@ -17,6 +17,7 @@
 #   tick             roll snapshot, probe, diff vs previous, notify on transitions
 #   show [--json]    one-line glance (+ raw JSON with --json)
 #   alerts           recent fired alerts
+#   homelab          probe the HR-TRUST fleet -> ~/.cache/claw/homelab.json (atomic)
 #   install          install + enable the systemd --user timer (runs `tick` ~60s)
 #   uninstall        disable + remove the timer
 #   review [--no-write]      summarize fired alerts + local-model tier-2 go/no-go
@@ -35,6 +36,9 @@ PREV="$CACHE_DIR/situation.prev.json"
 ALERTS="$CACHE_DIR/situation.alerts.tsv"
 ENVF="$CONFIG_DIR/situation.env"
 DOTFILES="${DOTFILES_DIR:-$HOME/.dotfiles}"
+HOMELAB_SNAP="$CACHE_DIR/homelab.json"
+HOMELAB_FLEET="$DOTFILES/config/homelab/fleet.yml"
+[ -r "$CONFIG_DIR/fleet.yml" ] && HOMELAB_FLEET="$CONFIG_DIR/fleet.yml"   # machine-local override wins
 
 # Per-box overrides (defaults work whether this box IS the homelab or a remote cockpit).
 [ -f "$ENVF" ] && . "$ENVF"
@@ -130,6 +134,174 @@ probe_json() {
 EOF
 }
 
+# --- HR-TRUST fleet probe -------------------------------------------------
+# Reads config/homelab/fleet.yml, probes each machine's reachability + its
+# declared services, plus access-level identity + the tailscale traffic route.
+# Emits the canonical homelab.json by string accumulation (NO jq for emission,
+# matching probe_json); jq is used only (guarded) to PARSE tailscale/gh output.
+# Every external call is timeout-bounded so a tick never hangs.
+
+_hl_json_str() {                      # minimal JSON string escaper (quotes + backslash)
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+# Probe one service on one (already-reachable) machine. Echoes:  <state>\t<detail>
+_hl_probe_service() {
+    local host="$1" user="$2" ssh_ok="$3" svc="$4"
+    local kind url health port shost cmd ctx state detail
+    kind="$(yq -r ".services.${svc}.kind // \"native\"" "$HOMELAB_FLEET" 2>/dev/null)"
+    state="down"; detail="unreachable"
+    case "$kind" in
+        http)
+            url="$(yq -r ".services.${svc}.url // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            health="$(yq -r ".services.${svc}.health // \"/\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            if [ -n "$url" ] && curl -fsS --max-time 2 "${url}${health}" >/dev/null 2>&1; then
+                state="up"; detail="http 200"
+            fi ;;
+        tcp)
+            shost="$(yq -r ".services.${svc}.host // \"$host\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            port="$(yq -r ".services.${svc}.port // 0" "$HOMELAB_FLEET" 2>/dev/null)"
+            if [ "$port" != "0" ] && timeout 2 bash -c "exec 3<>/dev/tcp/${shost}/${port}" 2>/dev/null; then
+                state="up"; detail=":${port}"
+            fi ;;
+        kube)
+            ctx="$(yq -r ".services.${svc}.context // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            if [ "$ssh_ok" = "true" ]; then
+                local nodes; nodes="$(timeout 5 ssh -o BatchMode=yes -o ConnectTimeout=3 \
+                    "${user}@${host}" "kubectl get nodes --no-headers 2>/dev/null" 2>/dev/null)"
+                if [ -n "$nodes" ]; then
+                    local tot rdy; tot="$(printf '%s\n' "$nodes" | grep -c .)"
+                    rdy="$(printf '%s\n' "$nodes" | awk '$2=="Ready"{c++} END{print c+0}')"
+                    [ "$rdy" -gt 0 ] 2>/dev/null && state="up"
+                    detail="${ctx:+$ctx · }${rdy}/${tot} Ready"
+                fi
+            fi ;;
+        ssh)
+            cmd="$(yq -r ".services.${svc}.cmd // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            if [ "$ssh_ok" = "true" ] && [ -n "$cmd" ]; then
+                local out; out="$(timeout 5 ssh -o BatchMode=yes -o ConnectTimeout=3 \
+                    "${user}@${host}" "$cmd" 2>/dev/null | tr -d ' ')"
+                if [ -n "$out" ]; then state="up"; detail="${out} containers"; fi
+            fi ;;
+        native|*)
+            # tailscale BackendState — local if this box, else over ssh
+            local bs=""
+            if [ "$ssh_ok" = "true" ]; then
+                bs="$(timeout 5 ssh -o BatchMode=yes -o ConnectTimeout=3 "${user}@${host}" \
+                    "tailscale status --json 2>/dev/null | jq -r '.BackendState' 2>/dev/null" 2>/dev/null)"
+            elif have tailscale; then
+                bs="$(timeout 3 tailscale status --json 2>/dev/null | { have jq && jq -r '.BackendState' 2>/dev/null; })"
+            fi
+            if [ "${bs:-}" = "Running" ]; then state="up"; detail="running"; fi ;;
+    esac
+    printf '%s\t%s' "$state" "$detail"
+}
+
+probe_homelab() {
+    local ts fleet_name route_via route_path gh_user gh_state
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    fleet_name="HR-TRUST"; route_via="unknown"; route_path=""; gh_user=""; gh_state="down"
+    : "${USER:=$(id -un)}"          # set -u guard: USER feeds the per-machine default
+
+    # Need yq + a fleet file, else emit an empty-but-valid snapshot.
+    if ! have yq || [ ! -r "$HOMELAB_FLEET" ]; then
+        cat <<EOF
+{ "ts": "$ts", "fleet": "$fleet_name", "route": {"via":"unknown","path":"","exit_node":null},
+  "identity": {}, "machines": [] }
+EOF
+        return 0
+    fi
+    fleet_name="$(yq -r '.fleet.name // "HR-TRUST"' "$HOMELAB_FLEET" 2>/dev/null)"
+
+    # Access-level identity: github login via gh
+    if have gh; then
+        local _gh_out
+        _gh_out="$(timeout 4 gh api user --jq .login 2>/dev/null)" && gh_user="$_gh_out"
+        [ -n "$gh_user" ] && gh_state="up"
+    fi
+
+    # Tailscale status JSON, fetched ONCE — drives both the route and per-machine
+    # reachability. (Uses `tailscale status --json`, the same proven invocation as
+    # probe_json; deliberately NOT `tailscale ping`, whose count flag varies by
+    # build. `startswith($h+".")` matches the MagicDNS name without regex metachar
+    # surprises.)
+    local tj=""; have tailscale && tj="$(timeout 3 tailscale status --json 2>/dev/null)"
+
+    # Traffic route to the first machine: CurAddr present → direct; else Relay = DERP hop.
+    local first_host; first_host="$(yq -r '.machines[0].host // ""' "$HOMELAB_FLEET" 2>/dev/null)"
+    if [ -n "$tj" ] && have jq && [ -n "$first_host" ]; then
+        local cur relay
+        cur="$(printf '%s' "$tj" | jq -r --arg h "$first_host" \
+            '[(.Peer // {})[] | select(.DNSName|startswith($h+"."))][0] // {} | .CurAddr // ""' 2>/dev/null)"
+        relay="$(printf '%s' "$tj" | jq -r --arg h "$first_host" \
+            '[(.Peer // {})[] | select(.DNSName|startswith($h+"."))][0] // {} | .Relay // ""' 2>/dev/null)"
+        if [ -n "$cur" ]; then route_via="direct"; route_path="→ ${first_host}"
+        elif [ -n "$relay" ]; then route_via="derp"; route_path="→ DERP(${relay}) → ${first_host}"
+        else route_via="unknown"; route_path="→ ${first_host}"; fi
+    fi
+
+    # Machines × services
+    local machines_json="" mi=0 mcount
+    mcount="$(yq -r '.machines | length' "$HOMELAB_FLEET" 2>/dev/null)"; : "${mcount:=0}"
+    while [ "$mi" -lt "$mcount" ]; do
+        local id host user ssh_ok mstate addr latency
+        id="$(yq -r ".machines[$mi].id // \"node$mi\"" "$HOMELAB_FLEET" 2>/dev/null)"
+        host="$(yq -r ".machines[$mi].host // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+        user="$(yq -r ".machines[$mi].user // \"$USER\"" "$HOMELAB_FLEET" 2>/dev/null)"
+        ssh_ok="$(yq -r ".machines[$mi].ssh // false" "$HOMELAB_FLEET" 2>/dev/null)"
+        mstate="down"; addr=""; latency="null"
+
+        # reachability from the shared tailscale status JSON: peer Online + its IP.
+        # latency stays null (status doesn't measure RTT; no render needs it).
+        if [ -n "$tj" ] && have jq && [ -n "$host" ]; then
+            local online
+            online="$(printf '%s' "$tj" | jq -r --arg h "$host" \
+                '[(.Peer // {})[] | select(.DNSName|startswith($h+"."))][0] // {} | .Online // false' 2>/dev/null)"
+            addr="$(printf '%s' "$tj" | jq -r --arg h "$host" \
+                '[(.Peer // {})[] | select(.DNSName|startswith($h+"."))][0] // {} | (.TailscaleIPs // [""])[0] // ""' 2>/dev/null)"
+            [ "$online" = "true" ] && mstate="up"
+        fi
+        : "${addr:=}"; : "${latency:=null}"
+
+        # services for this machine (only probe if reachable)
+        local svcs_json="" si=0 scount svc
+        scount="$(yq -r ".machines[$mi].services | length" "$HOMELAB_FLEET" 2>/dev/null)"; : "${scount:=0}"
+        while [ "$si" -lt "$scount" ]; do
+            svc="$(yq -r ".machines[$mi].services[$si]" "$HOMELAB_FLEET" 2>/dev/null)"
+            local sstate sdetail line
+            if [ "$mstate" = "up" ]; then
+                line="$(_hl_probe_service "$host" "$user" "$ssh_ok" "$svc")"
+                sstate="${line%%	*}"; sdetail="${line#*	}"
+            else
+                sstate="down"; sdetail="host down"
+            fi
+            [ -n "$svcs_json" ] && svcs_json="${svcs_json},"
+            svcs_json="${svcs_json}{\"id\":\"$(_hl_json_str "$svc")\",\"state\":\"${sstate}\",\"detail\":\"$(_hl_json_str "$sdetail")\"}"
+            si=$((si+1))
+        done
+
+        [ -n "$machines_json" ] && machines_json="${machines_json},"
+        machines_json="${machines_json}{\"id\":\"$(_hl_json_str "$id")\",\"state\":\"${mstate}\",\"addr\":\"$(_hl_json_str "$addr")\",\"latency_ms\":${latency:-null},\"services\":[${svcs_json}]}"
+        mi=$((mi+1))
+    done
+
+    cat <<EOF
+{
+  "ts": "$ts",
+  "fleet": "$(_hl_json_str "$fleet_name")",
+  "route": { "via": "$(_hl_json_str "$route_via")", "path": "$(_hl_json_str "$route_path")", "exit_node": null },
+  "identity": { "github": { "user": "$(_hl_json_str "$gh_user")", "state": "$gh_state" } },
+  "machines": [${machines_json}]
+}
+EOF
+}
+
+cmd_homelab_poll() {
+    local tmp; tmp="$(mktemp "${CACHE_DIR}/.hl.XXXXXX")" || return 1
+    if probe_homelab >"$tmp" 2>/dev/null; then mv -f "$tmp" "$HOMELAB_SNAP"; else rm -f "$tmp"; return 1; fi
+    return 0
+}
+
 cmd_probe() {
     local tmp; tmp="$(mktemp "${CACHE_DIR}/.sit.XXXXXX")" || return 1
     if probe_json >"$tmp" 2>/dev/null; then mv -f "$tmp" "$SNAP"; else rm -f "$tmp"; return 1; fi
@@ -139,6 +311,7 @@ cmd_probe() {
 cmd_tick() {
     [ -f "$SNAP" ] && cp -f "$SNAP" "$PREV"
     cmd_probe || return 1
+    cmd_homelab_poll || true     # keep homelab.json fresh on the same timer (best-effort)
     have jq || return 0          # diff needs jq; degraded mode just refreshes the snapshot
     [ -f "$PREV" ] || return 0   # first run — nothing to compare against
 
@@ -209,23 +382,38 @@ cmd_alerts() {
 }
 
 cmd_install() {
-    local udir="$HOME/.config/systemd/user"
-    if ! have systemctl; then echo "systemctl not found — user timers need systemd (Linux)"; return 1; fi
-    mkdir -p "$udir"
-    cp -f "$DOTFILES/config/systemd/claw-situation.service" "$udir/" || return 1
-    cp -f "$DOTFILES/config/systemd/claw-situation.timer"   "$udir/" || return 1
-    systemctl --user daemon-reload
-    systemctl --user enable --now claw-situation.timer
-    loginctl enable-linger "$USER" >/dev/null 2>&1 || true
-    echo "✓ claw-situation timer enabled (runs 'situation tick' ~every 60s; linger on)"
-    systemctl --user status claw-situation.timer --no-pager 2>/dev/null | sed -n '1,4p' || true
+    if have launchctl && [ "$(uname -s)" = Darwin ]; then
+        mkdir -p "$HOME/Library/LaunchAgents"
+        cp -f "$DOTFILES/config/launchd/com.openclaw.situation.plist" \
+              "$HOME/Library/LaunchAgents/com.openclaw.situation.plist" || return 1
+        launchctl unload "$HOME/Library/LaunchAgents/com.openclaw.situation.plist" 2>/dev/null || true
+        launchctl load "$HOME/Library/LaunchAgents/com.openclaw.situation.plist"
+        echo "✓ claw-situation timer installed (runs 'situation tick' ~every 60s; launchd)"
+    elif have systemctl; then
+        local udir="$HOME/.config/systemd/user"
+        mkdir -p "$udir"
+        cp -f "$DOTFILES/config/systemd/claw-situation.service" "$udir/" || return 1
+        cp -f "$DOTFILES/config/systemd/claw-situation.timer"   "$udir/" || return 1
+        systemctl --user daemon-reload
+        systemctl --user enable --now claw-situation.timer
+        loginctl enable-linger "$USER" >/dev/null 2>&1 || true
+        echo "✓ claw-situation timer enabled (runs 'situation tick' ~every 60s; linger on)"
+        systemctl --user status claw-situation.timer --no-pager 2>/dev/null | sed -n '1,4p' || true
+    else
+        echo "no timer scheduler found — need launchctl (macOS) or systemctl (Linux)"; return 1
+    fi
 }
 
 cmd_uninstall() {
-    local udir="$HOME/.config/systemd/user"
-    systemctl --user disable --now claw-situation.timer 2>/dev/null || true
-    rm -f "$udir/claw-situation.service" "$udir/claw-situation.timer"
-    systemctl --user daemon-reload 2>/dev/null || true
+    if have launchctl && [ "$(uname -s)" = Darwin ]; then
+        launchctl unload "$HOME/Library/LaunchAgents/com.openclaw.situation.plist" 2>/dev/null || true
+        rm -f "$HOME/Library/LaunchAgents/com.openclaw.situation.plist"
+    elif have systemctl; then
+        local udir="$HOME/.config/systemd/user"
+        systemctl --user disable --now claw-situation.timer 2>/dev/null || true
+        rm -f "$udir/claw-situation.service" "$udir/claw-situation.timer"
+        systemctl --user daemon-reload 2>/dev/null || true
+    fi
     echo "✓ claw-situation timer removed"
 }
 
@@ -325,7 +513,8 @@ case "${1:-show}" in
     uninstall|disable) cmd_uninstall ;;
     review)           shift; cmd_review "$@" ;;
     schedule-review)  shift; cmd_schedule_review "$@" ;;
+    homelab|fleet)    cmd_homelab_poll ;;
     help|-h|--help)
         sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//' ;;
-    *) echo "usage: situation {probe|tick|show [--json]|alerts|install|uninstall}"; exit 1 ;;
+    *) echo "usage: situation {probe|tick|show [--json]|alerts|homelab|install|uninstall}"; exit 1 ;;
 esac

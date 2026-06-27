@@ -1,0 +1,5 @@
+{ "ts": "2099-01-01T00:00:00Z", "fleet": "HR-TRUST",
+  "route": { "via": "direct", "path": "→ bd790i", "exit_node": null },
+  "identity": { "github": { "user": "hankthebldr", "state": "up" } },
+  "machines": [ { "id": "bd790i", "state": "up", "addr": "100.64.0.5", "latency_ms": 12,
+    "services": [ {"id":"k3s","state":"up","detail":"1/1 Ready"}, {"id":"ollama","state":"up","detail":"3 models"} ] } ] }

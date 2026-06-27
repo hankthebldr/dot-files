@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>            <string>com.openclaw.situation</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>"$HOME/.dotfiles/scripts/utils/situation.sh" tick</string>
+    </array>
+    <key>StartInterval</key>    <integer>60</integer>
+    <key>RunAtLoad</key>        <true/>
+    <!-- A LaunchAgent inherits launchd's minimal PATH (/usr/bin:/bin:...), which
+         excludes Homebrew — so yq/jq/tailscale would be missing and probe_homelab
+         would write an EMPTY snapshot, clobbering the good cache every 60s. This
+         PATH (path_helper-style, Homebrew first) makes the tools resolve. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <key>StandardOutPath</key>  <string>/dev/null</string>
+    <key>StandardErrorPath</key><string>/dev/null</string>
+</dict>
+</plist>
