@@ -1,0 +1,25 @@
+# HR-TRUST homelab fleet inventory — read by scripts/utils/situation.sh probe_homelab().
+# Machine-local override: $XDG_CONFIG_HOME/claw/fleet.yml (untracked) wins if present.
+# Adding a box or service is data here — no code change.
+fleet:
+  name: HR-TRUST
+  # poll_seconds is advisory; actual cadence is the situation timer (60s).
+  poll_seconds: 60
+
+machines:
+  - id: bd790i
+    host: bd790i            # tailscale MagicDNS name or IP; env BD790I_HOST overrides
+    user: henry
+    ssh: true               # allow deep checks (docker/kubectl/ollama over ssh)
+    services: [tailscale, k3s, docker, gitea, portainer, ollama]
+
+services:
+  tailscale: { kind: native }                                   # BackendState on this box / via ssh
+  k3s:       { kind: kube,  context: k3s-bd790i }               # node Ready count
+  docker:    { kind: ssh,   cmd: "docker ps -q | wc -l" }       # container count
+  gitea:     { kind: http,  url: "http://bd790i:3000", health: "/api/healthz" }
+  portainer: { kind: tcp,   host: "bd790i", port: 9443 }
+  ollama:    { kind: http,  url: "http://bd790i:11434", health: "/api/tags" }
+
+identity:
+  github: { kind: gh }       # gh auth status → login name (access-level context row)
