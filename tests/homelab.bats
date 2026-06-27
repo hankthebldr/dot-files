@@ -100,3 +100,12 @@ setup() {
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+@test "config-homelab.jsonc: is valid json and references homelab.json cache" {
+  run python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
+    "$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-homelab.jsonc"
+  [ "$status" -eq 0 ]
+  run grep -c "homelab.json" "$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-homelab.jsonc"
+  [ "$status" -eq 0 ]
+  [ "$output" -ge 1 ]
+}
