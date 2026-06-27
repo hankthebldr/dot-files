@@ -278,6 +278,70 @@ def infra_lines():
         parts.append(f"{col(G['cloud'], C['cyan'])} {col('  '.join(clouds), C['fg'])}")
     return ["   ".join(parts)] if parts else []
 
+# ── Homelab fleet (read-only cache; never network) ────────────────────────────
+def _homelab_cache():
+    """Load the homelab fleet cache, or None. Pure file read; never raises."""
+    try:
+        cache = os.path.join(
+            os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
+            "claw", "homelab.json")
+        with open(cache, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _age_suffix(ts):
+    """' updated 23s ago' / ' stale 7m ago'; '' if unparseable. Stale > 5 min."""
+    try:
+        t = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=datetime.timezone.utc)
+        secs = int((datetime.datetime.now(datetime.timezone.utc) - t).total_seconds())
+        secs = max(0, secs)
+        human = f"{secs}s" if secs < 60 else f"{secs // 60}m"
+        stale = secs > 300
+        word = "stale" if stale else "updated"
+        return (f" {word} {human} ago", stale)
+    except Exception:
+        return ("", False)
+
+
+def homelab_lines():
+    """Live HR-TRUST fleet rows read from ~/.cache/claw/homelab.json (no network).
+    Returns [] when the cache is absent so the caller drops the block on machines
+    that aren't homelab cockpits. Up=green ●, down=red ●, degraded/stale=amber ●."""
+    data = _homelab_cache()
+    if not data or not isinstance(data.get("machines"), list) or not data["machines"]:
+        return []
+    suffix, stale = _age_suffix(data.get("ts", ""))
+    dot_up = col("●", C["amber"] if stale else C["green"])
+    dot_down = col("●", C["red"])
+    dot_deg = col("●", C["amber"])
+
+    def dot(state):
+        return dot_down if state == "down" else (dot_deg if state == "degraded" else dot_up)
+
+    rows = []
+    # access-level context line: github identity + tailscale route
+    head = []
+    gh = (data.get("identity") or {}).get("github") or {}
+    if gh.get("user"):
+        head.append(f"{col(G['git'], C['purple'])} {col(_short(gh['user'], 18), C['fg'])} {dot(gh.get('state'))}")
+    route = data.get("route") or {}
+    if route.get("path"):
+        head.append(f"{col(G['tailscale'], C['green'])} {col(_short(route['path'], 28), C['fg'])}")
+    if head:
+        rows.append("   ".join(head))
+    # one row per machine: host dot + nested service dots
+    for m in data["machines"]:
+        segs = [f"{col(G['host'], C['blue'])} {col(_short(m.get('id', '?'), 12), C['fg'])} {dot(m.get('state'))}"]
+        for s in (m.get("services") or []):
+            segs.append(f"{dot(s.get('state'))} {col(_short(s.get('id', '?'), 10), C['muted'])}")
+        rows.append("  ".join(segs))
+    if suffix:
+        rows.append(col(suffix.strip(), C["muted"]))
+    return rows
+
 # ── Compose: logo | (header + info + bars), framed, centered ─────────────────
 def main():
     d = fields()
@@ -293,7 +357,7 @@ def main():
         + (f"  {col('· up '+up, C['muted'])}" if up else ""),
     ]
     body = header + [""] + info_rows(d) + [""] + bar_rows(d)
-    ctx = [l for l in context_lines() + infra_lines() if l]   # dev + infra rows
+    ctx = [l for l in context_lines() + infra_lines() + homelab_lines() if l]   # dev + infra + homelab rows
     if ctx:
         body += [""] + ctx
     body += ["", palette_dots()]
