@@ -122,3 +122,17 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$output" -ge 1 ]
 }
+
+@test "launchd plist: is valid xml/plist" {
+  command -v plutil >/dev/null || skip "plutil is macOS-only"
+  run plutil -lint "$BATS_TEST_DIRNAME/../config/launchd/com.openclaw.situation.plist"
+  [ "$status" -eq 0 ]
+}
+
+@test "homelab.sh: poll subcommand delegates to situation.sh (writes cache)" {
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
+  export DOTFILES_DIR="$BATS_TEST_DIRNAME/.."
+  run bash "$BATS_TEST_DIRNAME/../scripts/utils/homelab.sh" poll
+  [ "$status" -eq 0 ]
+  [ -f "$XDG_CACHE_HOME/claw/homelab.json" ]
+}

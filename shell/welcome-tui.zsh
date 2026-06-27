@@ -64,6 +64,9 @@ function claw_welcome_tui() {
     # job-control notification from bleeding over the fastfetch logo when the
     # wrapper subshell exits a few ms later (the script itself self-backgrounds).
     "$_d/scripts/utils/tool-updater.sh" &>/dev/null &!
+    # Warm the homelab fleet cache in the background (reads ~/.cache/claw/homelab.json
+    # at render; this refreshes it). Cheap no-op off-tailnet; never blocks login.
+    "$_d/scripts/utils/situation.sh" homelab &>/dev/null &!
 
     # Colors from the ACTIVE theme (CLAW_RGB_* exported by theme.sh, sourced in
     # .zshrc step 2b). Fallbacks are the refined-dark values so the TUI renders
