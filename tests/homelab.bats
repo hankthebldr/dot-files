@@ -101,6 +101,17 @@ setup() {
   [ -z "$output" ]
 }
 
+@test "hstatus: renders cached fleet when homelab.json is fresh" {
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  # fresh ts = now, so cache-first path is taken
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  sed "s/2099-01-01T00:00:00Z/$ts/" "$BATS_TEST_DIRNAME/fixtures/homelab.up.json" \
+    > "$XDG_CACHE_HOME/claw/homelab.json"
+  run zsh -c "source '$BATS_TEST_DIRNAME/../shell/profiles/homelab/common.zsh'; hstatus"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"bd790i"* ]]
+}
+
 @test "config-homelab.jsonc: is valid json and references homelab.json cache" {
   run python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
     "$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-homelab.jsonc"
