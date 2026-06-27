@@ -82,7 +82,7 @@ G = dict(os="", host="", kernel="", uptime="", load="",
          shell="", term="", pkgs="", locale="", cpu="", cores="",
          mem="", disk="", ip="", wifi="", batt="", clock="", user="",
          git="", k8s="⎈", docker="",
-         tailscale="", tunnel="", cloud="")
+         tailscale="", tunnel="", cloud="", aws="\uf270", gcp="\uf1a0", azure="\uf17a")
 
 def fields():
     try:
@@ -267,15 +267,14 @@ def infra_lines():
     n = _tunnel_count()
     if n:
         parts.append(f"{col(G['tunnel'], C['blue'])} {col(f'{n} tun', C['fg'])}")
-    clouds = []
+    # Each cloud identity gets its OWN provider glyph (icon → context), brand-
+    # tinted: AWS amber, GCP blue, Azure cyan — instead of one shared cloud icon.
     aws = _aws_profile()
-    if aws:               clouds.append(f"aws:{_short(aws, 14)}")
+    if aws:  parts.append(f"{col(G['aws'], C['amber'])} {col(_short(aws, 14), C['fg'])}")
     gcp = _gcp_project()
-    if gcp:               clouds.append(f"gcp:{_short(gcp, 18)}")
+    if gcp:  parts.append(f"{col(G['gcp'], C['blue'])} {col(_short(gcp, 18), C['fg'])}")
     az = _az_subscription()
-    if az:                clouds.append(f"az:{_short(az, 16)}")
-    if clouds:
-        parts.append(f"{col(G['cloud'], C['cyan'])} {col('  '.join(clouds), C['fg'])}")
+    if az:   parts.append(f"{col(G['azure'], C['cyan'])} {col(_short(az, 16), C['fg'])}")
     return ["   ".join(parts)] if parts else []
 
 # ── Homelab fleet (read-only cache; never network) ────────────────────────────
