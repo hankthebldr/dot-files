@@ -33,6 +33,7 @@ setup() {
 }
 
 @test "situation homelab: every service has a state in {up,down,degraded}" {
+  command -v yq >/dev/null || skip "yq required to parse fleet.yml"
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
   bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
   run jq -e '[.machines[].services[].state] | all(. as $s | ["up","down","degraded"]|index($s))' \

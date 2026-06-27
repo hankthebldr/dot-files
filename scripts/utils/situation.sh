@@ -185,7 +185,7 @@ _hl_probe_service() {
             fi ;;
         native|*)
             # tailscale BackendState — local if this box, else over ssh
-            local bs
+            local bs=""
             if [ "$ssh_ok" = "true" ]; then
                 bs="$(timeout 5 ssh -o BatchMode=yes -o ConnectTimeout=3 "${user}@${host}" \
                     "tailscale status --json 2>/dev/null | jq -r '.BackendState' 2>/dev/null" 2>/dev/null)"
