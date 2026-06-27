@@ -109,7 +109,9 @@ setup() {
     > "$XDG_CACHE_HOME/claw/homelab.json"
   run zsh -c "source '$BATS_TEST_DIRNAME/../shell/profiles/homelab/common.zsh'; hstatus"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"bd790i"* ]]
+  [[ "$output" == *"cached"* ]]      # header text only in the cache-first path
+  [[ "$output" != *"live"* ]]        # "live" only in the live-fallback header
+  [[ "$output" == *"1/1 Ready"* ]]   # service detail — proves the field-split worked
 }
 
 @test "config-homelab.jsonc: is valid json and references homelab.json cache" {

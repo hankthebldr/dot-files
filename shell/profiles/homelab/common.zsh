@@ -32,17 +32,17 @@ hstatus() {
     # single-host _hl_status_* probes.
     local cache="${XDG_CACHE_HOME:-$HOME/.cache}/claw/homelab.json"
     if [[ -r "$cache" ]] && command -v jq &> /dev/null; then
-        local ts now then diff fresh=0
+        local ts now then elapsed fresh=0
         ts=$(jq -r '.ts // ""' "$cache" 2>/dev/null)
         if [[ -n "$ts" && "$ts" != "null" ]]; then
             now=$(date -u +%s 2>/dev/null)
             then=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$ts" +%s 2>/dev/null || date -u -d "$ts" +%s 2>/dev/null)
-            [[ -n "$then" ]] && diff=$(( now - then )) && (( diff >= 0 && diff <= 300 )) && fresh=1
+            [[ -n "$then" ]] && elapsed=$(( now - then )) && (( elapsed >= 0 && elapsed < 300 )) && fresh=1
         fi
         if (( fresh )); then
             local fleet; fleet=$(jq -r '.fleet // "HR-TRUST"' "$cache" 2>/dev/null)
-            printf "\n  ${c_cyan}▸${c_reset} ${c_bold}%s fleet${c_reset}  ${c_dim}(cached %ss ago)${c_reset}\n\n" "$fleet" "${diff:-0}"
-            local id st u t svcid sst sdet dot
+            printf "\n  ${c_cyan}▸${c_reset} ${c_bold}%s fleet${c_reset}  ${c_dim}(cached %ss ago)${c_reset}\n\n" "$fleet" "${elapsed:-0}"
+            local dot
             jq -r '.machines[]? | "M\u0001\(.id)\u0001\(.state)", (.services[]? | "S\u0001\(.id)\u0001\(.state)\u0001\(.detail)")' "$cache" 2>/dev/null \
             | while IFS=$'\001' read -r kind a b c; do
                 if [[ "$kind" == "M" ]]; then
