@@ -572,9 +572,10 @@ _claw_profile_readout() {
     echo ""
 }
 
-# _claw_homelab_block — compact HR-TRUST fleet summary for the login footer and
-# the hardware-group picker. Reads ~/.cache/claw/homelab.json ONLY (the
-# situation poller writes it); never probes the network. Silent if absent.
+# _claw_homelab_block — compact HR-TRUST fleet summary for the hardware-group
+# picker (the login surface is owned by the dashboard's homelab_lines).
+# Reads ~/.cache/claw/homelab.json ONLY (the situation poller writes it);
+# never probes the network. Silent if absent.
 _claw_homelab_block() {
     local cache="${XDG_CACHE_HOME:-$HOME/.cache}/claw/homelab.json"
     [[ -r "$cache" ]] || return 0
@@ -590,7 +591,7 @@ _claw_homelab_block() {
     local c_bold=$'\e[1m'
 
     # Fleet name + per-machine up/total service rollup + route + age.
-    local fleet route ts up_total summary
+    local fleet route ts summary
     fleet=$(jq -r '.fleet // "fleet"' "$cache" 2>/dev/null)
     route=$(jq -r '.route.path // ""' "$cache" 2>/dev/null)
     ts=$(jq -r '.ts // ""' "$cache" 2>/dev/null)

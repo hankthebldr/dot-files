@@ -382,23 +382,38 @@ cmd_alerts() {
 }
 
 cmd_install() {
-    local udir="$HOME/.config/systemd/user"
-    if ! have systemctl; then echo "systemctl not found — user timers need systemd (Linux)"; return 1; fi
-    mkdir -p "$udir"
-    cp -f "$DOTFILES/config/systemd/claw-situation.service" "$udir/" || return 1
-    cp -f "$DOTFILES/config/systemd/claw-situation.timer"   "$udir/" || return 1
-    systemctl --user daemon-reload
-    systemctl --user enable --now claw-situation.timer
-    loginctl enable-linger "$USER" >/dev/null 2>&1 || true
-    echo "✓ claw-situation timer enabled (runs 'situation tick' ~every 60s; linger on)"
-    systemctl --user status claw-situation.timer --no-pager 2>/dev/null | sed -n '1,4p' || true
+    if have launchctl && [ "$(uname -s)" = Darwin ]; then
+        mkdir -p "$HOME/Library/LaunchAgents"
+        cp -f "$DOTFILES/config/launchd/com.openclaw.situation.plist" \
+              "$HOME/Library/LaunchAgents/com.openclaw.situation.plist" || return 1
+        launchctl unload "$HOME/Library/LaunchAgents/com.openclaw.situation.plist" 2>/dev/null || true
+        launchctl load "$HOME/Library/LaunchAgents/com.openclaw.situation.plist"
+        echo "✓ claw-situation timer installed (runs 'situation tick' ~every 60s; launchd)"
+    elif have systemctl; then
+        local udir="$HOME/.config/systemd/user"
+        mkdir -p "$udir"
+        cp -f "$DOTFILES/config/systemd/claw-situation.service" "$udir/" || return 1
+        cp -f "$DOTFILES/config/systemd/claw-situation.timer"   "$udir/" || return 1
+        systemctl --user daemon-reload
+        systemctl --user enable --now claw-situation.timer
+        loginctl enable-linger "$USER" >/dev/null 2>&1 || true
+        echo "✓ claw-situation timer enabled (runs 'situation tick' ~every 60s; linger on)"
+        systemctl --user status claw-situation.timer --no-pager 2>/dev/null | sed -n '1,4p' || true
+    else
+        echo "no timer scheduler found — need launchctl (macOS) or systemctl (Linux)"; return 1
+    fi
 }
 
 cmd_uninstall() {
-    local udir="$HOME/.config/systemd/user"
-    systemctl --user disable --now claw-situation.timer 2>/dev/null || true
-    rm -f "$udir/claw-situation.service" "$udir/claw-situation.timer"
-    systemctl --user daemon-reload 2>/dev/null || true
+    if have launchctl && [ "$(uname -s)" = Darwin ]; then
+        launchctl unload "$HOME/Library/LaunchAgents/com.openclaw.situation.plist" 2>/dev/null || true
+        rm -f "$HOME/Library/LaunchAgents/com.openclaw.situation.plist"
+    elif have systemctl; then
+        local udir="$HOME/.config/systemd/user"
+        systemctl --user disable --now claw-situation.timer 2>/dev/null || true
+        rm -f "$udir/claw-situation.service" "$udir/claw-situation.timer"
+        systemctl --user daemon-reload 2>/dev/null || true
+    fi
     echo "✓ claw-situation timer removed"
 }
 
