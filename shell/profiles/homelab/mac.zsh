@@ -16,40 +16,50 @@ _hl_kubectl() { _hl_ssh kubectl "$@"; }
 _hl_ollama()  { _hl_ssh ollama "$@"; }
 _hl_docker()  { _hl_ssh docker "$@"; }
 
+# Theme tokens for status dots (CLAW_RGB_* with refined-dark fallbacks).
+_hl_c() {
+    _HL_RESET=$'\e[0m'
+    _HL_GREEN=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
+    _HL_RED=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+    _HL_AMBER=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+    _HL_DIM=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+}
+
 # Status helpers — quick single-line readouts.
 _hl_status_tailscale() {
+    _hl_c
     local out; out=$(_hl_ssh "tailscale status --json 2>/dev/null | jq -r '.BackendState' 2>/dev/null" 2>/dev/null)
     if [[ "$out" == "Running" ]]; then
-        printf "  \e[32m●\e[0m tailscale  \e[2mrunning\e[0m\n"
+        printf "  ${_HL_GREEN}●${_HL_RESET} tailscale  ${_HL_DIM}running${_HL_RESET}\n"
     else
-        printf "  \e[33m○\e[0m tailscale  \e[2m%s\e[0m\n" "${out:-unreachable}"
+        printf "  ${_HL_RED}●${_HL_RESET} tailscale  ${_HL_DIM}%s${_HL_RESET}\n" "${out:-unreachable}"
     fi
 }
-
 _hl_status_docker() {
+    _hl_c
     local n; n=$(_hl_ssh "docker ps -q 2>/dev/null | wc -l" 2>/dev/null | tr -d ' ')
     if [[ -n "$n" && "$n" =~ ^[0-9]+$ ]]; then
-        printf "  \e[32m●\e[0m docker     \e[2m%s container(s)\e[0m\n" "$n"
+        printf "  ${_HL_GREEN}●${_HL_RESET} docker     ${_HL_DIM}%s container(s)${_HL_RESET}\n" "$n"
     else
-        printf "  \e[33m○\e[0m docker     \e[2munreachable\e[0m\n"
+        printf "  ${_HL_RED}●${_HL_RESET} docker     ${_HL_DIM}unreachable${_HL_RESET}\n"
     fi
 }
-
 _hl_status_k3s() {
+    _hl_c
     local ready; ready=$(_hl_ssh "kubectl get nodes --no-headers 2>/dev/null | awk '{print \$2}'" 2>/dev/null)
     if [[ "$ready" == "Ready" ]]; then
-        printf "  \e[32m●\e[0m k3s        \e[2mnode Ready\e[0m\n"
+        printf "  ${_HL_GREEN}●${_HL_RESET} k3s        ${_HL_DIM}node Ready${_HL_RESET}\n"
     else
-        printf "  \e[33m○\e[0m k3s        \e[2m%s\e[0m\n" "${ready:-unreachable}"
+        printf "  ${_HL_RED}●${_HL_RESET} k3s        ${_HL_DIM}%s${_HL_RESET}\n" "${ready:-unreachable}"
     fi
 }
-
 _hl_status_ollama() {
+    _hl_c
     local n; n=$(_hl_ssh "ollama list 2>/dev/null | tail -n +2 | wc -l" 2>/dev/null | tr -d ' ')
     if [[ -n "$n" && "$n" =~ ^[0-9]+$ ]]; then
-        printf "  \e[32m●\e[0m ollama     \e[2m%s model(s)\e[0m\n" "$n"
+        printf "  ${_HL_GREEN}●${_HL_RESET} ollama     ${_HL_DIM}%s model(s)${_HL_RESET}\n" "$n"
     else
-        printf "  \e[33m○\e[0m ollama     \e[2munreachable\e[0m\n"
+        printf "  ${_HL_RED}●${_HL_RESET} ollama     ${_HL_DIM}unreachable${_HL_RESET}\n"
     fi
 }
 

@@ -60,6 +60,28 @@ stow_modules() {
             log_warning "Module $module not found, skipping."
         fi
     done
+
+    link_ghostty_os_active
+}
+
+# Ghostty has no OS-conditional include, so the base config does
+# `config-file = ?os-active.conf` and we point that at the right per-OS layer:
+# os-active.conf → os-macos.conf (macOS) | os-linux.conf (Linux). Relative
+# symlink so it's path-independent; idempotent (ln -sf). Runs after stow so the
+# os-*.conf targets are already in place.
+link_ghostty_os_active() {
+    local gdir="$TARGET_DIR/.config/ghostty"
+    [[ -d "$gdir" ]] || return 0
+    local osfile
+    case "$(uname -s)" in
+        Darwin) osfile="os-macos.conf" ;;
+        Linux)  osfile="os-linux.conf" ;;
+        *)      return 0 ;;
+    esac
+    if [[ -e "$gdir/$osfile" ]]; then
+        ln -sf "$osfile" "$gdir/os-active.conf"
+        log_success "Ghostty: os-active.conf → $osfile"
+    fi
 }
 
 # Returns 0 if every top-level entry in $DOTFILES_DIR/$module has a

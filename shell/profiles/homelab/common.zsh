@@ -19,7 +19,47 @@ export HOMELAB_REPO="${HOMELAB_REPO:-$HOME/homelab}"
 # Renders 4 lines: tailscale · docker · k3s · ollama. Works in both
 # native and remote modes via the per-OS helpers below.
 hstatus() {
-    printf "\n  \e[36m▸\e[0m \e[1mBD790i homelab status\e[0m  \e[2m(%s)\e[0m\n\n" "$BD790I_HOST"
+    local c_reset=$'\e[0m'
+    local c_cyan=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m'
+    local c_green=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
+    local c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+    local c_amber=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+    local c_dim=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+    local c_bold=$'\e[1m'
+
+    # Cache-first: if the situation poller wrote a fresh homelab.json (<5min),
+    # render the whole fleet from it (multi-machine). Else fall back to the live
+    # single-host _hl_status_* probes.
+    local cache="${XDG_CACHE_HOME:-$HOME/.cache}/claw/homelab.json"
+    if [[ -r "$cache" ]] && command -v jq &> /dev/null; then
+        local ts now then elapsed fresh=0
+        ts=$(jq -r '.ts // ""' "$cache" 2>/dev/null)
+        if [[ -n "$ts" && "$ts" != "null" ]]; then
+            now=$(date -u +%s 2>/dev/null)
+            then=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$ts" +%s 2>/dev/null || date -u -d "$ts" +%s 2>/dev/null)
+            [[ -n "$then" ]] && elapsed=$(( now - then )) && (( elapsed >= 0 && elapsed < 300 )) && fresh=1
+        fi
+        if (( fresh )); then
+            local fleet; fleet=$(jq -r '.fleet // "HR-TRUST"' "$cache" 2>/dev/null)
+            printf "\n  ${c_cyan}▸${c_reset} ${c_bold}%s fleet${c_reset}  ${c_dim}(cached %ss ago)${c_reset}\n\n" "$fleet" "${elapsed:-0}"
+            local dot
+            jq -r '.machines[]? | "M\u0001\(.id)\u0001\(.state)", (.services[]? | "S\u0001\(.id)\u0001\(.state)\u0001\(.detail)")' "$cache" 2>/dev/null \
+            | while IFS=$'\001' read -r kind a b c; do
+                if [[ "$kind" == "M" ]]; then
+                    [[ "$b" == "up" ]] && dot="${c_green}●${c_reset}" || dot="${c_red}●${c_reset}"
+                    printf "  %s ${c_bold}%s${c_reset}\n" "$dot" "$a"
+                else
+                    case "$b" in up) dot="${c_green}●${c_reset}";; down) dot="${c_red}●${c_reset}";; *) dot="${c_amber}●${c_reset}";; esac
+                    printf "      %s %-10s ${c_dim}%s${c_reset}\n" "$dot" "$a" "$c"
+                fi
+              done
+            echo ""
+            return 0
+        fi
+    fi
+
+    # Live fallback (single host, on-demand probes).
+    printf "\n  ${c_cyan}▸${c_reset} ${c_bold}BD790i homelab status${c_reset}  ${c_dim}(%s · live)${c_reset}\n\n" "$BD790I_HOST"
     if typeset -f _hl_status_tailscale &>/dev/null; then _hl_status_tailscale; else echo "  tailscale: (helper not loaded)"; fi
     if typeset -f _hl_status_docker    &>/dev/null; then _hl_status_docker;    else echo "  docker:    (helper not loaded)"; fi
     if typeset -f _hl_status_k3s       &>/dev/null; then _hl_status_k3s;       else echo "  k3s:       (helper not loaded)"; fi

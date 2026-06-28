@@ -76,13 +76,31 @@ _ANSI = re.compile(r"\033\[[0-9;?]*[A-Za-z]")
 def vis(s): return len(_ANSI.sub("", s))                 # mono-cell display width
 def pad(s, w): return s + " "*max(0, w-vis(s))
 def _short(s, n): s = s or "—"; return s if len(s) <= n else s[:n-1]+"…"
+def _clip(s, w):
+    """Truncate s to w VISIBLE cells, preserving ANSI escapes (never cut a code
+    mid-sequence) and closing color with a reset if anything was dropped. Lets a
+    box degrade gracefully on a terminal narrower than its natural content."""
+    if vis(s) <= w:
+        return s
+    out, shown, i = [], 0, 0
+    while i < len(s) and shown < w:
+        m = _ANSI.match(s, i)
+        if m:
+            out.append(m.group()); i = m.end(); continue
+        out.append(s[i]); shown += 1; i += 1
+    # close any color the cut left open — but not in NOCOLOR (keeps piped output clean)
+    return "".join(out) + ("" if NOCOLOR else RST)
 
 # ── Nerd Font glyphs (Font Awesome — 1 cell in a *Mono Nerd Font) ────────────
-G = dict(os="", host="", kernel="", uptime="", load="",
-         shell="", term="", pkgs="", locale="", cpu="", cores="",
-         mem="", disk="", ip="", wifi="", batt="", clock="", user="",
-         git="", k8s="⎈", docker="",
-         tailscale="", tunnel="", cloud="")
+# OS glyph is platform-aware (apple on macOS, tux on Linux); the rest are
+# Font Awesome Nerd Font codepoints. Single source for every dashboard icon.
+_OS_GLYPH = "\uf179" if platform.system() == "Darwin" else "\uf17c"
+G = dict(os=_OS_GLYPH, host="\uf108", kernel="\uf013", uptime="\uf017", load="\uf0e4",
+         shell="\uf120", term="\uf120", pkgs="\uf187", locale="\uf0ac", cpu="\uf2db",
+         cores="\uf085", mem="\U000f035b", disk="\uf0a0", ip="\uf0e8", wifi="\uf1eb",
+         batt="\uf240", clock="\uf017", user="\uf007", git="\uf09b", k8s="\u2388",
+         docker="\uf308", tailscale="\uf0e8", tunnel="\uf0c1", cloud="\uf0c2",
+         aws="\uf270", gcp="\uf1a0", azure="\uf17a")
 
 def fields():
     try:
@@ -267,16 +285,99 @@ def infra_lines():
     n = _tunnel_count()
     if n:
         parts.append(f"{col(G['tunnel'], C['blue'])} {col(f'{n} tun', C['fg'])}")
-    clouds = []
+    # Each cloud identity gets its OWN provider glyph (icon → context), brand-
+    # tinted: AWS amber, GCP blue, Azure cyan — instead of one shared cloud icon.
     aws = _aws_profile()
-    if aws:               clouds.append(f"aws:{_short(aws, 14)}")
+    if aws:  parts.append(f"{col(G['aws'], C['amber'])} {col(_short(aws, 14), C['fg'])}")
     gcp = _gcp_project()
-    if gcp:               clouds.append(f"gcp:{_short(gcp, 18)}")
+    if gcp:  parts.append(f"{col(G['gcp'], C['blue'])} {col(_short(gcp, 18), C['fg'])}")
     az = _az_subscription()
-    if az:                clouds.append(f"az:{_short(az, 16)}")
-    if clouds:
-        parts.append(f"{col(G['cloud'], C['cyan'])} {col('  '.join(clouds), C['fg'])}")
+    if az:   parts.append(f"{col(G['azure'], C['cyan'])} {col(_short(az, 16), C['fg'])}")
     return ["   ".join(parts)] if parts else []
+
+# ── Homelab fleet (read-only cache; never network) ────────────────────────────
+def _homelab_cache():
+    """Load the homelab fleet cache, or None. Pure file read; never raises."""
+    try:
+        cache = os.path.join(
+            os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
+            "claw", "homelab.json")
+        with open(cache, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _age_suffix(ts):
+    """' updated 23s ago' / ' stale 7m ago'; '' if unparseable. Stale > 5 min."""
+    try:
+        t = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=datetime.timezone.utc)
+        secs = int((datetime.datetime.now(datetime.timezone.utc) - t).total_seconds())
+        secs = max(0, secs)
+        human = f"{secs}s" if secs < 60 else f"{secs // 60}m"
+        stale = secs > 300
+        word = "stale" if stale else "updated"
+        return (f" {word} {human} ago", stale)
+    except Exception:
+        return ("", False)
+
+
+# Per-implementation icons for the homelab fleet — each service renders with its
+# own glyph (not a generic dot). Keys are matched case-insensitively against the
+# service id from fleet.yml. Reuses the dashboard's tailscale/docker/k8s glyphs;
+# the rest are Font Awesome Nerd Font codepoints (U+F0xx–F2xx, render-safe). To
+# add/retune a service icon, edit ONLY this map.
+SERVICE_GLYPHS = {
+    "tailscale": "\uf0e8", "k3s": "\u2388", "k8s": "\u2388",
+    "kubernetes": "\u2388", "docker": "\uf308", "gitea": "\uf1d3",
+    "git": "\uf1d3", "forgejo": "\uf1d3", "ollama": "\uf2db", "n8n": "\uf085",
+    "portainer": "\uf1b3", "grafana": "\uf080", "prometheus": "\uf201",
+    "postgres": "\uf1c0", "postgresql": "\uf1c0", "redis": "\uf1c0",
+    "mariadb": "\uf1c0", "mysql": "\uf1c0", "caddy": "\uf0ac", "nginx": "\uf0ac",
+    "traefik": "\uf0ac", "jellyfin": "\uf008", "plex": "\uf008",
+    "vaultwarden": "\uf023", "home-assistant": "\uf015", "homeassistant": "\uf015",
+    "_default": "\uf233",   # nf-fa-server
+}
+
+
+def homelab_lines():
+    """Live HR-TRUST fleet rows read from ~/.cache/claw/homelab.json (no network).
+    Returns [] when the cache is absent so the caller drops the block on machines
+    that aren't homelab cockpits. Up=green ●, down=red ●, degraded/stale=amber ●."""
+    data = _homelab_cache()
+    if not data or not isinstance(data.get("machines"), list) or not data["machines"]:
+        return []
+    suffix, stale = _age_suffix(data.get("ts", ""))
+    dot_up = col("●", C["amber"] if stale else C["green"])
+    dot_down = col("●", C["red"])
+    dot_deg = col("●", C["amber"])
+
+    def dot(state):
+        return dot_down if state == "down" else (dot_deg if state == "degraded" else dot_up)
+
+    rows = []
+    # access-level context line: github identity + tailscale route
+    head = []
+    gh = (data.get("identity") or {}).get("github") or {}
+    if gh.get("user"):
+        head.append(f"{col("", C['purple'])} {col(_short(gh['user'], 18), C['fg'])} {dot(gh.get('state'))}")
+    route = data.get("route") or {}
+    if route.get("path"):
+        head.append(f"{col("", C['green'])} {col(_short(route['path'], 28), C['fg'])}")
+    if head:
+        rows.append("   ".join(head))
+    # one row per machine: host dot + nested service dots
+    for m in data["machines"]:
+        segs = [f"{col("", C['blue'])} {col(_short(m.get('id', '?'), 12), C['fg'])} {dot(m.get('state'))}"]
+        for s in (m.get("services") or []):
+            sid = s.get('id', '?')
+            sg = SERVICE_GLYPHS.get(sid.lower(), SERVICE_GLYPHS["_default"])
+            segs.append(f"{dot(s.get('state'))} {col(sg, C['cyan'])} {col(_short(sid, 10), C['muted'])}")
+        rows.append("  ".join(segs))
+    if suffix:
+        rows.append(col(suffix.strip(), C["muted"]))
+    return rows
 
 # ── Compose: logo | (header + info + bars), framed, centered ─────────────────
 def main():
@@ -293,7 +394,7 @@ def main():
         + (f"  {col('· up '+up, C['muted'])}" if up else ""),
     ]
     body = header + [""] + info_rows(d) + [""] + bar_rows(d)
-    ctx = [l for l in context_lines() + infra_lines() if l]   # dev + infra rows
+    ctx = [l for l in context_lines() + infra_lines() + homelab_lines() if l]   # dev + infra + homelab rows
     if ctx:
         body += [""] + ctx
     body += ["", palette_dots()]
@@ -321,7 +422,12 @@ def main():
     # the dashboard frame above it.
     content_w = max((vis(m) for m in merged + qr), default=20)
 
+    # Clamp to the LIVE terminal: a new tab inherits the current window's width
+    # (window-width applies to new windows only), so on a narrow tab the box
+    # would otherwise exceed the viewport and soft-wrap, shattering the border.
+    # frame() clips each row to content_w, so the box degrades gracefully instead.
     term = shutil.get_terminal_size((100, 30)).columns
+    content_w = min(content_w, max(20, term - 4))
     margin = " " * max(0, (term - (content_w + 4)) // 2)
 
     print()
@@ -337,7 +443,7 @@ def frame(lines, title_text, content_w, margin):
     bar_ch = col("│", C["muted"])
     print(margin + col("╭─", C["muted"]) + title + col("─"*dash + "╮", C["muted"]))
     for m in lines:
-        print(margin + bar_ch + " " + pad(m, content_w) + " " + bar_ch)
+        print(margin + bar_ch + " " + pad(_clip(m, content_w), content_w) + " " + bar_ch)
     print(margin + col("╰" + "─"*inner + "╯", C["muted"]))
 
 def quickref_rows():

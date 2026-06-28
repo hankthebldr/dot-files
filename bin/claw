@@ -605,7 +605,7 @@ cmd_load() {
     local p="$1"
     [[ -z "$p" ]] && { err "usage: claw load <profile>"; return 1; }
     local pfile="$DOTFILES/shell/profiles/$p.zsh"
-    [[ ! -f "$pfile" ]] && { err "profile not found: $p"; info "available: default claude cloud security devops ai research cortex local"; return 1; }
+    [[ ! -f "$pfile" ]] && { err "profile not found: $p"; info "available: $(cd "$DOTFILES/shell/profiles" 2>/dev/null && ls *.zsh 2>/dev/null | sed 's/\.zsh$//' | tr '\n' ' ')"; return 1; }
     # NOTE: this branch is normally shadowed by the `claw()` zsh function in
     # shell/claw-fn.zsh, which sources the profile in the parent shell. We
     # only reach here if claw is invoked as `bash bin/claw load` or from a
@@ -793,7 +793,14 @@ cmd_claude() {
             fi
             local m_plugins live_plugins
             m_plugins=$(wc -l < "$mdir/plugins.txt" 2>/dev/null | tr -d ' ' || echo 0)
-            live_plugins=$(claude plugin list 2>/dev/null | grep -c '❯ .*@' || echo 0)
+            # grep -c already emits 0 on no match; the old `|| echo 0` appended a
+            # SECOND 0 when claude was absent (grep exits 1 on empty input), giving
+            # live_plugins=$'0\n0' → the (( )) compare errored and fell to "in sync".
+            if command -v claude &>/dev/null; then
+                live_plugins=$(claude plugin list 2>/dev/null | grep -c '❯ .*@')
+            else
+                live_plugins=0
+            fi
             info "plugins: ${c_white}$live_plugins${c_reset} live · ${c_white}$m_plugins${c_reset} in manifest"
             if (( m_plugins != live_plugins )); then
                 err "drift detected — run claw claude-sync snapshot (or sync)"

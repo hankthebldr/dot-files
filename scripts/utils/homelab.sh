@@ -12,6 +12,21 @@ c_red=$'\e[38;2;255;123;114m'
 
 SSH_CONFIG="$HOME/.ssh/config"
 
+# Non-interactive subcommands delegate to the situation poller.
+# Bare `homelab.sh` (no args) keeps the interactive fzf topology launcher.
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
+case "${1:-}" in
+    poll)   exec bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab ;;
+    status) # refresh the fleet cache, then pretty-print it (the HR-TRUST fleet,
+            # NOT situation.json). Two separate commands — the poll must NOT be
+            # `exec` (that would replace the process and the print never runs).
+            bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab; _rc=$?
+            jq . "${XDG_CACHE_HOME:-$HOME/.cache}/claw/homelab.json" 2>/dev/null \
+              || cat "${XDG_CACHE_HOME:-$HOME/.cache}/claw/homelab.json" 2>/dev/null \
+              || echo "no homelab cache"
+            exit "$_rc" ;;
+esac
+
 echo "${c_purple}╭────────────────────────────────────────────────────────╮${c_reset}"
 echo "${c_purple}│${c_reset}  ${c_cyan}📡 HOMELAB TOPOLOGY MANAGER${c_reset}                           ${c_purple}│${c_reset}"
 echo "${c_purple}├────────────────────────────────────────────────────────┤${c_reset}"

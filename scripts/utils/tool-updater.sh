@@ -88,11 +88,17 @@ time_until_due() {
     fi
 }
 
-# Run the brew tool list (or just `brew upgrade <list>`).
-run_brew()  { brew upgrade $* 2>/dev/null; }
-run_pipx()  { for t in $*; do pipx upgrade "$t" 2>/dev/null; done; }
-run_go()    { for t in $*; do go install "$t" 2>/dev/null; done; }
-run_cargo() { for t in $*; do nice -n 19 cargo install "$t" 2>/dev/null; done; }
+# Run the brew tool list (or just `brew upgrade <list>`). stderr is NOT
+# suppressed so tui_run_step's `gum spin --show-error` can surface a real
+# failure; the exit code propagates so the step renders ●/✗ correctly.
+run_brew()  { brew upgrade $*; }
+run_pipx()  { for t in $*; do pipx upgrade "$t"; done; }
+run_go()    { for t in $*; do go install "$t"; done; }
+run_cargo() { for t in $*; do nice -n 19 cargo install "$t"; done; }
+# Export so the gum-spinner subshell (`bash -c "run_<name> <tool>"`) resolves
+# them — without this they are "command not found" (exit 127) in that subshell,
+# which made `claw tools` a silent no-op that still claimed success.
+export -f run_brew run_pipx run_go run_cargo
 
 # ============================================
 # SILENT MODE (default — preserves prior behavior)
@@ -153,6 +159,7 @@ fi
 
 # Counters for the summary card
 SUMMARY_UPDATED=0
+SUMMARY_FAILED=0
 SUMMARY_DEFERRED=0
 SUMMARY_UNAVAILABLE=0
 
@@ -182,8 +189,11 @@ for entry in "${CATEGORIES[@]}"; do
             # Pretty short label for the spinner
             label="${tool##*/}"
             label="${label%%@*}"
-            tui_run_step "Upgrading ${label}…" "run_$name $tool"
-            ((SUMMARY_UPDATED++))
+            if tui_run_step "Upgrading ${label}…" "run_$name $tool"; then
+                SUMMARY_UPDATED=$((SUMMARY_UPDATED + 1))
+            else
+                SUMMARY_FAILED=$((SUMMARY_FAILED + 1))
+            fi
         done
         mark_updated "$name"
     else
@@ -208,6 +218,10 @@ pad=$(( 50 - total_chars ))
 printf "%${pad}s${c_purple}│${c_reset}\n" ""
 echo "  ${c_purple}╰──────────────────────────────────────────────────────╯${c_reset}"
 echo ""
+
+if (( SUMMARY_FAILED > 0 )); then
+    printf "  ${c_red}✗ %d failed${c_reset} ${c_dim}— error output shown above each ✗ step${c_reset}\n\n" "$SUMMARY_FAILED"
+fi
 
 if (( SUMMARY_DEFERRED > 0 )) && [[ $FORCE -eq 0 ]]; then
     printf "  ${c_dim}Force a full refresh: ${c_white}claw tools --force${c_reset}\n\n"

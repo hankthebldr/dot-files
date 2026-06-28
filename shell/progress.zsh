@@ -2,11 +2,11 @@
 #
 # Two layers, both opt-out via `progress off`:
 #
-#   1. PASSIVE (auto): preexec/precmd hooks update the terminal window
-#      title with the project/cwd location + live elapsed time + truncated
-#      cmd, every 1s, for any command running longer than
-#      $CLAW_PROGRESS_THRESHOLD. Does NOT touch stdout/stderr — won't
-#      clobber tool output. (The idle title shows user@host: cwd.)
+#   1. STATIC TITLE (default): precmd sets a fixed tab title —
+#      [profile] user@host: cwd — that does NOT flicker with the running
+#      command. Opt in to a LIVE title (project/cwd + elapsed + truncated
+#      cmd, repainted every 1s past $CLAW_PROGRESS_THRESHOLD) with
+#      CLAW_PROGRESS_TITLE=1 or `progress title on`. Never touches stdout.
 #
 #   2. ACTIVE (opt-in): `claw_run <cmd>` wraps a command with a themed
 #      gum spinner. Output is preserved; spinner runs on stderr.
@@ -14,8 +14,9 @@
 #   3. COMPLETION BANNER: any command taking ≥ $CLAW_PROGRESS_BANNER_SEC
 #      gets a styled one-liner after exit (duration, exit code, glyph).
 #
-# Toggle: `progress on`, `progress off`, `progress status`.
-# Tune:   `export CLAW_PROGRESS_THRESHOLD=2`     # min seconds before title progress
+# Toggle: `progress on`, `progress off`, `progress status`, `progress title on|off`.
+# Tune:   `export CLAW_PROGRESS_TITLE=1`         # 1 = live flickering title, 0 = static (default)
+#         `export CLAW_PROGRESS_THRESHOLD=2`     # min seconds before live title progress
 #         `export CLAW_PROGRESS_BANNER_SEC=10`   # min seconds before completion banner
 #         `export CLAW_PROGRESS_SKIP_RE='^(vim|nvim|less|man|ssh|tmux|htop|btop|top|hx)\b'`
 
@@ -23,6 +24,9 @@
 : "${CLAW_PROGRESS_BANNER_SEC:=10}"
 : "${CLAW_PROGRESS_SKIP_RE:='^(vim|nvim|less|more|man|ssh|tmux|screen|htop|btop|top|hx|helix|fzf|gum|nano|emacs)\b'}"
 : "${CLAW_PROGRESS_ENABLED:=1}"
+# Live (flickering) title is OPT-IN. Default 0 → the tab title stays the static
+# [profile] user@host: cwd set on precmd, instead of repainting the running cmd.
+: "${CLAW_PROGRESS_TITLE:=0}"
 
 # ─── State ──────────────────────────────────────────────────────────────
 typeset -g __claw_progress_pid=""
@@ -157,6 +161,10 @@ __claw_progress_preexec() {
     __claw_progress_skip=1
     return
   fi
+  # Live title progress is opt-in. Default off → the tab title stays static
+  # ([profile] user@host: cwd from precmd) and never flickers the running cmd.
+  # t0/cmd/skip above are still recorded so the completion banner keeps working.
+  (( CLAW_PROGRESS_TITLE )) || return
   # Resolve the session label now so the running-title keeps it for the whole cmd
   __claw_session_resolve
   # Fork the title updater into the background, disowned
@@ -215,14 +223,29 @@ progress() {
       __claw_progress_reset_title
       print "\033[38;5;245m∅\033[0m progress: \033[1moff\033[0m"
       ;;
+    title)
+      # Toggle the live (flickering) title vs the static [profile] cwd title.
+      case "${2:-status}" in
+        on)  export CLAW_PROGRESS_TITLE=1
+             print "\033[38;5;78m✓\033[0m progress title: \033[1mlive\033[0m (repaints the running command)" ;;
+        off) export CLAW_PROGRESS_TITLE=0
+             [[ -n "$__claw_progress_pid" ]] && kill "$__claw_progress_pid" 2>/dev/null
+             __claw_progress_reset_title
+             print "\033[38;5;245m∅\033[0m progress title: \033[1mstatic\033[0m ([profile] user@host: cwd)" ;;
+        *)   local t="\033[38;5;245mstatic\033[0m"; (( CLAW_PROGRESS_TITLE )) && t="\033[38;5;78mlive\033[0m"
+             printf "progress title: %b  (\`progress title on|off\`)\n" "$t" ;;
+      esac
+      ;;
     status)
       local state="\033[38;5;78mon\033[0m"
       (( ! CLAW_PROGRESS_ENABLED )) && state="\033[38;5;245moff\033[0m"
-      printf "progress %b  threshold=%ss  banner_at=%ss  skip=/%s/\n" \
-        "$state" "$CLAW_PROGRESS_THRESHOLD" "$CLAW_PROGRESS_BANNER_SEC" "$CLAW_PROGRESS_SKIP_RE"
+      local title="\033[38;5;245mstatic\033[0m"
+      (( CLAW_PROGRESS_TITLE )) && title="\033[38;5;78mlive\033[0m"
+      printf "progress %b  title=%b  threshold=%ss  banner_at=%ss  skip=/%s/\n" \
+        "$state" "$title" "$CLAW_PROGRESS_THRESHOLD" "$CLAW_PROGRESS_BANNER_SEC" "$CLAW_PROGRESS_SKIP_RE"
       ;;
     *)
-      print "usage: progress {on|off|status}"
+      print "usage: progress {on|off|status|title on|off}"
       return 1
       ;;
   esac
