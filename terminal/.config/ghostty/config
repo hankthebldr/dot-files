@@ -94,7 +94,9 @@ cursor-style-blink = true
 # ── Behavior / QoL ────────────────────────────────────────────────────
 # Deep scrollback (bytes), no nag on close, audible + taskbar-attention bell.
 scrollback-limit = 100000000
-confirm-close-surface = false
+# `true` prompts only when the pane still has a running process (not a per-tab
+# nag); guards against cmd+w nuking a live SSH/k8s/build split with no undo.
+confirm-close-surface = true
 bell-features = system,attention
 
 # ── Colors — baseline fallback (Gruvbox Material dark) ────────────────
