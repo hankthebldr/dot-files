@@ -10,14 +10,14 @@
 #   claw uninstall              # interactive, with confirmation
 #   claw uninstall --dry-run    # preview only, no changes
 #   claw uninstall --yes        # skip confirmation
-#   claw uninstall --keep-backup  # don't restore from ~/.dotfiles-backup/
+#   claw uninstall --keep-backup  # don't restore from ~/.dotfiles-backups/
 #   claw uninstall --help
 #
 # Scope (soft):
 #   ✓ stow -D every module deployed by bootstrap step 8
 #   ✓ remove ~/.dotfiles symlink (only if it IS a symlink)
 #   ✓ remove ~/.config/claw, ~/.cache/claw (claw runtime state)
-#   ✓ restore most-recent ~/.dotfiles-backup/<timestamp>/ files
+#   ✓ restore most-recent ~/.dotfiles-backups/<timestamp>/ files
 #   ✗ KEEP brew/apt CLI packages (eza, bat, ripgrep, etc)
 #   ✗ KEEP OMZ, Powerlevel10k, zsh-completions
 #   ✗ KEEP Nerd Fonts
@@ -47,10 +47,10 @@ fi
 DRY_RUN=false
 ASSUME_YES=false
 KEEP_BACKUP=false
-BACKUP_ROOT="$HOME/.dotfiles-backup"
+BACKUP_ROOT="$HOME/.dotfiles-backups"
 
 # Modules stow deployed (must match scripts/setup/symlinks.sh::MODULES)
-MODULES=(shell git vim tmux terminal tools config)
+MODULES=(shell git vim tmux terminal config)
 
 # Files we know to restore from backup (must match bootstrap.sh step 2)
 BACKUP_FILES=(.zshrc .gitconfig .tmux.conf .vimrc .p10k.zsh)
@@ -122,7 +122,7 @@ print_header() {
     echo ""
 }
 
-# Find newest ~/.dotfiles-backup/<timestamp>/ that contains <file>.
+# Find newest ~/.dotfiles-backups/<timestamp>/ that contains <file>.
 # Returns path or empty. Portable: avoids -printf (GNU-only) and parses
 # timestamp from the directory name itself (which bootstrap writes as
 # YYYYMMDD-HHMMSS — string-sorts correctly).
@@ -257,7 +257,7 @@ print_summary() {
     echo "    ${c_white}chsh -s /bin/bash${c_reset}"
     echo ""
     echo "    ${c_dim}# Backup tree (keeps your pre-install configs around just in case)${c_reset}"
-    echo "    ${c_white}rm -rf ~/.dotfiles-backup${c_reset}"
+    echo "    ${c_white}rm -rf ~/.dotfiles-backups${c_reset}"
     echo ""
     echo "    ${c_dim}# The repo itself${c_reset}"
     printf "    ${c_white}rm -rf %s${c_reset}\n" "$REPO_ROOT"

@@ -136,7 +136,7 @@ main() {
     step "Backing up existing configs"
     if [[ "$BACKUP_ENABLED" == "true" ]]; then
         local backup_dir
-        backup_dir="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
+        backup_dir="$HOME/.dotfiles-backups/$(date +%Y%m%d-%H%M%S)"
         mkdir -p "$backup_dir"
         for f in .zshrc .gitconfig .tmux.conf .vimrc .p10k.zsh; do
             [[ -f "$HOME/$f" && ! -L "$HOME/$f" ]] && cp "$HOME/$f" "$backup_dir/" && log_info "Backed up $f"
