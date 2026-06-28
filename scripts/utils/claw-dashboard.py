@@ -76,6 +76,20 @@ _ANSI = re.compile(r"\033\[[0-9;?]*[A-Za-z]")
 def vis(s): return len(_ANSI.sub("", s))                 # mono-cell display width
 def pad(s, w): return s + " "*max(0, w-vis(s))
 def _short(s, n): s = s or "—"; return s if len(s) <= n else s[:n-1]+"…"
+def _clip(s, w):
+    """Truncate s to w VISIBLE cells, preserving ANSI escapes (never cut a code
+    mid-sequence) and closing color with a reset if anything was dropped. Lets a
+    box degrade gracefully on a terminal narrower than its natural content."""
+    if vis(s) <= w:
+        return s
+    out, shown, i = [], 0, 0
+    while i < len(s) and shown < w:
+        m = _ANSI.match(s, i)
+        if m:
+            out.append(m.group()); i = m.end(); continue
+        out.append(s[i]); shown += 1; i += 1
+    # close any color the cut left open — but not in NOCOLOR (keeps piped output clean)
+    return "".join(out) + ("" if NOCOLOR else RST)
 
 # ── Nerd Font glyphs (Font Awesome — 1 cell in a *Mono Nerd Font) ────────────
 G = dict(os="", host="", kernel="", uptime="", load="",
@@ -384,7 +398,12 @@ def main():
     # the dashboard frame above it.
     content_w = max((vis(m) for m in merged + qr), default=20)
 
+    # Clamp to the LIVE terminal: a new tab inherits the current window's width
+    # (window-width applies to new windows only), so on a narrow tab the box
+    # would otherwise exceed the viewport and soft-wrap, shattering the border.
+    # frame() clips each row to content_w, so the box degrades gracefully instead.
     term = shutil.get_terminal_size((100, 30)).columns
+    content_w = min(content_w, max(20, term - 4))
     margin = " " * max(0, (term - (content_w + 4)) // 2)
 
     print()
@@ -400,7 +419,7 @@ def frame(lines, title_text, content_w, margin):
     bar_ch = col("│", C["muted"])
     print(margin + col("╭─", C["muted"]) + title + col("─"*dash + "╮", C["muted"]))
     for m in lines:
-        print(margin + bar_ch + " " + pad(m, content_w) + " " + bar_ch)
+        print(margin + bar_ch + " " + pad(_clip(m, content_w), content_w) + " " + bar_ch)
     print(margin + col("╰" + "─"*inner + "╯", C["muted"]))
 
 def quickref_rows():

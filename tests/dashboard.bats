@@ -32,3 +32,16 @@ PY
   [[ "$output" == *"GLYPHS_OK"* ]]
   [[ "$output" != *"aws:"* ]]
 }
+
+# A new tab inherits the current window width (window-width applies to new
+# windows only), so the dashboard box must clamp to the live terminal instead of
+# overflowing/wrapping.
+@test "dashboard: box clamps to a narrow terminal — no overflow" {
+  run env COLUMNS=58 DOTFILES_DIR="$BATS_TEST_DIRNAME/.." python3 "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py"
+  [ "$status" -eq 0 ]
+  # measure VISIBLE width (strip ANSI) — a clipped line may carry a reset code
+  maxw=$(printf '%s\n' "$output" | python3 -c 'import sys,re
+a=re.compile("\x1b\\[[0-9;?]*[A-Za-z]")
+print(max((len(a.sub("",l)) for l in sys.stdin.read().splitlines()), default=0))')
+  [ "$maxw" -le 58 ]
+}

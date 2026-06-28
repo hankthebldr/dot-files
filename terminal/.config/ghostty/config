@@ -39,6 +39,9 @@ window-padding-y = 4
 window-padding-balance = true
 window-save-state = never
 window-theme = dark
+# New tabs append at the END of the strip (Ghostty default is `current`, which
+# inserts mid-strip right after the active tab — the order then jumps around).
+window-new-tab-position = end
 unfocused-split-opacity = 0.85
 
 # ── Appearance / eye-candy ────────────────────────────────────────────
@@ -73,7 +76,17 @@ shell-integration = zsh
 # ssh-terminfo auto-installs Ghostty's terminfo on remote hosts (no more
 # "unknown terminal: xterm-ghostty" / garbled keys when SSHing the tailnet);
 # ssh-env exports a compatible TERM where terminfo can't be installed.
-shell-integration-features = cursor,sudo,title,ssh-env,ssh-terminfo
+# NOTE: `no-title` explicitly DISABLES Ghostty's title feature. The feature list
+# MERGES with the defaults (cursor,sudo,title,path), so simply omitting `title`
+# leaves it ON — you must disable it with the `no-` prefix. With title enabled,
+# Ghostty injects its OWN preexec hook (title = running command → the "flickering
+# processes") and a precmd hook (title = bare cwd) that overwrite the static
+# "[profile] user@host: cwd" title from shell/progress.zsh (last writer wins, so
+# the shell's title never sticks). `no-title` makes progress.zsh the sole title
+# author. Lost: nothing — cwd reporting (`path`) and prompt marks stay on. We
+# keep `sudo` (opt-in, off by default — dropping it would disable it) and add
+# ssh-env/ssh-terminfo for the tailnet. `cursor`/`path` are default-on.
+shell-integration-features = sudo,no-title,ssh-env,ssh-terminfo
 mouse-hide-while-typing = true
 cursor-style = bar
 cursor-style-blink = true
@@ -81,7 +94,9 @@ cursor-style-blink = true
 # ── Behavior / QoL ────────────────────────────────────────────────────
 # Deep scrollback (bytes), no nag on close, audible + taskbar-attention bell.
 scrollback-limit = 100000000
-confirm-close-surface = false
+# `true` prompts only when the pane still has a running process (not a per-tab
+# nag); guards against cmd+w nuking a live SSH/k8s/build split with no undo.
+confirm-close-surface = true
 bell-features = system,attention
 
 # ── Colors — baseline fallback (Gruvbox Material dark) ────────────────
@@ -148,6 +163,12 @@ keybind = cmd+shift+h=goto_split:left
 keybind = cmd+shift+l=goto_split:right
 keybind = cmd+shift+k=goto_split:top
 keybind = cmd+shift+j=goto_split:bottom
+# Resize the focused split (ctrl+cmd+hjkl) and rebalance an uneven grid.
+keybind = ctrl+cmd+h=resize_split:left,40
+keybind = ctrl+cmd+l=resize_split:right,40
+keybind = ctrl+cmd+k=resize_split:up,40
+keybind = ctrl+cmd+j=resize_split:down,40
+keybind = cmd+shift+equal=equalize_splits
 
 # Font size
 keybind = cmd+equal=increase_font_size:1
