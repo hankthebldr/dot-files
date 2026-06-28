@@ -94,12 +94,18 @@ _set_env() {
 # Echo the compose dir and the -f flags for a service; clones/seeds upstreams.
 # Sets globals: SVC_DIR, SVC_FLAGS (array).
 _resolve() {
-    local name="$1" prepare="${2:-0}"
+    local name="$1" prepare="${2:-0}" soft="${3:-0}"
+    # soft=1 (the per-service iterating commands status/down/pull): a resolve
+    # failure WARNS and returns 1 so the caller's `|| continue` can skip just
+    # that service. soft=0 (default): die() as before. Without this, die()'s
+    # `exit` killed the whole command — `||`/`&&` cannot catch an exit, so the
+    # callers' skip/continue was dead code.
+    _rfail() { if [[ "$soft" == 1 ]]; then return 1; else die "$1"; fi; }
     local kind spec; kind="$(_field "$name" 2)"; spec="$(_field "$name" 5)"
-    [[ -n "$kind" ]] || die "unknown service: $name  (try: ai-services list)"
+    [[ -n "$kind" ]] || { _rfail "unknown service: $name  (try: ai-services list)"; return 1; }
     SVC_FLAGS=()
     if [[ "$kind" == "local" ]]; then
-        [[ -f "$spec" ]] || die "$name: compose file missing — $spec"
+        [[ -f "$spec" ]] || { _rfail "$name: compose file missing — $spec"; return 1; }
         SVC_DIR="$(dirname "$spec")"
         SVC_FLAGS=(-f "$spec")
         return 0
@@ -112,15 +118,15 @@ _resolve() {
     local clone="$DATA_HOME/$name"
 
     if [[ ! -d "$clone/.git" ]]; then
-        [[ "$prepare" == 1 ]] || die "$name not prepared — run: claw ai-services prepare $name"
+        [[ "$prepare" == 1 ]] || { _rfail "$name not prepared — run: claw ai-services prepare $name"; return 1; }
         info "cloning $name → $clone"
-        git clone --depth 1 "$url" "$clone" >/dev/null 2>&1 || die "git clone failed for $name"
+        git clone --depth 1 "$url" "$clone" >/dev/null 2>&1 || { _rfail "git clone failed for $name"; return 1; }
         ok "cloned $name"
     fi
 
     SVC_DIR="$clone/$subdir"
-    [[ -d "$SVC_DIR" ]] || die "$name: expected subdir '$subdir' not found in clone"
-    [[ -f "$SVC_DIR/$cfile" ]] || die "$name: compose file '$cfile' not found in $SVC_DIR"
+    [[ -d "$SVC_DIR" ]] || { _rfail "$name: expected subdir '$subdir' not found in clone"; return 1; }
+    [[ -f "$SVC_DIR/$cfile" ]] || { _rfail "$name: compose file '$cfile' not found in $SVC_DIR"; return 1; }
     SVC_FLAGS=(-f "$cfile")
 
     # Seed .env from the upstream example on first prepare.
@@ -218,7 +224,7 @@ cmd_status() {
         # compose project counts here.
         local running=0
         if [[ "$kind" == "local" || -d "$DATA_HOME/$n/.git" ]]; then
-            _resolve "$n" 0 2>/dev/null && running="$(_compose "$n" ps -q 2>/dev/null | grep -c .)" || running=0
+            _resolve "$n" 0 1 2>/dev/null && running="$(_compose "$n" ps -q 2>/dev/null | grep -c .)" || running=0
         fi
         if [[ "$running" -gt 0 ]]; then
             if _port_up "$port"; then
@@ -286,7 +292,7 @@ cmd_down() {
         if [[ "$(_field "$n" 2)" == "upstream" && ! -d "$DATA_HOME/$n/.git" ]]; then
             info "$n not prepared — nothing to stop"; continue
         fi
-        _resolve "$n" 0 2>/dev/null || { warn "$n: cannot resolve — skipping"; continue; }
+        _resolve "$n" 0 1 2>/dev/null || { warn "$n: cannot resolve — skipping"; continue; }
         info "stopping $n…"
         _compose "$n" down && ok "$n stopped" || warn "$n: down reported errors"
     done
@@ -303,7 +309,7 @@ cmd_pull() {
     local n
     for n in "${names[@]}"; do
         _is_host "$n" && { info "$n is a host service — no image to pull"; continue; }
-        _resolve "$n" 1 || continue
+        _resolve "$n" 1 1 || continue
         info "pulling $n images…"; _compose "$n" pull && ok "$n images refreshed"
     done
 }
