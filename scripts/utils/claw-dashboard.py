@@ -319,6 +319,24 @@ def _age_suffix(ts):
         return ("", False)
 
 
+# Per-implementation icons for the homelab fleet — each service renders with its
+# own glyph (not a generic dot). Keys are matched case-insensitively against the
+# service id from fleet.yml. Reuses the dashboard's tailscale/docker/k8s glyphs;
+# the rest are Font Awesome Nerd Font codepoints (U+F0xx–F2xx, render-safe). To
+# add/retune a service icon, edit ONLY this map.
+SERVICE_GLYPHS = {
+    "tailscale": "\uf0e8", "k3s": "\u2388", "k8s": "\u2388",
+    "kubernetes": "\u2388", "docker": "\uf308", "gitea": "\uf1d3",
+    "git": "\uf1d3", "forgejo": "\uf1d3", "ollama": "\uf2db", "n8n": "\uf085",
+    "portainer": "\uf1b3", "grafana": "\uf080", "prometheus": "\uf201",
+    "postgres": "\uf1c0", "postgresql": "\uf1c0", "redis": "\uf1c0",
+    "mariadb": "\uf1c0", "mysql": "\uf1c0", "caddy": "\uf0ac", "nginx": "\uf0ac",
+    "traefik": "\uf0ac", "jellyfin": "\uf008", "plex": "\uf008",
+    "vaultwarden": "\uf023", "home-assistant": "\uf015", "homeassistant": "\uf015",
+    "_default": "\uf233",   # nf-fa-server
+}
+
+
 def homelab_lines():
     """Live HR-TRUST fleet rows read from ~/.cache/claw/homelab.json (no network).
     Returns [] when the cache is absent so the caller drops the block on machines
@@ -339,17 +357,19 @@ def homelab_lines():
     head = []
     gh = (data.get("identity") or {}).get("github") or {}
     if gh.get("user"):
-        head.append(f"{col(G['git'], C['purple'])} {col(_short(gh['user'], 18), C['fg'])} {dot(gh.get('state'))}")
+        head.append(f"{col("", C['purple'])} {col(_short(gh['user'], 18), C['fg'])} {dot(gh.get('state'))}")
     route = data.get("route") or {}
     if route.get("path"):
-        head.append(f"{col(G['tailscale'], C['green'])} {col(_short(route['path'], 28), C['fg'])}")
+        head.append(f"{col("", C['green'])} {col(_short(route['path'], 28), C['fg'])}")
     if head:
         rows.append("   ".join(head))
     # one row per machine: host dot + nested service dots
     for m in data["machines"]:
-        segs = [f"{col(G['host'], C['blue'])} {col(_short(m.get('id', '?'), 12), C['fg'])} {dot(m.get('state'))}"]
+        segs = [f"{col("", C['blue'])} {col(_short(m.get('id', '?'), 12), C['fg'])} {dot(m.get('state'))}"]
         for s in (m.get("services") or []):
-            segs.append(f"{dot(s.get('state'))} {col(_short(s.get('id', '?'), 10), C['muted'])}")
+            sid = s.get('id', '?')
+            sg = SERVICE_GLYPHS.get(sid.lower(), SERVICE_GLYPHS["_default"])
+            segs.append(f"{dot(s.get('state'))} {col(sg, C['cyan'])} {col(_short(sid, 10), C['muted'])}")
         rows.append("  ".join(segs))
     if suffix:
         rows.append(col(suffix.strip(), C["muted"]))
