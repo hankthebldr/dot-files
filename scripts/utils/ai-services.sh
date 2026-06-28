@@ -265,7 +265,8 @@ cmd_up() {
         docker info &>/dev/null || die "docker daemon not reachable (is it running / are you in the docker group?)"
         _resolve "$n" 1
         info "pulling images (first run can take several minutes)…"
-        _compose "$n" pull 2>&1 | tail -3 || warn "$n: pull reported issues (continuing)"
+        _compose "$n" pull 2>&1 | tail -3
+        (( ${PIPESTATUS[0]} == 0 )) || warn "$n: pull reported issues (continuing)"
         info "starting…"
         if _compose "$n" up -d; then
             ok "$n up → $(_scheme "$(_field "$n" 3)")://localhost:$(_field "$n" 3)"

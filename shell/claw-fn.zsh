@@ -10,6 +10,17 @@
 # Colors come from the active theme (CLAW_RGB_*, theme.sh via .zshrc step 2b);
 # fallbacks are refined-dark so the wrapper renders standalone.
 
+# Usage telemetry for `claw stats`: load/off are handled entirely in this zsh
+# function (they mutate the shell) and never reach bin/claw's log_usage. Record
+# them in the same TSV (ts \t subcommand \t arg_count \t profile).
+_claw_fn_log() {
+    [[ "${CLAW_NO_LOG:-}" == 1 ]] && return 0
+    local _c="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
+    { mkdir -p "$_c" 2>/dev/null
+      printf '%s\t%s\t0\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "${2:-none}" >> "$_c/usage.tsv"
+    } 2>/dev/null || true
+}
+
 claw() {
     local _grn=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
     local _red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
@@ -63,6 +74,7 @@ claw() {
             printf "  ${_grn}✓${_rst} loaded profile: ${_fg}%s${_rst}" "$p"
             [[ -n "${CLAW_THEME:-}" ]] && printf "  ${_dim}· theme ${_fg}%s${_rst}" "$CLAW_THEME"
             printf "\n"
+            _claw_fn_log load "$p"
             # per-profile MOTD: the profile's flavor tag (set in meta.zsh)
             [[ -n "${PROFILE_TAG:-}" ]] && printf "  ${_dim}%s${_rst}\n" "$PROFILE_TAG"
             # load↔install bridge: nudge if the profile's key tools aren't present.
@@ -98,6 +110,7 @@ claw() {
                 claw_theme_reset_session
             fi
             printf "  ${_grn}✓${_rst} unloaded profile: ${_fg}%s${_rst}\n" "$_was"
+            _claw_fn_log off "$_was"
             printf "  ${_dim}  (aliases/exports still defined; ${_fg}exec zsh${_dim} for a clean shell)${_rst}\n"
             ;;
         *)

@@ -11,7 +11,11 @@ c_dim=$'\e[38;2;139;148;158m'
 c_red=$'\e[38;2;255;123;114m'
 
 # Paths
-CLAUDE_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    CLAUDE_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+else
+    CLAUDE_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/Claude/claude_desktop_config.json"
+fi
 MCP_PROJECTS_DIR="$HOME/Github/mcp-servers"
 
 clear
@@ -34,7 +38,17 @@ prompt_menu() {
     echo ""
 }
 
-prompt_menu
+# Non-interactive dispatch: `claw mcp list|register|scaffold|edit` skips the
+# prompt. No arg -> interactive menu.
+case "${1:-}" in
+    list|ls)       mode=1 ;;
+    register|add)  mode=2 ;;
+    scaffold|new)  mode=3 ;;
+    edit)          mode=4 ;;
+    "")            prompt_menu ;;
+    -h|--help)     echo "usage: claw mcp [list|register|scaffold|edit]"; exit 0 ;;
+    *)             echo "unknown mcp command: $1 (try: list|register|scaffold|edit)"; exit 1 ;;
+esac
 
 # Ensure config file exists for features that require it
 ensure_config() {

@@ -97,7 +97,7 @@ def _clip(s, w):
 _OS_GLYPH = "\uf179" if platform.system() == "Darwin" else "\uf17c"
 G = dict(os=_OS_GLYPH, host="\uf108", kernel="\uf013", uptime="\uf017", load="\uf0e4",
          shell="\uf120", term="\uf120", pkgs="\uf187", locale="\uf0ac", cpu="\uf2db",
-         cores="\uf085", mem="\uf1c0", disk="\uf0a0", ip="\uf0e8", wifi="\uf1eb",
+         cores="\uf085", mem="\U000f035b", disk="\uf0a0", ip="\uf0e8", wifi="\uf1eb",
          batt="\uf240", clock="\uf017", user="\uf007", git="\uf09b", k8s="\u2388",
          docker="\uf308", tailscale="\uf0e8", tunnel="\uf0c1", cloud="\uf0c2",
          aws="\uf270", gcp="\uf1a0", azure="\uf17a")
