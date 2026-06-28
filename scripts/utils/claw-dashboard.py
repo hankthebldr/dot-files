@@ -92,11 +92,15 @@ def _clip(s, w):
     return "".join(out) + ("" if NOCOLOR else RST)
 
 # ── Nerd Font glyphs (Font Awesome — 1 cell in a *Mono Nerd Font) ────────────
-G = dict(os="", host="", kernel="", uptime="", load="",
-         shell="", term="", pkgs="", locale="", cpu="", cores="",
-         mem="", disk="", ip="", wifi="", batt="", clock="", user="",
-         git="", k8s="⎈", docker="",
-         tailscale="", tunnel="", cloud="", aws="\uf270", gcp="\uf1a0", azure="\uf17a")
+# OS glyph is platform-aware (apple on macOS, tux on Linux); the rest are
+# Font Awesome Nerd Font codepoints. Single source for every dashboard icon.
+_OS_GLYPH = "\uf179" if platform.system() == "Darwin" else "\uf17c"
+G = dict(os=_OS_GLYPH, host="\uf108", kernel="\uf013", uptime="\uf017", load="\uf0e4",
+         shell="\uf120", term="\uf120", pkgs="\uf187", locale="\uf0ac", cpu="\uf2db",
+         cores="\uf085", mem="\uf1c0", disk="\uf0a0", ip="\uf0e8", wifi="\uf1eb",
+         batt="\uf240", clock="\uf017", user="\uf007", git="\uf09b", k8s="\u2388",
+         docker="\uf308", tailscale="\uf0e8", tunnel="\uf0c1", cloud="\uf0c2",
+         aws="\uf270", gcp="\uf1a0", azure="\uf17a")
 
 def fields():
     try:
