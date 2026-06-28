@@ -20,11 +20,11 @@ case "${1:-}" in
     status) # refresh the fleet cache, then pretty-print it (the HR-TRUST fleet,
             # NOT situation.json). Two separate commands — the poll must NOT be
             # `exec` (that would replace the process and the print never runs).
-            bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+            bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab; _rc=$?
             jq . "${XDG_CACHE_HOME:-$HOME/.cache}/claw/homelab.json" 2>/dev/null \
               || cat "${XDG_CACHE_HOME:-$HOME/.cache}/claw/homelab.json" 2>/dev/null \
               || echo "no homelab cache"
-            exit 0 ;;
+            exit "$_rc" ;;
 esac
 
 echo "${c_purple}╭────────────────────────────────────────────────────────╮${c_reset}"

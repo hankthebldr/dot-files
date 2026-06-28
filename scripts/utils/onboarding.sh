@@ -828,7 +828,7 @@ _offer_install() {
         printf "  ${c_yellow}>${c_reset} [Y]es install · [N]o just activate · [S]kip: "
         IFS= read -r answer
         answer="$(printf '%s' "${answer:0:1}" | tr '[:upper:]' '[:lower:]')"
-        [[ -z "$answer" ]] && answer="y"
+        [[ -z "$answer" ]] && answer="s"
     fi
 
     case "$answer" in
@@ -837,7 +837,7 @@ _offer_install() {
             _install_for "$profile"
             ;;
         n)
-            printf "\n  ${c_cyan}${c_bold}>>> ACTIVATING PROFILE <<<${c_reset}\n\n"
+            printf "\n  ${c_cyan}${c_bold}>>> PROFILE READY — run the command below to activate <<<${c_reset}\n\n"
             ;;
         *)
             printf "\n  ${c_dim}skipped install. saved your class anyway.${c_reset}\n"
