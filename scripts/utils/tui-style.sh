@@ -85,16 +85,26 @@ tui_footer() {
 tui_run_step() {
     local title="$1"
     shift
+    local rc
     if $HAS_GUM; then
-        gum spin --spinner dot --spinner.foreground="#58a6ff" --title "  $title" -- bash -c "$*" 2>/dev/null
+        # --show-error surfaces the command's own stderr ONLY on failure (no more
+        # 2>/dev/null swallowing real errors); capture the exit code so we render a
+        # ● success / ✗ failure verdict instead of vanishing the spinner silently.
+        gum spin --show-error --spinner dot --spinner.foreground="#58a6ff" \
+            --title "  $title" -- bash -c "$*"
+        rc=$?
     else
         printf "  ${c_cyan}◌${c_reset} ${c_white}%s${c_reset}" "$title"
-        if eval "$*" &>/dev/null; then
-            printf "\r  ${c_green}●${c_reset} ${c_white}%s${c_reset}\n" "$title"
-        else
-            printf "\r  ${c_red}✗${c_reset} ${c_white}%s${c_reset} ${c_dim}(failed)${c_reset}\n" "$title"
-        fi
+        # stdout suppressed (keeps the line clean) but stderr flows through, so a
+        # failed step leaves its error context on screen above the ✗ line.
+        if eval "$*" >/dev/null; then rc=0; else rc=$?; fi
     fi
+    if (( rc == 0 )); then
+        printf "\r  ${c_green}●${c_reset} ${c_white}%s${c_reset}\033[K\n" "$title"
+    else
+        printf "\r  ${c_red}✗${c_reset} ${c_white}%s${c_reset} ${c_dim}(exit %d)${c_reset}\033[K\n" "$title" "$rc"
+    fi
+    return "$rc"
 }
 
 # tui_skip "name"
