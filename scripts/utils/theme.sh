@@ -226,7 +226,10 @@ claw_theme_apply_ghostty() {
 claw_theme_apply_profile() {
     _pt="${PROFILE_THEME_DEFAULT:-}"
     [ -n "$_pt" ] || return 0
-    [ -r "$CLAW_THEME_DIR/$_pt.theme" ] || return 0
+    # Use the canonical resolver (dir layout config/themes/<slug>/palette.theme,
+    # flat fallback) — the old hardcoded flat path silently skipped theming for
+    # any profile whose palette only exists as a directory (refined-dark, etc.).
+    [ -r "$(_claw_theme_file "$_pt")" ] || return 0
     [ "$_pt" = "${CLAW_THEME_SLUG:-}" ] && return 0
     export CLAW_THEME="$_pt"
     claw_theme_load

@@ -793,7 +793,14 @@ cmd_claude() {
             fi
             local m_plugins live_plugins
             m_plugins=$(wc -l < "$mdir/plugins.txt" 2>/dev/null | tr -d ' ' || echo 0)
-            live_plugins=$(claude plugin list 2>/dev/null | grep -c '❯ .*@' || echo 0)
+            # grep -c already emits 0 on no match; the old `|| echo 0` appended a
+            # SECOND 0 when claude was absent (grep exits 1 on empty input), giving
+            # live_plugins=$'0\n0' → the (( )) compare errored and fell to "in sync".
+            if command -v claude &>/dev/null; then
+                live_plugins=$(claude plugin list 2>/dev/null | grep -c '❯ .*@')
+            else
+                live_plugins=0
+            fi
             info "plugins: ${c_white}$live_plugins${c_reset} live · ${c_white}$m_plugins${c_reset} in manifest"
             if (( m_plugins != live_plugins )); then
                 err "drift detected — run claw claude-sync snapshot (or sync)"
