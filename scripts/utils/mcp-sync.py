@@ -15,6 +15,13 @@ from __future__ import annotations
 import json, os, sys, platform, shutil, subprocess
 from pathlib import Path
 
+# Help guard FIRST — without it, `--help` (or any unrecognized flag) left
+# DRY=False and main() performed a REAL sync (claude mcp remove/add, JSON
+# overwrites). Show usage and exit before any state is touched.
+if any(a in ("-h", "--help") for a in sys.argv[1:]):
+    print(__doc__ or "mcp-sync — usage: mcp-sync [--dry-run] [--only NAME] [--profile P] [--all]")
+    sys.exit(0)
+
 try:
     import tomllib  # py3.11+
 except ModuleNotFoundError:

@@ -162,7 +162,10 @@ step_unlink_stow() {
             # -v: verbose so the user can see what came down
             if run "stow -D -d '$REPO_ROOT' -t '$HOME' '$module' 2>&1 | sed 's/^/    /'"; then
                 log_success "unstowed $module"
-                ((removed++))
+                # arithmetic assignment, NOT ((removed++)): under `set -e` the
+                # post-increment returns the OLD value (0 on the first module) →
+                # exit 1 → script aborts after one module (half-uninstall).
+                removed=$((removed + 1))
             else
                 log_warning "stow -D failed for $module (may have been manually modified)"
             fi
@@ -194,7 +197,7 @@ step_restore_backup() {
             fi
             run "cp -p '$src' '$HOME/$f'"
             log_success "restored $f ${c_dim}(from $(basename "$(dirname "$src")"))${c_reset}"
-            ((restored++))
+            restored=$((restored + 1))   # set -e-safe (see unstow loop above)
         fi
     done
     if (( restored == 0 )); then

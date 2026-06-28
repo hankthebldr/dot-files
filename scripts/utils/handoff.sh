@@ -2,6 +2,9 @@
 # handoff.sh — write a session handoff note into the Obsidian vault inbox.
 set -uo pipefail
 VAULT="${OBSIDIAN_VAULT:-$HOME/hr-vault-main-pa}"
+case "${1:-}" in
+    -h|--help) echo 'usage: claw handoff [title…]   write a session-handoff note into $VAULT/00-Inbox'; exit 0 ;;
+esac
 title="${*:-session handoff}"; slug="$(echo "$title" | tr ' /' '--' | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')"
 dest="$VAULT/00-Inbox"; note="$dest/handoff-$(date +%F)-${slug:-note}.md"
 [[ -d "$VAULT" ]] || { echo "✗ vault not found: $VAULT (set OBSIDIAN_VAULT)"; exit 1; }
