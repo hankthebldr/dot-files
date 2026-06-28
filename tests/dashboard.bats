@@ -45,3 +45,32 @@ a=re.compile("\x1b\\[[0-9;?]*[A-Za-z]")
 print(max((len(a.sub("",l)) for l in sys.stdin.read().splitlines()), default=0))')
   [ "$maxw" -le 58 ]
 }
+
+# Each homelab service renders with its OWN implementation icon (not a generic
+# dot): docker U+F308, ollama U+F2DB, portainer U+F1B3, plus the github/server/
+# route glyphs on the head + machine rows.
+@test "dashboard homelab_lines: per-service implementation icons" {
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  python3 - "$XDG_CACHE_HOME/claw/homelab.json" <<'PY'
+import sys, json
+json.dump({"ts":"2099-01-01T00:00:00Z","fleet":"HR-TRUST",
+  "route":{"via":"direct","path":"→ bd790i","exit_node":None},
+  "identity":{"github":{"user":"hankthebldr","state":"up"}},
+  "machines":[{"id":"bd790i","state":"up","addr":"100.64.0.5","latency_ms":12,
+    "services":[{"id":s,"state":"up","detail":"x"} for s in
+      ["tailscale","k3s","docker","gitea","ollama","portainer"]]}]},
+  open(sys.argv[1],"w"))
+PY
+  run env NO_COLOR=1 python3 - "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py" <<'PY'
+import sys, importlib.util as u
+spec=u.spec_from_file_location('d', sys.argv[1]); m=u.module_from_spec(spec); spec.loader.exec_module(m)
+out="\n".join(m.homelab_lines())
+need={"docker":0xf308,"ollama":0xf2db,"portainer":0xf1b3,"gitea":0xf1d3,
+      "github":0xf09b,"server":0xf233}
+print("ALL_ICONS_OK" if all(chr(c) in out for c in need.values()) else "ICONS_MISSING")
+print(out)
+PY
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ALL_ICONS_OK"* ]]
+  [[ "$output" == *"bd790i"* ]]
+}
