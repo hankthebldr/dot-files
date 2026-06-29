@@ -59,52 +59,67 @@ nodes themselves run it).
 
 ## Architecture
 
-Unchanged seam from 2026-06-27 — this work widens the **inventory** (data), adds
-probe **kinds** to the producer, and adds **one shared reader** consumed by three
+Unchanged seam from 2026-06-27 — this work widens the **inventory** (data),
+**extends the cache additively** (no field renamed or removed), adds probe
+**kinds** to the producer, and adds **one shared reader** consumed by three
 surfaces:
 
 ```
 fleet.yml (data)  ──►  probe_homelab()  ──►  homelab.json  ──►  homelab-board.sh
-  nodes/services        new kinds:            +nodes[]            (ONE renderer)
-  + group + url         http-via-Host,        +cluster{}            │
-                        dns, kube             +group/state    ┌─────┼─────────────┐
-                                                              ▼     ▼             ▼
+  machines[] +          new kinds:            machines[]  (KEPT)   (ONE renderer)
+  services map          http-via-Host,        + svc.group/.glyph     │
+  w/ group+glyph        dns, kube(cluster)    + cluster{}      ┌─────┼─────────────┐
+  + reachability        + nc/ping fallback    + machine.role   ▼     ▼             ▼
                                                    config-local  config-homelab  hstatus()
 ```
 
-The cache JSON remains the single contract. `homelab-board.sh` is the new
-isolation unit: understandable and testable against a fixture cache without the
-poller; swappable without touching any `.jsonc`.
+**Backward compatibility is a hard constraint.** The 2026-06-27 readers
+(`claw-dashboard.py homelab_lines()`, `welcome-tui _claw_homelab_block()`) and
+their `bats` tests read `machines[].services[]` and assert `machines[0].id`. This
+work therefore **keeps the `machines[].services[]` shape** and only *adds* fields
+(`services[].group`, `services[].glyph`, top-level `cluster{}`, `machines[].role`).
+Old readers ignore the new fields; the new board uses them. The cache JSON
+remains the single contract. `homelab-board.sh` is the new isolation unit:
+understandable and testable against a fixture cache without the poller; swappable
+without touching any `.jsonc`.
 
 ## Components
 
-### A. Inventory — `config/homelab/fleet.yml` (rewrite to live truth)
+### A. Inventory — `config/homelab/fleet.yml` (rewrite to live truth, schema-compatible)
 
-Each service carries a **`group`** (for sectioning) and a **`host`/`url`** (the
-probe target). Adding/moving a service stays a pure data edit.
+Keeps the existing shape the producer already iterates: `machines[]` each with a
+`services: [names]` list, and a top-level `services:` **map** carrying per-service
+metadata. New per-service keys `group` (for sectioning) and `glyph` (brand icon)
+are *added* to that map — the producer already reads it with `yq`, so adding keys
+is a pure data edit. A top-level `cluster:` block names the k8s context and the
+Traefik probe target. Cluster-wide apps nest under the control-plane node
+(`ms-01`) as their representative; node-local daemons nest under `bd790i`.
 
 ```yaml
 fleet: { name: HR-TRUST }
 cluster: { context: k3s-ms01, traefik_ip: 192.168.1.109 }   # Host-header probe target
-nodes:                                   # group: nodes
-  - { id: ms-01,  ip: 192.168.1.109, role: control-plane }
-  - { id: r630,   ip: 192.168.1.102, role: worker }
-  - { id: bd790i, ip: 192.168.1.104, role: worker }
-  - { id: pihole, ip: 192.168.1.101, role: dns, kind: dns, dns_probe: git.lab.local }
+machines:
+  - { id: ms-01,  host: 192.168.1.109, user: henry, ssh: true,  role: control-plane,
+      services: [k3s, gitea, n8n, portainer, enclave, grafana, harbor] }
+  - { id: r630,   host: 192.168.1.102, user: henry, ssh: true,  role: worker, services: [] }
+  - { id: bd790i, host: 192.168.1.104, user: henry, ssh: true,  role: worker,
+      services: [docker, ollama, tailscale] }
+  - { id: pihole, host: 192.168.1.101, user: henry, ssh: false, role: dns, services: [pihole-dns] }
 services:
-  gitea:     { group: apps,  glyph: git,       host: git.lab.local,       kind: http }
-  n8n:       { group: apps,  glyph: n8n,       host: n8n.lab.local,       kind: http }
-  portainer: { group: apps,  glyph: portainer, host: portainer.lab.local, kind: http }
-  enclave:   { group: apps,  glyph: enclave,   host: enclave.lab.local,   kind: http }
-  grafana:   { group: apps,  glyph: grafana,   host: grafana.lab.local,   kind: http }
-  harbor:    { group: apps,  glyph: harbor,    host: harbor.lab.local,    kind: http, planned: true }
-  k3s:       { group: infra, glyph: k8s,       kind: kube }
-  docker:    { group: infra, glyph: docker,    host: bd790i, kind: ssh,  cmd: "docker ps -q | wc -l" }
-  ollama:    { group: infra, glyph: ollama,    host: bd790i, kind: http, port: 11434, health: /api/tags }
-  tailscale: { group: infra, glyph: vpn,       kind: native }
+  gitea:      { kind: http, group: apps,  glyph: git,       host: git.lab.local }
+  n8n:        { kind: http, group: apps,  glyph: n8n,       host: n8n.lab.local }
+  portainer:  { kind: http, group: apps,  glyph: portainer, host: portainer.lab.local }
+  enclave:    { kind: http, group: apps,  glyph: enclave,   host: enclave.lab.local }
+  grafana:    { kind: http, group: apps,  glyph: grafana,   host: grafana.lab.local }
+  harbor:     { kind: http, group: apps,  glyph: harbor,    host: harbor.lab.local, planned: true }
+  k3s:        { kind: kube, group: infra, glyph: k8s,       context: k3s-ms01 }
+  docker:     { kind: ssh,  group: infra, glyph: docker,    cmd: "docker ps -q | wc -l" }
+  ollama:     { kind: http, group: infra, glyph: ollama,    host: bd790i, port: 11434, health: /api/tags }
+  tailscale:  { kind: native, group: infra, glyph: vpn }
+  pihole-dns: { kind: dns,  group: dns,   glyph: pihole,    server: 192.168.1.101, dns_probe: git.lab.local }
 ```
 
-`config/homelab/fleet.yml.example` is updated to mirror the new schema
+`config/homelab/fleet.yml.example` is updated to mirror the new keys
 (generic `MY-LAB` values) per the `tunnels.yml.example` convention. Machine-local
 override at `$XDG_CONFIG_HOME/claw/fleet.yml` still wins if present.
 
@@ -128,44 +143,63 @@ still written atomically (`mktemp` + `mv -f`) with a top-level `ts`:
   > MagicDNS name). Off-LAN with no tailnet route, every probe times out and the
   > board honestly renders everything `down` — the correct signal, not a bug.
   > `cluster.context` (kubeconfig) similarly needs the API server reachable.
-- **`dns`** (Pi-hole) — `dig +short @<ip> <dns_probe>` returns an A record → `up`;
-  empty/timeout → `down`.
-- **`kube`** — `kubectl --context <cluster.context> get nodes` → `ready/total`
-  and per-node `Ready`/`NotReady`, feeding both the `cluster{}` object and each
-  `nodes[]` entry's `state`.
+- **`dns`** (Pi-hole) — `dig +short @<server> <dns_probe>` returns an A record →
+  `up`; empty/timeout → `down`. Probed directly (no SSH, no machine gate).
+- **`kube`** — `kubectl --context <cluster.context> get nodes` (from the cockpit's
+  kubeconfig) → `ready/total`, written to the top-level **`cluster{}`** object;
+  the per-node `Ready` states are merged back onto each `machines[]` entry's
+  `state` (so a node shows red if `NotReady`). Falls back to the existing
+  over-SSH `kubectl get nodes` only if no local context.
 
-`route` and `identity.github` probes are unchanged.
+**Reachability gate change.** Today every service is skipped (`host down`) unless
+the machine is `up` *via Tailscale status* — which means on a host without
+Tailscale (e.g. the macOS cockpit) the whole board reads down even on the LAN.
+Fix: (1) machine reachability falls back to `nc -z -w2 <host> 22||80||443` (or
+`ping -c1 -W1`) when the Tailscale peer lookup is empty; (2) `http`/`dns`/`kube`/
+`tcp` services — which carry their own timeout-guarded network probe and target
+the cluster/Traefik, not the box's shell — are probed **regardless** of machine
+state; only `ssh`/`native` kinds remain gated on machine-up (they need the host's
+shell). `route` and `identity.github` probes are unchanged.
 
-### C. Cache schema — `~/.cache/claw/homelab.json` (additions)
+### C. Cache schema — `~/.cache/claw/homelab.json` (additive only)
+
+The `machines[].services[]` shape from 2026-06-27 is **kept**. New: top-level
+`cluster{}`; each `machines[]` entry gains `role`; each service object gains
+`group` and `glyph` (copied through from the `services:` map). `ts`/`route`/
+`identity` unchanged. Example (new fields marked `// NEW`):
 
 ```json
 {
   "ts": "2026-06-29T18:22:04Z",
   "fleet": "HR-TRUST",
-  "cluster": { "context": "k3s-ms01", "ready": 3, "total": 3 },
-  "nodes": [
-    { "id": "ms-01",  "ip": "192.168.1.109", "role": "control-plane", "state": "up" },
-    { "id": "r630",   "ip": "192.168.1.102", "role": "worker", "state": "up" },
-    { "id": "bd790i", "ip": "192.168.1.104", "role": "worker", "state": "up" },
-    { "id": "pihole", "ip": "192.168.1.101", "role": "dns", "state": "up" }
-  ],
-  "services": [
-    { "id": "gitea", "group": "apps", "glyph": "git", "state": "up", "detail": "git.lab.local" },
-    { "id": "harbor", "group": "apps", "glyph": "harbor", "state": "planned", "detail": "not deployed" }
-  ],
+  "cluster": { "context": "k3s-ms01", "ready": 3, "total": 3 },              // NEW
   "route": { "via": "direct", "path": "mbp-m4 → direct → bd790i", "exit_node": null },
-  "identity": { "github": { "user": "hankthebldr", "state": "up" } }
+  "identity": { "github": { "user": "hankthebldr", "state": "up" } },
+  "machines": [
+    { "id": "ms-01", "state": "up", "addr": "", "latency_ms": null, "role": "control-plane",  // role NEW
+      "services": [
+        { "id": "k3s",   "state": "up", "detail": "k3s-ms01 · 3/3 Ready", "group": "infra", "glyph": "k8s" },  // group/glyph NEW
+        { "id": "gitea", "state": "up", "detail": "http 200", "group": "apps", "glyph": "git" },
+        { "id": "harbor","state": "planned", "detail": "not deployed", "group": "apps", "glyph": "harbor" }
+      ] },
+    { "id": "pihole", "state": "up", "role": "dns",
+      "services": [ { "id": "pihole-dns", "state": "up", "detail": "*.lab.local", "group": "dns", "glyph": "pihole" } ] }
+  ]
 }
 ```
 
-`state ∈ {up, degraded, down, planned}`. `ts` drives the age/staleness suffix.
+`state ∈ {up, degraded, down, planned}`. `up→green ●`, `degraded→amber ●`,
+`down→red ●`, `planned→muted ○`. `ts` drives the age/staleness suffix.
 **Stale threshold** unchanged: `5 × poll interval` (≈5 min at 60s cadence).
 
 ### D. Shared renderer — `scripts/utils/homelab-board.sh` (NEW; the "shared block")
 
 One theme-aware reader. Sources `scripts/utils/theme.sh` for `CLAW_RGB_*`
 (GitHub-dark fallback) exactly like `ff-readout.sh`, so it retracks `claw theme`.
-Reads `homelab.json` only — **zero network**. Carries a service→glyph map that
+Reads `homelab.json` only — **zero network**. It flattens `machines[].services[]`
+into render groups by each service's `.group` (`apps`/`infra`/`dns`), derives the
+`Nodes` row from `machines[]` (id + `role`), and the `Cluster` cell from
+`cluster{}`. Carries a service→glyph map that
 matches `gen-fastfetch.py`'s `I` dict (Nerd Font Font Awesome / Devicon
 codepoints), reusing existing brand glyphs (`git`, `k8s` ⎈, `docker`, `ollama`,
 `vpn`) and adding brand glyphs for `n8n`, `portainer`, `enclave`, `grafana`,
