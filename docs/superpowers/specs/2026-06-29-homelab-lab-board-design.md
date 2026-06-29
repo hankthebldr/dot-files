@@ -46,7 +46,7 @@ Traefik ingresses (HTTP :80), confirmed live:
 | Service   | Host                  | Notes |
 |-----------|-----------------------|-------|
 | gitea     | `git.lab.local`       | helm release `gitea` |
-| n8n       | `n8n.lab`             | **`.lab`, not `.lab.local`**; also has an IngressRoute |
+| n8n       | `n8n.lab.local`       | also has an IngressRoute (live Ingress table showed `n8n.lab` — possible misconfig on that Ingress object; verify on-LAN) |
 | portainer | `portainer.lab.local` | in-cluster (not standalone docker) |
 | enclave   | `enclave.lab.local`   | ns `enclave`, `enclave-console` |
 | grafana   | `grafana.lab.local`   | ns `monitoring` (found live; included) |
@@ -93,7 +93,7 @@ nodes:                                   # group: nodes
   - { id: pihole, ip: 192.168.1.101, role: dns, kind: dns, dns_probe: git.lab.local }
 services:
   gitea:     { group: apps,  glyph: git,       host: git.lab.local,       kind: http }
-  n8n:       { group: apps,  glyph: n8n,       host: n8n.lab,             kind: http }
+  n8n:       { group: apps,  glyph: n8n,       host: n8n.lab.local,       kind: http }
   portainer: { group: apps,  glyph: portainer, host: portainer.lab.local, kind: http }
   enclave:   { group: apps,  glyph: enclave,   host: enclave.lab.local,   kind: http }
   grafana:   { group: apps,  glyph: grafana,   host: grafana.lab.local,   kind: http }
@@ -122,6 +122,12 @@ still written atomically (`mktemp` + `mv -f`) with a top-level `ts`:
   intended-but-not-yet, and flips to `up` automatically once deployed.
   (Services with an explicit `port`/`health`, e.g. ollama, probe that endpoint
   on their `host` directly instead of via Traefik.)
+  > **Reachability:** `traefik_ip` is a private LAN address (`192.168.1.x`).
+  > It's reachable only when the poller's host is on the home LAN **or** on
+  > Tailscale with that subnet routed (or `traefik_ip` overridden to a tailnet
+  > MagicDNS name). Off-LAN with no tailnet route, every probe times out and the
+  > board honestly renders everything `down` — the correct signal, not a bug.
+  > `cluster.context` (kubeconfig) similarly needs the API server reachable.
 - **`dns`** (Pi-hole) — `dig +short @<ip> <dns_probe>` returns an A record → `up`;
   empty/timeout → `down`.
 - **`kube`** — `kubectl --context <cluster.context> get nodes` → `ready/total`
