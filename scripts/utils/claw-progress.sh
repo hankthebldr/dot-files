@@ -8,11 +8,14 @@ _CLAW_PROG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$_CLAW_PROG_DIR/claw-output.sh" 2>/dev/null || true
 
-# ── theme colors (consume exported CLAW_C_*; refined-dark fallbacks) ─────────
-_c() {  # _c <key> → ANSI color (env CLAW_C_<key> or fallback)
-  local v; eval "v=\"\${CLAW_C_$1:-}\""
-  if [[ -n "$v" ]]; then printf '%s' "$v"; return; fi
-  case "$1" in
+# ── theme colors (consume exported CLAW_RGB_*; refined-dark fallbacks) ─────────
+_c() {  # _c <key> → ANSI truecolor from CLAW_RGB_<KEY>, else 256-color fallback
+  local key up rgb
+  key="$1"
+  up="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
+  eval "rgb=\"\${CLAW_RGB_${up}:-}\""
+  if [[ -n "$rgb" ]]; then printf '\033[38;2;%sm' "$rgb"; return; fi
+  case "$key" in
     blue)  printf '\033[38;5;75m'  ;; green) printf '\033[38;5;78m'  ;;
     red)   printf '\033[38;5;203m' ;; amber) printf '\033[38;5;215m' ;;
     muted) printf '\033[38;5;245m' ;; purple)printf '\033[38;5;141m' ;;

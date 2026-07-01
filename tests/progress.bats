@@ -235,3 +235,17 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"zzfakebin"* ]]
 }
+
+@test "theme: _c builds truecolor from CLAW_RGB_* when set" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_RGB_BLUE='10;20;30' bash -c "source '$PROG'; _c blue"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"38;2;10;20;30m"* ]]
+}
+
+@test "theme: _c falls back to 256-color when CLAW_RGB_* unset" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run bash -c "unset CLAW_RGB_BLUE CLAW_C_BLUE; source '$PROG'; _c blue"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"38;5;75m"* ]]
+}
