@@ -23,9 +23,13 @@ setup() {
 }
 
 @test "fleet.yml: every service in the map has kind, group, glyph" {
+  # Portable across yq dialects (mikefarah v4 on CI, jq-syntax python-yq
+  # elsewhere): jq's all(f) doesn't exist in yq v4, so count instead.
   f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
-  run yq -e '.services | to_entries | all(.value | (has("kind") and has("group") and has("glyph")))' "$f"
-  [ "$status" -eq 0 ]
+  run yq -r '.services | length' "$f"
+  [ "$status" -eq 0 ]; total="$output"; [ "$total" -ge 1 ]
+  run yq -r '[.services[] | select(has("kind") and has("group") and has("glyph"))] | length' "$f"
+  [ "$status" -eq 0 ]; [ "$output" = "$total" ]
 }
 
 @test "fleet.yml: cluster block names context k3s-ms01 and a traefik_ip" {
