@@ -299,6 +299,46 @@ EOF
   [[ "$output" == *"ok step"* ]]
 }
 
+@test "claw_ui_header: prints title, subtitle, and a viewfinder top corner" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=50 TERM=xterm-256color bash -c "
+    source '$PROG'; claw_ui_header 'SYSTEM UPDATE' 'updating everything'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SYSTEM UPDATE"* ]]
+  [[ "$output" == *"updating everything"* ]]
+  [[ "$output" == *$'\xE2\x8C\x9C'* ]]   # ⌜
+}
+
+@test "claw_ui_footer: prints tally summary, bottom corner, and message" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=50 TERM=xterm-256color CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    claw_ui_header demo
+    claw_step a -- true
+    claw_step b -- false
+    claw_ui_footer 'Update complete'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\xE2\x9C\x93'"1"* ]]   # ✓1
+  [[ "$output" == *$'\xE2\x9C\x97'"1"* ]]   # ✗1
+  [[ "$output" == *"Update complete"* ]]
+  [[ "$output" == *$'\xE2\x8C\x9F'* ]]      # ⌟
+}
+
+@test "claw_ui_skip: reports not installed and tallies a skip" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=50 TERM=xterm-256color bash -c "
+    source '$PROG'
+    claw_ui_header demo
+    claw_ui_skip brew
+    claw_ui_footer done
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"brew — not installed"* ]]
+  [[ "$output" == *$'\xC2\xB7'"1"* ]]       # ·1 skip in the tally
+}
+
 @test "pkg scan: discovers user-space binaries in ~/.local/bin (portable find)" {
   DF="$BATS_TEST_TMPDIR/df_userbin"
   mkdir -p "$DF/config/manifest" "$DF/scripts/utils" "$DF/stub"

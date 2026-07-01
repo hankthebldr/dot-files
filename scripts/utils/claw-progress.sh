@@ -315,6 +315,44 @@ claw_step() {  # claw_step "<label>" -- <cmd...>
   return "$rc"
 }
 
+# ── themed chrome for the update surfaces ────────────────────────────────────
+claw_ui_header() {  # claw_ui_header "<TITLE>" ["<subtitle>"]
+  _CLAW_PROG_OP="$1"
+  _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_SKIP=0; _CLAW_PROG_DONE=0
+  _CLAW_PROG_T0="$(date +%s)"
+  _CLAW_PROG_MODE="$(_claw_prog_detect_mode)"
+  claw_frame_top
+  printf '  \033[1m%s%s%s\n' "$(_c blue)" "$1" "$(_creset)"
+  [[ -n "${2:-}" ]] && printf '  %s%s%s\n' "$(_c muted)" "$2" "$(_creset)"
+}
+
+claw_ui_section() {  # claw_ui_section "<Title>"
+  printf '\n  %s%s%s\n' "$(_c purple)" "$1" "$(_creset)"
+}
+
+claw_ui_skip() {  # claw_ui_skip "<name>"
+  printf '  %s%s %s — not installed%s\n' "$(_c muted)" "$(_claw_glyph skip)" "$1" "$(_creset)"
+  _CLAW_PROG_SKIP=$(( _CLAW_PROG_SKIP + 1 ))
+}
+
+claw_ui_footer() {  # claw_ui_footer ["<message>"]
+  local dur; dur="$(_claw_dur $(( $(date +%s) - _CLAW_PROG_T0 )))"
+  printf '  %s%s%d%s %s%s%d%s %s%s%d%s %s· %s%s\n' \
+    "$(_c green)" "$(_claw_glyph ok)"   "$_CLAW_PROG_OK"   "$(_creset)" \
+    "$(_c red)"   "$(_claw_glyph fail)" "$_CLAW_PROG_FAIL" "$(_creset)" \
+    "$(_c muted)" "$(_claw_glyph skip)" "$_CLAW_PROG_SKIP" "$(_creset)" \
+    "$(_c muted)" "$dur" "$(_creset)"
+  claw_frame_bottom
+  [[ -n "${1:-}" ]] && printf '  %s%s %s%s\n' "$(_c green)" "$(_claw_glyph ok)" "$1" "$(_creset)"
+}
+
+claw_ui_pause() {
+  [[ "${INTERACTIVE:-1}" -eq 1 ]] || return 0
+  printf '  %sPress any key to continue...%s' "$(_c muted)" "$(_creset)"
+  if [[ -n "${ZSH_VERSION:-}" ]]; then read -k 1; else read -r -n 1 -s; fi
+  echo ""
+}
+
 # Rich mode: hide cursor + guarantee teardown on signals.
 _claw_prog_begin_rich() {
   [[ "$_CLAW_PROG_MODE" == rich ]] || return 0
