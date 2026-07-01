@@ -42,6 +42,19 @@ hstatus() {
         if (( fresh )); then
             local fleet; fleet=$(jq -r '.fleet // "HR-TRUST"' "$cache" 2>/dev/null)
             printf "\n  ${c_cyan}▸${c_reset} ${c_bold}%s fleet${c_reset}  ${c_dim}(cached %ss ago)${c_reset}\n\n" "$fleet" "${elapsed:-0}"
+            # Detailed grouped board (Nodes/Cluster/DNS/Apps/Infra/Route) via the
+            # shared renderer. SSH_CONNECTION is cleared: hstatus is an explicit
+            # user command, so the renderer's login-safety guard doesn't apply.
+            local _hb="${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/homelab-board.sh"
+            if [[ -x "$_hb" ]]; then
+                local sect
+                for sect in nodes cluster dns apps infra route; do
+                    SSH_CONNECTION= command bash "$_hb" "$sect"
+                done
+                echo ""
+                return 0
+            fi
+            # Fallback (renderer missing): flat per-machine service list.
             local dot
             jq -r '.machines[]? | "M\u0001\(.id)\u0001\(.state)", (.services[]? | "S\u0001\(.id)\u0001\(.state)\u0001\(.detail)")' "$cache" 2>/dev/null \
             | while IFS=$'\001' read -r kind a b c; do

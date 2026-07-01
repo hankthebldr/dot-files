@@ -214,13 +214,20 @@ setup() {
   [ -z "$output" ]
 }
 
-@test "config-homelab.jsonc: is valid json and references homelab.json cache" {
-  run python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
-    "$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-homelab.jsonc"
+@test "config-homelab.jsonc: routes rows through homelab-board.sh (no inline jq machines)" {
+  f="$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-homelab.jsonc"
+  run python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f"
   [ "$status" -eq 0 ]
-  run grep -c "homelab.json" "$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-homelab.jsonc"
+  run grep -c "homelab-board.sh" "$f"; [ "$output" -ge 1 ]
+  run grep -c '.machines\[0\].services' "$f"; [ "$output" -eq 0 ]
+}
+
+@test "config-local.jsonc: includes a homelab-board command row and is valid json" {
+  f="$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-local.jsonc"
+  run grep -c "homelab-board.sh" "$f"
+  [ "$status" -eq 0 ]; [ "$output" -ge 1 ]
+  run python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f"
   [ "$status" -eq 0 ]
-  [ "$output" -ge 1 ]
 }
 
 @test "launchd plist: is valid xml/plist" {

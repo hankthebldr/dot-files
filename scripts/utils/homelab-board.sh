@@ -7,6 +7,8 @@
 # absent/malformed.
 #
 # Usage: homelab-board.sh [all|nodes|cluster|dns|apps|infra|route]
+# CLAW_BOARD_LABEL=0 suppresses the leading section label (for callers whose
+# own chrome already names the row, e.g. fastfetch `key:` columns).
 set -u
 
 # ── safety: never leak into scp/rsync/piped shells ──────────────────────────
@@ -62,6 +64,11 @@ else FRESHTAG="${MUTED}updated $(_age_human "$AGE") ago${RST}"; fi
 # header line (printed by `all` only)
 _hdr() { printf '  %s%s%s ───────────────  %s\n' "$BLUE" "$(jq -r '.fleet // "FLEET"' "$CACHE")" "$RST" "$FRESHTAG"; }
 
+_label() {  # _label <text> — the row's leading section label (suppressible)
+  [ "${CLAW_BOARD_LABEL:-1}" = 0 ] && return 0
+  printf '  %s%-8s%s' "$LABEL" "$1" "$RST"
+}
+
 # render one service group as a single row: "<glyph> <dot> <id>" cells.
 # Fields ride a \x01 separator (same idiom as hstatus) — ids/details never
 # contain control chars, so the split is unambiguous.
@@ -70,7 +77,7 @@ _group_line() {  # $1=group label  $2=group key
   while IFS=$'\001' read -r gly st id; do
     [ -n "$id" ] || continue
     if [ "$printed" -eq 0 ]; then
-      printf '  %s%-8s%s' "$LABEL" "$label" "$RST"
+      _label "$label"
       printed=1
     fi
     printf '  %s%s %s%s%s%s' "${gly:+$gly }" "$(dot "$st")" "$RST" "$MUTED" "$id" "$RST"
@@ -87,7 +94,7 @@ _nodes_line() {
   while IFS=$'\001' read -r st id; do
     [ -n "$id" ] || continue
     if [ "$printed" -eq 0 ]; then
-      printf '  %s%-8s%s' "$LABEL" "Nodes" "$RST"
+      _label "Nodes"
       printed=1
     fi
     printf '  %s %s%s %s%s%s' "$ngly" "$(dot "$st")" "$RST" "$MUTED" "$id" "$RST"
@@ -103,13 +110,15 @@ _cluster_line() {
   rdy="$(jq -r '.cluster.ready // "?"' "$CACHE")"; tot="$(jq -r '.cluster.total // "?"' "$CACHE")"
   [ -z "$ctx" ] && return 0
   local st=up; [ "$rdy" != "$tot" ] && st=degraded
-  printf '  %s%-8s%s  %s%s %s%s%s  %s%s/%s Ready%s\n' "$LABEL" "Cluster" "$RST" \
+  _label "Cluster"
+  printf '  %s%s %s%s%s  %s%s/%s Ready%s\n' \
     "$(dot "$st")" "$RST" "$BLUE" "$ctx" "$RST" "$MUTED" "$rdy" "$tot" "$RST"
 }
 
 _route_line() {
   local p; p="$(jq -r '.route.path // ""' "$CACHE")"; [ -z "$p" ] && return 0
-  printf '  %s%-8s%s  %s%s%s\n' "$LABEL" "Route" "$RST" "$MUTED" "$p" "$RST"
+  _label "Route"
+  printf '  %s%s%s\n' "$MUTED" "$p" "$RST"
 }
 
 case "${1:-all}" in
