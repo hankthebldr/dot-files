@@ -7,6 +7,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- Streaming step runner `claw_step` + themed `claw_ui_*` chrome in
+  `claw-progress.sh` — `claw update` / `claw update --tools` now stream every
+  install step live (viewport that collapses on success, retained on failure,
+  tee'd to a logfile) instead of hiding output under `gum spin`
+- HR-TRUST homelab lab board: 4-node `fleet.yml` (ms-01/r630/bd790i/pihole) with
+  `cluster{}` + per-service `group`/`glyph`, new `dns` + Host-header `http`
+  probe kinds and a non-tailnet reachability fallback in `situation.sh`, and a
+  shared theme-aware renderer `homelab-board.sh` wired into the `local` +
+  `homelab` fastfetch dashboards and cache-first `hstatus`
 - `gemini-cli` (`@google/gemini-cli`) installed by `ai-toolchain.sh` and
   pre-registered in the `claw` agents.toml seed — `claw gemini` works
   from any profile out of the box; surfaced in ai/cortex/default help
@@ -27,6 +36,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - Dropped `<profile>-` alias prefixes across all profiles (-138 lines) (19dbf9b)
 
 ### Fixed
+- `claw-progress.sh` `_c()` now emits truecolor from `CLAW_RGB_*` (was printing
+  raw hex from `CLAW_C_*` into escape sequences)
+- `claw-dashboard.py` no longer requires Python 3.12 (f-string quote reuse)
 - Local profile stubs + bash 3.2 compatibility in `claw doctor` (fcc9602)
 - PR #1 review feedback: `BASH_SOURCE` handling under zsh + pcap timestamp (c922aeb)
 - Skills picker now follows symlinks (f701dce)
