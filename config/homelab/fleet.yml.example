@@ -1,17 +1,15 @@
 # EXAMPLE fleet inventory. Copy to config/homelab/fleet.yml (committed) or
 # $XDG_CONFIG_HOME/claw/fleet.yml (machine-local, untracked) and edit.
-# Service kinds: native | ssh | http | tcp | kube. See docs/superpowers/specs/2026-06-27-homelab-fleet-status-design.md
-fleet:
-  name: MY-LAB
-  poll_seconds: 60
+# Service kinds: native | ssh | http | tcp | kube | dns.
+# See docs/superpowers/specs/2026-06-29-homelab-lab-board-design.md
+fleet: { name: MY-LAB, poll_seconds: 60 }
+cluster: { context: my-k3s, traefik_ip: 192.168.1.10 }
 machines:
-  - id: box1
-    host: box1.tailnet.ts.net
-    user: me
-    ssh: true
-    services: [tailscale, docker]
+  - { id: cp1, host: 192.168.1.10, user: me, ssh: true,  role: control-plane, services: [k3s, app1] }
+  - { id: dns, host: 192.168.1.2,  user: me, ssh: false, role: dns, services: [pihole-dns] }
 services:
-  tailscale: { kind: native }
-  docker:    { kind: ssh, cmd: "docker ps -q | wc -l" }
+  app1:       { kind: http, group: apps,  glyph: "",    host: app1.lab.local }
+  k3s:        { kind: kube, group: infra, glyph: "󱃾",    context: my-k3s }
+  pihole-dns: { kind: dns,  group: dns,   glyph: "", server: 192.168.1.2, dns_probe: app1.lab.local }
 identity:
   github: { kind: gh }

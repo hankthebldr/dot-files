@@ -9,8 +9,34 @@ setup() {
   run yq -r '.machines[] | select(.id=="bd790i") | .services[]' \
     "$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"k3s"* ]]
+  [[ "$output" == *"docker"* ]]
   [[ "$output" == *"tailscale"* ]]
+}
+
+@test "fleet.yml: lists all four machines with roles" {
+  f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
+  run yq -r '.machines[].id' "$f"
+  [ "$status" -eq 0 ]
+  for m in ms-01 r630 bd790i pihole; do [[ "$output" == *"$m"* ]]; done
+  run yq -r '.machines[] | select(.id=="ms-01") | .role' "$f"
+  [ "$output" = "control-plane" ]
+}
+
+@test "fleet.yml: every service in the map has kind, group, glyph" {
+  f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
+  run yq -e '.services | to_entries | all(.value | (has("kind") and has("group") and has("glyph")))' "$f"
+  [ "$status" -eq 0 ]
+}
+
+@test "fleet.yml: cluster block names context k3s-ms01 and a traefik_ip" {
+  f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
+  run yq -r '.cluster.context' "$f"; [ "$output" = "k3s-ms01" ]
+  run yq -e '.cluster.traefik_ip' "$f"; [ "$status" -eq 0 ]
+}
+
+@test "fleet.yml: harbor is declared planned" {
+  f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
+  run yq -r '.services.harbor.planned' "$f"; [ "$output" = "true" ]
 }
 
 @test "fleet.yml.example: is valid yaml" {
