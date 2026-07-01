@@ -234,6 +234,87 @@ claw_prog_run() {  # claw_prog_run <phase> -- <cmd...>
   wait "$pid"; return $?
 }
 
+# ── streaming step runner: stream + collapse-on-success ─────────────────────
+_CLAW_STEP_TAIL_MAX=6
+_CLAW_STEP_LABEL=""
+_CLAW_STEP_RING=()
+_CLAW_STEP_REGION=0
+
+_claw_step_trunc() {  # _claw_step_trunc <text> → single-row, width-clamped
+  local w s
+  w=$(( $(_claw_cols) - 4 )); (( w < 8 )) && w=8
+  s="$1"; s="${s//$'\r'/}"; s="${s//$'\t'/  }"
+  if (( ${#s} > w )); then printf '%s…' "${s:0:w-1}"; else printf '%s' "$s"; fi
+}
+
+_claw_step_repaint() {  # redraw the live block (header + ring tail) in place
+  (( _CLAW_STEP_REGION > 0 )) && printf '\033[%dA\033[J' "$_CLAW_STEP_REGION"
+  printf '  %s%s%s %s…\n' "$(_c amber)" "$(_claw_glyph run)" "$(_creset)" "$_CLAW_STEP_LABEL"
+  _CLAW_STEP_REGION=1
+  local l
+  if (( ${#_CLAW_STEP_RING[@]} )); then
+    for l in "${_CLAW_STEP_RING[@]}"; do
+      printf '  %s│%s %s\n' "$(_c muted)" "$(_creset)" "$l"
+      _CLAW_STEP_REGION=$(( _CLAW_STEP_REGION + 1 ))
+    done
+  fi
+}
+
+claw_step() {  # claw_step "<label>" -- <cmd...>
+  local label="$1"; shift
+  [[ "${1:-}" == "--" ]] && shift
+  local log rcf rc line mode
+  log="$(_claw_logfile)"
+  mode="${_CLAW_PROG_MODE:-$(_claw_prog_detect_mode)}"
+  rcf="$(mktemp 2>/dev/null || printf '%s/claw_step.%s' "${TMPDIR:-/tmp}" "$$")"
+
+  if [[ "$mode" != rich ]]; then
+    # plain: stream each line with a gutter, then a verdict line
+    while IFS= read -r line; do
+      printf '  %s│%s %s\n' "$(_c muted)" "$(_creset)" "$line"
+    done < <( { "$@" </dev/null 2>&1; printf '%d' "$?" >"$rcf"; } | tee -a "$log" )
+    rc="$(cat "$rcf" 2>/dev/null || echo 1)"; rm -f "$rcf"
+    if (( rc == 0 )); then
+      printf '  %s%s%s %s\n' "$(_c green)" "$(_claw_glyph ok)" "$(_creset)" "$label"
+      _CLAW_PROG_OK=$(( _CLAW_PROG_OK + 1 ))
+    else
+      printf '  %s%s%s %s %s(exit %d)%s\n' "$(_c red)" "$(_claw_glyph fail)" "$(_creset)" "$label" "$(_c muted)" "$rc" "$(_creset)"
+      _CLAW_PROG_FAIL=$(( _CLAW_PROG_FAIL + 1 ))
+    fi
+    _CLAW_PROG_DONE=$(( _CLAW_PROG_DONE + 1 ))
+    return "$rc"
+  fi
+
+  # rich: moving ≤N-line viewport, collapse on success / retain on failure
+  _CLAW_STEP_LABEL="$label"; _CLAW_STEP_RING=(); _CLAW_STEP_REGION=0
+  printf '\033[?25l'
+  _claw_step_repaint
+  while IFS= read -r line; do
+    line="$(_claw_step_trunc "$line")"
+    _CLAW_STEP_RING+=("$line")
+    (( ${#_CLAW_STEP_RING[@]} > _CLAW_STEP_TAIL_MAX )) && _CLAW_STEP_RING=("${_CLAW_STEP_RING[@]:1}")
+    _claw_step_repaint
+  done < <( { "$@" </dev/null 2>&1; printf '%d' "$?" >"$rcf"; } | tee -a "$log" )
+  rc="$(cat "$rcf" 2>/dev/null || echo 1)"; rm -f "$rcf"
+
+  (( _CLAW_STEP_REGION > 0 )) && printf '\033[%dA\033[J' "$_CLAW_STEP_REGION"
+  if (( rc == 0 )); then
+    printf '  %s%s%s %s\n' "$(_c green)" "$(_claw_glyph ok)" "$(_creset)" "$label"
+    _CLAW_PROG_OK=$(( _CLAW_PROG_OK + 1 ))
+  else
+    printf '  %s%s%s %s %s(exit %d)%s\n' "$(_c red)" "$(_claw_glyph fail)" "$(_creset)" "$label" "$(_c muted)" "$rc" "$(_creset)"
+    if (( ${#_CLAW_STEP_RING[@]} )); then
+      for line in "${_CLAW_STEP_RING[@]}"; do
+        printf '  %s│%s %s\n' "$(_c muted)" "$(_creset)" "$line"
+      done
+    fi
+    _CLAW_PROG_FAIL=$(( _CLAW_PROG_FAIL + 1 ))
+  fi
+  printf '\033[?25h'
+  _CLAW_PROG_DONE=$(( _CLAW_PROG_DONE + 1 ))
+  return "$rc"
+}
+
 # Rich mode: hide cursor + guarantee teardown on signals.
 _claw_prog_begin_rich() {
   [[ "$_CLAW_PROG_MODE" == rich ]] || return 0

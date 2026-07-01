@@ -226,6 +226,79 @@ EOF
   [[ "$output" == *"38;5;75m"* ]]
 }
 
+@test "claw_step: streams command output to the screen (plain)" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=plain; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'run thing' -- sh -c 'echo VISIBLE_LINE'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"VISIBLE_LINE"* ]]
+  [[ "$output" == *"run thing"* ]]
+}
+
+@test "claw_step: returns the command's real exit code (plain)" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=plain; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'boom' -- false; echo \"rc=\$?\"
+  "
+  [[ "$output" == *"rc=1"* ]]
+}
+
+@test "claw_step: failure shows (exit N) and retains output" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=plain; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'boom' -- sh -c 'echo ERRDETAIL; exit 3'
+  "
+  [[ "$output" == *"ERRDETAIL"* ]]
+  [[ "$output" == *"(exit 3)"* ]]
+}
+
+@test "claw_step: stdin is /dev/null so a reader never blocks" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=plain; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'reader' -- sh -c 'read x; echo \"got=[\$x]\"'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"got=[]"* ]]
+}
+
+@test "claw_step: also tees output to a logfile" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain XDG_STATE_HOME="$BATS_TEST_TMPDIR/state" bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=plain; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'thing' -- sh -c 'echo LOGGED_LINE'
+  "
+  run grep -rl LOGGED_LINE "$BATS_TEST_TMPDIR/state/claw/logs"
+  [ "$status" -eq 0 ]
+}
+
+@test "claw_step: rich forced into a pipe returns rc and shows the verdict" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=rich TERM=xterm-256color COLUMNS=60 bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=rich; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'ok step' -- true; echo \"rc=\$?\"
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"rc=0"* ]]
+  [[ "$output" == *"ok step"* ]]
+}
+
 @test "pkg scan: discovers user-space binaries in ~/.local/bin (portable find)" {
   DF="$BATS_TEST_TMPDIR/df_userbin"
   mkdir -p "$DF/config/manifest" "$DF/scripts/utils" "$DF/stub"
