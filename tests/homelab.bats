@@ -49,7 +49,7 @@ setup() {
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
   run bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
   [ "$status" -eq 0 ]
-  run jq -e '.ts and .fleet and (.machines|type=="array") and (.machines[0].id=="bd790i")' \
+  run jq -e '.ts and .fleet and (.machines|type=="array") and (.machines[0].id=="ms-01")' \
     "$XDG_CACHE_HOME/claw/homelab.json"
   [ "$status" -eq 0 ]
   # service id is passed through verbatim from fleet.yml, which names it "k3s"
@@ -58,13 +58,39 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "situation homelab: every service has a state in {up,down,degraded}" {
+@test "situation homelab: state vocabulary includes planned" {
   command -v yq >/dev/null || skip "yq required to parse fleet.yml"
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
   bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
-  run jq -e '[.machines[].services[].state] | all(. as $s | ["up","down","degraded"]|index($s))' \
+  run jq -e '[.machines[].services[].state] | all(. as $s | ["up","down","degraded","planned"]|index($s))' \
     "$XDG_CACHE_HOME/claw/homelab.json"
   [ "$status" -eq 0 ]
+}
+
+@test "situation homelab: cache has cluster{} and machine roles" {
+  command -v yq >/dev/null || skip "yq required"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
+  bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
+  run jq -e '.cluster and (.cluster.context=="k3s-ms01")' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$status" -eq 0 ]
+  run jq -e '.machines[] | select(.id=="ms-01") | .role=="control-plane"' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$status" -eq 0 ]
+}
+
+@test "situation homelab: every service object carries group and glyph" {
+  command -v yq >/dev/null || skip "yq required"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
+  bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
+  run jq -e '[.machines[].services[]] | all(has("group") and has("glyph"))' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$status" -eq 0 ]
+}
+
+@test "situation homelab: planned service renders state 'planned' not 'down'" {
+  command -v yq >/dev/null || skip "yq required"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
+  bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
+  run jq -r '[.machines[].services[] | select(.id=="harbor") | .state][0]' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$output" = "planned" ] || [ "$output" = "up" ]   # planned until deployed; up once live
 }
 
 @test "dashboard homelab_lines: renders host + service dots from cache" {
