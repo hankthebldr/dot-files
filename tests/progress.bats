@@ -353,6 +353,23 @@ EOF
   [[ "$output" == *"rc=4"* ]]
 }
 
+@test "system-update: sources the streaming engine, not tui-style" {
+  SU="$BATS_TEST_DIRNAME/../scripts/utils/system-update.sh"
+  run grep -c 'claw-progress.sh' "$SU"; [ "$output" -ge 1 ]
+  run grep -c 'tui-style.sh'    "$SU"; [ "$output" -eq 0 ]
+}
+
+@test "system-update: no legacy tui_ calls remain" {
+  SU="$BATS_TEST_DIRNAME/../scripts/utils/system-update.sh"
+  run grep -cE 'tui_(run_step|header|section|footer|skip|pause)' "$SU"
+  [ "$output" -eq 0 ]
+}
+
+@test "system-update: parses cleanly" {
+  SU="$BATS_TEST_DIRNAME/../scripts/utils/system-update.sh"
+  run bash -n "$SU"; [ "$status" -eq 0 ]
+}
+
 @test "pkg scan: discovers user-space binaries in ~/.local/bin (portable find)" {
   DF="$BATS_TEST_TMPDIR/df_userbin"
   mkdir -p "$DF/config/manifest" "$DF/scripts/utils" "$DF/stub"
