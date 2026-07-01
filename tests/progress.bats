@@ -339,6 +339,20 @@ EOF
   [[ "$output" == *$'\xC2\xB7'"1"* ]]       # ·1 skip in the tally
 }
 
+@test "tui_run_step: now streams tool output to the screen (no blackout)" {
+  TUI="$BATS_TEST_DIRNAME/../scripts/utils/tui-style.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "source '$TUI'; tui_run_step 'label' 'echo STREAMED_OUT'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"STREAMED_OUT"* ]]
+  [[ "$output" == *"label"* ]]
+}
+
+@test "tui_run_step: returns the command exit code" {
+  TUI="$BATS_TEST_DIRNAME/../scripts/utils/tui-style.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "source '$TUI'; tui_run_step 'x' 'exit 4'; echo \"rc=\$?\""
+  [[ "$output" == *"rc=4"* ]]
+}
+
 @test "pkg scan: discovers user-space binaries in ~/.local/bin (portable find)" {
   DF="$BATS_TEST_TMPDIR/df_userbin"
   mkdir -p "$DF/config/manifest" "$DF/scripts/utils" "$DF/stub"
