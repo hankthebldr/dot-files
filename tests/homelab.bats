@@ -166,6 +166,54 @@ setup() {
   [[ "$output" == *"3/3 Ready"* ]]   # service detail — proves the field-split worked
 }
 
+@test "board: up fixture renders node ids and an up service" {
+  BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.up.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run env NO_COLOR=1 bash "$BOARD" all
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ms-01"* ]]
+  [[ "$output" == *"gitea"* ]]
+  [[ "$output" == *"pi-hole"* ]] || [[ "$output" == *"pihole"* ]]
+  [[ "$output" == *"3/3 Ready"* ]]
+}
+
+@test "board: planned service shows a hollow marker, not down" {
+  BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.up.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run env NO_COLOR=1 bash "$BOARD" apps
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"harbor"* ]]
+  [[ "$output" == *"○"* ]]      # planned uses the hollow dot
+}
+
+@test "board: absent cache prints nothing" {
+  BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/none"
+  run env NO_COLOR=1 bash "$BOARD" all
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "board: stale cache prints a stale age suffix" {
+  BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.stale.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run env NO_COLOR=1 bash "$BOARD" all
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stale"* ]]
+}
+
+@test "board: piped/non-interactive emits nothing under SSH_CONNECTION" {
+  BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.up.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run env SSH_CONNECTION="1 2 3 4" bash "$BOARD" all
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 @test "config-homelab.jsonc: is valid json and references homelab.json cache" {
   run python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
     "$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-homelab.jsonc"
