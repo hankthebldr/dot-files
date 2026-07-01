@@ -265,6 +265,35 @@ Deploys a zero-dependency shell + vim config to any remote via SSH heredoc. Work
 
 ---
 
+## Homelab Fleet (HR-TRUST)
+
+The `local` and `homelab` profiles render a live board of the HR-TRUST homelab.
+A background poller writes one cache; every render reads it with **zero network**,
+so login stays instant and SSH-safe.
+
+```
+fleet.yml ──► situation.sh probe_homelab() ──► ~/.cache/claw/homelab.json ──► homelab-board.sh
+ (inventory)      (60s timer, atomic write)          (single contract)        (local + homelab + hstatus)
+```
+
+- **Inventory** — `config/homelab/fleet.yml`: 4 machines (`ms-01` cp · `r630` ·
+  `bd790i` · `pihole`), a `cluster` block (`k3s-ms01` + Traefik probe IP), and a
+  `services` map where each entry declares `kind`, `group` (apps/infra/dns), and a
+  brand `glyph`. Adding a box or service is a data edit — no code change. A
+  machine-local `$XDG_CONFIG_HOME/claw/fleet.yml` overrides it.
+- **Services** — gitea, n8n, portainer, enclave, grafana (`*.lab.local` via
+  Traefik), harbor (planned), k3s, docker, ollama, tailscale, and Pi-hole DNS.
+  HTTP apps are probed by `Host:` header against the Traefik IP, so status works
+  on-LAN and over a routed tailnet without depending on `*.lab.local` resolution.
+- **Status vocabulary** — `●` green up · `●` amber degraded · `●` red down ·
+  `○` muted planned. Stale cache (>5 min) dims with a `stale Xm ago` suffix;
+  absent cache renders nothing.
+- **Commands** — `claw situation homelab` refreshes the cache;
+  `scripts/utils/homelab-board.sh all` prints the board; `hstatus` (homelab
+  profile) shows it cache-first.
+
+---
+
 ## Neovim IDE
 
 Full lazy.nvim setup with 20+ plugins:
