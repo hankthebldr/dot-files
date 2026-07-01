@@ -89,8 +89,8 @@ time_until_due() {
 }
 
 # Run the brew tool list (or just `brew upgrade <list>`). stderr is NOT
-# suppressed so tui_run_step's `gum spin --show-error` can surface a real
-# failure; the exit code propagates so the step renders ●/✗ correctly.
+# suppressed so claw_step can stream a real failure live; the exit code
+# propagates so the step renders ✓/✗ correctly.
 run_brew()  { brew upgrade $*; }
 run_pipx()  { for t in $*; do pipx upgrade "$t"; done; }
 run_go()    { for t in $*; do go install "$t"; done; }
@@ -141,7 +141,8 @@ fi
 # ============================================
 # INTERACTIVE MODE
 # ============================================
-source "$(dirname "${BASH_SOURCE[0]}")/tui-style.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/theme.sh" 2>/dev/null || true
+source "$(dirname "${BASH_SOURCE[0]}")/claw-progress.sh"
 
 clear
 
@@ -152,9 +153,9 @@ for entry in "${CATEGORIES[@]}"; do
 done
 
 if (( FORCE )); then
-    tui_header "🛠️  CLI TOOL UPDATE  (--force)" "Refreshing all $total_tools curated tools regardless of cache"
+    claw_ui_header "🛠️  CLI TOOL UPDATE  (--force)" "Refreshing all $total_tools curated tools regardless of cache"
 else
-    tui_header "🛠️  CLI TOOL UPDATE" "Curated refresh across $total_tools tools (per-category interval)"
+    claw_ui_header "🛠️  CLI TOOL UPDATE" "Curated refresh across $total_tools tools (per-category interval)"
 fi
 
 # Counters for the summary card
@@ -174,11 +175,11 @@ for entry in "${CATEGORIES[@]}"; do
         cargo) pretty="Cargo (Rust)" ;;
         *)     pretty="$name" ;;
     esac
-    tui_section "$pretty"
+    claw_ui_section "$pretty"
 
     # Is the manager itself installed?
     if ! command -v "$name" &>/dev/null; then
-        tui_skip "$name"
+        claw_ui_skip "$name"
         for _ in $tools; do ((SUMMARY_UNAVAILABLE++)); done
         continue
     fi
@@ -189,7 +190,7 @@ for entry in "${CATEGORIES[@]}"; do
             # Pretty short label for the spinner
             label="${tool##*/}"
             label="${label%%@*}"
-            if tui_run_step "Upgrading ${label}…" "run_$name $tool"; then
+            if claw_step "Upgrading ${label}…" -- "run_$name" "$tool"; then
                 SUMMARY_UPDATED=$((SUMMARY_UPDATED + 1))
             else
                 SUMMARY_FAILED=$((SUMMARY_FAILED + 1))
@@ -198,8 +199,8 @@ for entry in "${CATEGORIES[@]}"; do
         mark_updated "$name"
     else
         local_due=$(time_until_due "$name" "$interval")
-        printf "  ${c_dim}○ %s — next update in %s${c_reset}\n" "$name" "$local_due"
-        printf "    ${c_dim}deferred: %s${c_reset}\n" "$tools"
+        printf "  %s○ %s — next update in %s%s\n" "$(_c muted)" "$name" "$local_due" "$(_creset)"
+        printf "    %sdeferred: %s%s\n" "$(_c muted)" "$tools" "$(_creset)"
         for _ in $tools; do ((SUMMARY_DEFERRED++)); done
     fi
 done
@@ -208,21 +209,21 @@ done
 # SUMMARY CARD
 # ============================================
 echo ""
-echo "  ${c_purple}╭──────────────────────────────────────────────────────╮${c_reset}"
-printf "  ${c_purple}│${c_reset}  ${c_green}${c_bold}%d${c_reset} ${c_dim}updated${c_reset}   ${c_orange}${c_bold}%d${c_reset} ${c_dim}deferred${c_reset}   ${c_red}${c_bold}%d${c_reset} ${c_dim}unavailable${c_reset}" \
+echo "  $(_c purple)╭──────────────────────────────────────────────────────╮$(_creset)"
+printf "  $(_c purple)│$(_creset)  $(_c green)\033[1m%d$(_creset) $(_c muted)updated$(_creset)   $(_c amber)\033[1m%d$(_creset) $(_c muted)deferred$(_creset)   $(_c red)\033[1m%d$(_creset) $(_c muted)unavailable$(_creset)" \
     "$SUMMARY_UPDATED" "$SUMMARY_DEFERRED" "$SUMMARY_UNAVAILABLE"
 # right-pad
 total_chars=$(( 9 + ${#SUMMARY_UPDATED} + 10 + ${#SUMMARY_DEFERRED} + 13 + ${#SUMMARY_UNAVAILABLE} ))
 pad=$(( 50 - total_chars ))
 (( pad < 0 )) && pad=0
-printf "%${pad}s${c_purple}│${c_reset}\n" ""
-echo "  ${c_purple}╰──────────────────────────────────────────────────────╯${c_reset}"
+printf "%${pad}s$(_c purple)│$(_creset)\n" ""
+echo "  $(_c purple)╰──────────────────────────────────────────────────────╯$(_creset)"
 echo ""
 
 if (( SUMMARY_FAILED > 0 )); then
-    printf "  ${c_red}✗ %d failed${c_reset} ${c_dim}— error output shown above each ✗ step${c_reset}\n\n" "$SUMMARY_FAILED"
+    printf "  %s✗ %d failed%s %s— error output shown above each ✗ step%s\n\n" "$(_c red)" "$SUMMARY_FAILED" "$(_creset)" "$(_c muted)" "$(_creset)"
 fi
 
 if (( SUMMARY_DEFERRED > 0 )) && [[ $FORCE -eq 0 ]]; then
-    printf "  ${c_dim}Force a full refresh: ${c_white}claw tools --force${c_reset}\n\n"
+    printf "  %sForce a full refresh: %sclaw tools --force%s\n\n" "$(_c muted)" "$(_c blue)" "$(_creset)"
 fi

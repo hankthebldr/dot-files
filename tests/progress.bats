@@ -370,6 +370,23 @@ EOF
   run bash -n "$SU"; [ "$status" -eq 0 ]
 }
 
+@test "tool-updater: sources the streaming engine, not tui-style" {
+  TU="$BATS_TEST_DIRNAME/../scripts/utils/tool-updater.sh"
+  run grep -c 'claw-progress.sh' "$TU"; [ "$output" -ge 1 ]
+  run grep -c 'tui-style.sh'    "$TU"; [ "$output" -eq 0 ]
+}
+
+@test "tool-updater: no legacy tui_ calls remain" {
+  TU="$BATS_TEST_DIRNAME/../scripts/utils/tool-updater.sh"
+  run grep -cE 'tui_(run_step|header|section|footer|skip|pause)' "$TU"
+  [ "$output" -eq 0 ]
+}
+
+@test "tool-updater: parses cleanly" {
+  TU="$BATS_TEST_DIRNAME/../scripts/utils/tool-updater.sh"
+  run bash -n "$TU"; [ "$status" -eq 0 ]
+}
+
 @test "pkg scan: discovers user-space binaries in ~/.local/bin (portable find)" {
   DF="$BATS_TEST_TMPDIR/df_userbin"
   mkdir -p "$DF/config/manifest" "$DF/scripts/utils" "$DF/stub"
