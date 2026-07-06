@@ -38,6 +38,12 @@ HAS_GUM=false
 tui_has_gum() { $HAS_GUM; }
 command -v gum &>/dev/null && HAS_GUM=true
 
+# Streaming step runner lives in claw-progress.sh (single render path). Sourcing
+# it here routes tui_run_step through claw_step, so every tui-style consumer
+# streams process output instead of hiding it. Guarded: absence is non-fatal.
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/claw-progress.sh" 2>/dev/null || true
+
 # ============================================
 # HEADERS / FOOTERS / SECTIONS
 # ============================================
@@ -81,30 +87,18 @@ tui_footer() {
 # ============================================
 
 # tui_run_step "title" "command…"
-# Renders a spinner if gum is available, otherwise styled inline echo+run.
+# Delegates to claw_step (streaming). The command stays a single eval string for
+# backward-compat with existing callers; we run it via `bash -c` (matching the
+# old gum path's `bash -c "$*"` semantics). No more gum spin, no more blackout.
 tui_run_step() {
-    local title="$1"
-    shift
-    local rc
-    if $HAS_GUM; then
-        # --show-error surfaces the command's own stderr ONLY on failure (no more
-        # 2>/dev/null swallowing real errors); capture the exit code so we render a
-        # ● success / ✗ failure verdict instead of vanishing the spinner silently.
-        gum spin --show-error --spinner dot --spinner.foreground="#58a6ff" \
-            --title "  $title" -- bash -c "$*"
-        rc=$?
-    else
-        printf "  ${c_cyan}◌${c_reset} ${c_white}%s${c_reset}" "$title"
-        # stdout suppressed (keeps the line clean) but stderr flows through, so a
-        # failed step leaves its error context on screen above the ✗ line.
-        if eval "$*" >/dev/null; then rc=0; else rc=$?; fi
+    local title="$1"; shift
+    if command -v claw_step &>/dev/null; then
+        claw_step "$title" -- bash -c "$*"
+        return $?
     fi
-    if (( rc == 0 )); then
-        printf "\r  ${c_green}●${c_reset} ${c_white}%s${c_reset}\033[K\n" "$title"
-    else
-        printf "\r  ${c_red}✗${c_reset} ${c_white}%s${c_reset} ${c_dim}(exit %d)${c_reset}\033[K\n" "$title" "$rc"
-    fi
-    return "$rc"
+    # Fallback if claw-progress.sh was unavailable at source time: run visibly.
+    printf "  ${c_cyan}◌${c_reset} ${c_white}%s${c_reset}\n" "$title"
+    bash -c "$*" </dev/null
 }
 
 # tui_skip "name"

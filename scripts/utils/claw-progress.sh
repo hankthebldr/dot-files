@@ -8,11 +8,14 @@ _CLAW_PROG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$_CLAW_PROG_DIR/claw-output.sh" 2>/dev/null || true
 
-# ── theme colors (consume exported CLAW_C_*; refined-dark fallbacks) ─────────
-_c() {  # _c <key> → ANSI color (env CLAW_C_<key> or fallback)
-  local v; eval "v=\"\${CLAW_C_$1:-}\""
-  if [[ -n "$v" ]]; then printf '%s' "$v"; return; fi
-  case "$1" in
+# ── theme colors (consume exported CLAW_RGB_*; refined-dark fallbacks) ───────
+_c() {  # _c <key> → ANSI truecolor from CLAW_RGB_<KEY>, else 256-color fallback
+  local key up rgb
+  key="$1"
+  up="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
+  eval "rgb=\"\${CLAW_RGB_${up}:-}\""
+  if [[ -n "$rgb" ]]; then printf '\033[38;2;%sm' "$rgb"; return; fi
+  case "$key" in
     blue)  printf '\033[38;5;75m'  ;; green) printf '\033[38;5;78m'  ;;
     red)   printf '\033[38;5;203m' ;; amber) printf '\033[38;5;215m' ;;
     muted) printf '\033[38;5;245m' ;; purple)printf '\033[38;5;141m' ;;
@@ -229,6 +232,125 @@ claw_prog_run() {  # claw_prog_run <phase> -- <cmd...>
     _CLAW_SPIN_I=$(( _CLAW_SPIN_I + 1 )); _claw_prog_repaint; sleep 1
   done
   wait "$pid"; return $?
+}
+
+# ── streaming step runner: stream + collapse-on-success ─────────────────────
+_CLAW_STEP_TAIL_MAX=6
+_CLAW_STEP_LABEL=""
+_CLAW_STEP_RING=()
+_CLAW_STEP_REGION=0
+
+_claw_step_trunc() {  # _claw_step_trunc <text> → single-row, width-clamped
+  local w s
+  w=$(( $(_claw_cols) - 4 )); (( w < 8 )) && w=8
+  s="$1"; s="${s//$'\r'/}"; s="${s//$'\t'/  }"
+  if (( ${#s} > w )); then printf '%s…' "${s:0:w-1}"; else printf '%s' "$s"; fi
+}
+
+_claw_step_repaint() {  # redraw the live block (header + ring tail) in place
+  (( _CLAW_STEP_REGION > 0 )) && printf '\033[%dA\033[J' "$_CLAW_STEP_REGION"
+  printf '  %s%s%s %s…\n' "$(_c amber)" "$(_claw_glyph run)" "$(_creset)" "$_CLAW_STEP_LABEL"
+  _CLAW_STEP_REGION=1
+  local l
+  if (( ${#_CLAW_STEP_RING[@]} )); then
+    for l in "${_CLAW_STEP_RING[@]}"; do
+      printf '  %s│%s %s\n' "$(_c muted)" "$(_creset)" "$l"
+      _CLAW_STEP_REGION=$(( _CLAW_STEP_REGION + 1 ))
+    done
+  fi
+}
+
+claw_step() {  # claw_step "<label>" -- <cmd...>
+  local label="$1"; shift
+  [[ "${1:-}" == "--" ]] && shift
+  local log rcf rc line mode
+  log="$(_claw_logfile)"
+  mode="${_CLAW_PROG_MODE:-$(_claw_prog_detect_mode)}"
+  rcf="$(mktemp 2>/dev/null || printf '%s/claw_step.%s' "${TMPDIR:-/tmp}" "$$")"
+
+  if [[ "$mode" != rich ]]; then
+    # plain: stream each line with a gutter, then a verdict line
+    while IFS= read -r line; do
+      printf '  %s│%s %s\n' "$(_c muted)" "$(_creset)" "$line"
+    done < <( { "$@" </dev/null 2>&1; printf '%d' "$?" >"$rcf"; } | tee -a "$log" )
+    rc="$(cat "$rcf" 2>/dev/null || echo 1)"; rm -f "$rcf"
+    if (( rc == 0 )); then
+      printf '  %s%s%s %s\n' "$(_c green)" "$(_claw_glyph ok)" "$(_creset)" "$label"
+      _CLAW_PROG_OK=$(( _CLAW_PROG_OK + 1 ))
+    else
+      printf '  %s%s%s %s %s(exit %d)%s\n' "$(_c red)" "$(_claw_glyph fail)" "$(_creset)" "$label" "$(_c muted)" "$rc" "$(_creset)"
+      _CLAW_PROG_FAIL=$(( _CLAW_PROG_FAIL + 1 ))
+    fi
+    _CLAW_PROG_DONE=$(( _CLAW_PROG_DONE + 1 ))
+    return "$rc"
+  fi
+
+  # rich: moving ≤N-line viewport, collapse on success / retain on failure
+  _CLAW_STEP_LABEL="$label"; _CLAW_STEP_RING=(); _CLAW_STEP_REGION=0
+  printf '\033[?25l'
+  _claw_step_repaint
+  while IFS= read -r line; do
+    line="$(_claw_step_trunc "$line")"
+    _CLAW_STEP_RING+=("$line")
+    (( ${#_CLAW_STEP_RING[@]} > _CLAW_STEP_TAIL_MAX )) && _CLAW_STEP_RING=("${_CLAW_STEP_RING[@]:1}")
+    _claw_step_repaint
+  done < <( { "$@" </dev/null 2>&1; printf '%d' "$?" >"$rcf"; } | tee -a "$log" )
+  rc="$(cat "$rcf" 2>/dev/null || echo 1)"; rm -f "$rcf"
+
+  (( _CLAW_STEP_REGION > 0 )) && printf '\033[%dA\033[J' "$_CLAW_STEP_REGION"
+  if (( rc == 0 )); then
+    printf '  %s%s%s %s\n' "$(_c green)" "$(_claw_glyph ok)" "$(_creset)" "$label"
+    _CLAW_PROG_OK=$(( _CLAW_PROG_OK + 1 ))
+  else
+    printf '  %s%s%s %s %s(exit %d)%s\n' "$(_c red)" "$(_claw_glyph fail)" "$(_creset)" "$label" "$(_c muted)" "$rc" "$(_creset)"
+    if (( ${#_CLAW_STEP_RING[@]} )); then
+      for line in "${_CLAW_STEP_RING[@]}"; do
+        printf '  %s│%s %s\n' "$(_c muted)" "$(_creset)" "$line"
+      done
+    fi
+    _CLAW_PROG_FAIL=$(( _CLAW_PROG_FAIL + 1 ))
+  fi
+  printf '\033[?25h'
+  _CLAW_PROG_DONE=$(( _CLAW_PROG_DONE + 1 ))
+  return "$rc"
+}
+
+# ── themed chrome for the update surfaces ────────────────────────────────────
+claw_ui_header() {  # claw_ui_header "<TITLE>" ["<subtitle>"]
+  _CLAW_PROG_OP="$1"
+  _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_SKIP=0; _CLAW_PROG_DONE=0
+  _CLAW_PROG_T0="$(date +%s)"
+  _CLAW_PROG_MODE="$(_claw_prog_detect_mode)"
+  claw_frame_top
+  printf '  \033[1m%s%s%s\n' "$(_c blue)" "$1" "$(_creset)"
+  [[ -n "${2:-}" ]] && printf '  %s%s%s\n' "$(_c muted)" "$2" "$(_creset)"
+}
+
+claw_ui_section() {  # claw_ui_section "<Title>"
+  printf '\n  %s%s%s\n' "$(_c purple)" "$1" "$(_creset)"
+}
+
+claw_ui_skip() {  # claw_ui_skip "<name>"
+  printf '  %s%s %s — not installed%s\n' "$(_c muted)" "$(_claw_glyph skip)" "$1" "$(_creset)"
+  _CLAW_PROG_SKIP=$(( _CLAW_PROG_SKIP + 1 ))
+}
+
+claw_ui_footer() {  # claw_ui_footer ["<message>"]
+  local dur; dur="$(_claw_dur $(( $(date +%s) - _CLAW_PROG_T0 )))"
+  printf '  %s%s%d%s %s%s%d%s %s%s%d%s %s· %s%s\n' \
+    "$(_c green)" "$(_claw_glyph ok)"   "$_CLAW_PROG_OK"   "$(_creset)" \
+    "$(_c red)"   "$(_claw_glyph fail)" "$_CLAW_PROG_FAIL" "$(_creset)" \
+    "$(_c muted)" "$(_claw_glyph skip)" "$_CLAW_PROG_SKIP" "$(_creset)" \
+    "$(_c muted)" "$dur" "$(_creset)"
+  claw_frame_bottom
+  [[ -n "${1:-}" ]] && printf '  %s%s %s%s\n' "$(_c green)" "$(_claw_glyph ok)" "$1" "$(_creset)"
+}
+
+claw_ui_pause() {
+  [[ "${INTERACTIVE:-1}" -eq 1 ]] || return 0
+  printf '  %sPress any key to continue...%s' "$(_c muted)" "$(_creset)"
+  if [[ -n "${ZSH_VERSION:-}" ]]; then read -k 1; else read -r -n 1 -s; fi
+  echo ""
 }
 
 # Rich mode: hide cursor + guarantee teardown on signals.

@@ -9,8 +9,38 @@ setup() {
   run yq -r '.machines[] | select(.id=="bd790i") | .services[]' \
     "$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"k3s"* ]]
+  [[ "$output" == *"docker"* ]]
   [[ "$output" == *"tailscale"* ]]
+}
+
+@test "fleet.yml: lists all four machines with roles" {
+  f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
+  run yq -r '.machines[].id' "$f"
+  [ "$status" -eq 0 ]
+  for m in ms-01 r630 bd790i pihole; do [[ "$output" == *"$m"* ]]; done
+  run yq -r '.machines[] | select(.id=="ms-01") | .role' "$f"
+  [ "$output" = "control-plane" ]
+}
+
+@test "fleet.yml: every service in the map has kind, group, glyph" {
+  # Portable across yq dialects (mikefarah v4 on CI, jq-syntax python-yq
+  # elsewhere): jq's all(f) doesn't exist in yq v4, so count instead.
+  f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
+  run yq -r '.services | length' "$f"
+  [ "$status" -eq 0 ]; total="$output"; [ "$total" -ge 1 ]
+  run yq -r '[.services[] | select(has("kind") and has("group") and has("glyph"))] | length' "$f"
+  [ "$status" -eq 0 ]; [ "$output" = "$total" ]
+}
+
+@test "fleet.yml: cluster block names context k3s-ms01 and a traefik_ip" {
+  f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
+  run yq -r '.cluster.context' "$f"; [ "$output" = "k3s-ms01" ]
+  run yq -e '.cluster.traefik_ip' "$f"; [ "$status" -eq 0 ]
+}
+
+@test "fleet.yml: harbor is declared planned" {
+  f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
+  run yq -r '.services.harbor.planned' "$f"; [ "$output" = "true" ]
 }
 
 @test "fleet.yml.example: is valid yaml" {
@@ -23,7 +53,7 @@ setup() {
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
   run bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
   [ "$status" -eq 0 ]
-  run jq -e '.ts and .fleet and (.machines|type=="array") and (.machines[0].id=="bd790i")' \
+  run jq -e '.ts and .fleet and (.machines|type=="array") and (.machines[0].id=="ms-01")' \
     "$XDG_CACHE_HOME/claw/homelab.json"
   [ "$status" -eq 0 ]
   # service id is passed through verbatim from fleet.yml, which names it "k3s"
@@ -32,13 +62,39 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "situation homelab: every service has a state in {up,down,degraded}" {
+@test "situation homelab: state vocabulary includes planned" {
   command -v yq >/dev/null || skip "yq required to parse fleet.yml"
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
   bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
-  run jq -e '[.machines[].services[].state] | all(. as $s | ["up","down","degraded"]|index($s))' \
+  run jq -e '[.machines[].services[].state] | all(. as $s | ["up","down","degraded","planned"]|index($s))' \
     "$XDG_CACHE_HOME/claw/homelab.json"
   [ "$status" -eq 0 ]
+}
+
+@test "situation homelab: cache has cluster{} and machine roles" {
+  command -v yq >/dev/null || skip "yq required"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
+  bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
+  run jq -e '.cluster and (.cluster.context=="k3s-ms01")' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$status" -eq 0 ]
+  run jq -e '.machines[] | select(.id=="ms-01") | .role=="control-plane"' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$status" -eq 0 ]
+}
+
+@test "situation homelab: every service object carries group and glyph" {
+  command -v yq >/dev/null || skip "yq required"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
+  bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
+  run jq -e '[.machines[].services[]] | all(has("group") and has("glyph"))' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$status" -eq 0 ]
+}
+
+@test "situation homelab: planned service renders state 'planned' not 'down'" {
+  command -v yq >/dev/null || skip "yq required"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
+  bash "$BATS_TEST_DIRNAME/../scripts/utils/situation.sh" homelab
+  run jq -r '[.machines[].services[] | select(.id=="harbor") | .state][0]' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$output" = "planned" ] || [ "$output" = "up" ]   # planned until deployed; up once live
 }
 
 @test "dashboard homelab_lines: renders host + service dots from cache" {
@@ -111,16 +167,71 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"cached"* ]]      # header text only in the cache-first path
   [[ "$output" != *"live"* ]]        # "live" only in the live-fallback header
-  [[ "$output" == *"1/1 Ready"* ]]   # service detail — proves the field-split worked
+  [[ "$output" == *"3/3 Ready"* ]]   # service detail — proves the field-split worked
 }
 
-@test "config-homelab.jsonc: is valid json and references homelab.json cache" {
-  run python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
-    "$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-homelab.jsonc"
+@test "board: up fixture renders node ids and an up service" {
+  BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.up.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run env NO_COLOR=1 bash "$BOARD" all
   [ "$status" -eq 0 ]
-  run grep -c "homelab.json" "$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-homelab.jsonc"
+  [[ "$output" == *"ms-01"* ]]
+  [[ "$output" == *"gitea"* ]]
+  [[ "$output" == *"pi-hole"* ]] || [[ "$output" == *"pihole"* ]]
+  [[ "$output" == *"3/3 Ready"* ]]
+}
+
+@test "board: planned service shows a hollow marker, not down" {
+  BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.up.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run env NO_COLOR=1 bash "$BOARD" apps
   [ "$status" -eq 0 ]
-  [ "$output" -ge 1 ]
+  [[ "$output" == *"harbor"* ]]
+  [[ "$output" == *"○"* ]]      # planned uses the hollow dot
+}
+
+@test "board: absent cache prints nothing" {
+  BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/none"
+  run env NO_COLOR=1 bash "$BOARD" all
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "board: stale cache prints a stale age suffix" {
+  BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.stale.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run env NO_COLOR=1 bash "$BOARD" all
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stale"* ]]
+}
+
+@test "board: piped/non-interactive emits nothing under SSH_CONNECTION" {
+  BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/homelab.up.json" "$XDG_CACHE_HOME/claw/homelab.json"
+  run env SSH_CONNECTION="1 2 3 4" bash "$BOARD" all
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "config-homelab.jsonc: routes rows through homelab-board.sh (no inline jq machines)" {
+  f="$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-homelab.jsonc"
+  run python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f"
+  [ "$status" -eq 0 ]
+  run grep -c "homelab-board.sh" "$f"; [ "$output" -ge 1 ]
+  run grep -c '.machines\[0\].services' "$f"; [ "$output" -eq 0 ]
+}
+
+@test "config-local.jsonc: includes a homelab-board command row and is valid json" {
+  f="$BATS_TEST_DIRNAME/../config/.config/fastfetch/config-local.jsonc"
+  run grep -c "homelab-board.sh" "$f"
+  [ "$status" -eq 0 ]; [ "$output" -ge 1 ]
+  run python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f"
+  [ "$status" -eq 0 ]
 }
 
 @test "launchd plist: is valid xml/plist" {

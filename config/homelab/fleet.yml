@@ -1,25 +1,41 @@
 # HR-TRUST homelab fleet inventory — read by scripts/utils/situation.sh probe_homelab().
 # Machine-local override: $XDG_CONFIG_HOME/claw/fleet.yml (untracked) wins if present.
 # Adding a box or service is data here — no code change.
+# Service kinds: native | ssh | http | tcp | kube | dns.
 fleet:
   name: HR-TRUST
-  # poll_seconds is advisory; actual cadence is the situation timer (60s).
   poll_seconds: 60
 
+# k8s cluster context + the Traefik entrypoint used for Host-header service probes
+# (DNS-independent — works on-LAN or over a routed tailnet).
+cluster:
+  context: k3s-ms01
+  traefik_ip: 192.168.1.109
+
 machines:
-  - id: bd790i
-    host: bd790i            # tailscale MagicDNS name or IP; env BD790I_HOST overrides
-    user: henry
-    ssh: true               # allow deep checks (docker/kubectl/ollama over ssh)
-    services: [tailscale, k3s, docker, gitea, portainer, ollama]
+  - { id: ms-01,  host: 192.168.1.109, user: henry, ssh: true,  role: control-plane,
+      services: [k3s, gitea, n8n, portainer, enclave, grafana, harbor] }
+  - { id: r630,   host: 192.168.1.102, user: henry, ssh: true,  role: worker, services: [] }
+  - { id: bd790i, host: 192.168.1.104, user: henry, ssh: true,  role: worker,
+      services: [docker, ollama, tailscale] }
+  - { id: pihole, host: 192.168.1.101, user: henry, ssh: false, role: dns,
+      services: [pihole-dns] }
 
 services:
-  tailscale: { kind: native }                                   # BackendState on this box / via ssh
-  k3s:       { kind: kube,  context: k3s-bd790i }               # node Ready count
-  docker:    { kind: ssh,   cmd: "docker ps -q | wc -l" }       # container count
-  gitea:     { kind: http,  url: "http://bd790i:3000", health: "/api/healthz" }
-  portainer: { kind: tcp,   host: "bd790i", port: 9443 }
-  ollama:    { kind: http,  url: "http://bd790i:11434", health: "/api/tags" }
+  # apps — probed via Traefik Host header against cluster.traefik_ip
+  gitea:      { kind: http, group: apps,  glyph: "",       host: git.lab.local }
+  n8n:        { kind: http, group: apps,  glyph: "",       host: n8n.lab.local }
+  portainer:  { kind: http, group: apps,  glyph: "", host: portainer.lab.local }
+  enclave:    { kind: http, group: apps,  glyph: "",   host: enclave.lab.local }
+  grafana:    { kind: http, group: apps,  glyph: "",   host: grafana.lab.local }
+  harbor:     { kind: http, group: apps,  glyph: "",    host: harbor.lab.local, planned: true }
+  # infra
+  k3s:        { kind: kube,   group: infra, glyph: "󱃾",     context: k3s-ms01 }
+  docker:     { kind: ssh,    group: infra, glyph: "",  cmd: "docker ps -q | wc -l" }
+  ollama:     { kind: http,   group: infra, glyph: "",  host: bd790i, port: 11434, health: /api/tags }
+  tailscale:  { kind: native, group: infra, glyph: "" }
+  # dns
+  pihole-dns: { kind: dns,    group: dns,   glyph: "",  server: 192.168.1.101, dns_probe: git.lab.local }
 
 identity:
-  github: { kind: gh }       # gh auth status → login name (access-level context row)
+  github: { kind: gh }

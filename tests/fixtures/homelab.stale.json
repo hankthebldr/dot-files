@@ -1,5 +1,91 @@
-{ "ts": "2020-01-01T00:00:00Z", "fleet": "HR-TRUST",
-  "route": { "via": "direct", "path": "→ bd790i", "exit_node": null },
-  "identity": { "github": { "user": "hankthebldr", "state": "up" } },
-  "machines": [ { "id": "bd790i", "state": "up", "addr": "100.64.0.5", "latency_ms": 12,
-    "services": [ {"id":"k3s","state":"up","detail":"1/1 Ready"}, {"id":"ollama","state":"up","detail":"3 models"} ] } ] }
+{
+ "ts": "2000-01-01T00:00:00Z",
+ "fleet": "HR-TRUST",
+ "cluster": {
+  "context": "k3s-ms01",
+  "ready": 3,
+  "total": 3
+ },
+ "route": {
+  "via": "direct",
+  "path": "→ bd790i",
+  "exit_node": null
+ },
+ "identity": {
+  "github": {
+   "user": "hankthebldr",
+   "state": "up"
+  }
+ },
+ "machines": [
+  {
+   "id": "ms-01",
+   "state": "up",
+   "addr": "192.168.1.109",
+   "latency_ms": null,
+   "role": "control-plane",
+   "services": [
+    {
+     "id": "k3s",
+     "state": "up",
+     "detail": "k3s-ms01 · 3/3 Ready",
+     "group": "infra",
+     "glyph": "󱃾"
+    },
+    {
+     "id": "gitea",
+     "state": "up",
+     "detail": "http 200",
+     "group": "apps",
+     "glyph": ""
+    },
+    {
+     "id": "harbor",
+     "state": "planned",
+     "detail": "not deployed",
+     "group": "apps",
+     "glyph": ""
+    }
+   ]
+  },
+  {
+   "id": "bd790i",
+   "state": "up",
+   "addr": "192.168.1.104",
+   "latency_ms": null,
+   "role": "worker",
+   "services": [
+    {
+     "id": "docker",
+     "state": "up",
+     "detail": "7 containers",
+     "group": "infra",
+     "glyph": ""
+    },
+    {
+     "id": "ollama",
+     "state": "up",
+     "detail": "3 models",
+     "group": "infra",
+     "glyph": ""
+    }
+   ]
+  },
+  {
+   "id": "pihole",
+   "state": "up",
+   "addr": "192.168.1.101",
+   "latency_ms": null,
+   "role": "dns",
+   "services": [
+    {
+     "id": "pihole-dns",
+     "state": "up",
+     "detail": "git→192.168.1.109",
+     "group": "dns",
+     "glyph": ""
+    }
+   ]
+  }
+ ]
+}

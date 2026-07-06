@@ -212,6 +212,181 @@ EOF
   [ "$brew_calls" -le 2 ]
 }
 
+@test "theme: _c builds truecolor from CLAW_RGB_* when set" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_RGB_BLUE='10;20;30' bash -c "source '$PROG'; _c blue"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"38;2;10;20;30m"* ]]
+}
+
+@test "theme: _c falls back to 256-color when CLAW_RGB_* unset" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run bash -c "unset CLAW_RGB_BLUE CLAW_C_BLUE; source '$PROG'; _c blue"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"38;5;75m"* ]]
+}
+
+@test "claw_step: streams command output to the screen (plain)" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=plain; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'run thing' -- sh -c 'echo VISIBLE_LINE'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"VISIBLE_LINE"* ]]
+  [[ "$output" == *"run thing"* ]]
+}
+
+@test "claw_step: returns the command's real exit code (plain)" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=plain; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'boom' -- false; echo \"rc=\$?\"
+  "
+  [[ "$output" == *"rc=1"* ]]
+}
+
+@test "claw_step: failure shows (exit N) and retains output" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=plain; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'boom' -- sh -c 'echo ERRDETAIL; exit 3'
+  "
+  [[ "$output" == *"ERRDETAIL"* ]]
+  [[ "$output" == *"(exit 3)"* ]]
+}
+
+@test "claw_step: stdin is /dev/null so a reader never blocks" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=plain; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'reader' -- sh -c 'read x; echo \"got=[\$x]\"'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"got=[]"* ]]
+}
+
+@test "claw_step: also tees output to a logfile" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=plain XDG_STATE_HOME="$BATS_TEST_TMPDIR/state" bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=plain; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'thing' -- sh -c 'echo LOGGED_LINE'
+  "
+  run grep -rl LOGGED_LINE "$BATS_TEST_TMPDIR/state/claw/logs"
+  [ "$status" -eq 0 ]
+}
+
+@test "claw_step: rich forced into a pipe returns rc and shows the verdict" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env CLAW_OUTPUT_MODE=rich TERM=xterm-256color COLUMNS=60 bash -c "
+    source '$PROG'
+    _CLAW_PROG_MODE=rich; _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_DONE=0
+    _CLAW_PROG_OP=demo; _CLAW_PROG_T0=0
+    claw_step 'ok step' -- true; echo \"rc=\$?\"
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"rc=0"* ]]
+  [[ "$output" == *"ok step"* ]]
+}
+
+@test "claw_ui_header: prints title, subtitle, and a viewfinder top corner" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=50 TERM=xterm-256color bash -c "
+    source '$PROG'; claw_ui_header 'SYSTEM UPDATE' 'updating everything'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SYSTEM UPDATE"* ]]
+  [[ "$output" == *"updating everything"* ]]
+  [[ "$output" == *$'\xE2\x8C\x9C'* ]]   # ⌜
+}
+
+@test "claw_ui_footer: prints tally summary, bottom corner, and message" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=50 TERM=xterm-256color CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    claw_ui_header demo
+    claw_step a -- true
+    claw_step b -- false
+    claw_ui_footer 'Update complete'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\xE2\x9C\x93'"1"* ]]   # ✓1
+  [[ "$output" == *$'\xE2\x9C\x97'"1"* ]]   # ✗1
+  [[ "$output" == *"Update complete"* ]]
+  [[ "$output" == *$'\xE2\x8C\x9F'* ]]      # ⌟
+}
+
+@test "claw_ui_skip: reports not installed and tallies a skip" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=50 TERM=xterm-256color bash -c "
+    source '$PROG'
+    claw_ui_header demo
+    claw_ui_skip brew
+    claw_ui_footer done
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"brew — not installed"* ]]
+  [[ "$output" == *$'\xC2\xB7'"1"* ]]       # ·1 skip in the tally
+}
+
+@test "tui_run_step: now streams tool output to the screen (no blackout)" {
+  TUI="$BATS_TEST_DIRNAME/../scripts/utils/tui-style.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "source '$TUI'; tui_run_step 'label' 'echo STREAMED_OUT'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"STREAMED_OUT"* ]]
+  [[ "$output" == *"label"* ]]
+}
+
+@test "tui_run_step: returns the command exit code" {
+  TUI="$BATS_TEST_DIRNAME/../scripts/utils/tui-style.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "source '$TUI'; tui_run_step 'x' 'exit 4'; echo \"rc=\$?\""
+  [[ "$output" == *"rc=4"* ]]
+}
+
+@test "system-update: sources the streaming engine, not tui-style" {
+  SU="$BATS_TEST_DIRNAME/../scripts/utils/system-update.sh"
+  run grep -c 'claw-progress.sh' "$SU"; [ "$output" -ge 1 ]
+  run grep -c 'tui-style.sh'    "$SU"; [ "$output" -eq 0 ]
+}
+
+@test "system-update: no legacy tui_ calls remain" {
+  SU="$BATS_TEST_DIRNAME/../scripts/utils/system-update.sh"
+  run grep -cE 'tui_(run_step|header|section|footer|skip|pause)' "$SU"
+  [ "$output" -eq 0 ]
+}
+
+@test "system-update: parses cleanly" {
+  SU="$BATS_TEST_DIRNAME/../scripts/utils/system-update.sh"
+  run bash -n "$SU"; [ "$status" -eq 0 ]
+}
+
+@test "tool-updater: sources the streaming engine, not tui-style" {
+  TU="$BATS_TEST_DIRNAME/../scripts/utils/tool-updater.sh"
+  run grep -c 'claw-progress.sh' "$TU"; [ "$output" -ge 1 ]
+  run grep -c 'tui-style.sh'    "$TU"; [ "$output" -eq 0 ]
+}
+
+@test "tool-updater: no legacy tui_ calls remain" {
+  TU="$BATS_TEST_DIRNAME/../scripts/utils/tool-updater.sh"
+  run grep -cE 'tui_(run_step|header|section|footer|skip|pause)' "$TU"
+  [ "$output" -eq 0 ]
+}
+
+@test "tool-updater: parses cleanly" {
+  TU="$BATS_TEST_DIRNAME/../scripts/utils/tool-updater.sh"
+  run bash -n "$TU"; [ "$status" -eq 0 ]
+}
+
 @test "pkg scan: discovers user-space binaries in ~/.local/bin (portable find)" {
   DF="$BATS_TEST_TMPDIR/df_userbin"
   mkdir -p "$DF/config/manifest" "$DF/scripts/utils" "$DF/stub"

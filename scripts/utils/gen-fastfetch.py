@@ -327,6 +327,16 @@ def build_local_readout():
          "text": f"~/.dotfiles/scripts/utils/ff-readout.sh {r}"}
         for r in ("l1", "l2", "l3", "l4", "l5")
     ]
+    # HR-TRUST lab board: cache-only reads via homelab-board.sh (zero network at
+    # render — see docs/superpowers/specs/2026-06-29-homelab-lab-board-design.md).
+    # fastfetch skips command modules with no output, so a box with no cache
+    # (or an SSH session) simply omits the section.
+    lab_rows = [
+        {"type": "custom", "format": "  ── HR-TRUST Lab ─────────"},
+        *[{"type": "command", "key": " ",
+           "text": f"~/.dotfiles/scripts/utils/homelab-board.sh {sect}"}
+          for sect in ("nodes", "cluster", "dns", "apps", "infra")],
+    ]
     leading = [{"type": "break"} for _ in range(LOCAL_VCENTER)]
     return {
         "$schema": SCHEMA,
@@ -341,6 +351,7 @@ def build_local_readout():
              "format": "  {user-name-colored}@{host-name-colored}", "key": " "},
             {"type": "break"},  # blank line under the title
             *rows,
+            *lab_rows,
             {"type": "colors", "paddingLeft": 2, "symbol": "circle"},
         ],
     }
