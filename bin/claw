@@ -192,6 +192,7 @@ cmd_help() {
     ${c_white}claw lock-shell${c_reset}       ${c_dim}make ~/.zshrc & ~/.p10k.zsh immutable so p10k configure can't clobber them${c_reset}
     ${c_white}claw unlock-shell${c_reset}     ${c_dim}lift the immutable lock (before re-stow / running the wizard)${c_reset}
     ${c_white}claw storage${c_reset}          ${c_dim}storage usage analysis + offload candidates (storage-doctor)${c_reset}
+    ${c_white}claw specs${c_reset}            ${c_dim}copy-pasteable system specs (--plain·--json·--copy · alias: sysinfo)${c_reset}
     ${c_white}claw validate${c_reset}         ${c_dim}full top-to-bottom install check + update/missing detection${c_reset}
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
@@ -1048,6 +1049,7 @@ case "${1:-menu}" in
     theme|themes|colors) shift; cmd_theme "$@" ;;
     output)         shift; bash "$DOTFILES/scripts/utils/claw-output.sh" "$@" ;;
     storage)        shift; bash "$DOTFILES/scripts/utils/storage-doctor.sh" "$@" ;;
+    specs|sysinfo)  shift; bash "$DOTFILES/scripts/utils/specs.sh" "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;
