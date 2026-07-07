@@ -212,30 +212,6 @@ EOF
   [ "$brew_calls" -le 2 ]
 }
 
-@test "pkg scan: discovers user-space binaries in ~/.local/bin (portable find)" {
-  DF="$BATS_TEST_TMPDIR/df_userbin"
-  mkdir -p "$DF/config/manifest" "$DF/scripts/utils" "$DF/stub"
-  cp "$BATS_TEST_DIRNAME"/../scripts/utils/{cinematic.sh,detect-os.sh,claw-progress.sh,claw-output.sh,pkg-manifest.sh} "$DF/scripts/utils/"
-  : > "$DF/config/manifest/tools.list"
-
-  # Silence the real package managers so discovery yields ONLY the user binary.
-  for m in brew cargo pipx npm; do
-    printf '#!/usr/bin/env bash\nexit 0\n' >"$DF/stub/$m"
-  done
-  chmod +x "$DF/stub/"*
-
-  # A fake user-installed binary — the eget/go/manual channel that BSD find's
-  # missing -printf silently dropped on macOS.
-  mkdir -p "$HOME/.local/bin"
-  printf '#!/usr/bin/env bash\n' >"$HOME/.local/bin/zzfakebin"
-  chmod +x "$HOME/.local/bin/zzfakebin"
-
-  run env PATH="$DF/stub:$PATH" DOTFILES_DIR="$DF" CLAW_OUTPUT_MODE=plain \
-      bash "$DF/scripts/utils/pkg-manifest.sh" scan
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"zzfakebin"* ]]
-}
-
 @test "theme: _c builds truecolor from CLAW_RGB_* when set" {
   PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
   run env CLAW_RGB_BLUE='10;20;30' bash -c "source '$PROG'; _c blue"
@@ -321,4 +297,116 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"rc=0"* ]]
   [[ "$output" == *"ok step"* ]]
+}
+
+@test "claw_ui_header: prints title, subtitle, and a viewfinder top corner" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=50 TERM=xterm-256color bash -c "
+    source '$PROG'; claw_ui_header 'SYSTEM UPDATE' 'updating everything'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SYSTEM UPDATE"* ]]
+  [[ "$output" == *"updating everything"* ]]
+  [[ "$output" == *$'\xE2\x8C\x9C'* ]]   # ⌜
+}
+
+@test "claw_ui_footer: prints tally summary, bottom corner, and message" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=50 TERM=xterm-256color CLAW_OUTPUT_MODE=plain bash -c "
+    source '$PROG'
+    claw_ui_header demo
+    claw_step a -- true
+    claw_step b -- false
+    claw_ui_footer 'Update complete'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\xE2\x9C\x93'"1"* ]]   # ✓1
+  [[ "$output" == *$'\xE2\x9C\x97'"1"* ]]   # ✗1
+  [[ "$output" == *"Update complete"* ]]
+  [[ "$output" == *$'\xE2\x8C\x9F'* ]]      # ⌟
+}
+
+@test "claw_ui_skip: reports not installed and tallies a skip" {
+  PROG="$BATS_TEST_DIRNAME/../scripts/utils/claw-progress.sh"
+  run env COLUMNS=50 TERM=xterm-256color bash -c "
+    source '$PROG'
+    claw_ui_header demo
+    claw_ui_skip brew
+    claw_ui_footer done
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"brew — not installed"* ]]
+  [[ "$output" == *$'\xC2\xB7'"1"* ]]       # ·1 skip in the tally
+}
+
+@test "tui_run_step: now streams tool output to the screen (no blackout)" {
+  TUI="$BATS_TEST_DIRNAME/../scripts/utils/tui-style.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "source '$TUI'; tui_run_step 'label' 'echo STREAMED_OUT'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"STREAMED_OUT"* ]]
+  [[ "$output" == *"label"* ]]
+}
+
+@test "tui_run_step: returns the command exit code" {
+  TUI="$BATS_TEST_DIRNAME/../scripts/utils/tui-style.sh"
+  run env CLAW_OUTPUT_MODE=plain bash -c "source '$TUI'; tui_run_step 'x' 'exit 4'; echo \"rc=\$?\""
+  [[ "$output" == *"rc=4"* ]]
+}
+
+@test "system-update: sources the streaming engine, not tui-style" {
+  SU="$BATS_TEST_DIRNAME/../scripts/utils/system-update.sh"
+  run grep -c 'claw-progress.sh' "$SU"; [ "$output" -ge 1 ]
+  run grep -c 'tui-style.sh'    "$SU"; [ "$output" -eq 0 ]
+}
+
+@test "system-update: no legacy tui_ calls remain" {
+  SU="$BATS_TEST_DIRNAME/../scripts/utils/system-update.sh"
+  run grep -cE 'tui_(run_step|header|section|footer|skip|pause)' "$SU"
+  [ "$output" -eq 0 ]
+}
+
+@test "system-update: parses cleanly" {
+  SU="$BATS_TEST_DIRNAME/../scripts/utils/system-update.sh"
+  run bash -n "$SU"; [ "$status" -eq 0 ]
+}
+
+@test "tool-updater: sources the streaming engine, not tui-style" {
+  TU="$BATS_TEST_DIRNAME/../scripts/utils/tool-updater.sh"
+  run grep -c 'claw-progress.sh' "$TU"; [ "$output" -ge 1 ]
+  run grep -c 'tui-style.sh'    "$TU"; [ "$output" -eq 0 ]
+}
+
+@test "tool-updater: no legacy tui_ calls remain" {
+  TU="$BATS_TEST_DIRNAME/../scripts/utils/tool-updater.sh"
+  run grep -cE 'tui_(run_step|header|section|footer|skip|pause)' "$TU"
+  [ "$output" -eq 0 ]
+}
+
+@test "tool-updater: parses cleanly" {
+  TU="$BATS_TEST_DIRNAME/../scripts/utils/tool-updater.sh"
+  run bash -n "$TU"; [ "$status" -eq 0 ]
+}
+
+@test "pkg scan: discovers user-space binaries in ~/.local/bin (portable find)" {
+  DF="$BATS_TEST_TMPDIR/df_userbin"
+  mkdir -p "$DF/config/manifest" "$DF/scripts/utils" "$DF/stub"
+  cp "$BATS_TEST_DIRNAME"/../scripts/utils/{cinematic.sh,detect-os.sh,claw-progress.sh,claw-output.sh,pkg-manifest.sh} "$DF/scripts/utils/"
+  : > "$DF/config/manifest/tools.list"
+
+  # Silence the real package managers so discovery yields ONLY the user binary.
+  for m in brew cargo pipx npm; do
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$DF/stub/$m"
+  done
+  chmod +x "$DF/stub/"*
+
+  # A fake user-installed binary — the eget/go/manual channel that BSD find's
+  # missing -printf silently dropped on macOS.
+  mkdir -p "$HOME/.local/bin"
+  printf '#!/usr/bin/env bash\n' >"$HOME/.local/bin/zzfakebin"
+  chmod +x "$HOME/.local/bin/zzfakebin"
+
+  run env PATH="$DF/stub:$PATH" DOTFILES_DIR="$DF" CLAW_OUTPUT_MODE=plain \
+      bash "$DF/scripts/utils/pkg-manifest.sh" scan
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"zzfakebin"* ]]
 }

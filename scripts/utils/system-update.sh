@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # scripts/utils/system-update.sh
 # Cumulative system update across every package manager available.
-# Uses gum spinners when present, falls back to styled inline echo otherwise.
+# Streams every step live (stream + collapse-on-success) via claw-progress.sh.
 
-# Shared TUI helpers (theme + run_step + section + header/footer + pause)
-source "$(dirname "${BASH_SOURCE[0]}")/tui-style.sh"
+# Theme engine (CLAW_RGB_*) + streaming progress chrome (single render path).
+source "$(dirname "${BASH_SOURCE[0]}")/theme.sh" 2>/dev/null || true
+source "$(dirname "${BASH_SOURCE[0]}")/claw-progress.sh"
 
 # ============================================
 # CLI / ENV
 # ============================================
 INTERACTIVE=1
-[[ "$1" == "--non-interactive" ]] && INTERACTIVE=0
+[[ "${1:-}" == "--non-interactive" ]] && INTERACTIVE=0
 [[ $INTERACTIVE -eq 1 ]] && clear
 
 count_managers() {
@@ -25,143 +26,143 @@ count_managers() {
 # HEADER
 # ============================================
 total=$(count_managers)
-tui_header "🔄 SYSTEM UPDATE" "Updating ${total} package managers across all ecosystems"
+claw_ui_header "🔄 SYSTEM UPDATE" "Updating ${total} package managers across all ecosystems"
 
 # ============================================
 # 0. SYSTEM PACKAGES (Linux only — apt / dnf / pacman)
 # ============================================
 # Foundational layer — runs before brew so kernel/libc/etc come up first.
-# `apt update` is verbose by default; pipe to /dev/null inside tui_run_step.
+# `apt update` is verbose by default; claw_step streams + collapses it.
 if command -v apt-get &>/dev/null; then
-    tui_section "APT (system)"
-    tui_run_step "Refreshing apt cache..."        "sudo apt-get update -qq"
-    tui_run_step "Upgrading apt packages..."      "sudo apt-get upgrade -y"
-    tui_run_step "Removing obsolete packages..."  "sudo apt-get autoremove -y"
-    tui_run_step "Cleaning apt archives..."       "sudo apt-get autoclean -y"
+    claw_ui_section "APT (system)"
+    claw_step "Refreshing apt cache..." -- bash -c "sudo apt-get update -qq"
+    claw_step "Upgrading apt packages..." -- bash -c "sudo apt-get upgrade -y"
+    claw_step "Removing obsolete packages..." -- bash -c "sudo apt-get autoremove -y"
+    claw_step "Cleaning apt archives..." -- bash -c "sudo apt-get autoclean -y"
 elif command -v dnf &>/dev/null; then
-    tui_section "DNF (system)"
-    tui_run_step "Upgrading dnf packages..." "sudo dnf upgrade -y"
-    tui_run_step "Removing orphans..."       "sudo dnf autoremove -y"
+    claw_ui_section "DNF (system)"
+    claw_step "Upgrading dnf packages..." -- bash -c "sudo dnf upgrade -y"
+    claw_step "Removing orphans..." -- bash -c "sudo dnf autoremove -y"
 elif command -v pacman &>/dev/null; then
-    tui_section "Pacman (system)"
-    tui_run_step "Syncing pacman..." "sudo pacman -Syu --noconfirm"
+    claw_ui_section "Pacman (system)"
+    claw_step "Syncing pacman..." -- bash -c "sudo pacman -Syu --noconfirm"
 fi
 
 # Snap (Ubuntu, some Debian)
 if command -v snap &>/dev/null; then
-    tui_section "Snap"
-    tui_run_step "Refreshing snap packages..." "sudo snap refresh"
+    claw_ui_section "Snap"
+    claw_step "Refreshing snap packages..." -- bash -c "sudo snap refresh"
 fi
 
 # Flatpak (Fedora, some Ubuntu)
 if command -v flatpak &>/dev/null; then
-    tui_section "Flatpak"
-    tui_run_step "Updating flatpak packages..." "flatpak update -y --noninteractive"
+    claw_ui_section "Flatpak"
+    claw_step "Updating flatpak packages..." -- bash -c "flatpak update -y --noninteractive"
 fi
 
 # Firmware updates (Linux laptops/desktops with fwupd)
 if command -v fwupdmgr &>/dev/null; then
-    tui_section "Firmware"
-    tui_run_step "Refreshing fwupd metadata..." "fwupdmgr refresh --force 2>/dev/null || true"
-    tui_run_step "Applying firmware updates..." "fwupdmgr update -y 2>/dev/null || true"
+    claw_ui_section "Firmware"
+    claw_step "Refreshing fwupd metadata..." -- bash -c "fwupdmgr refresh --force 2>/dev/null || true"
+    claw_step "Applying firmware updates..." -- bash -c "fwupdmgr update -y 2>/dev/null || true"
 fi
 
 # ============================================
 # 1. HOMEBREW (macOS + Linuxbrew)
 # ============================================
-tui_section "Homebrew"
+claw_ui_section "Homebrew"
 if command -v brew &>/dev/null; then
-    tui_run_step "Updating Homebrew formulae index..." "brew update"
-    tui_run_step "Upgrading outdated packages..." "brew upgrade"
-    tui_run_step "Cleaning up old versions..." "brew cleanup --prune=7"
+    claw_step "Updating Homebrew formulae index..." -- bash -c "brew update"
+    claw_step "Upgrading outdated packages..." -- bash -c "brew upgrade"
+    claw_step "Cleaning up old versions..." -- bash -c "brew cleanup --prune=7"
 else
-    tui_skip "brew"
+    claw_ui_skip "brew"
 fi
 
 # ============================================
 # 2. NODE.JS
 # ============================================
-tui_section "Node.js"
+claw_ui_section "Node.js"
 if command -v npm &>/dev/null; then
-    tui_run_step "Updating global npm packages..." "npm update -g"
+    claw_step "Updating global npm packages..." -- bash -c "npm update -g"
 else
-    tui_skip "npm"
+    claw_ui_skip "npm"
 fi
 if command -v yarn &>/dev/null; then
-    tui_run_step "Updating global yarn packages..." "yarn global upgrade"
+    claw_step "Updating global yarn packages..." -- bash -c "yarn global upgrade"
 else
-    tui_skip "yarn"
+    claw_ui_skip "yarn"
 fi
 if command -v pnpm &>/dev/null; then
-    tui_run_step "Updating global pnpm packages..." "pnpm update -g"
+    claw_step "Updating global pnpm packages..." -- bash -c "pnpm update -g"
 else
-    tui_skip "pnpm"
+    claw_ui_skip "pnpm"
 fi
 
 # ============================================
 # 3. PYTHON
 # ============================================
-tui_section "Python"
+claw_ui_section "Python"
 if command -v uv &>/dev/null; then
-    tui_run_step "Updating uv itself..." "uv self update"
-    tui_run_step "Upgrading uv-managed tools..." "uv tool upgrade --all 2>/dev/null || true"
+    claw_step "Updating uv itself..." -- bash -c "uv self update"
+    claw_step "Upgrading uv-managed tools..." -- bash -c "uv tool upgrade --all 2>/dev/null || true"
 else
-    tui_skip "uv"
+    claw_ui_skip "uv"
 fi
 if command -v pipx &>/dev/null; then
-    tui_run_step "Upgrading pipx tools..." "pipx upgrade-all"
+    claw_step "Upgrading pipx tools..." -- bash -c "pipx upgrade-all"
 else
-    tui_skip "pipx"
+    claw_ui_skip "pipx"
 fi
 if command -v pip3 &>/dev/null; then
-    tui_run_step "Upgrading pip itself..." "python3 -m pip install --upgrade pip"
+    claw_step "Upgrading pip itself..." -- bash -c "python3 -m pip install --upgrade pip"
 else
-    tui_skip "pip3"
+    claw_ui_skip "pip3"
 fi
 
 # ============================================
 # 4. RUBY
 # ============================================
-tui_section "Ruby"
+claw_ui_section "Ruby"
 if command -v gem &>/dev/null; then
-    tui_run_step "Updating RubyGems system..." "gem update --system"
+    claw_step "Updating RubyGems system..." -- bash -c "gem update --system"
 else
-    tui_skip "gem"
+    claw_ui_skip "gem"
 fi
 
 # ============================================
 # 5. RUST
 # ============================================
-tui_section "Rust"
+claw_ui_section "Rust"
 if command -v rustup &>/dev/null; then
-    tui_run_step "Updating Rust toolchains..." "rustup update"
+    claw_step "Updating Rust toolchains..." -- bash -c "rustup update"
 else
-    tui_skip "rustup"
+    claw_ui_skip "rustup"
 fi
 
 # ============================================
 # 6. GO
 # ============================================
-tui_section "Go"
+claw_ui_section "Go"
 if command -v go &>/dev/null; then
-    tui_run_step "Cleaning Go module cache..." "go clean -modcache"
-    printf "  ${c_dim}○ Go binary managed by brew/system package manager${c_reset}\n"
+    claw_step "Cleaning Go module cache..." -- bash -c "go clean -modcache"
+    printf "  %s○ Go binary managed by brew/system package manager%s\n" "$(_c muted)" "$(_creset)"
 else
-    tui_skip "go"
+    claw_ui_skip "go"
 fi
 
 # ============================================
 # 7. SHELL
 # ============================================
-tui_section "Shell"
+claw_ui_section "Shell"
 if [[ -d "$HOME/.oh-my-zsh" ]] && command -v omz &>/dev/null; then
-    tui_run_step "Updating Oh My Zsh..." "omz update --unattended 2>/dev/null"
+    claw_step "Updating Oh My Zsh..." -- bash -c "omz update --unattended 2>/dev/null"
 else
-    tui_skip "Oh My Zsh"
+    claw_ui_skip "Oh My Zsh"
 fi
 
 # ============================================
 # DONE
 # ============================================
-tui_footer "✓ Update complete"
-tui_pause
+claw_ui_footer "Update complete"
+claw_ui_pause

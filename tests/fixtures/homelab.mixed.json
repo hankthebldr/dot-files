@@ -1,5 +1,70 @@
-{ "ts": "2099-01-01T00:00:00Z", "fleet": "HR-TRUST",
-  "route": { "via": "derp", "path": "→ DERP(fra) → bd790i", "exit_node": null },
-  "identity": { "github": { "user": "hankthebldr", "state": "up" } },
-  "machines": [ { "id": "bd790i", "state": "up", "addr": "100.64.0.5", "latency_ms": 30,
-    "services": [ {"id":"k3s","state":"up","detail":"1/1 Ready"}, {"id":"ollama","state":"down","detail":"unreachable"} ] } ] }
+{
+ "ts": "2099-01-01T00:00:00Z",
+ "fleet": "HR-TRUST",
+ "cluster": {
+  "context": "k3s-ms01",
+  "ready": 2,
+  "total": 3
+ },
+ "route": {
+  "via": "derp",
+  "path": "→ DERP(fra) → bd790i",
+  "exit_node": null
+ },
+ "identity": {
+  "github": {
+   "user": "hankthebldr",
+   "state": "up"
+  }
+ },
+ "machines": [
+  {
+   "id": "ms-01",
+   "state": "up",
+   "role": "control-plane",
+   "services": [
+    {
+     "id": "k3s",
+     "state": "up",
+     "detail": "k3s-ms01 · 2/3 Ready",
+     "group": "infra",
+     "glyph": "󱃾"
+    },
+    {
+     "id": "gitea",
+     "state": "degraded",
+     "detail": "http 503",
+     "group": "apps",
+     "glyph": ""
+    },
+    {
+     "id": "harbor",
+     "state": "planned",
+     "detail": "not deployed",
+     "group": "apps",
+     "glyph": ""
+    }
+   ]
+  },
+  {
+   "id": "r630",
+   "state": "degraded",
+   "role": "worker",
+   "services": []
+  },
+  {
+   "id": "bd790i",
+   "state": "up",
+   "role": "worker",
+   "services": [
+    {
+     "id": "ollama",
+     "state": "down",
+     "detail": "000",
+     "group": "infra",
+     "glyph": ""
+    }
+   ]
+  }
+ ]
+}

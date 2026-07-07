@@ -145,18 +145,43 @@ _hl_json_str() {                      # minimal JSON string escaper (quotes + ba
     printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
-# Probe one service on one (already-reachable) machine. Echoes:  <state>\t<detail>
+# Probe one service. Echoes:  <state>\t<detail>
+# $5 = cluster traefik_ip (for Host-header http probes); $6 = cluster context.
+# curl probes carry --noproxy '*' — LAN/tailnet targets must never route
+# through an HTTP proxy (a proxy's 403 would read as the service being up).
 _hl_probe_service() {
-    local host="$1" user="$2" ssh_ok="$3" svc="$4"
-    local kind url health port shost cmd ctx state detail
+    local host="$1" user="$2" ssh_ok="$3" svc="$4" traefik_ip="$5" ctx_default="$6"
+    local kind shost port health planned state detail
     kind="$(yq -r ".services.${svc}.kind // \"native\"" "$HOMELAB_FLEET" 2>/dev/null)"
+    planned="$(yq -r ".services.${svc}.planned // false" "$HOMELAB_FLEET" 2>/dev/null)"
     state="down"; detail="unreachable"
     case "$kind" in
         http)
-            url="$(yq -r ".services.${svc}.url // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            shost="$(yq -r ".services.${svc}.host // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            port="$(yq -r ".services.${svc}.port // 0" "$HOMELAB_FLEET" 2>/dev/null)"
             health="$(yq -r ".services.${svc}.health // \"/\"" "$HOMELAB_FLEET" 2>/dev/null)"
-            if [ -n "$url" ] && curl -fsS --max-time 2 "${url}${health}" >/dev/null 2>&1; then
-                state="up"; detail="http 200"
+            local code
+            if [ "$port" != "0" ]; then
+                # direct endpoint probe (e.g. ollama :11434/api/tags)
+                code="$(curl -s -o /dev/null -w '%{http_code}' --noproxy '*' --max-time 2 \
+                    "http://${shost}:${port}${health}" 2>/dev/null)"
+            else
+                # cluster app via Traefik Host header — DNS-independent
+                code="$(curl -s -o /dev/null -w '%{http_code}' --noproxy '*' --max-time 2 \
+                    -H "Host: ${shost}" "http://${traefik_ip}/" 2>/dev/null)"
+            fi
+            case "$code" in
+                2*|30*|401|403) state="up";       detail="http ${code}" ;;
+                50[234])        state="degraded"; detail="http ${code}" ;;
+                *)              state="down";     detail="${code:-000}" ;;
+            esac ;;
+        dns)
+            local server probe ans
+            server="$(yq -r ".services.${svc}.server // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            probe="$(yq -r ".services.${svc}.dns_probe // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            if [ -n "$server" ] && [ -n "$probe" ]; then
+                ans="$(timeout 2 dig +short "@${server}" "$probe" 2>/dev/null | head -1)"
+                if [ -n "$ans" ]; then state="up"; detail="${probe%%.*}→${ans}"; fi
             fi ;;
         tcp)
             shost="$(yq -r ".services.${svc}.host // \"$host\"" "$HOMELAB_FLEET" 2>/dev/null)"
@@ -165,19 +190,23 @@ _hl_probe_service() {
                 state="up"; detail=":${port}"
             fi ;;
         kube)
-            ctx="$(yq -r ".services.${svc}.context // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
-            if [ "$ssh_ok" = "true" ]; then
-                local nodes; nodes="$(timeout 5 ssh -o BatchMode=yes -o ConnectTimeout=3 \
+            local kctx; kctx="$(yq -r ".services.${svc}.context // \"$ctx_default\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            local nodes=""
+            if have kubectl; then
+                nodes="$(timeout 5 kubectl --context "$kctx" get nodes --no-headers 2>/dev/null)"
+            fi
+            if [ -z "$nodes" ] && [ "$ssh_ok" = "true" ]; then
+                nodes="$(timeout 5 ssh -o BatchMode=yes -o ConnectTimeout=3 \
                     "${user}@${host}" "kubectl get nodes --no-headers 2>/dev/null" 2>/dev/null)"
-                if [ -n "$nodes" ]; then
-                    local tot rdy; tot="$(printf '%s\n' "$nodes" | grep -c .)"
-                    rdy="$(printf '%s\n' "$nodes" | awk '$2=="Ready"{c++} END{print c+0}')"
-                    [ "$rdy" -gt 0 ] 2>/dev/null && state="up"
-                    detail="${ctx:+$ctx · }${rdy}/${tot} Ready"
-                fi
+            fi
+            if [ -n "$nodes" ]; then
+                local tot rdy; tot="$(printf '%s\n' "$nodes" | grep -c .)"
+                rdy="$(printf '%s\n' "$nodes" | awk '$2=="Ready"{c++} END{print c+0}')"
+                [ "$rdy" -gt 0 ] 2>/dev/null && state="up"
+                detail="${kctx} · ${rdy}/${tot} Ready"
             fi ;;
         ssh)
-            cmd="$(yq -r ".services.${svc}.cmd // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            local cmd; cmd="$(yq -r ".services.${svc}.cmd // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
             if [ "$ssh_ok" = "true" ] && [ -n "$cmd" ]; then
                 local out; out="$(timeout 5 ssh -o BatchMode=yes -o ConnectTimeout=3 \
                     "${user}@${host}" "$cmd" 2>/dev/null | tr -d ' ')"
@@ -194,6 +223,8 @@ _hl_probe_service() {
             fi
             if [ "${bs:-}" = "Running" ]; then state="up"; detail="running"; fi ;;
     esac
+    # A declared-but-not-yet-deployed service shows as 'planned', not red 'down'.
+    [ "$state" = "down" ] && [ "$planned" = "true" ] && { state="planned"; detail="not deployed"; }
     printf '%s\t%s' "$state" "$detail"
 }
 
@@ -206,7 +237,9 @@ probe_homelab() {
     # Need yq + a fleet file, else emit an empty-but-valid snapshot.
     if ! have yq || [ ! -r "$HOMELAB_FLEET" ]; then
         cat <<EOF
-{ "ts": "$ts", "fleet": "$fleet_name", "route": {"via":"unknown","path":"","exit_node":null},
+{ "ts": "$ts", "fleet": "$fleet_name",
+  "cluster": {"context":"","ready":null,"total":null},
+  "route": {"via":"unknown","path":"","exit_node":null},
   "identity": {}, "machines": [] }
 EOF
         return 0
@@ -240,18 +273,32 @@ EOF
         else route_via="unknown"; route_path="→ ${first_host}"; fi
     fi
 
+    # cluster block — context + traefik probe target
+    local cl_ctx cl_ip cl_ready=null cl_total=null cn=""
+    cl_ctx="$(yq -r '.cluster.context // ""' "$HOMELAB_FLEET" 2>/dev/null)"
+    cl_ip="$(yq -r '.cluster.traefik_ip // ""' "$HOMELAB_FLEET" 2>/dev/null)"
+    # cluster readiness once (cheap, reused as the k3s service detail too)
+    if have kubectl && [ -n "$cl_ctx" ]; then
+        cn="$(timeout 5 kubectl --context "$cl_ctx" get nodes --no-headers 2>/dev/null)"
+        if [ -n "$cn" ]; then
+            cl_total="$(printf '%s\n' "$cn" | grep -c .)"
+            cl_ready="$(printf '%s\n' "$cn" | awk '$2=="Ready"{c++} END{print c+0}')"
+        fi
+    fi
+
     # Machines × services
     local machines_json="" mi=0 mcount
     mcount="$(yq -r '.machines | length' "$HOMELAB_FLEET" 2>/dev/null)"; : "${mcount:=0}"
     while [ "$mi" -lt "$mcount" ]; do
-        local id host user ssh_ok mstate addr latency
+        local id host user ssh_ok role mstate addr latency
         id="$(yq -r ".machines[$mi].id // \"node$mi\"" "$HOMELAB_FLEET" 2>/dev/null)"
         host="$(yq -r ".machines[$mi].host // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
         user="$(yq -r ".machines[$mi].user // \"$USER\"" "$HOMELAB_FLEET" 2>/dev/null)"
         ssh_ok="$(yq -r ".machines[$mi].ssh // false" "$HOMELAB_FLEET" 2>/dev/null)"
+        role="$(yq -r ".machines[$mi].role // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
         mstate="down"; addr=""; latency="null"
 
-        # reachability from the shared tailscale status JSON: peer Online + its IP.
+        # reachability: tailscale peer first, else nc/ping fallback (LAN-friendly).
         # latency stays null (status doesn't measure RTT; no render needs it).
         if [ -n "$tj" ] && have jq && [ -n "$host" ]; then
             local online
@@ -261,27 +308,47 @@ EOF
                 '[(.Peer // {})[] | select(.DNSName|startswith($h+"."))][0] // {} | (.TailscaleIPs // [""])[0] // ""' 2>/dev/null)"
             [ "$online" = "true" ] && mstate="up"
         fi
+        if [ "$mstate" != "up" ] && [ -n "$host" ]; then
+            if timeout 2 bash -c "exec 3<>/dev/tcp/${host}/22" 2>/dev/null \
+               || timeout 2 bash -c "exec 3<>/dev/tcp/${host}/80" 2>/dev/null \
+               || ping -c1 -W1 "$host" >/dev/null 2>&1; then
+                mstate="up"; : "${addr:=$host}"
+            fi
+        fi
         : "${addr:=}"; : "${latency:=null}"
 
-        # services for this machine (only probe if reachable)
+        # node Ready state from the cluster probe overrides reachability for k8s nodes
+        if [ -n "$cn" ]; then
+            local nr; nr="$(printf '%s\n' "$cn" | awk -v n="$id" '$1==n{print $2}')"
+            [ "$nr" = "NotReady" ] && mstate="degraded"
+            [ "$nr" = "Ready" ] && mstate="up"
+        fi
+
         local svcs_json="" si=0 scount svc
         scount="$(yq -r ".machines[$mi].services | length" "$HOMELAB_FLEET" 2>/dev/null)"; : "${scount:=0}"
         while [ "$si" -lt "$scount" ]; do
             svc="$(yq -r ".machines[$mi].services[$si]" "$HOMELAB_FLEET" 2>/dev/null)"
-            local sstate sdetail line
-            if [ "$mstate" = "up" ]; then
-                line="$(_hl_probe_service "$host" "$user" "$ssh_ok" "$svc")"
+            local skind sstate sdetail line grp gly
+            skind="$(yq -r ".services.${svc}.kind // \"native\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            grp="$(yq -r ".services.${svc}.group // \"apps\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            gly="$(yq -r ".services.${svc}.glyph // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+            # cluster-level kinds probe regardless of machine reachability;
+            # shell-level kinds (ssh/native) require the box up.
+            if [ "$mstate" = "up" ] || [ "$mstate" = "degraded" ] \
+               || [ "$skind" = "http" ] || [ "$skind" = "dns" ] \
+               || [ "$skind" = "kube" ] || [ "$skind" = "tcp" ]; then
+                line="$(_hl_probe_service "$host" "$user" "$ssh_ok" "$svc" "$cl_ip" "$cl_ctx")"
                 sstate="${line%%	*}"; sdetail="${line#*	}"
             else
                 sstate="down"; sdetail="host down"
             fi
             [ -n "$svcs_json" ] && svcs_json="${svcs_json},"
-            svcs_json="${svcs_json}{\"id\":\"$(_hl_json_str "$svc")\",\"state\":\"${sstate}\",\"detail\":\"$(_hl_json_str "$sdetail")\"}"
+            svcs_json="${svcs_json}{\"id\":\"$(_hl_json_str "$svc")\",\"state\":\"${sstate}\",\"detail\":\"$(_hl_json_str "$sdetail")\",\"group\":\"$(_hl_json_str "$grp")\",\"glyph\":\"$(_hl_json_str "$gly")\"}"
             si=$((si+1))
         done
 
         [ -n "$machines_json" ] && machines_json="${machines_json},"
-        machines_json="${machines_json}{\"id\":\"$(_hl_json_str "$id")\",\"state\":\"${mstate}\",\"addr\":\"$(_hl_json_str "$addr")\",\"latency_ms\":${latency:-null},\"services\":[${svcs_json}]}"
+        machines_json="${machines_json}{\"id\":\"$(_hl_json_str "$id")\",\"state\":\"${mstate}\",\"addr\":\"$(_hl_json_str "$addr")\",\"latency_ms\":${latency:-null},\"role\":\"$(_hl_json_str "$role")\",\"services\":[${svcs_json}]}"
         mi=$((mi+1))
     done
 
@@ -289,6 +356,7 @@ EOF
 {
   "ts": "$ts",
   "fleet": "$(_hl_json_str "$fleet_name")",
+  "cluster": { "context": "$(_hl_json_str "$cl_ctx")", "ready": ${cl_ready:-null}, "total": ${cl_total:-null} },
   "route": { "via": "$(_hl_json_str "$route_via")", "path": "$(_hl_json_str "$route_path")", "exit_node": null },
   "identity": { "github": { "user": "$(_hl_json_str "$gh_user")", "state": "$gh_state" } },
   "machines": [${machines_json}]

@@ -8,7 +8,7 @@ _CLAW_PROG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$_CLAW_PROG_DIR/claw-output.sh" 2>/dev/null || true
 
-# ── theme colors (consume exported CLAW_RGB_*; refined-dark fallbacks) ─────────
+# ── theme colors (consume exported CLAW_RGB_*; refined-dark fallbacks) ───────
 _c() {  # _c <key> → ANSI truecolor from CLAW_RGB_<KEY>, else 256-color fallback
   local key up rgb
   key="$1"
@@ -234,15 +234,7 @@ claw_prog_run() {  # claw_prog_run <phase> -- <cmd...>
   wait "$pid"; return $?
 }
 
-# Rich mode: hide cursor + guarantee teardown on signals.
-_claw_prog_begin_rich() {
-  [[ "$_CLAW_PROG_MODE" == rich ]] || return 0
-  printf '\033[?25l'
-  trap '_claw_prog_teardown' EXIT INT TERM
-  _claw_prog_repaint
-}
-
-# ── streaming step runner: stream + collapse-on-success (Task 2) ─────────────
+# ── streaming step runner: stream + collapse-on-success ─────────────────────
 _CLAW_STEP_TAIL_MAX=6
 _CLAW_STEP_LABEL=""
 _CLAW_STEP_RING=()
@@ -321,4 +313,50 @@ claw_step() {  # claw_step "<label>" -- <cmd...>
   printf '\033[?25h'
   _CLAW_PROG_DONE=$(( _CLAW_PROG_DONE + 1 ))
   return "$rc"
+}
+
+# ── themed chrome for the update surfaces ────────────────────────────────────
+claw_ui_header() {  # claw_ui_header "<TITLE>" ["<subtitle>"]
+  _CLAW_PROG_OP="$1"
+  _CLAW_PROG_OK=0; _CLAW_PROG_FAIL=0; _CLAW_PROG_SKIP=0; _CLAW_PROG_DONE=0
+  _CLAW_PROG_T0="$(date +%s)"
+  _CLAW_PROG_MODE="$(_claw_prog_detect_mode)"
+  claw_frame_top
+  printf '  \033[1m%s%s%s\n' "$(_c blue)" "$1" "$(_creset)"
+  [[ -n "${2:-}" ]] && printf '  %s%s%s\n' "$(_c muted)" "$2" "$(_creset)"
+}
+
+claw_ui_section() {  # claw_ui_section "<Title>"
+  printf '\n  %s%s%s\n' "$(_c purple)" "$1" "$(_creset)"
+}
+
+claw_ui_skip() {  # claw_ui_skip "<name>"
+  printf '  %s%s %s — not installed%s\n' "$(_c muted)" "$(_claw_glyph skip)" "$1" "$(_creset)"
+  _CLAW_PROG_SKIP=$(( _CLAW_PROG_SKIP + 1 ))
+}
+
+claw_ui_footer() {  # claw_ui_footer ["<message>"]
+  local dur; dur="$(_claw_dur $(( $(date +%s) - _CLAW_PROG_T0 )))"
+  printf '  %s%s%d%s %s%s%d%s %s%s%d%s %s· %s%s\n' \
+    "$(_c green)" "$(_claw_glyph ok)"   "$_CLAW_PROG_OK"   "$(_creset)" \
+    "$(_c red)"   "$(_claw_glyph fail)" "$_CLAW_PROG_FAIL" "$(_creset)" \
+    "$(_c muted)" "$(_claw_glyph skip)" "$_CLAW_PROG_SKIP" "$(_creset)" \
+    "$(_c muted)" "$dur" "$(_creset)"
+  claw_frame_bottom
+  [[ -n "${1:-}" ]] && printf '  %s%s %s%s\n' "$(_c green)" "$(_claw_glyph ok)" "$1" "$(_creset)"
+}
+
+claw_ui_pause() {
+  [[ "${INTERACTIVE:-1}" -eq 1 ]] || return 0
+  printf '  %sPress any key to continue...%s' "$(_c muted)" "$(_creset)"
+  if [[ -n "${ZSH_VERSION:-}" ]]; then read -k 1; else read -r -n 1 -s; fi
+  echo ""
+}
+
+# Rich mode: hide cursor + guarantee teardown on signals.
+_claw_prog_begin_rich() {
+  [[ "$_CLAW_PROG_MODE" == rich ]] || return 0
+  printf '\033[?25l'
+  trap '_claw_prog_teardown' EXIT INT TERM
+  _claw_prog_repaint
 }

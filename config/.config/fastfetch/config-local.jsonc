@@ -63,6 +63,35 @@
       "text": "~/.dotfiles/scripts/utils/ff-readout.sh l5"
     },
     {
+      "type": "custom",
+      "format": "  ── HR-TRUST Lab ─────────"
+    },
+    {
+      "type": "command",
+      "key": " ",
+      "text": "~/.dotfiles/scripts/utils/homelab-board.sh nodes"
+    },
+    {
+      "type": "command",
+      "key": " ",
+      "text": "~/.dotfiles/scripts/utils/homelab-board.sh cluster"
+    },
+    {
+      "type": "command",
+      "key": " ",
+      "text": "~/.dotfiles/scripts/utils/homelab-board.sh dns"
+    },
+    {
+      "type": "command",
+      "key": " ",
+      "text": "~/.dotfiles/scripts/utils/homelab-board.sh apps"
+    },
+    {
+      "type": "command",
+      "key": " ",
+      "text": "~/.dotfiles/scripts/utils/homelab-board.sh infra"
+    },
+    {
       "type": "colors",
       "paddingLeft": 2,
       "symbol": "circle"

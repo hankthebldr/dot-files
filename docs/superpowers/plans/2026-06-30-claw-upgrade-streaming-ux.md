@@ -30,7 +30,7 @@
 **Interfaces:**
 - Produces: `_c <key>` → prints an ANSI SGR escape string (`\033[38;2;r;g;bm` when `CLAW_RGB_<KEY>` is set, else a 256-color fallback). Consumed by every later task.
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
+- [x] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
 
 ```bash
 @test "theme: _c builds truecolor from CLAW_RGB_* when set" {
@@ -48,12 +48,12 @@
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bats tests/progress.bats -f "theme:"`
 Expected: FAIL — current `_c` prints the raw `CLAW_C_BLUE` hex (or empty), never `38;2;10;20;30m`.
 
-- [ ] **Step 3: Replace the `_c()` helper**
+- [x] **Step 3: Replace the `_c()` helper**
 
 Replace `scripts/utils/claw-progress.sh:12-21` with:
 
@@ -75,17 +75,17 @@ _c() {  # _c <key> → ANSI truecolor from CLAW_RGB_<KEY>, else 256-color fallba
 
 (Uses `tr` for upper-casing instead of `${key^^}` so it is bash 3.2 safe.)
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bats tests/progress.bats -f "theme:"`
 Expected: PASS (2 tests)
 
-- [ ] **Step 5: Lint + regression**
+- [x] **Step 5: Lint + regression**
 
 Run: `shellcheck -x scripts/utils/claw-progress.sh && bats tests/progress.bats`
 Expected: shellcheck clean (or no new warnings); all existing progress tests still pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/utils/claw-progress.sh tests/progress.bats
@@ -104,7 +104,7 @@ git commit -m "fix(progress): _c emits truecolor from CLAW_RGB_* (was raw hex)"
 - Consumes: `_c`, `_claw_glyph`, `_creset`, `_claw_cols`, `_claw_logfile`, `_claw_prog_detect_mode` (all existing in `claw-progress.sh`); tally globals `_CLAW_PROG_OK/_CLAW_PROG_FAIL/_CLAW_PROG_DONE`, `_CLAW_PROG_OP`, `_CLAW_PROG_T0`, `_CLAW_PROG_MODE`.
 - Produces: `claw_step "<label>" -- <cmd...>` — runs `<cmd...>` with stdin `</dev/null`, streams stdout+stderr live, tees to the op logfile, returns the command's real exit code, and increments `_CLAW_PROG_OK`/`_CLAW_PROG_FAIL` + `_CLAW_PROG_DONE`. Rich mode (interactive tty or `mode=rich`) shows a moving ≤6-line viewport that collapses to one verdict line on success and is retained on failure; plain mode streams linearly.
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
+- [x] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
 
 ```bash
 @test "claw_step: streams command output to the screen (plain)" {
@@ -181,12 +181,12 @@ git commit -m "fix(progress): _c emits truecolor from CLAW_RGB_* (was raw hex)"
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bats tests/progress.bats -f "claw_step:"`
 Expected: FAIL — `claw_step: command not found`.
 
-- [ ] **Step 3: Implement `claw_step`** — append to `scripts/utils/claw-progress.sh`:
+- [x] **Step 3: Implement `claw_step`** — append to `scripts/utils/claw-progress.sh`:
 
 ```bash
 # ── streaming step runner: stream + collapse-on-success (Task 2) ─────────────
@@ -276,17 +276,17 @@ Notes for the implementer:
 - Process substitution `< <( … )` keeps the `while` loop in the current shell, so `_CLAW_PROG_*` and `_CLAW_STEP_*` updates persist (a plain pipe `… | while` would lose them to a subshell).
 - `\033[J` clears cursor-to-end-of-screen; the live block is always the last thing on screen, so nothing below is destroyed.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bats tests/progress.bats -f "claw_step:"`
 Expected: PASS (6 tests)
 
-- [ ] **Step 5: Lint + full regression**
+- [x] **Step 5: Lint + full regression**
 
 Run: `shellcheck -x scripts/utils/claw-progress.sh && bats tests/progress.bats`
 Expected: no new shellcheck warnings; all progress tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/utils/claw-progress.sh tests/progress.bats
@@ -310,7 +310,7 @@ git commit -m "feat(progress): claw_step streaming runner (stream + collapse)"
   - `claw_ui_footer ["<message>"]` — tally summary (`✓ok ✗fail ·skip · dur`) + `claw_frame_bottom` (+ optional green message).
   - `claw_ui_pause` — "press any key" when `INTERACTIVE=1`.
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
+- [x] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
 
 ```bash
 @test "claw_ui_header: prints title, subtitle, and a viewfinder top corner" {
@@ -354,12 +354,12 @@ git commit -m "feat(progress): claw_step streaming runner (stream + collapse)"
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bats tests/progress.bats -f "claw_ui_"`
 Expected: FAIL — `claw_ui_header: command not found`.
 
-- [ ] **Step 3: Implement the chrome helpers** — append to `scripts/utils/claw-progress.sh`:
+- [x] **Step 3: Implement the chrome helpers** — append to `scripts/utils/claw-progress.sh`:
 
 ```bash
 # ── themed chrome for the update surfaces (Task 3) ───────────────────────────
@@ -401,17 +401,17 @@ claw_ui_pause() {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bats tests/progress.bats -f "claw_ui_"`
 Expected: PASS (3 tests)
 
-- [ ] **Step 5: Lint + full regression**
+- [x] **Step 5: Lint + full regression**
 
 Run: `shellcheck -x scripts/utils/claw-progress.sh && bats tests/progress.bats`
 Expected: clean; all progress tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/utils/claw-progress.sh tests/progress.bats
@@ -430,7 +430,7 @@ git commit -m "feat(progress): themed claw_ui_ header/section/footer/skip/pause"
 - Consumes: `claw_step` (Task 2) from `claw-progress.sh`.
 - Produces: `tui_run_step "<title>" "<cmd-string>"` — unchanged signature (command is a single eval string), but now streams output via `claw_step … -- bash -c "<cmd-string>"` instead of hiding it under `gum spin`. Existing `c_*` color exports and `tui_header`/`tui_section`/`tui_footer`/`tui_skip`/`tui_pause` are untouched (integrity/storage-doctor/welcome-tui keep their rounded-box chrome).
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
+- [x] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
 
 ```bash
 @test "tui_run_step: now streams tool output to the screen (no blackout)" {
@@ -448,12 +448,12 @@ git commit -m "feat(progress): themed claw_ui_ header/section/footer/skip/pause"
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bats tests/progress.bats -f "tui_run_step:"`
 Expected: FAIL — with no tty, the current `tui_run_step` runs `eval "$*" >/dev/null` and swallows `STREAMED_OUT`.
 
-- [ ] **Step 3: Source claw-progress.sh in tui-style.sh**
+- [x] **Step 3: Source claw-progress.sh in tui-style.sh**
 
 After the `HAS_GUM` block in `scripts/utils/tui-style.sh` (i.e. after line 39), add:
 
@@ -465,7 +465,7 @@ After the `HAS_GUM` block in `scripts/utils/tui-style.sh` (i.e. after line 39), 
 source "$(dirname "${BASH_SOURCE[0]}")/claw-progress.sh" 2>/dev/null || true
 ```
 
-- [ ] **Step 4: Replace the `tui_run_step` body**
+- [x] **Step 4: Replace the `tui_run_step` body**
 
 Replace `scripts/utils/tui-style.sh:85-108` (the whole `tui_run_step()` function) with:
 
@@ -486,12 +486,12 @@ tui_run_step() {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `bats tests/progress.bats -f "tui_run_step:"`
 Expected: PASS (2 tests)
 
-- [ ] **Step 6: Consumer syntax + smoke check**
+- [x] **Step 6: Consumer syntax + smoke check**
 
 Run:
 ```bash
@@ -501,7 +501,7 @@ bats tests/progress.bats
 ```
 Expected: shellcheck clean; `bash -n` reports no syntax errors; all progress tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add scripts/utils/tui-style.sh tests/progress.bats
@@ -522,7 +522,7 @@ git commit -m "refactor(tui): tui_run_step streams via claw_step (drop gum black
 
 **Why no end-to-end test:** running `system-update.sh` executes real `brew upgrade`/`npm update`/etc. Tests assert structure (no `tui_*` residue, sources the engine) + `bash -n`; behavior is covered by the engine's own tests and the manual smoke in Step 6.
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
+- [x] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
 
 ```bash
 @test "system-update: sources the streaming engine, not tui-style" {
@@ -543,12 +543,12 @@ git commit -m "refactor(tui): tui_run_step streams via claw_step (drop gum black
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bats tests/progress.bats -f "system-update:"`
 Expected: FAIL — the file still sources `tui-style.sh` and calls `tui_*`.
 
-- [ ] **Step 3: Swap the source line**
+- [x] **Step 3: Swap the source line**
 
 In `scripts/utils/system-update.sh`, replace the source block at `:6-7`:
 
@@ -565,7 +565,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/theme.sh" 2>/dev/null || true
 source "$(dirname "${BASH_SOURCE[0]}")/claw-progress.sh"
 ```
 
-- [ ] **Step 4: Swap the chrome + step calls**
+- [x] **Step 4: Swap the chrome + step calls**
 
 Apply these exact substitutions throughout `scripts/utils/system-update.sh`:
 - `tui_header "<A>" "<B>"` → `claw_ui_header "<A>" "<B>"` (line 28)
@@ -594,18 +594,18 @@ Note the one non-`tui_run_step` line at `:148` (`printf "  ${c_dim}○ Go binary
     printf "  %s○ Go binary managed by brew/system package manager%s\n" "$(_c muted)" "$(_creset)"
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `bats tests/progress.bats -f "system-update:"`
 Expected: PASS (3 tests)
 
-- [ ] **Step 6: Manual smoke (operator, safe subset)**
+- [x] **Step 6: Manual smoke (operator, safe subset)**
 
 Run (plain mode, non-interactive — this DOES update real packages, so run when ready):
 `CLAW_OUTPUT_MODE=plain claw update --non-interactive 2>&1 | tail -40`
 Expected: framed header, per-step `│` streamed lines, `●`/`✗` verdicts, tally footer — no blackout, no hang. Also confirm a piped run (`claw update --non-interactive | cat`) shows no cursor-escape garbage.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add scripts/utils/system-update.sh tests/progress.bats
@@ -624,7 +624,7 @@ git commit -m "feat(update): claw update streams live via claw-progress engine"
 - Consumes: `claw_ui_header/section/skip` (Task 3), `claw_step` (Task 2), `_c`/`_creset` (Task 1) for the bespoke category summary card.
 - Produces: `claw update --tools` / `claw tools` rendered as the streaming view.
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
+- [x] **Step 1: Write the failing tests** — append to `tests/progress.bats`:
 
 ```bash
 @test "tool-updater: sources the streaming engine, not tui-style" {
@@ -645,12 +645,12 @@ git commit -m "feat(update): claw update streams live via claw-progress engine"
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bats tests/progress.bats -f "tool-updater:"`
 Expected: FAIL — still on `tui-style.sh`.
 
-- [ ] **Step 3: Swap the source line** (`tool-updater.sh:144`)
+- [x] **Step 3: Swap the source line** (`tool-updater.sh:144`)
 
 Replace:
 ```bash
@@ -662,7 +662,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/theme.sh" 2>/dev/null || true
 source "$(dirname "${BASH_SOURCE[0]}")/claw-progress.sh"
 ```
 
-- [ ] **Step 4: Swap the chrome + step calls** in the interactive block (`:141-228`)
+- [x] **Step 4: Swap the chrome + step calls** in the interactive block (`:141-228`)
 
 - `tui_header "<A>" "<B>"` (both branches) → `claw_ui_header "<A>" "<B>"`
 - `tui_section "$pretty"` → `claw_ui_section "$pretty"`
@@ -673,7 +673,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/claw-progress.sh"
             if claw_step "Upgrading ${label}…" -- "run_$name" "$tool"; then
 ```
 
-- [ ] **Step 5: Recolor the summary card + deferred lines**
+- [x] **Step 5: Recolor the summary card + deferred lines**
 
 The bespoke summary card (`:71-89`) and the deferred lines (`:62-63`) reference `c_purple`/`c_green`/`c_orange`/`c_red`/`c_dim`/`c_reset`/`c_bold`/`c_white` from the now-removed `tui-style.sh`. Replace those with `_c`/`_creset` from the engine. Bold is `\033[1m`. Substitute:
 - `${c_purple}` → `$(_c purple)`, `${c_green}` → `$(_c green)`, `${c_orange}` → `$(_c amber)`, `${c_red}` → `$(_c red)`, `${c_dim}` → `$(_c muted)`, `${c_white}` → `$(_c blue)`, `${c_reset}` → `$(_creset)`, `${c_bold}` → `$(printf '\033[1m')` (or fold `\033[1m` into the adjacent `printf` format string).
@@ -686,17 +686,17 @@ Example — the deferred lines (`:62-63`) become:
 
 Keep the hand-drawn `╭─╮`/`╰─╯` box geometry as-is; only the color tokens change.
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `bats tests/progress.bats -f "tool-updater:"`
 Expected: PASS (3 tests)
 
-- [ ] **Step 7: Manual smoke (operator)**
+- [x] **Step 7: Manual smoke (operator)**
 
 Run: `CLAW_OUTPUT_MODE=plain claw tools --force 2>&1 | tail -40`
 Expected: framed header, streamed `│` lines per tool, `●`/`✗` verdicts, intact summary card with themed colors. Then `claw tools --force | cat` — no escape-sequence garbage.
 
-- [ ] **Step 8: Full suite + lint + commit**
+- [x] **Step 8: Full suite + lint + commit**
 
 ```bash
 shellcheck -x scripts/utils/tool-updater.sh

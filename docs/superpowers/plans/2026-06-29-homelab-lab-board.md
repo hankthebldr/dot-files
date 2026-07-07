@@ -48,7 +48,7 @@
 **Interfaces:**
 - Produces: a `fleet.yml` with `cluster.{context,traefik_ip}`, 4 `machines[]` (`ms-01`,`r630`,`bd790i`,`pihole`) each with `id/host/user/ssh/role/services[]`, and a `services:` map where every entry has `kind`, `group ∈ {apps,infra,dns}`, and `glyph`. Service `kind ∈ {http,kube,ssh,native,dns,tcp}`. `harbor` carries `planned: true`. `pihole-dns` carries `server` + `dns_probe`.
 
-- [ ] **Step 1: Write the failing test** — append to `tests/homelab.bats`:
+- [x] **Step 1: Write the failing test** — append to `tests/homelab.bats`:
 
 ```bash
 @test "fleet.yml: lists all four machines with roles" {
@@ -80,12 +80,12 @@
 
 Also DELETE the now-obsolete assertion `fleet.yml: parses and lists bd790i with its services` block that hard-codes `bd790i` as `machines[0]` if its node order changed — keep it only if it still passes (bd790i remains present, just not index 0). Adjust: change its selector to `select(.id=="bd790i")` (already is) — it stays valid.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bats tests/homelab.bats -f "all four machines"`
 Expected: FAIL (old `fleet.yml` has only `bd790i`).
 
-- [ ] **Step 3: Rewrite `config/homelab/fleet.yml`**
+- [x] **Step 3: Rewrite `config/homelab/fleet.yml`**
 
 ```yaml
 # HR-TRUST homelab fleet inventory — read by scripts/utils/situation.sh probe_homelab().
@@ -131,7 +131,7 @@ identity:
   github: { kind: gh }
 ```
 
-- [ ] **Step 4: Rewrite `config/homelab/fleet.yml.example`** (generic mirror)
+- [x] **Step 4: Rewrite `config/homelab/fleet.yml.example`** (generic mirror)
 
 ```yaml
 # EXAMPLE fleet inventory. Copy to config/homelab/fleet.yml (committed) or
@@ -151,12 +151,12 @@ identity:
   github: { kind: gh }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `bats tests/homelab.bats -f "fleet.yml"`
 Expected: PASS (all `fleet.yml:` tests green).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add config/homelab/fleet.yml config/homelab/fleet.yml.example tests/homelab.bats
@@ -176,7 +176,7 @@ git commit -m "feat(homelab): fleet.yml to live 4-node truth + group/glyph metad
 - Consumes: `fleet.yml` from Task 1 (`cluster.traefik_ip`, `services.<svc>.{kind,group,glyph,host,server,dns_probe,planned,port,health}`).
 - Produces: `~/.cache/claw/homelab.json` with, in addition to the existing fields, `cluster: {context,ready,total}`, `machines[].role`, and `services[].group` + `services[].glyph`. New `state` value `planned`. Service objects keep `id/state/detail`.
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/homelab.bats`:
+- [x] **Step 1: Write the failing tests** — append to `tests/homelab.bats`:
 
 ```bash
 @test "situation homelab: cache has cluster{} and machine roles" {
@@ -215,12 +215,12 @@ git commit -m "feat(homelab): fleet.yml to live 4-node truth + group/glyph metad
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bats tests/homelab.bats -f "cluster"`
 Expected: FAIL (`.cluster` is null in current output).
 
-- [ ] **Step 3: Add `dns` kind + Host-header `http` to `_hl_probe_service()`**
+- [x] **Step 3: Add `dns` kind + Host-header `http` to `_hl_probe_service()`**
 
 In `scripts/utils/situation.sh`, the function signature gains the cluster Traefik IP. Change the call site (Step 5) to pass it. Replace the `http)` case body and add a `dns)` case. The function reads `services.<svc>.planned`; a planned service that is unreachable returns `planned` instead of `down`:
 
@@ -306,12 +306,12 @@ _hl_probe_service() {
 }
 ```
 
-- [ ] **Step 4: Run the kind-level tests**
+- [x] **Step 4: Run the kind-level tests**
 
 Run: `bats tests/homelab.bats -f "planned"`
 Expected: still FAIL until Step 5 wires passthrough + call site, but no syntax error: `bash -n scripts/utils/situation.sh` → exit 0.
 
-- [ ] **Step 5: Rewire `probe_homelab()` — reachability fallback, cluster{}, role, group/glyph passthrough**
+- [x] **Step 5: Rewire `probe_homelab()` — reachability fallback, cluster{}, role, group/glyph passthrough**
 
 In `probe_homelab()`: (a) after fetching `tj`, add an `nc`/`ping` reachability fallback; (b) for `http`/`dns`/`kube`/`tcp` kinds, probe regardless of machine state; (c) read `cluster.traefik_ip`/`cluster.context`; (d) emit per-service `group`/`glyph` and `cluster{}`/`role`. Replace the machine/service loop and the final heredoc:
 
@@ -407,12 +407,12 @@ EOF
 
 Also update the empty-snapshot heredoc (the `! have yq` branch) to include `"cluster": {"context":"","ready":null,"total":null},` so the schema is consistent when `yq` is missing.
 
-- [ ] **Step 6: Run the full producer test set + lint**
+- [x] **Step 6: Run the full producer test set + lint**
 
 Run: `bash -n scripts/utils/situation.sh && bats tests/homelab.bats && tests/shellcheck.sh`
 Expected: PASS. (The 2026-06-27 tests asserting `machines[].services[]` and `machines[].id` still pass — schema kept.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add scripts/utils/situation.sh tests/homelab.bats
@@ -431,7 +431,7 @@ git commit -m "feat(homelab): additive cache (cluster/role/group/glyph) + dns/ht
 **Interfaces:**
 - Produces: fixtures with the new fields (`cluster{}`, `machines[].role`, `services[].group/.glyph`) plus a `planned` and a `degraded` example, used by Task 4's renderer tests. Keeps `bd790i` + `k3s` present (existing assertions).
 
-- [ ] **Step 1: Rewrite `tests/fixtures/homelab.up.json`** (fresh `ts`, 4 nodes, all up)
+- [x] **Step 1: Rewrite `tests/fixtures/homelab.up.json`** (fresh `ts`, 4 nodes, all up)
 
 ```json
 { "ts": "2099-01-01T00:00:00Z", "fleet": "HR-TRUST",
@@ -452,7 +452,7 @@ git commit -m "feat(homelab): additive cache (cluster/role/group/glyph) + dns/ht
       "services": [ {"id":"pihole-dns","state":"up","detail":"git→192.168.1.109","group":"dns","glyph":""} ] } ] }
 ```
 
-- [ ] **Step 2: Rewrite `tests/fixtures/homelab.mixed.json`** (gitea degraded, ollama down, harbor planned)
+- [x] **Step 2: Rewrite `tests/fixtures/homelab.mixed.json`** (gitea degraded, ollama down, harbor planned)
 
 ```json
 { "ts": "2099-01-01T00:00:00Z", "fleet": "HR-TRUST",
@@ -470,7 +470,7 @@ git commit -m "feat(homelab): additive cache (cluster/role/group/glyph) + dns/ht
       "services": [ {"id":"ollama","state":"down","detail":"000","group":"infra","glyph":""} ] } ] }
 ```
 
-- [ ] **Step 3: Rewrite `homelab.stale.json`** — identical body to `up.json` but `"ts": "2000-01-01T00:00:00Z"` (forces the stale branch). **`homelab.empty.json`** stays minimal but add `cluster`:
+- [x] **Step 3: Rewrite `homelab.stale.json`** — identical body to `up.json` but `"ts": "2000-01-01T00:00:00Z"` (forces the stale branch). **`homelab.empty.json`** stays minimal but add `cluster`:
 
 ```json
 { "ts": "2099-01-01T00:00:00Z", "fleet": "HR-TRUST",
@@ -479,12 +479,12 @@ git commit -m "feat(homelab): additive cache (cluster/role/group/glyph) + dns/ht
   "identity": {}, "machines": [] }
 ```
 
-- [ ] **Step 4: Verify existing fixture-render tests still pass**
+- [x] **Step 4: Verify existing fixture-render tests still pass**
 
 Run: `bats tests/homelab.bats -f "dashboard homelab_lines"`
 Expected: PASS (fixtures still contain `bd790i` + `k3s`; `claw-dashboard.py` ignores the new fields).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/fixtures/homelab.up.json tests/fixtures/homelab.mixed.json \
@@ -505,7 +505,7 @@ git commit -m "test(homelab): fixtures to additive schema (cluster/role/group/gl
 - Consumes: `~/.cache/claw/homelab.json` (the Task 2 schema), `scripts/utils/theme.sh` for `CLAW_RGB_*`.
 - Produces: CLI `homelab-board.sh [all|nodes|cluster|apps|infra|dns|route]`. Prints theme-colored, dot-prefixed, grouped lines; empty output when the cache is absent or the shell is non-interactive/piped/SSH. Each service line is `<glyph> <dot> <id> <detail?>`; dot color = state.
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/homelab.bats`:
+- [x] **Step 1: Write the failing tests** — append to `tests/homelab.bats`:
 
 ```bash
 BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
@@ -554,12 +554,12 @@ BOARD="$BATS_TEST_DIRNAME/../scripts/utils/homelab-board.sh"
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bats tests/homelab.bats -f "board:"`
 Expected: FAIL ("No such file" — `homelab-board.sh` not created yet).
 
-- [ ] **Step 3: Create `scripts/utils/homelab-board.sh`**
+- [x] **Step 3: Create `scripts/utils/homelab-board.sh`**
 
 ```bash
 #!/usr/bin/env bash
@@ -685,22 +685,22 @@ exit 0
 
 > **Glyph note:** the literal glyphs in `fleet.yml` (Task 1) are the source of truth and flow into the cache via `services[].glyph`; the renderer prints them verbatim. Chosen Nerd Font codepoints (paste the literal char into `fleet.yml`): `git`=`` U+F1D3, `n8n`=`` U+F0E8 (sitemap), `portainer`=`` U+F1B3 (cubes), `enclave`=`` U+F132 (shield), `grafana`=`` U+F1FE (area-chart), `harbor`=`` U+F13D (anchor), `k8s`=`` U+F10FE, `docker`=`` U+F308, `ollama`=`` U+F0E7, `vpn`=`` U+F023, `pihole`=`` U+F315 (raspberry-pi), node=`` U+F473. If any render as tofu in your terminal, the row still reads correctly (dot+id); swap the codepoint in `fleet.yml` only.
 
-- [ ] **Step 4: `chmod +x` and run the renderer tests**
+- [x] **Step 4: `chmod +x` and run the renderer tests**
 
 Run: `chmod +x scripts/utils/homelab-board.sh && bats tests/homelab.bats -f "board:"`
 Expected: PASS (all five `board:` tests).
 
-- [ ] **Step 5: Lint**
+- [x] **Step 5: Lint**
 
 Run: `tests/shellcheck.sh`
 Expected: PASS (no error-severity findings; the shared `EXCL` codes cover color-style warnings).
 
-- [ ] **Step 6: Eyeball the live board** (manual, non-blocking)
+- [x] **Step 6: Eyeball the live board** (manual, non-blocking)
 
 Run: `scripts/utils/situation.sh homelab && scripts/utils/homelab-board.sh all`
 Expected: a grouped board; off-LAN with no tailnet route, services read `down`/`planned` (correct — see spec reachability note).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add scripts/utils/homelab-board.sh tests/homelab.bats
@@ -722,7 +722,7 @@ git commit -m "feat(homelab): shared homelab-board.sh renderer (grouped, themed,
 - Consumes: `scripts/utils/homelab-board.sh` (Task 4) section CLI.
 - Produces: `local` and `homelab` fastfetch profiles render the board; `hstatus` is cache-first.
 
-- [ ] **Step 1: Write the failing test** — append to `tests/homelab.bats`:
+- [x] **Step 1: Write the failing test** — append to `tests/homelab.bats`:
 
 ```bash
 @test "config-local.jsonc: includes a homelab-board command row" {
@@ -742,12 +742,12 @@ git commit -m "feat(homelab): shared homelab-board.sh renderer (grouped, themed,
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `bats tests/homelab.bats -f "config-"`
 Expected: FAIL (no `homelab-board.sh` references yet).
 
-- [ ] **Step 3: Append the lab section to `config-local.jsonc`**
+- [x] **Step 3: Append the lab section to `config-local.jsonc`**
 
 Insert these modules immediately before the final `{ "type": "colors", ... }` module:
 
@@ -760,7 +760,7 @@ Insert these modules immediately before the final `{ "type": "colors", ... }` mo
     { "type": "command", "key": " ", "text": "~/.dotfiles/scripts/utils/homelab-board.sh infra" },
 ```
 
-- [ ] **Step 4: Collapse `config-homelab.jsonc` rows to the renderer**
+- [x] **Step 4: Collapse `config-homelab.jsonc` rows to the renderer**
 
 Replace the block from the `── BD790i Daemons ───` separator through the `── HR-TRUST Fleet ───` rows (the Tailscale/Docker/K3s/Ollama/Route/GitHub/Machines inline-`jq` `command` modules) with:
 
@@ -776,7 +776,7 @@ Replace the block from the `── BD790i Daemons ───` separator through t
 
 (Keep the system rows — OS/HW/CPU/MEM/DSK/IP/UP — and the trailing `separator` + `colors` modules unchanged.)
 
-- [ ] **Step 5: Make `hstatus` cache-first**
+- [x] **Step 5: Make `hstatus` cache-first**
 
 Locate it: `grep -rn "hstatus" shell/profiles/homelab/`. In the function body, prepend a cache-first branch before the existing live `_hl_status_*` probes:
 
@@ -790,12 +790,12 @@ Locate it: `grep -rn "hstatus" shell/profiles/homelab/`. In the function body, p
   # else fall through to the existing live per-OS _hl_status_* probes …
 ```
 
-- [ ] **Step 6: Run tests + validate fastfetch renders**
+- [x] **Step 6: Run tests + validate fastfetch renders**
 
 Run: `bats tests/homelab.bats -f "config-" && fastfetch --config config/.config/fastfetch/config-homelab.jsonc >/dev/null; echo $?`
 Expected: tests PASS; fastfetch exit `0` (if `fastfetch` absent locally, skip — CI covers it).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add config/.config/fastfetch/config-local.jsonc config/.config/fastfetch/config-homelab.jsonc \
@@ -814,12 +814,12 @@ git commit -m "feat(homelab): render board on local+homelab profiles + cache-fir
 **Interfaces:**
 - Consumes: nothing at runtime. Documents Tasks 1–5.
 
-- [ ] **Step 1: Locate the insertion point**
+- [x] **Step 1: Locate the insertion point**
 
 Run: `grep -n "^## " README.md | head -40`
 Pick the seam after the profiles/claw-commands section (before any "Contributing"/"License" tail).
 
-- [ ] **Step 2: Insert the section** (verbatim)
+- [x] **Step 2: Insert the section** (verbatim)
 
 ```markdown
 ## Homelab Fleet (HR-TRUST)
@@ -850,12 +850,12 @@ fleet.yml ──► situation.sh probe_homelab() ──► ~/.cache/claw/homelab
   profile) shows it cache-first.
 ```
 
-- [ ] **Step 3: Verify markdown + links**
+- [x] **Step 3: Verify markdown + links**
 
 Run: `grep -n "Homelab Fleet" README.md`
 Expected: the new heading present.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add README.md
@@ -869,17 +869,17 @@ git commit -m "docs(readme): add Homelab Fleet section (inventory, seam, status 
 
 **Files:** none (verification + docs mirror)
 
-- [ ] **Step 1: Run the whole suite + lint**
+- [x] **Step 1: Run the whole suite + lint**
 
 Run: `bats tests/ && tests/shellcheck.sh`
 Expected: all PASS — including the unchanged 2026-06-27 `claw-dashboard.py`/`welcome-tui` homelab tests (proves the additive-schema constraint held).
 
-- [ ] **Step 2: Theme-switch smoke** (proves no hardcoded ANSI)
+- [x] **Step 2: Theme-switch smoke** (proves no hardcoded ANSI)
 
 Run: `claw theme set matrix >/dev/null 2>&1; scripts/utils/homelab-board.sh all | cat -v | grep -q '38;2'; echo $?`
 Expected: `0` (dots emit truecolor that tracks the active palette). Restore: `claw theme set refined-dark` (or prior).
 
-- [ ] **Step 3: Mirror spec + plan into the Obsidian vault** — see the **Vault Sync** section below (run after the user confirms the repo↔vault binding).
+- [x] **Step 3: Mirror spec + plan into the Obsidian vault** — see the **Vault Sync** section below (run after the user confirms the repo↔vault binding).
 
 ---
 

@@ -361,15 +361,15 @@ def homelab_lines():
     head = []
     gh = (data.get("identity") or {}).get("github") or {}
     if gh.get("user"):
-        head.append(f"{col("", C['purple'])} {col(_short(gh['user'], 18), C['fg'])} {dot(gh.get('state'))}")
+        head.append(f"{col(chr(0xF09B), C['purple'])} {col(_short(gh['user'], 18), C['fg'])} {dot(gh.get('state'))}")
     route = data.get("route") or {}
     if route.get("path"):
-        head.append(f"{col("", C['green'])} {col(_short(route['path'], 28), C['fg'])}")
+        head.append(f"{col(chr(0xF0E8), C['green'])} {col(_short(route['path'], 28), C['fg'])}")
     if head:
         rows.append("   ".join(head))
     # one row per machine: host dot + nested service dots
     for m in data["machines"]:
-        segs = [f"{col("", C['blue'])} {col(_short(m.get('id', '?'), 12), C['fg'])} {dot(m.get('state'))}"]
+        segs = [f"{col(chr(0xF233), C['blue'])} {col(_short(m.get('id', '?'), 12), C['fg'])} {dot(m.get('state'))}"]
         for s in (m.get("services") or []):
             sid = s.get('id', '?')
             sg = SERVICE_GLYPHS.get(sid.lower(), SERVICE_GLYPHS["_default"])
