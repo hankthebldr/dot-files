@@ -38,3 +38,20 @@ The playground plugin generates self-contained interactive HTML explorers.
 Partner plugins cover GitHub, Vercel, Figma, Hugging Face, and Todoist.
 Output-style plugins (explanatory, learning) change how Claude teaches you.
 claude-code-setup recommends hooks, skills, and subagents tailored to your repo.
+
+# ── Shell & CLI craft (the classics) ─────────────────────────────────────────
+The first computer bug was a literal moth, logged by Grace Hopper in 1947.
+`ctrl-r` fuzzy-searches your shell history — atuin makes it cross-machine.
+`z <partial>` jumps to your most-used dirs; zoxide learns as you go.
+SSH multiplexing (ControlMaster) reuses one connection — instant repeat logins.
+`!!` reruns the last command; `sudo !!` reruns it with sudo.
+A reverse shell is just `nc -e`; a bind shell waits — know which your IDS sees.
+`fd` respects .gitignore by default; `fd -H -I` searches everything.
+A kube "context" is just a (cluster, user, namespace) tuple in your kubeconfig.
+`age` encrypts a file with one public key — no GPG keyring, no keyserver.
+`tee` splits a pipe: write to a file AND keep it flowing downstream.
+`pv` turns any pipe into a progress bar — `pv big.iso | dd of=/dev/sdb`.
+Terraform plans are graphs; `terraform graph | dot -Tpng` draws them.
+`just` is Make without the tab-vs-space rage. Write a justfile, never look back.
+nmap's `-sV` probes service versions; banners lie, so verify before you trust.
+`ripgrep` beats grep by skipping binary and ignored files by default.
