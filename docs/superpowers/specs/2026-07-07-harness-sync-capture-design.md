@@ -53,7 +53,8 @@ capture).
    marketplace. Deploy registers it and flips `enabledPlugins`.
 2. **Capture → move + symlink.** Back up the real dir, move it into the repo,
    replace with a symlink. One source of truth, keeps working instantly.
-3. **Capture is dry-run by default**, requires `--apply` (mirrors `/sync-docs`).
+3. **Capture acts by default** — keep it simple. `--dry-run` is an opt-in
+   preview flag. Safety comes from backups, not from a confirm gate.
 4. **No secrets in git.** Secret-looking env values are redacted to `${VAR}`
    refs; literal-looking secrets are flagged, not written.
 5. **Everything hangs off the existing spine** — `claw harness` dispatcher +
@@ -77,15 +78,16 @@ capture).
 
 Three verbs on `claw harness`, one engine:
 
-- `capture [--apply]` — **new.** local → repo (+ manifest).
+- `capture [--dry-run]` — **new.** local → repo (+ manifest).
 - `deploy [--dry-run]` — **extended.** repo → machine (files + marketplace +
   enabledPlugins + MCP merge + connector checklist).
 - `sync [--dry-run]` — **unchanged front door.** `git pull --ff-only` + deploy.
 
 ## Component 1 — Capture (`harness_capture` in `harness.sh`)
 
-**Purpose:** turn ad-hoc local state into tracked repo state. Idempotent;
-dry-run by default; `--apply` to mutate.
+**Purpose:** turn ad-hoc local state into tracked repo state. Idempotent; acts
+by default (backs up before every mutation); `--dry-run` previews without
+touching anything.
 
 **Inputs:** `~/.claude/{skills,commands,agents}`, `~/.claude.json`,
 `claude/mcp.json`, `~/.claude/settings.json`, `~/.claude/plugins/known_marketplaces.json`.
@@ -96,11 +98,11 @@ dry-run by default; `--apply` to mutate.
      starts with `.` or `_`, or its realpath resolves inside the repo,
      `.agents/`, or `plugins/cache/`.
    - Otherwise it is a **real, untracked** artifact → candidate.
-2. For each candidate (only when `--apply`):
+2. For each candidate (default action):
    - Back up to `~/.dotfiles-backups/<ts>/claude/<kind>/<name>`.
    - `mv` into `claude/harness/<kind>/<name>`.
    - Recreate `~/.claude/<kind>/<name>` as a symlink to the repo path.
-3. Dry-run prints the plan (`would capture: skill 'foo'`) and touches nothing.
+3. `--dry-run` prints the plan (`would capture: skill 'foo'`) and touches nothing.
 
 **Algorithm (manifest):** a Python helper (`scripts/utils/harness-manifest.py`,
 invoked by `harness.sh`) reads the configs and (re)writes `manifest.json`:
