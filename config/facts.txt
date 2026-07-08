@@ -1,4 +1,45 @@
-# Open Claw — fact / quote of the day. One per line; # comments and blanks skipped.
+# Open Claw — fact of the day. One per line; # comments and blanks skipped.
+# Theme: teach a slice of the Claude Cookbooks or the Claude Code plugin
+# marketplace. Keep each line ≤ ~76 cells so it centres cleanly under the box.
+# Sources: github.com/anthropics/claude-cookbooks + anthropics/claude-plugins-official
+
+# ── Claude Cookbooks (github.com/anthropics/claude-cookbooks) ────────────────
+Claude Cookbooks: 80+ runnable notebooks at anthropics/claude-cookbooks.
+Cookbook prompt caching cuts cost up to 90% and latency 2-10x on repeat context.
+Cookbook Contextual Retrieval prepends chunk-specific context before embedding.
+Contextual Retrieval cut failed retrievals ~49% — ~67% paired with reranking.
+Cookbook JSON mode: define a tool and force tool_use — no special "mode" flag.
+Cookbook sub-agents: an Opus orchestrator hands cheap subtasks to Haiku workers.
+Claude reads PDFs natively — it parses a document's text and images together.
+Cookbook Citations: Claude grounds each claim to exact spans in your sources.
+Cookbook RAG pairs Claude with Voyage AI embeddings and a vector DB (Pinecone).
+The evals cookbook uses Claude to grade Claude — automated prompt scoring.
+Extended thinking gives Claude a reasoning scratchpad before it answers.
+Tool use never runs your code: Claude emits a tool_use block, you execute it.
+Cookbook moderation: a cheap Claude pass screens unsafe input before your app.
+Cookbook vision: read charts, forms, and screenshots into structured data.
+Classification cookbook: few-shot + structured output beats a brittle regex.
+
+# ── Claude Code plugin marketplace (anthropics/claude-plugins-official) ───────
+The official plugin marketplace auto-loads in Claude Code — browse via /plugin.
+/code-review runs specialist agents that filter false positives by confidence.
+The commit-commands plugin adds /commit and /commit-push-pr for git workflows.
+feature-dev ships code-explorer, code-architect, and code-reviewer sub-agents.
+skill-creator scaffolds a new Agent Skill with correct SKILL.md frontmatter.
+plugin-dev bundles 7 skills for hooks, MCP, commands, agents, and best practice.
+frontend-design steers UI away from the generic "AI aesthetic" default look.
+code-modernization runs preflight assessment + review agents over legacy code.
+code-simplifier refines recent edits for clarity without changing behaviour.
+Language-server plugins (gopls, jdtls, clangd) add real code intelligence.
+mcp-server-dev scaffolds MCP servers; mcp-builder guides Python/TS builds.
+The superpowers plugin adds brainstorming, TDD, and systematic-debugging skills.
+claude-md-management audits and refreshes your CLAUDE.md project memory.
+The playground plugin generates self-contained interactive HTML explorers.
+Partner plugins cover GitHub, Vercel, Figma, Hugging Face, and Todoist.
+Output-style plugins (explanatory, learning) change how Claude teaches you.
+claude-code-setup recommends hooks, skills, and subagents tailored to your repo.
+
+# ── Shell & CLI craft (the classics) ─────────────────────────────────────────
 The first computer bug was a literal moth, logged by Grace Hopper in 1947.
 `ctrl-r` fuzzy-searches your shell history — atuin makes it cross-machine.
 `z <partial>` jumps to your most-used dirs; zoxide learns as you go.
@@ -6,11 +47,11 @@ SSH multiplexing (ControlMaster) reuses one connection — instant repeat logins
 `!!` reruns the last command; `sudo !!` reruns it with sudo.
 A reverse shell is just `nc -e`; a bind shell waits — know which your IDS sees.
 `fd` respects .gitignore by default; `fd -H -I` searches everything.
-Kubernetes "context" is just a (cluster, user, namespace) tuple in your kubeconfig.
+A kube "context" is just a (cluster, user, namespace) tuple in your kubeconfig.
 `age` encrypts a file with one public key — no GPG keyring, no keyserver.
-The `tee` command splits a pipe: write to a file AND keep it flowing downstream.
+`tee` splits a pipe: write to a file AND keep it flowing downstream.
 `pv` turns any pipe into a progress bar — `pv big.iso | dd of=/dev/sdb`.
 Terraform plans are graphs; `terraform graph | dot -Tpng` draws them.
 `just` is Make without the tab-vs-space rage. Write a justfile, never look back.
 nmap's `-sV` probes service versions; banners lie, so verify before you trust.
-`ripgrep` is faster than grep because it skips binary + ignored files by default.
+`ripgrep` beats grep by skipping binary and ignored files by default.

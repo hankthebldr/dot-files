@@ -55,35 +55,49 @@ log_usage() {
 # ============================================
 # AGENTS REGISTRY
 # ============================================
-ensure_agents_toml() {
-    if [[ ! -f "$AGENTS_TOML" ]]; then
-        mkdir -p "$CLAW_CONFIG_DIR"
-        cat > "$AGENTS_TOML" <<'EOF'
-# Open Claw agent registry
-# Add an entry per coding/AI agent you use. `claw <name>` launches it.
-# Keys: command (required), profile (optional), description (optional)
+# Canonical default agents, emitted one [section] at a time so ensure_agents_toml
+# can append only the MISSING ones. A registry created before a new default
+# shipped (e.g. opencode/openwork) self-heals to the current set without
+# clobbering hand-added entries or user edits.
+DEFAULT_AGENT_NAMES=(claude gemini hermes openrouter aichat opencode openwork)
+
+_default_agent_block() {
+    case "$1" in
+        claude) cat <<'EOF'
 
 [claude]
 command = "claude"
 profile = "claude"
 description = "Anthropic Claude Code"
+EOF
+        ;;
+        gemini) cat <<'EOF'
 
 [gemini]
 command = "gemini"
 profile = "ai"
 description = "Google Gemini CLI (@google/gemini-cli)"
+EOF
+        ;;
+        hermes) cat <<'EOF'
 
 [hermes]
 command = "hermes"
 profile = "ai"
 kind = "local"
 description = "Hermes 3 local agent (Ollama)"
+EOF
+        ;;
+        openrouter) cat <<'EOF'
 
 [openrouter]
 command = "openrouter"
 profile = "ai"
 kind = "chat"
 description = "OpenRouter via aichat"
+EOF
+        ;;
+        aichat) cat <<'EOF'
 
 [aichat]
 command = "aichat"
@@ -91,7 +105,52 @@ profile = "ai"
 kind = "chat"
 description = "Multi-provider chat/pipe"
 EOF
-        info "Created $AGENTS_TOML with [claude] pre-registered"
+        ;;
+        opencode) cat <<'EOF'
+
+[opencode]
+command = "opencode"
+profile = "ai"
+kind = "agent"
+description = "Terminal AI coding agent (opencode.ai)"
+EOF
+        ;;
+        openwork) cat <<'EOF'
+
+[openwork]
+command = "openwork"
+profile = "ai"
+kind = "agent"
+args = "start"
+description = "Headless OpenWork orchestrator — Cowork alt on opencode (claw openwork → openwork start)"
+EOF
+        ;;
+    esac
+}
+
+ensure_agents_toml() {
+    mkdir -p "$CLAW_CONFIG_DIR"
+    local created=0
+    if [[ ! -f "$AGENTS_TOML" ]]; then
+        cat > "$AGENTS_TOML" <<'EOF'
+# Open Claw agent registry
+# Add an entry per coding/AI agent you use. `claw <name>` launches it.
+# Keys: command (required), profile, description, kind, args
+#   args = default arguments used ONLY when you pass none, e.g. openwork's
+#          args = "start" makes bare `claw openwork` launch the orchestrator.
+EOF
+        created=1
+    fi
+    local name added=()
+    for name in "${DEFAULT_AGENT_NAMES[@]}"; do
+        grep -q "^\[$name\]$" "$AGENTS_TOML" 2>/dev/null && continue
+        _default_agent_block "$name" >> "$AGENTS_TOML"
+        added+=("$name")
+    done
+    if [[ "$created" == 1 ]]; then
+        info "Created $AGENTS_TOML (${#DEFAULT_AGENT_NAMES[@]} default agents)"
+    elif (( ${#added[@]} )); then
+        info "agents.toml: registered new default agents → ${added[*]}"
     fi
 }
 
@@ -133,6 +192,7 @@ cmd_help() {
     ${c_white}claw lock-shell${c_reset}       ${c_dim}make ~/.zshrc & ~/.p10k.zsh immutable so p10k configure can't clobber them${c_reset}
     ${c_white}claw unlock-shell${c_reset}     ${c_dim}lift the immutable lock (before re-stow / running the wizard)${c_reset}
     ${c_white}claw storage${c_reset}          ${c_dim}storage usage analysis + offload candidates (storage-doctor)${c_reset}
+    ${c_white}claw specs${c_reset}            ${c_dim}copy-pasteable system specs (--plain·--json·--copy · alias: sysinfo)${c_reset}
     ${c_white}claw validate${c_reset}         ${c_dim}full top-to-bottom install check + update/missing detection${c_reset}
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
@@ -907,9 +967,10 @@ cmd_agent() {
 cmd_run_agent() {
     local agent="$1"; shift || true
     ensure_agents_toml
-    local cmd profile
+    local cmd profile args
     cmd=$(agent_get "$agent" command)
     profile=$(agent_get "$agent" profile)
+    args=$(agent_get "$agent" args)
     if [[ -z "$cmd" ]]; then
         err "unknown subcommand or agent: $agent"
         info "try: claw help  |  claw agent list"
@@ -928,7 +989,13 @@ cmd_run_agent() {
             echo ""
         fi
     fi
-    # Hand off — exec replaces the claw process with the agent, forwarding args
+    # Hand off — exec replaces claw with the agent. If the caller passed no args
+    # and the agent declares default `args`, use those (e.g. openwork → `openwork
+    # start`); any explicit args always win and are forwarded verbatim.
+    if [[ $# -eq 0 && -n "$args" ]]; then
+        # shellcheck disable=SC2086  # deliberate word-split of registry args
+        exec "$cmd" $args
+    fi
     exec "$cmd" "$@"
 }
 
@@ -982,6 +1049,7 @@ case "${1:-menu}" in
     theme|themes|colors) shift; cmd_theme "$@" ;;
     output)         shift; bash "$DOTFILES/scripts/utils/claw-output.sh" "$@" ;;
     storage)        shift; bash "$DOTFILES/scripts/utils/storage-doctor.sh" "$@" ;;
+    specs|sysinfo)  shift; bash "$DOTFILES/scripts/utils/specs.sh" "$@" ;;
     gpu|gpu-node)   shift; cmd_gpu "$@" ;;
     gateway|openshell) shift; cmd_gateway "$@" ;;
     uninstall|remove) shift; cmd_uninstall "$@" ;;

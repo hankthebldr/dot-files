@@ -72,11 +72,17 @@ claw_fact() {
         line=$(fortune -s 2>/dev/null)
     fi
     [[ -z "$line" ]] && return
+    # Centre under the (terminal-centred) dashboard box: both centre on the same
+    # terminal midline, so the fact's midpoint aligns with the box's without the
+    # zsh side needing the Python content_w. "✦ " is 2 display cells; ${#line}
+    # counts glyphs (UTF-8 zsh), so em-dashes/backticks stay 1 cell each.
+    local cols=${COLUMNS:-100} pad
+    pad=$(( (cols - (${#line} + 2)) / 2 )); (( pad < 0 )) && pad=0
     # Themed printf (no `gum style`): gum also probes the terminal on each call,
     # which can desync right after the dashboard moves the cursor. printf is
     # query-free + deterministic, and renders backticks/em-dashes literally.
-    printf "  \e[38;2;%sm✦\e[0m \e[38;2;%sm%s\e[0m\n" \
-        "${CLAW_RGB_PURPLE:-188;140;255}" "${CLAW_RGB_MUTED:-139;148;158}" "$line"
+    printf "%*s\e[38;2;%sm✦\e[0m \e[38;2;%sm%s\e[0m\n" \
+        "$pad" "" "${CLAW_RGB_PURPLE:-188;140;255}" "${CLAW_RGB_MUTED:-139;148;158}" "$line"
 }
 # One fact per day on interactive login (skip SSH-pipe / non-tty).
 if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_FACT:-1}" == 1 ]]; then

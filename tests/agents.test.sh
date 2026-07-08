@@ -45,6 +45,43 @@ got="$(XDG_CONFIG_HOME="$claw_tmp/cfg" PATH="$claw_tmp/bin:$PATH" \
 assert_eq "claw forwards args to agent" "ARGS:[--serve hi there]" "$got"
 rm -rf "$claw_tmp"
 
+# --- registry `args` default: used only when caller passes none (openwork case) ---
+claw_tmp2="$(mktemp -d)"
+mkdir -p "$claw_tmp2/cfg/claw" "$claw_tmp2/bin"
+cat > "$claw_tmp2/bin/recorder" <<'EOF'
+#!/usr/bin/env bash
+printf 'ARGS:[%s]\n' "$*"
+EOF
+chmod +x "$claw_tmp2/bin/recorder"
+cat > "$claw_tmp2/cfg/claw/agents.toml" <<'EOF'
+[rec]
+command = "recorder"
+args = "start"
+EOF
+got_default="$(XDG_CONFIG_HOME="$claw_tmp2/cfg" PATH="$claw_tmp2/bin:$PATH" \
+        bash "$REPO/bin/claw" rec 2>/dev/null | grep '^ARGS:')"
+assert_eq "claw uses registry default args when none passed" "ARGS:[start]" "$got_default"
+got_override="$(XDG_CONFIG_HOME="$claw_tmp2/cfg" PATH="$claw_tmp2/bin:$PATH" \
+        bash "$REPO/bin/claw" rec status 2>/dev/null | grep '^ARGS:')"
+assert_eq "explicit args override registry default args" "ARGS:[status]" "$got_override"
+rm -rf "$claw_tmp2"
+
+# --- openwork/opencode ship as default agents & self-heal into a stale registry ---
+claw_tmp3="$(mktemp -d)"
+mkdir -p "$claw_tmp3/cfg/claw"
+cat > "$claw_tmp3/cfg/claw/agents.toml" <<'EOF'
+[claude]
+command = "claude"
+EOF
+XDG_CONFIG_HOME="$claw_tmp3/cfg" bash "$REPO/bin/claw" agent list >/dev/null 2>&1
+grep -q '^\[openwork\]$'  "$claw_tmp3/cfg/claw/agents.toml" && ow=yes || ow=no
+grep -q '^\[opencode\]$'  "$claw_tmp3/cfg/claw/agents.toml" && oc=yes || oc=no
+kept="$(grep -c '^\[claude\]$' "$claw_tmp3/cfg/claw/agents.toml")"
+assert_eq "openwork self-heals into a stale [claude]-only registry" "yes" "$ow"
+assert_eq "opencode self-heals into a stale [claude]-only registry" "yes" "$oc"
+assert_eq "reconcile does not duplicate the existing [claude]"      "1"   "$kept"
+rm -rf "$claw_tmp3"
+
 echo "  ──"
 echo "  ${pass} passed, ${fail} failed"
 (( fail == 0 ))
