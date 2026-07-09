@@ -98,3 +98,23 @@ run_h() { run env DOTFILES_DIR="$DF" bash "$H" "$@"; }
   after="$(git -C "$DF" rev-parse HEAD)"
   [ "$before" = "$after" ]            # no new commit
 }
+
+@test "capture: moves a real local skill into the repo and symlinks it back" {
+  mkdir -p "$HOME/.claude/skills/mine"
+  printf -- '---\nname: mine\ndescription: Use when mine.\n---\n' > "$HOME/.claude/skills/mine/SKILL.md"
+  run_h capture
+  [ "$status" -eq 0 ]
+  [ -f "$DF/claude/harness/skills/mine/SKILL.md" ]        # now in repo
+  [ -L "$HOME/.claude/skills/mine" ]                      # original is a symlink
+  [ "$(readlink "$HOME/.claude/skills/mine")" = "$DF/claude/harness/skills/mine" ]
+}
+
+@test "capture: skips symlinks and _/.-prefixed and marketplace dirs" {
+  ln -s /tmp "$HOME/.claude/skills/linked"
+  mkdir -p "$HOME/.claude/skills/_scratch"
+  run_h capture
+  [ "$status" -eq 0 ]
+  [ ! -e "$DF/claude/harness/skills/linked" ]
+  [ ! -e "$DF/claude/harness/skills/_scratch" ]
+  [ -L "$HOME/.claude/skills/linked" ]                    # untouched
+}

@@ -2,7 +2,7 @@
 # scripts/utils/harness.sh — engine for `claw harness`.
 # bin/claw cmd_harness is a thin dispatcher: `bash harness.sh "$@"`.
 # Subcommands: new <kind> <name> | list [--all] [--fzf] | sync [--dry-run]
-#            | deploy [--dry-run] | path
+#            | deploy [--dry-run] | path | capture [--dry-run]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -162,6 +162,52 @@ harness_sync(){
   log_success "harness synced + deployed"
 }
 
+# _resolve <path> — realpath with a portable fallback (no coreutils on macOS).
+_resolve(){ cd "$(dirname "$1")" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$(basename "$1")"; }
+
+# _is_managed <realpath> — true if it belongs to the repo or a marketplace.
+_is_managed(){
+  case "$1" in
+    "$DOTFILES_DIR"/*) return 0 ;;
+    */.agents/*)       return 0 ;;
+    */plugins/cache/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# _capture_one_kind <kind> <dry> — capture real untracked entries of one kind.
+_capture_one_kind(){
+  local kind="$1" dry="$2" src="$CLAUDE_DST/$1" e name real ts
+  [[ -d "$src" ]] || return 0
+  ts="$(date +%Y%m%d-%H%M%S)"
+  for e in "$src"/*; do
+    [[ -e "$e" ]] || continue
+    name="$(basename "$e")"
+    [[ "$name" == _* || "$name" == .* ]] && continue
+    [[ -L "$e" ]] && continue                     # already a symlink → skip
+    real="$(_resolve "$e")"
+    _is_managed "$real" && continue
+    if [[ "$dry" -eq 1 ]]; then
+      log_info "would capture: $kind '$name'"
+      continue
+    fi
+    local dst="$HARNESS/$kind/$name"
+    [[ -e "$dst" ]] && { log_warning "skip $kind '$name': already in repo"; continue; }
+    local bkp="$HOME/.dotfiles-backups/$ts/claude/$kind"
+    mkdir -p "$bkp" "$HARNESS/$kind"
+    cp -R "$e" "$bkp/$name"
+    mv "$e" "$dst"
+    ln -s "$dst" "$e"
+    log_success "captured $kind '$name' → claude/harness/$kind/$name"
+  done
+}
+
+harness_capture(){
+  local dry=0 a; for a in "$@"; do [[ "$a" == "--dry-run" || "$a" == "-n" ]] && dry=1; done
+  local kind
+  for kind in skills commands agents; do _capture_one_kind "$kind" "$dry"; done
+}
+
 main(){
   local sub="${1:-list}"; shift || true
   case "$sub" in
@@ -170,9 +216,10 @@ main(){
     list|ls)      harness_list "$@" ;;
     deploy|link)  harness_deploy "$@" ;;
     path)         harness_path ;;
-    -h|--help|help) printf "usage: claw harness <new|list|sync|deploy|path>\n" ;;
+    capture)      harness_capture "$@" ;;
+    -h|--help|help) printf "usage: claw harness <new|list|sync|deploy|path|capture>\n" ;;
     *) log_error "unknown: claw harness $sub"
-       printf "  subcommands: new <kind> <name> · list · sync · deploy · path\n"; return 1 ;;
+       printf "  subcommands: new <kind> <name> · list · sync · deploy · path · capture\n"; return 1 ;;
   esac
 }
 main "$@"
