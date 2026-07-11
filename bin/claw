@@ -210,6 +210,7 @@ cmd_help() {
     ${c_white}claw skills${c_reset}           ${c_dim}browse Claude skills${c_reset}
     ${c_white}claw obsidian${c_reset}         ${c_dim}vault helpers (profile-aware)${c_reset}
     ${c_white}claw onboard${c_reset}          ${c_dim}80s arcade onboarding · picks your profile${c_reset}
+    ${c_white}claw gamble${c_reset}           ${c_dim}THE CLAW MACHINE 🎰 honest slot machine · odds|wallet|ethics${c_reset}
     ${c_white}claw integrity${c_reset}        ${c_dim}tamper-check + install verification${c_reset}
 
   ${c_orange}${c_bold}Profiles${c_reset}
@@ -313,7 +314,7 @@ cmd_tui_stats() {
         '$2 ~ /^tui:pick:(security|cloud|devops|ai|research|cortex|claude|local|brainstorm|deck|demo|design|pmo)$/' \
         | wc -l | tr -d ' ')
     tool_picks=$(echo "$tui_rows" | awk -F'\t' \
-        '$2 ~ /^tui:pick:(homelab|tunnel|ai_tools|mcp|agents|vault|onboard|integrity|tmux|yazi|update|doc|top)$/' \
+        '$2 ~ /^tui:pick:(homelab|tunnel|ai_tools|mcp|agents|vault|onboard|gamble|integrity|tmux|yazi|update|doc|top)$/' \
         | wc -l | tr -d ' ')
 
     local since
@@ -1029,6 +1030,7 @@ case "${1:-menu}" in
     harness)        shift; cmd_harness "$@" ;;
     obsidian|vault) shift; cmd_obsidian "$@" ;;
     onboard|onboarding|character) shift; cmd_onboard "$@" ;;
+    gamble|slots|casino) shift; bash "$DOTFILES/scripts/utils/gamble.sh" "$@" ;;
     integrity|verify|check) shift; cmd_integrity "$@" ;;
     load)           shift; cmd_load "$@" ;;
     off)            cmd_off ;;
