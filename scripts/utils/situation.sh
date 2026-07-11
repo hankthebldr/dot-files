@@ -53,6 +53,17 @@ mkdir -p "$CACHE_DIR" 2>/dev/null
 have() { command -v "$1" >/dev/null 2>&1; }
 gf()   { jq -r "$2" "$1" 2>/dev/null; }                # gf <file> <jq-filter>
 
+# GNU `timeout` is absent on stock macOS (brew coreutils ships only gtimeout).
+# Every probe below is wrapped in `timeout N`, so shim it: prefer gtimeout,
+# else run the command unbounded — degraded but working beats exit 127.
+if ! have timeout; then
+    if have gtimeout; then
+        timeout() { gtimeout "$@"; }
+    else
+        timeout() { shift; "$@"; }
+    fi
+fi
+
 # ── Desktop notification (the interrupt tier) ──────────────────────────────
 notify() {
     # notify <info|crit> <title> <body>

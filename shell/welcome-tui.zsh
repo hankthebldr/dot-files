@@ -330,6 +330,11 @@ function claw_welcome_tui() {
             # Direct action — open Obsidian to the active vault. The `vault`
             # profile load (above) is the preferred entry point and also
             # exposes oo/oon/oos/ov as in-shell aliases.
+            # Lazy-load: at login the TUI fires at .zshrc step 3, but
+            # obsidian.zsh is only sourced at step 6 — pull it in on demand.
+            if ! typeset -f _claw_obsidian_vault &>/dev/null && [[ -f "$_d/shell/obsidian.zsh" ]]; then
+                source "$_d/shell/obsidian.zsh"
+            fi
             if typeset -f _claw_obsidian_vault &>/dev/null; then
                 local _v="$(_claw_obsidian_vault)"
                 if [[ -d "$_v" ]]; then
@@ -346,6 +351,12 @@ function claw_welcome_tui() {
             # Direct action — open clin (note TUI) scoped to the active profile
             # folder. `cl` is defined by shell/clin.zsh and reuses the obsidian
             # resolvers; it warns + hints at install if clin is absent.
+            # Lazy-load both halves (TUI runs at step 3, they load at step 6):
+            # clin.zsh rides obsidian.zsh's resolvers, so source obsidian first.
+            if ! typeset -f cl &>/dev/null; then
+                [[ -f "$_d/shell/obsidian.zsh" ]] && source "$_d/shell/obsidian.zsh"
+                [[ -f "$_d/shell/clin.zsh" ]] && source "$_d/shell/clin.zsh"
+            fi
             if typeset -f cl &>/dev/null; then
                 cl
             else
