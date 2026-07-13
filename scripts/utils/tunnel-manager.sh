@@ -356,7 +356,8 @@ disconnect_all() {
     for name in $names; do
         if [[ "$(tunnel_status "$name")" == "active" ]]; then
             disconnect_tunnel "$name"
-            ((count++))
+            # NOT ((count++)) — post-increment from 0 returns exit 1 under set -e
+            count=$((count + 1))
         fi
     done
     if ((count == 0)); then
@@ -375,7 +376,7 @@ list_active() {
     for name in $names; do
         if [[ "$(tunnel_status "$name")" == "active" ]]; then
             active_names+=("$name")
-            ((active_count++))
+            active_count=$((active_count + 1))  # set -e safe (not ((x++)))
         fi
     done
 
@@ -509,16 +510,17 @@ draw_overview() {
     names=$(yq -r '.tunnels | keys | .[]' "$TUNNEL_CONFIG" 2>/dev/null)
 
     for name in $names; do
-        ((total++))
+        # set -e safe increments — ((x++)) from 0 returns exit 1 and kills the TUI
+        total=$((total + 1))
         local ttype
         ttype=$(yq -r ".tunnels.${name}.type" "$TUNNEL_CONFIG")
         case "$ttype" in
-            local)  ((local_count++)) ;;
-            remote) ((remote_count++)) ;;
-            socks)  ((socks_count++)) ;;
+            local)  local_count=$((local_count + 1)) ;;
+            remote) remote_count=$((remote_count + 1)) ;;
+            socks)  socks_count=$((socks_count + 1)) ;;
         esac
         if [[ "$(tunnel_status "$name" 2>/dev/null || true)" == "active" ]]; then
-            ((active++))
+            active=$((active + 1))
         fi
     done
 

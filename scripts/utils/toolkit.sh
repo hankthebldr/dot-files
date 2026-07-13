@@ -14,6 +14,18 @@ c_yellow=$'\e[38;2;227;179;65m'
 c_dim=$'\e[38;2;139;148;158m'
 c_red=$'\e[38;2;255;123;114m'
 
+# clip_copy shim — platform.zsh's clip_copy is a zsh function and can't reach
+# this bash child process; mirror its fallback chain (macOS → Wayland → X11).
+if ! command -v clip_copy &>/dev/null; then
+    clip_copy() {
+        if command -v pbcopy &>/dev/null; then pbcopy
+        elif command -v wl-copy &>/dev/null; then wl-copy
+        elif command -v xclip &>/dev/null; then xclip -selection clipboard
+        else echo "${c_red}No clipboard tool found (pbcopy/wl-copy/xclip).${c_reset}" >&2; return 1
+        fi
+    }
+fi
+
 # Clear screen for crisp UI
 clear
 
@@ -84,6 +96,7 @@ case $main_choice in
         echo "  3. Stop ALL Running Containers"
         echo "  4. Remove ALL Containers"
         echo "  5. View Docker Compose Logs (Tail)"
+        read -p "  ${c_purple}▶${c_reset} Run workflow [1-5]: " sub
         # shellcheck disable=SC2046
         case $sub in
             1) command -v lazydocker &> /dev/null && lazydocker || echo "${c_red}Lazydocker not installed.${c_reset}" ;;

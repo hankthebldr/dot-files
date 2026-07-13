@@ -143,7 +143,7 @@ function claw_welcome_tui() {
     l1+="visual\t${c_purple}🎨 Customer-Facing${c_reset} ${c_dim}▸ deck · design · demo${c_reset}\n"
     l1+="hardware\t${c_orange}📡 Hardware & Ops${c_reset} ${c_dim}▸ homelab · blackwell · tunnels${c_reset}\n"
     l1+="actions\t${c_cyan}⚡ Direct Actions${c_reset} ${c_dim}▸ ai-toolkit · mcp · agents · ssh · tunnels · vault${c_reset}\n"
-    l1+="system\t${c_yellow}🛠  System${c_reset} ${c_dim}▸ onboard · integrity · tmux · yazi · update · docs · monitor${c_reset}\n"
+    l1+="system\t${c_yellow}🛠  System${c_reset} ${c_dim}▸ onboard · gamble · integrity · tmux · yazi · update · docs${c_reset}\n"
 
     # ── Level 2: items per group ──
     typeset -A l2 l2_title
@@ -185,6 +185,7 @@ function claw_welcome_tui() {
 
     l2[system]=""
     l2[system]+="onboard\t${c_pink}🕹  Onboarding${c_reset}${c_dim}        80s arcade · picks your profile${c_reset}\n"
+    l2[system]+="gamble\t${c_pink}🎰 Claw Machine${c_reset}${c_dim}       honest slot machine · earned tokens${c_reset}\n"
     l2[system]+="integrity\t${c_green}🛡  Integrity Check${c_reset}${c_dim}   verify install · tamper-check${c_reset}\n"
     l2[system]+="tmux\t${c_green}🪟 TMUX${c_reset}${c_dim}               Attach or New Session${c_reset}\n"
     l2[system]+="yazi\t${c_cyan}📂 Yazi${c_reset}${c_dim}               File Browser${c_reset}\n"
@@ -329,6 +330,11 @@ function claw_welcome_tui() {
             # Direct action — open Obsidian to the active vault. The `vault`
             # profile load (above) is the preferred entry point and also
             # exposes oo/oon/oos/ov as in-shell aliases.
+            # Lazy-load: at login the TUI fires at .zshrc step 3, but
+            # obsidian.zsh is only sourced at step 6 — pull it in on demand.
+            if ! typeset -f _claw_obsidian_vault &>/dev/null && [[ -f "$_d/shell/obsidian.zsh" ]]; then
+                source "$_d/shell/obsidian.zsh"
+            fi
             if typeset -f _claw_obsidian_vault &>/dev/null; then
                 local _v="$(_claw_obsidian_vault)"
                 if [[ -d "$_v" ]]; then
@@ -345,6 +351,12 @@ function claw_welcome_tui() {
             # Direct action — open clin (note TUI) scoped to the active profile
             # folder. `cl` is defined by shell/clin.zsh and reuses the obsidian
             # resolvers; it warns + hints at install if clin is absent.
+            # Lazy-load both halves (TUI runs at step 3, they load at step 6):
+            # clin.zsh rides obsidian.zsh's resolvers, so source obsidian first.
+            if ! typeset -f cl &>/dev/null; then
+                [[ -f "$_d/shell/obsidian.zsh" ]] && source "$_d/shell/obsidian.zsh"
+                [[ -f "$_d/shell/clin.zsh" ]] && source "$_d/shell/clin.zsh"
+            fi
             if typeset -f cl &>/dev/null; then
                 cl
             else
@@ -356,6 +368,13 @@ function claw_welcome_tui() {
                 bash "$_d/scripts/utils/onboarding.sh"
             else
                 echo "${c_red}Onboarding script not found.${c_reset}"
+            fi
+            ;;
+        gamble)
+            if [[ -f "$_d/scripts/utils/gamble.sh" ]]; then
+                bash "$_d/scripts/utils/gamble.sh"
+            else
+                echo "${c_red}Gamble script not found.${c_reset}"
             fi
             ;;
         integrity)
