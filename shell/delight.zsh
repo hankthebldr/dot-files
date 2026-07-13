@@ -71,24 +71,79 @@ claw_fact() {
     elif command -v fortune &>/dev/null; then
         line=$(fortune -s 2>/dev/null)
     fi
-    [[ -z "$line" ]] && return
-    # Centre under the (terminal-centred) dashboard box: both centre on the same
-    # terminal midline, so the fact's midpoint aligns with the box's without the
-    # zsh side needing the Python content_w. "✦ " is 2 display cells; ${#line}
-    # counts glyphs (UTF-8 zsh), so em-dashes/backticks stay 1 cell each.
-    local cols=${COLUMNS:-100} pad
-    pad=$(( (cols - (${#line} + 2)) / 2 )); (( pad < 0 )) && pad=0
-    # Themed printf (no `gum style`): gum also probes the terminal on each call,
-    # which can desync right after the dashboard moves the cursor. printf is
-    # query-free + deterministic, and renders backticks/em-dashes literally.
-    printf "%*s\e[38;2;%sm✦\e[0m \e[38;2;%sm%s\e[0m\n" \
-        "$pad" "" "${CLAW_RGB_PURPLE:-188;140;255}" "${CLAW_RGB_MUTED:-139;148;158}" "$line"
+    # Signal failure (no fact emitted) so the daily stamp is only written after a
+    # fact actually renders — see the trigger block below.
+    [[ -z "$line" ]] && return 1
+
+    emulate -L zsh
+    setopt extendedglob
+    # Framed, titled, screen-centred card matching the "Daily Driver" quickref
+    # (_claw_default_quickref): purple rounded border, cyan-bold title left + dim
+    # date right, blank padding rows. Colours consume the theme engine
+    # (CLAW_RGB_*) with refined-dark fallbacks — never hardcode a new surface.
+    local c_reset=$'\e[0m' c_bold=$'\e[1m'
+    local c_border=$'\e[38;2;'"${CLAW_RGB_PURPLE:-188;140;255}"'m'
+    local c_title=$'\e[38;2;'"${CLAW_RGB_CYAN:-57;197;255}"'m'
+    local c_text=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"'m'
+
+    # Date via zsh/datetime (subprocess-free, alias-proof); fall back to `date`.
+    local _today; zmodload zsh/datetime 2>/dev/null \
+        && strftime -s _today '%a %b %d' $EPOCHSECONDS \
+        || _today="$(command date '+%a %b %d' 2>/dev/null)"
+    local title="${c_title}${c_bold}✦ Fact of the Day${c_reset}"
+    local hint="${c_text}${_today}${c_reset}"
+    # Visible widths: strip SGR (extendedglob), then glyph-count (✦ = 1 cell).
+    local _t="${title//$'\e'\[[0-9;]#m/}" _h="${hint//$'\e'\[[0-9;]#m/}"
+    local tvl=${#_t} hvl=${#_h}
+    local header=$(( tvl + 2 + hvl ))     # title + min gap + hint
+
+    # Word-wrap the fact to a comfortable reading width, bounded by the terminal.
+    # ${=line} splits on whitespace without evaluating backticks/em-dashes.
+    local cols=${COLUMNS:-100} maxw=64
+    (( maxw > cols - 4 )) && maxw=$(( cols - 4 ))
+    (( maxw < 20 )) && maxw=20
+    local -a words=(${=line}) wrapped=(); local w cur=""
+    for w in $words; do
+        if [[ -z "$cur" ]]; then cur="$w"
+        elif (( ${#cur} + 1 + ${#w} <= maxw )); then cur="$cur $w"
+        else wrapped+=("$cur"); cur="$w"; fi
+    done
+    [[ -n "$cur" ]] && wrapped+=("$cur")
+
+    # Inner width = widest wrapped row, but never narrower than the header.
+    local W=0; for w in $wrapped; do (( ${#w} > W )) && W=${#w}; done
+    (( W < header )) && W=$header
+
+    local mar=$(( (cols - (W + 4)) / 2 )); (( mar < 0 )) && mar=0
+    local M="${(l:$mar:: :)}"                      # left margin (screen-centre)
+    local bar="${(l:$((W+2))::─:)}"               # horizontal rule
+    local blank="${(l:$W:: :)}"                    # full-width empty content
+
+    local gap=$(( W - tvl - hvl )); (( gap < 1 )) && gap=1
+    local trow="${title}${(l:$gap:: :)}${hint}"    # title left, date right
+
+    print -r -- ""
+    print -r -- "${M}${c_border}╭${bar}╮${c_reset}"
+    print -r -- "${M}${c_border}│${c_reset} ${trow} ${c_border}│${c_reset}"
+    print -r -- "${M}${c_border}├${bar}┤${c_reset}"
+    print -r -- "${M}${c_border}│${c_reset} ${blank} ${c_border}│${c_reset}"
+    for w in $wrapped; do                          # centre each prose line in-box
+        local lp=$(( (W - ${#w}) / 2 )); (( lp < 0 )) && lp=0
+        local rp=$(( W - ${#w} - lp )); (( rp < 0 )) && rp=0
+        print -r -- "${M}${c_border}│${c_reset} ${(l:$lp:: :)}${c_text}${w}${c_reset}${(l:$rp:: :)} ${c_border}│${c_reset}"
+    done
+    print -r -- "${M}${c_border}│${c_reset} ${blank} ${c_border}│${c_reset}"
+    print -r -- "${M}${c_border}╰${bar}╯${c_reset}"
+    print -r -- ""
 }
 # One fact per day on interactive login (skip SSH-pipe / non-tty).
 if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_FACT:-1}" == 1 ]]; then
     _claw_fact_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/fact-$(date +%Y%m%d)"
     if [[ ! -f "$_claw_fact_stamp" ]]; then
-        mkdir -p "${_claw_fact_stamp:h}" 2>/dev/null && touch "$_claw_fact_stamp" && claw_fact
+        # Render FIRST, stamp only on success — never burn the day on a fact that
+        # was never emitted (empty pool / no fortune). claw_fact returns non-zero
+        # when it prints nothing, so a bad first login retries on the next one.
+        claw_fact && mkdir -p "${_claw_fact_stamp:h}" 2>/dev/null && touch "$_claw_fact_stamp"
     fi
     unset _claw_fact_stamp
 fi
