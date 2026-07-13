@@ -71,7 +71,9 @@ claw_fact() {
     elif command -v fortune &>/dev/null; then
         line=$(fortune -s 2>/dev/null)
     fi
-    [[ -z "$line" ]] && return
+    # Signal failure (no fact emitted) so the daily stamp is only written after a
+    # fact actually renders — see the trigger block below.
+    [[ -z "$line" ]] && return 1
     # Centre under the (terminal-centred) dashboard box: both centre on the same
     # terminal midline, so the fact's midpoint aligns with the box's without the
     # zsh side needing the Python content_w. "✦ " is 2 display cells; ${#line}
@@ -88,7 +90,10 @@ claw_fact() {
 if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_FACT:-1}" == 1 ]]; then
     _claw_fact_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/fact-$(date +%Y%m%d)"
     if [[ ! -f "$_claw_fact_stamp" ]]; then
-        mkdir -p "${_claw_fact_stamp:h}" 2>/dev/null && touch "$_claw_fact_stamp" && claw_fact
+        # Render FIRST, stamp only on success — never burn the day on a fact that
+        # was never emitted (empty pool / no fortune). claw_fact returns non-zero
+        # when it prints nothing, so a bad first login retries on the next one.
+        claw_fact && mkdir -p "${_claw_fact_stamp:h}" 2>/dev/null && touch "$_claw_fact_stamp"
     fi
     unset _claw_fact_stamp
 fi
