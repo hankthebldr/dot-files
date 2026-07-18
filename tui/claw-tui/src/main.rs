@@ -34,12 +34,14 @@ enum Kind {
     Action,
     Header,
 }
+
 #[derive(Clone)]
 struct Item {
     label: String,
     key: String,
     kind: Kind,
 }
+
 impl Item {
     fn profile(k: &str) -> Self { Item { label: format!("  {}", k), key: k.into(), kind: Kind::Profile } }
     fn action(k: &str, l: &str) -> Self { Item { label: format!("  {}", l), key: k.into(), kind: Kind::Action } }
@@ -60,40 +62,103 @@ impl Outcome {
     fn emit(&self) { println!("{}", self.line()); }
 }
 
-struct App {
+struct Category {
+    name: String,
     items: Vec<Item>,
-    state: ListState,
+}
+
+struct App {
+    categories: Vec<Category>,
+    cat_state: ListState,
+    item_state: ListState,
+    focus_items: bool,
     readout: Vec<(String, String)>,
     outcome: Outcome,
     quit: bool,
+    active_logo: Vec<Line<'static>>,
 }
 
 impl App {
     fn new() -> Self {
-        let items = build_items();
-        let mut state = ListState::default();
-        state.select(first_selectable(&items));
-        App { items, state, readout: gather_readout(), outcome: Outcome::None, quit: false }
+        let categories = build_categories();
+        let mut cat_state = ListState::default();
+        cat_state.select(Some(0));
+        let mut item_state = ListState::default();
+        item_state.select(Some(0));
+        let readout = gather_readout();
+        
+        let mut app = App {
+            categories,
+            cat_state,
+            item_state,
+            focus_items: false,
+            readout,
+            outcome: Outcome::None,
+            quit: false,
+            active_logo: vec![],
+        };
+        app.update_logo();
+        app
     }
-    fn step(&mut self, dir: i32) {
-        let n = self.items.len();
+
+    fn step_category(&mut self, dir: i32) {
+        let n = self.categories.len();
         if n == 0 { return; }
-        let mut i = self.state.selected().unwrap_or(0) as i32;
-        for _ in 0..n {
-            i = (i + dir).rem_euclid(n as i32);
-            if self.items[i as usize].selectable() { break; }
-        }
-        self.state.select(Some(i as usize));
+        let idx = self.cat_state.selected().unwrap_or(0) as i32;
+        let next_idx = (idx + dir).rem_euclid(n as i32) as usize;
+        self.cat_state.select(Some(next_idx));
+        self.item_state.select(Some(0));
+        self.update_logo();
     }
-    fn confirm(&mut self) {
-        if let Some(i) = self.state.selected() {
-            if let Some(it) = self.items.get(i) {
-                self.outcome = match it.kind {
-                    Kind::Profile => Outcome::Profile(it.key.clone()),
-                    Kind::Action => Outcome::Action(it.key.clone()),
-                    Kind::Header => return,
-                };
+
+    fn step_item(&mut self, dir: i32) {
+        if let Some(cat_idx) = self.cat_state.selected() {
+            let n = self.categories[cat_idx].items.len();
+            if n == 0 { return; }
+            let idx = self.item_state.selected().unwrap_or(0) as i32;
+            let next_idx = (idx + dir).rem_euclid(n as i32) as usize;
+            self.item_state.select(Some(next_idx));
+            self.update_logo();
+        }
+    }
+
+    fn current_item(&self) -> Option<&Item> {
+        let cat_idx = self.cat_state.selected()?;
+        let item_idx = self.item_state.selected()?;
+        self.categories.get(cat_idx)?.items.get(item_idx)
+    }
+
+    fn update_logo(&mut self) {
+        if let Some(item) = self.current_item() {
+            match item.kind {
+                Kind::Profile => {
+                    self.active_logo = load_logo(&item.key);
+                }
+                Kind::Action => {
+                    let key = match item.key.as_str() {
+                        "ai" => "ai",
+                        "tun" | "tunnels" => "tunnels",
+                        "homelab" => "homelab",
+                        _ => "default",
+                    };
+                    self.active_logo = load_logo(key);
+                }
+                _ => {
+                    self.active_logo = load_logo("default");
+                }
             }
+        } else {
+            self.active_logo = load_logo("default");
+        }
+    }
+
+    fn confirm(&mut self) {
+        if let Some(it) = self.current_item() {
+            self.outcome = match it.kind {
+                Kind::Profile => Outcome::Profile(it.key.clone()),
+                Kind::Action => Outcome::Action(it.key.clone()),
+                Kind::Header => return,
+            };
         }
         self.quit = true;
     }
@@ -120,6 +185,50 @@ fn build_items() -> Vec<Item> {
     v
 }
 
+fn build_categories() -> Vec<Category> {
+    let mut core = Category { name: "⭐ Core Profiles".into(), items: vec![] };
+    let mut domain = Category { name: "☁️ Domain Expertise".into(), items: vec![] };
+    let mut knowledge = Category { name: "📓 Ideation & Knowledge".into(), items: vec![] };
+    let mut visual = Category { name: "🎨 Visual & Customer".into(), items: vec![] };
+    let mut hardware = Category { name: "📡 Hardware & Ops".into(), items: vec![] };
+    let mut actions = Category { name: "⚡ Direct Actions".into(), items: vec![] };
+    let mut system = Category { name: "🛠️ System Tools".into(), items: vec![] };
+
+    let profiles = discover_profiles();
+    for p in profiles {
+        let it = Item::profile(&p);
+        match p.as_str() {
+            "default" | "local" | "claude" => core.items.push(it),
+            "cloud" | "devops" | "security" | "cortex" | "ai" | "research" => domain.items.push(it),
+            "vault" | "brainstorm" | "pmo" => knowledge.items.push(it),
+            "deck" | "design" | "demo" => visual.items.push(it),
+            "homelab" | "blackwell" | "tunnels" => hardware.items.push(it),
+            _ => core.items.push(it),
+        }
+    }
+
+    actions.items = vec![
+        Item::action("doctor", "⚕ doctor       system + active-profile health"),
+        Item::action("ai", "✦ ai           local AI stack (ollama/aichat)"),
+        Item::action("tun", "⇄ tunnels      SSH tunnel manager"),
+        Item::action("mcp", "◆ mcp          MCP server manager"),
+        Item::action("homelab", "⌂ homelab      SSH topology"),
+        Item::action("update", "↑ update       full system update"),
+    ];
+
+    system.items = vec![
+        Item::action("onboard", "🕹 onboard      80s arcade profile setup"),
+        Item::action("integrity", "🛡 integrity    install/tamper audit"),
+        Item::action("tmux", "🪟 tmux         attach/new session"),
+        Item::action("yazi", "📂 yazi         TUI file browser"),
+        Item::action("doc", "📖 doc          CLI docs & help"),
+        Item::action("top", "📊 top          system monitor"),
+        Item::action("skip", "↩ skip         exit to bare shell"),
+    ];
+
+    vec![core, domain, knowledge, visual, hardware, actions, system]
+}
+
 fn discover_profiles() -> Vec<String> {
     let dots = std::env::var("DOTFILES_DIR").map(PathBuf::from)
         .unwrap_or_else(|_| home().join(".dotfiles"));
@@ -136,9 +245,6 @@ fn discover_profiles() -> Vec<String> {
 
 fn home() -> PathBuf { std::env::var("HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from("/")) }
 
-/// (label, value) pairs. Converges on fastfetch's data — `fastfetch --format
-/// json` is the same probe the shell readout uses — rendered natively by a
-/// ratatui Table. Falls back to a std probe when fastfetch is absent.
 fn gather_readout() -> Vec<(String, String)> {
     if let Some(out) = std::process::Command::new("fastfetch")
         .args(["--format", "json"])
@@ -156,9 +262,6 @@ fn gather_readout() -> Vec<(String, String)> {
     fallback_readout()
 }
 
-/// Parse `fastfetch --format json` ([{type, result}, …]) into display pairs.
-/// Defensive: result is a string → used directly; an object → a few well-known
-/// keys are stitched; otherwise skipped. Kept pure for unit testing.
 fn parse_fastfetch(json: &str) -> Vec<(String, String)> {
     const WANT: &[&str] = &["OS", "Host", "Kernel", "Uptime", "CPU", "GPU", "Memory", "Disk", "LocalIp", "Shell"];
     let v: serde_json::Value = match serde_json::from_str(json) {
@@ -178,7 +281,6 @@ fn parse_fastfetch(json: &str) -> Vec<(String, String)> {
         let val = match res {
             serde_json::Value::String(s) => s.clone(),
             serde_json::Value::Object(o) => {
-                // try common display keys, else join string-ish values
                 ["name", "value", "version", "cpu", "pretty"]
                     .iter()
                     .find_map(|k| o.get(*k).and_then(|x| x.as_str()).map(String::from))
@@ -213,6 +315,215 @@ fn fallback_readout() -> Vec<(String, String)> {
     ]
 }
 
+// Dynamically parses lines in logo.txt, replacing templates ($1-$6) and keeping ANSI formatting
+fn parse_line(line: &str) -> Line<'static> {
+    let mut spans = Vec::new();
+    let mut current_text = String::new();
+    let mut current_style = Style::default();
+
+    let colors = [
+        theme::muted(),
+        theme::blue(),
+        theme::purple(),
+        theme::green(),
+        theme::orange(),
+        theme::red(),
+    ];
+
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '$' && i + 1 < chars.len() && chars[i+1].is_digit(10) {
+            let digit = chars[i+1].to_digit(10).unwrap() as usize;
+            if digit >= 1 && digit <= 6 {
+                if !current_text.is_empty() {
+                    spans.push(Span::styled(current_text.clone(), current_style));
+                    current_text.clear();
+                }
+                current_style = current_style.fg(colors[digit - 1]);
+                i += 2;
+                continue;
+            }
+        }
+
+        if chars[i] == '\x1b' && i + 1 < chars.len() && chars[i+1] == '[' {
+            let mut j = i + 2;
+            let mut found_m = false;
+            while j < chars.len() {
+                if chars[j] == 'm' {
+                    found_m = true;
+                    break;
+                }
+                j += 1;
+            }
+            if found_m {
+                let seq: String = chars[i+2..j].iter().collect();
+                if !current_text.is_empty() {
+                    spans.push(Span::styled(current_text.clone(), current_style));
+                    current_text.clear();
+                }
+                current_style = apply_ansi_sequence(current_style, &seq);
+                i = j + 1;
+                continue;
+            }
+        }
+
+        current_text.push(chars[i]);
+        i += 1;
+    }
+    if !current_text.is_empty() {
+        spans.push(Span::styled(current_text, current_style));
+    }
+    Line::from(spans)
+}
+
+fn apply_ansi_sequence(mut style: Style, seq: &str) -> Style {
+    if seq == "0" || seq.is_empty() {
+        return Style::default();
+    }
+    let parts: Vec<&str> = seq.split(';').collect();
+    let mut p = 0;
+    while p < parts.len() {
+        match parts[p] {
+            "0" => {
+                style = Style::default();
+                p += 1;
+            }
+            "1" => {
+                style = style.add_modifier(Modifier::BOLD);
+                p += 1;
+            }
+            "38" => {
+                if p + 1 < parts.len() {
+                    match parts[p+1] {
+                        "2" => {
+                            if p + 4 < parts.len() {
+                                let r = parts[p+2].parse::<u8>().unwrap_or(0);
+                                let g = parts[p+3].parse::<u8>().unwrap_or(0);
+                                let b = parts[p+4].parse::<u8>().unwrap_or(0);
+                                style = style.fg(Color::Rgb(r, g, b));
+                                p += 5;
+                            } else {
+                                p += 2;
+                            }
+                        }
+                        "5" => {
+                            if p + 2 < parts.len() {
+                                if let Ok(val) = parts[p+2].parse::<u8>() {
+                                    style = style.fg(Color::Indexed(val));
+                                }
+                                p += 3;
+                            } else {
+                                p += 2;
+                            }
+                        }
+                        _ => p += 2,
+                    }
+                } else {
+                    p += 1;
+                }
+            }
+            "48" => {
+                if p + 1 < parts.len() {
+                    match parts[p+1] {
+                        "2" => {
+                            if p + 4 < parts.len() {
+                                let r = parts[p+2].parse::<u8>().unwrap_or(0);
+                                let g = parts[p+3].parse::<u8>().unwrap_or(0);
+                                let b = parts[p+4].parse::<u8>().unwrap_or(0);
+                                style = style.bg(Color::Rgb(r, g, b));
+                                p += 5;
+                            } else {
+                                p += 2;
+                            }
+                        }
+                        "5" => {
+                            if p + 2 < parts.len() {
+                                if let Ok(val) = parts[p+2].parse::<u8>() {
+                                    style = style.bg(Color::Indexed(val));
+                                }
+                                p += 3;
+                            } else {
+                                p += 2;
+                            }
+                        }
+                        _ => p += 2,
+                    }
+                } else {
+                    p += 1;
+                }
+            }
+            s => {
+                if let Ok(code) = s.parse::<u8>() {
+                    match code {
+                        30..=37 => style = style.fg(ansi_std_color(code - 30)),
+                        40..=47 => style = style.bg(ansi_std_color(code - 40)),
+                        90..=97 => style = style.fg(ansi_bright_color(code - 90)),
+                        100..=107 => style = style.bg(ansi_bright_color(code - 100)),
+                        _ => {}
+                    }
+                }
+                p += 1;
+            }
+        }
+    }
+    style
+}
+
+fn ansi_std_color(code: u8) -> Color {
+    match code {
+        0 => Color::Black,
+        1 => Color::Red,
+        2 => Color::Green,
+        3 => Color::Yellow,
+        4 => Color::Blue,
+        5 => Color::Magenta,
+        6 => Color::Cyan,
+        _ => Color::White,
+    }
+}
+
+fn ansi_bright_color(code: u8) -> Color {
+    match code {
+        0 => Color::DarkGray,
+        1 => Color::LightRed,
+        2 => Color::LightGreen,
+        3 => Color::LightYellow,
+        4 => Color::LightBlue,
+        5 => Color::LightMagenta,
+        6 => Color::LightCyan,
+        _ => Color::White,
+    }
+}
+
+fn load_logo(profile: &str) -> Vec<Line<'static>> {
+    let dots = std::env::var("DOTFILES_DIR").unwrap_or_else(|_| {
+        format!("{}/.dotfiles", std::env::var("HOME").unwrap_or_default())
+    });
+
+    let paths = [
+        format!("{}/config/.config/fastfetch/logo-{}.txt", dots, profile),
+        format!("{}/shell/profiles/{}/logo.txt", dots, profile),
+        format!("{}/config/.config/fastfetch/logo.txt", dots),
+    ];
+
+    for path in &paths {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            let lines: Vec<Line<'static>> = content.lines().map(parse_line).collect();
+            if !lines.is_empty() {
+                return lines;
+            }
+        }
+    }
+
+    // Absolute fallback - corrected spelling
+    vec![
+        Line::from(Span::styled("  █▀█ █▀█ █▀▀ █▄░█   █▀▀ █░░ ▄▀█ █░█░█", theme::pointer())),
+        Line::from(Span::styled("  █▄█ █▀▀ ██▄ █░▀█   █▄▄ █▄▄ █▀█ ▀▄▀▄▀", theme::pointer())),
+        Line::from(Span::styled("     OPEN CLAW", theme::title())),
+    ]
+}
+
 fn main() -> Result<()> {
     let arg = std::env::args().nth(1).unwrap_or_else(|| "welcome".into());
     if arg != "welcome" || !std::io::stdout().is_terminal() {
@@ -234,6 +545,7 @@ fn setup() -> Result<Terminal<CrosstermBackend<Stdout>>> {
     execute!(out, EnterAlternateScreen)?;
     Ok(Terminal::new(CrosstermBackend::new(out))?)
 }
+
 fn restore(term: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
     disable_raw_mode()?;
     execute!(term.backend_mut(), LeaveAlternateScreen)?;
@@ -249,9 +561,33 @@ fn run(term: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> Result<(
                 if k.kind != KeyEventKind::Press { continue; }
                 match k.code {
                     KeyCode::Char('q') | KeyCode::Esc => { app.outcome = Outcome::None; app.quit = true; }
-                    KeyCode::Down | KeyCode::Char('j') => app.step(1),
-                    KeyCode::Up | KeyCode::Char('k') => app.step(-1),
-                    KeyCode::Enter => app.confirm(),
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        if app.focus_items {
+                            app.step_item(1);
+                        } else {
+                            app.step_category(1);
+                        }
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        if app.focus_items {
+                            app.step_item(-1);
+                        } else {
+                            app.step_category(-1);
+                        }
+                    }
+                    KeyCode::Right | KeyCode::Char('l') | KeyCode::Tab => {
+                        app.focus_items = true;
+                    }
+                    KeyCode::Left | KeyCode::Char('h') | KeyCode::BackTab => {
+                        app.focus_items = false;
+                    }
+                    KeyCode::Enter => {
+                        if !app.focus_items {
+                            app.focus_items = true;
+                        } else {
+                            app.confirm();
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -261,43 +597,94 @@ fn run(term: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> Result<(
 }
 
 fn ui(f: &mut Frame, app: &mut App) {
-    let root = Layout::vertical([Constraint::Length(9), Constraint::Min(5), Constraint::Length(1)]).split(f.area());
-    let head = Layout::horizontal([Constraint::Length(20), Constraint::Min(30)]).split(root[0]);
+    let root = Layout::vertical([
+        Constraint::Length(15), // logo and readout (the header block)
+        Constraint::Min(5),    // category and item panes (the menu block)
+        Constraint::Length(1)   // footer status bar
+    ]).split(f.area());
 
-    let logo = Paragraph::new(vec![
-        Line::from(Span::styled("  ▄▀█ █▀█ █▀▀ █▄░█", theme::key())),
-        Line::from(Span::styled("  █▀▀ █░░ ▄▀█ █░█░█", theme::pointer())),
-        Line::from(Span::styled("  █▄▄ █▄▄ █▀█ ▀▄▀▄▀", theme::pointer())),
-        Line::from(Span::styled("     OPEN CLAW", theme::title())),
-    ]);
-    f.render_widget(logo, head[0]);
+    let head = Layout::horizontal([
+        Constraint::Length(34), // dynamic logo width
+        Constraint::Min(30)    // readout table
+    ]).split(root[0]);
 
-    let rows: Vec<Row> = app.readout.iter().take(8).map(|(k, v)| {
+    // 1. Render Logo Pane
+    let logo_widget = Paragraph::new(app.active_logo.clone());
+    f.render_widget(logo_widget, head[0]);
+
+    // 2. Render Readout Info Table
+    let rows: Vec<Row> = app.readout.iter().take(12).map(|(k, v)| {
         Row::new(vec![
             Span::styled(k.clone(), theme::key()),
             Span::styled(v.clone(), theme::value()),
         ])
     }).collect();
-    let table = Table::new(rows, [Constraint::Length(10), Constraint::Min(10)])
+    let table = Table::new(rows, [Constraint::Length(12), Constraint::Min(10)])
         .block(Block::default().borders(Borders::LEFT).border_style(Style::default().fg(theme::rule())));
     f.render_widget(table, head[1]);
 
-    let items: Vec<ListItem> = app.items.iter().map(|it| {
+    // 3. Render Categorized Menu Split
+    let menu_split = Layout::horizontal([
+        Constraint::Percentage(40), // Left: Categories
+        Constraint::Percentage(60)  // Right: Items
+    ]).split(root[1]);
+
+    // Render Categories List
+    let cat_items: Vec<ListItem> = app.categories.iter().map(|cat| {
+        ListItem::new(Line::from(Span::styled(format!("  {}", cat.name), theme::value())))
+    }).collect();
+
+    let cat_block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Categories ")
+        .border_style(Style::default().fg(if !app.focus_items { theme::blue() } else { theme::rule() }));
+
+    let cat_style = if !app.focus_items {
+        theme::selected()
+    } else {
+        Style::default().add_modifier(Modifier::BOLD)
+    };
+
+    let cat_list = List::new(cat_items)
+        .block(cat_block)
+        .highlight_style(cat_style)
+        .highlight_symbol("❯ ");
+    f.render_stateful_widget(cat_list, menu_split[0], &mut app.cat_state);
+
+    // Render Items List
+    let current_cat_idx = app.cat_state.selected().unwrap_or(0);
+    let items_in_cat = &app.categories[current_cat_idx].items;
+
+    let item_list_items: Vec<ListItem> = items_in_cat.iter().map(|it| {
         let style = match it.kind {
-            Kind::Header => theme::title(),
             Kind::Action => Style::default().fg(theme::orange()),
             Kind::Profile => theme::value(),
+            Kind::Header => theme::title(),
         };
         ListItem::new(Line::from(Span::styled(it.label.clone(), style)))
     }).collect();
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::TOP).border_style(Style::default().fg(theme::rule())))
-        .highlight_style(theme::selected())
-        .highlight_symbol("❯ ");
-    f.render_stateful_widget(list, root[1], &mut app.state);
 
+    let item_block = Block::default()
+        .borders(Borders::ALL)
+        .title(format!(" {} Items ", app.categories[current_cat_idx].name))
+        .border_style(Style::default().fg(if app.focus_items { theme::blue() } else { theme::rule() }));
+
+    let item_style = if app.focus_items {
+        theme::selected()
+    } else {
+        Style::default().add_modifier(Modifier::BOLD)
+    };
+
+    let item_list = List::new(item_list_items)
+        .block(item_block)
+        .highlight_style(item_style)
+        .highlight_symbol("❯ ");
+    f.render_stateful_widget(item_list, menu_split[1], &mut app.item_state);
+
+    // 4. Render Footer Status Bar
     let bar = Paragraph::new(Line::from(vec![
-        Span::styled("  ↑/↓", theme::pointer()), Span::styled(" navigate  ", theme::value()),
+        Span::styled("  ←/→", theme::pointer()), Span::styled(" switch pane  ", theme::value()),
+        Span::styled("↑/↓", theme::pointer()), Span::styled(" navigate  ", theme::value()),
         Span::styled("⏎", theme::pointer()), Span::styled(" select  ", theme::value()),
         Span::styled("esc", theme::pointer()), Span::styled(" bare shell", theme::value()),
     ])).style(Style::default().fg(theme::muted()));
@@ -320,7 +707,7 @@ mod tests {
         assert!(pairs.iter().any(|(k, v)| k == " OS" && v == "macOS"));
         assert!(pairs.iter().any(|(k, v)| k == " Kernel" && v == "Darwin 25.6.0"));
         assert!(pairs.iter().any(|(k, v)| k == " CPU" && v == "Apple M4 Pro"));
-        assert!(!pairs.iter().any(|(k, _)| k == " WiFi"));   // not in WANT
+        assert!(!pairs.iter().any(|(k, _)| k == " WiFi"));
     }
 
     #[test]
@@ -338,13 +725,13 @@ mod tests {
     #[test]
     fn first_selectable_skips_headers() {
         let items = vec![Item::header("h"), Item::profile("default"), Item::action("a", "A")];
-        assert_eq!(first_selectable(&items), Some(1)); // skips the header at 0
+        assert_eq!(first_selectable(&items), Some(1));
     }
 
     #[test]
     fn build_items_has_headers_and_actions() {
         let v = build_items();
-        assert!(matches!(v[0].kind, Kind::Header));            // starts with a section header
+        assert!(matches!(v[0].kind, Kind::Header));
         assert!(v.iter().any(|i| matches!(i.kind, Kind::Profile)));
         assert!(v.iter().any(|i| matches!(i.kind, Kind::Action) && i.key == "doctor"));
     }
@@ -354,5 +741,19 @@ mod tests {
         assert!(!Item::header("x").selectable());
         assert!(Item::profile("p").selectable());
         assert!(Item::action("a", "l").selectable());
+    }
+
+    #[test]
+    fn parse_line_handles_templates_and_ansi() {
+        let line = parse_line("$2BlueText$1MutedText\x1b[38;2;255;0;0mRedText");
+        assert_eq!(line.spans.len(), 3);
+        assert_eq!(line.spans[0].content, "BlueText");
+        assert_eq!(line.spans[1].content, "MutedText");
+        assert_eq!(line.spans[2].content, "RedText");
+        
+        // Assert color styling
+        assert_eq!(line.spans[0].style.fg, Some(theme::blue()));
+        assert_eq!(line.spans[1].style.fg, Some(theme::muted()));
+        assert_eq!(line.spans[2].style.fg, Some(Color::Rgb(255, 0, 0)));
     }
 }
