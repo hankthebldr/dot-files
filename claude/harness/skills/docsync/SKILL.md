@@ -224,6 +224,51 @@ with the copied set, then `vault_refresh_mocs` so the anchor tree + roll-up refl
 
 ---
 
+## KIND REGISTRY — todo identity (single source of truth)
+
+Every docsync-managed todo carries a **machine key**. This section is the ONLY
+place the key scheme and title conventions are defined; consumer skills
+(project-cadence, in-flight, gitsync) reference this table instead of inventing
+their own.
+
+Key form (identity — exact, never fuzzy):
+
+```
+docsync:{repo}:{kind}:{slug}
+```
+
+- `{repo}` is the byte-identical repo name that already names the Things project
+  and the vault folder. The key extends Henry's law; it never replaces it.
+- `{slug}` is frozen at creation (explicit slug > task_id > slugified title).
+  Titles may drift; keys never do.
+
+Storage: in the todo's **notes field**, as a literal line:
+
+```
+docsync-key: docsync:{repo}:{kind}:{slug}
+```
+
+Chosen because the installed hald/things-mcp `add_todo`/`update_todo` expose
+`notes`, and `search_todos` matches notes — so key lookup is an exact search and
+titles stay human-readable. (Fallback if a notes-less build is ever in play:
+append the key as a trailing title token in the same fixed form. Uglier, still
+exact.)
+
+| kind      | owner            | title form            |
+|-----------|------------------|-----------------------|
+| task      | project-cadence  | plain                 |
+| phase     | project-cadence  | ◆ PHASE: <n>          |
+| sprint    | project-cadence  | ▶ SPRINT <n>:         |
+| resume    | project-cadence  | ⏸ RESUME HERE         |
+| wi        | in-flight        | [WI:<slug>]           |
+| deferred  | gitsync          | [deferred]            |
+
+Title forms are display convention only — lookup, completion, and update always
+go through the key (verbs 3-5). A consumer skill needs exactly one line about
+identity: "todo identity = docsync's KIND REGISTRY key scheme."
+
+---
+
 ## Binding anchor — `{VAULT}/Github-Projects/{repo}/_MOC {repo}.md`
 
 Written by `vault_project_home`. Schema (frontmatter keys are authoritative — match exactly):
