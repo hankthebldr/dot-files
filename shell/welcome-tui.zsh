@@ -13,8 +13,45 @@ _claw_apply_outcome() {
                 source "$DOTFILES_DIR/shell/profiles/${rest}.zsh"
             } ;;
         ACTION)
-            # Run a known claw action, then continue to a bare shell.
-            command -v claw &>/dev/null && claw "$rest" ;;
+            case "$rest" in
+                tmux)
+                    if command -v tmux &>/dev/null; then
+                        tmux attach 2>/dev/null || tmux new-session
+                    else
+                        echo "tmux not installed."
+                    fi
+                    ;;
+                yazi)
+                    if command -v yazi &>/dev/null; then
+                        yazi
+                    else
+                        echo "yazi not installed."
+                    fi
+                    ;;
+                onboard)
+                    if [[ -f "$DOTFILES_DIR/scripts/utils/onboarding.sh" ]]; then
+                        bash "$DOTFILES_DIR/scripts/utils/onboarding.sh"
+                    fi
+                    ;;
+                integrity)
+                    if [[ -f "$DOTFILES_DIR/scripts/utils/integrity.sh" ]]; then
+                        bash "$DOTFILES_DIR/scripts/utils/integrity.sh" audit
+                    fi
+                    ;;
+                top)
+                    if command -v btop &>/dev/null; then
+                        btop
+                    else
+                        top
+                    fi
+                    ;;
+                doc)
+                    command -v claw &>/dev/null && claw help ;;
+                *)
+                    # Run standard claw subcommand
+                    command -v claw &>/dev/null && claw "$rest" ;;
+            esac
+            ;;
         *) : ;;   # NONE / unknown → bare shell
     esac
 }

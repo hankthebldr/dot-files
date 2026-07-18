@@ -12,6 +12,7 @@ struct Palette {
     purple: Color,
     amber: Color,
     muted: Color,
+    red: Color,
     fg: Color,
     sel_bg: Color,
     rule: Color,
@@ -26,6 +27,7 @@ impl Default for Palette {
             purple: Color::Rgb(0xbc, 0x8c, 0xff),
             amber: Color::Rgb(0xe3, 0xb3, 0x41),
             muted: Color::Rgb(0x8b, 0x94, 0x9e),
+            red: Color::Rgb(0xff, 0x7b, 0x72),
             fg: Color::Rgb(0xc9, 0xd1, 0xd9),
             sel_bg: Color::Rgb(0x16, 0x1b, 0x22),
             rule: Color::Rgb(0x30, 0x36, 0x3d),
@@ -74,6 +76,7 @@ fn load() -> Palette {
             "purple" => p.purple = c,
             "amber" => p.amber = c,
             "muted" => p.muted = c,
+            "red" => p.red = c,
             "fg" => p.fg = c,
             "bg_alt" => p.sel_bg = c,
             "divider" => p.rule = c,
@@ -91,6 +94,11 @@ fn pal() -> &'static Palette {
 pub fn orange() -> Color { pal().amber }
 pub fn muted() -> Color { pal().muted }
 pub fn rule() -> Color { pal().rule }
+
+pub fn blue() -> Color { pal().blue }
+pub fn green() -> Color { pal().green }
+pub fn purple() -> Color { pal().purple }
+pub fn red() -> Color { pal().red }
 
 pub fn key() -> Style { Style::default().fg(pal().blue) }
 pub fn value() -> Style { Style::default().fg(pal().fg) }

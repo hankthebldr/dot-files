@@ -254,3 +254,7 @@ unset _fzf_init
 # actually mounted, else ollama would fail to read/write models on Linux or
 # on a Mac without the drive attached.
 [[ -d /Volumes/LacieDrive ]] && export OLLAMA_MODELS="/Volumes/LacieDrive/ollama-models"
+
+# opencode
+export PATH=/Users/henry/.opencode/bin:$PATH
+. "/Users/henry/.acme.sh/acme.sh.env"

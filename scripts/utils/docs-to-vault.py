@@ -36,10 +36,10 @@ MAPPING: list[tuple[str, str, str, str, list[str]]] = [
     ("docs/plans/2026-03-05-ubuntu-installer-design.md", "specs", "reference", "active", ["spec", "design"]),
     ("docs/plans/2026-03-28-profile-fastfetch-design.md", "specs", "reference", "active", ["spec", "design"]),
     ("docs/plans/2026-03-30-ssh-tunnel-manager-design.md", "specs", "reference", "active", ["spec", "design"]),
-    # ── implementation / activation plans ─────────────────────────────────────
     ("docs/superpowers/plans/2026-06-01-session-name-banner.md", "plans", "reference", "active", ["plan"]),
     ("docs/superpowers/plans/2026-06-02-hermes-openrouter-activation.md", "plans", "reference", "active", ["plan"]),
     ("docs/plans/2026-03-05-ubuntu-installer-plan.md", "plans", "reference", "active", ["plan"]),
+    ("docs/plans/2026-07-11-next-gen-feature-brainstorming.md", "plans", "reference", "active", ["plan", "brainstorming"]),
     # ── decisions (ADRs) ──────────────────────────────────────────────────────
     ("docs/ADR-001-hybrid-model-stack.md", "decisions", "decision", "accepted", ["adr"]),
     ("docs/ADR-002-mcp-server-selection.md", "decisions", "decision", "accepted", ["adr"]),

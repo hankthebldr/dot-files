@@ -118,3 +118,30 @@ run_h() { run env DOTFILES_DIR="$DF" bash "$H" "$@"; }
   [ ! -e "$DF/claude/harness/skills/_scratch" ]
   [ -L "$HOME/.claude/skills/linked" ]                    # untouched
 }
+
+@test "capture --dry-run: previews without moving anything" {
+  mkdir -p "$HOME/.claude/skills/mine"
+  printf -- '---\nname: mine\ndescription: x\n---\n' > "$HOME/.claude/skills/mine/SKILL.md"
+  run_h capture --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would capture: skills 'mine'"* ]]
+  [ ! -e "$DF/claude/harness/skills/mine" ]        # nothing moved
+  [ ! -L "$HOME/.claude/skills/mine" ]             # still a real dir
+}
+
+@test "capture: handles single-file commands and agents" {
+  printf -- '---\nname: c1\ndescription: cmd\n---\nbody\n' > "$HOME/.claude/commands/c1.md"
+  printf -- '---\nname: a1\ndescription: agent\n---\nbody\n' > "$HOME/.claude/agents/a1.md"
+  run_h capture
+  [ "$status" -eq 0 ]
+  [ -f "$DF/claude/harness/commands/c1.md" ]; [ -L "$HOME/.claude/commands/c1.md" ]
+  [ -f "$DF/claude/harness/agents/a1.md" ];   [ -L "$HOME/.claude/agents/a1.md" ]
+}
+
+@test "capture: second run is a no-op" {
+  mkdir -p "$HOME/.claude/skills/mine"
+  printf -- '---\nname: mine\ndescription: x\n---\n' > "$HOME/.claude/skills/mine/SKILL.md"
+  run_h capture; [ "$status" -eq 0 ]
+  run_h capture; [ "$status" -eq 0 ]
+  [[ "$output" != *"captured skills 'mine'"* ]]    # nothing re-captured (already a symlink)
+}
