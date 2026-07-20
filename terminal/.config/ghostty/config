@@ -27,13 +27,14 @@ adjust-cell-height = 0%
 # more cells on screen.
 maximize = false
 window-decoration = true
-# Initial size in cells. The claw dashboard box is 68 cols, the generic
-# fastfetch logo 81, and the profile readout + quickref stack ~52 rows tall —
-# Ghostty's built-in default (~80x24) can't center any of it. 140x48 gives the
-# welcome TUI room to center with margins and show the readout without scroll.
-# Only applies to new windows (window-save-state = never keeps it authoritative).
+# Initial size in CELLS (font-independent — the macOS 14pt bump enlarges each
+# cell, not the grid). Sized for the dashboards: the claw box is 68 cols, the
+# generic fastfetch logo 81, and the profile readout + quickref stack ~52 rows.
+# 140 cols centers the 81-col art with even margins; 52 rows shows the full
+# readout + quickref with no scroll. Ghostty's ~80x24 default can't hold any of
+# it. Only applies to new windows (window-save-state = never keeps it authoritative).
 window-width = 140
-window-height = 48
+window-height = 52
 window-padding-x = 4
 window-padding-y = 4
 window-padding-balance = true
