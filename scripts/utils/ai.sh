@@ -13,6 +13,7 @@ case "${1:-doctor}" in
   chat)    shift; have aichat && aichat "$@" || { have openrouter && openrouter "$@" || log_warning "aichat/openrouter not installed"; };;
   web)     _open "http://localhost:3000"; log_info "open-webui → :3000 (n8n usually :5678)";;
   n8n)     _open "http://localhost:5678";;
+  config)  shift; bash "$DOTFILES/scripts/utils/ai-config.sh" "$@";;
   doctor)
     printf "\n  ${c_white}local AI stack${c_reset}\n"
     have ollama && { pgrep -x ollama >/dev/null && log_success "ollama running :11434" || log_warning "ollama installed, not running (claw ai serve)"; } || log_warning "ollama missing"
@@ -20,5 +21,5 @@ case "${1:-doctor}" in
     [[ -n "${OPENROUTER_API_KEY:-}" ]] && log_success "OPENROUTER_API_KEY set" || log_skip "OPENROUTER_API_KEY unset"
     [[ -n "${OLLAMA_OPENAI_BASE:-}" ]] && log_success "OLLAMA_OPENAI_BASE=$OLLAMA_OPENAI_BASE" || true
     ;;
-  *) echo "usage: claw ai {serve|models|pull <m>|chat|web|n8n|doctor}";;
+  *) echo "usage: claw ai {serve|models|pull <m>|chat|web|n8n|config|doctor}";;
 esac
