@@ -442,58 +442,6 @@ alias tkss='tmux kill-session -t'
 alias zshrc='$EDITOR ~/.zshrc'
 alias reload='source ~/.zshrc'
 
-# Profile switching (inline, no restart needed)
-claw() {
-    local _d="${DOTFILES_DIR:-$HOME/.dotfiles}"
-    if [[ -z "$1" ]]; then
-        # No args: re-launch FZF profile menu
-        if [[ -f "$_d/shell/welcome-tui.zsh" ]]; then
-            unset CLAW_ACTIVE_PROFILE CLAW_PROFILE_THEME
-            source "$_d/shell/welcome-tui.zsh"
-            claw_welcome_tui
-        fi
-        return
-    fi
-    # `claw theme ...` — color theme management (libraries in config/themes/<slug>/)
-    if [[ "$1" == "theme" ]]; then
-        shift
-        case "$1" in
-            ""|list|ls)  claw_theme_list ;;
-            set)         claw_theme_set "$2" ;;
-            preview)     claw_theme_preview "$2" ;;
-            *) printf 'usage: claw theme [list | set <slug> | preview <slug>]\n' >&2; return 1 ;;
-        esac
-        return
-    fi
-    # `claw clin ...` — clin plugin (Obsidian-style note TUI, theme/vault-synced)
-    if [[ "$1" == "clin" ]]; then
-        shift
-        case "$1" in
-            ""|sync)     bash "$_d/scripts/utils/clin.sh" sync ;;
-            install)     bash "$_d/scripts/utils/clin.sh" install ;;
-            setup)       bash "$_d/scripts/utils/clin.sh" setup ;;
-            *) printf 'usage: claw clin [sync | install | setup]\n' >&2; return 1 ;;
-        esac
-        return
-    fi
-    local profile="$1"
-    local profile_path="$_d/shell/profiles/${profile}.zsh"
-    if [[ ! -f "$profile_path" ]]; then
-        echo "Unknown profile: $profile"
-        echo "Available: default security cloud devops ai research cortex local"
-        return 1
-    fi
-    export CLAW_ACTIVE_PROFILE="$profile"
-    unset CLAW_PROFILE_THEME
-    source "$profile_path"
-    # Show profile fastfetch if available
-    local ff="$_d/config/.config/fastfetch/config-${profile}.jsonc"
-    if command -v fastfetch &>/dev/null && [[ -f "$ff" ]]; then
-        echo ""
-        # claw_ff = kitty/iterm raster logo in Ghostty/Kitty/iTerm, text fallback elsewhere.
-        if typeset -f claw_ff &>/dev/null; then claw_ff "$profile" "$ff"; else fastfetch -c "$ff"; fi
-    fi
-}
 alias aliases='$EDITOR $DOTFILES_DIR/shell/aliases.zsh'
 alias vim='nvim'
 alias vimrc='$EDITOR ~/.config/nvim/init.lua'
@@ -757,33 +705,6 @@ alias lock='/System/Library/CoreServices/Menu\ Extras/User.menu/Contents/Resourc
 # SMART FUNCTIONS
 # ============================================
 
-# Create and enter directory
-mkcd() {
-    mkdir -p "$1" && cd "$1"
-}
-
-# Extract any archive
-extract() {
-    if [ -f "$1" ]; then
-        case "$1" in
-            *.tar.bz2) tar xjf "$1" ;;
-            *.tar.gz) tar xzf "$1" ;;
-            *.bz2) bunzip2 "$1" ;;
-            *.rar) unrar x "$1" ;;
-            *.gz) gunzip "$1" ;;
-            *.tar) tar xf "$1" ;;
-            *.tbz2) tar xjf "$1" ;;
-            *.tgz) tar xzf "$1" ;;
-            *.zip) unzip "$1" ;;
-            *.Z) uncompress "$1" ;;
-            *.7z) 7z x "$1" ;;
-            *) echo "'$1' cannot be extracted" ;;
-        esac
-    else
-        echo "'$1' is not a valid file"
-    fi
-}
-
 # Find process by name
 psgrep() {
     ps aux | command grep -v grep | command grep -i -e VSZ -e "$1"
@@ -832,23 +753,6 @@ tfw-switch() {
     if [ -n "$workspace" ]; then
         terraform workspace select "$workspace"
     fi
-}
-
-# Find and kill process with fzf
-fkill() {
-    local pid
-    pid=$(ps aux | fzf --height 50% --reverse | awk '{print $2}')
-    if [ -n "$pid" ]; then
-        kill -9 "$pid"
-        echo "Killed process $pid"
-    fi
-}
-
-# Quick HTTP server
-serve() {
-    local port="${1:-8000}"
-    echo "Starting HTTP server on port $port..."
-    python3 -m http.server "$port"
 }
 
 # Find files by name

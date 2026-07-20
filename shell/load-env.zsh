@@ -40,6 +40,10 @@ if [[ -f "${DOTFILES_DIR:-$HOME/Github/Github_desktop/dot-files}/.env" ]]; then
     _claw_resolve_op_refs 2>/dev/null
 fi
 
-# Decrypt sops-managed secrets into the env (silent, guarded — see claw secret).
-[[ -f "$DOTFILES_DIR/config/secrets/.env.sops" ]] && command -v sops &>/dev/null && \
-    source "$DOTFILES_DIR/scripts/utils/secret.sh" load 2>/dev/null || true
+# Decrypt sops-managed secrets into the env. secret.sh runs `set -uo pipefail`;
+# run it as a SUBPROCESS emitting `export` lines and eval them, so those options
+# never leak into this interactive shell (they would make every later unset-var
+# expansion fatal). Silent + guarded.
+if [[ -f "$DOTFILES_DIR/config/secrets/.env.sops" ]] && command -v sops &>/dev/null; then
+    eval "$(bash "$DOTFILES_DIR/scripts/utils/secret.sh" env-export 2>/dev/null)"
+fi
