@@ -111,7 +111,7 @@ claw_theme_list() {
         _s="$(basename "$_tf" .theme)"
         [ -d "$CLAW_THEME_DIR/$_s" ] && continue   # already shown as a dir
         _n="$(sed -n 's/^name=//p' "$_tf" | head -n1)"
-        printf '    \033[38;2;215;58;58m%-18s %s (flat — migrate)\033[0m\n' "$_s" "$_n"
+        printf '    \033[38;2;%sm%-18s %s (flat — migrate)\033[0m\n' "${CLAW_RGB_RED:-255;123;114}" "$_s" "$_n"
     done
 }
 
@@ -220,7 +220,7 @@ claw_theme_build() {
         [ -d "$CLAW_THEME_DIR/$_bs" ] && continue   # already built as a dir
         mkdir -p "$CLAW_THEME_DIR/$_bs" 2>/dev/null
         if _claw_render_ghostty "$_bs" "$CLAW_THEME_DIR/$_bs/ghostty.conf"; then
-            printf '  \033[38;2;215;58;58m✓ %s/ghostty.conf (flat — migrate)\033[0m\n' "$_bs"
+            printf '  \033[38;2;%sm✓ %s/ghostty.conf (flat — migrate)\033[0m\n' "${CLAW_RGB_RED:-255;123;114}" "$_bs"
         fi
     done
 }
