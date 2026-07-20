@@ -66,6 +66,8 @@ jobs:
       - name: py_compile
         run: |
           for f in $(git ls-files 'scripts/**/*.py'); do python3 -m py_compile "$f"; done
+      - name: hook regression tests
+        run: sudo apt-get install -y bats && bats tests/hooks.bats
       - name: fastfetch generator is deterministic (no manual drift)
         run: |
           python3 scripts/utils/gen-fastfetch.py
