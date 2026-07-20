@@ -66,7 +66,10 @@ resize-overlay = never
 # ── Clipboard ─────────────────────────────────────────────────────────
 clipboard-read = allow
 clipboard-write = allow
-copy-on-select = clipboard
+# `true` copies selections to the SELECTION buffer only (Linux middle-click),
+# NOT the system clipboard — so a drag-select never silently overwrites what you
+# last cmd+c'd. Was `clipboard`, which clobbered the macOS clipboard on every drag.
+copy-on-select = true
 # Warn before pasting multi-line / control-char payloads (paste-injection guard).
 clipboard-paste-protection = true
 clipboard-trim-trailing-spaces = true
@@ -133,17 +136,21 @@ palette = 15=#d4be98
 # so a single keybind line works on both platforms. Platform-only binds
 # (macOS quick-terminal, Linux Ctrl+Shift fallbacks) live in os-*.conf.
 
-# Clipboard (Mac-style)
+# Clipboard (Mac-style). No cmd+x remap — ⌘X is Cut in every macOS app; binding
+# it to copy here was surprising muscle-memory breakage. Selection copy is
+# handled by copy-on-select above.
 keybind = cmd+c=copy_to_clipboard
 keybind = cmd+v=paste_from_clipboard
-keybind = cmd+x=copy_to_clipboard
 
-# Tabs
+# Tabs. cmd+shift+[ / ] jump tabs; ctrl+tab / ctrl+shift+tab add the
+# browser-style cycling most terminals honor (both reach the shell as-is).
 keybind = cmd+t=new_tab
 keybind = cmd+w=close_surface
 keybind = cmd+shift+w=close_tab
 keybind = cmd+shift+left_bracket=previous_tab
 keybind = cmd+shift+right_bracket=next_tab
+keybind = ctrl+tab=next_tab
+keybind = ctrl+shift+tab=previous_tab
 keybind = cmd+one=goto_tab:1
 keybind = cmd+two=goto_tab:2
 keybind = cmd+three=goto_tab:3
