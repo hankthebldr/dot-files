@@ -73,6 +73,17 @@ sec_load_env() {
     done < <(sops -d "$SOPS_ENV" 2>/dev/null)
 }
 
+# Emit `export KEY=VAL` lines for eval by a caller that must NOT inherit this
+# script's `set -uo pipefail` (load-env.zsh sources into the interactive shell).
+sec_env_export() {
+    [[ -f "$SOPS_ENV" ]] && command -v sops &>/dev/null || return 0
+    local line k v
+    while IFS= read -r line; do
+        k="${line%%=*}"; v="${line#*=}"
+        [[ "$k" =~ ^[A-Za-z_][A-Za-z0-9_]*$ && -n "$v" ]] && printf 'export %s=%q\n' "$k" "$v"
+    done < <(sops -d "$SOPS_ENV" 2>/dev/null)
+}
+
 sec_doctor() {
     printf "\n  ${c_white}secret stack${c_reset}\n"
     command -v age  &>/dev/null && log_success "age  $(age --version 2>/dev/null | head -1)"   || log_warning "age missing"
@@ -90,6 +101,7 @@ case "${1:-doctor}" in
     edit)         shift; [[ -z "${1:-}" ]] && { echo "usage: claw secret edit <file>"; exit 1; }; sec_edit "$1" ;;
     env)          sec_env ;;
     load)         sec_load_env ;;
+    env-export)   sec_env_export ;;
     doctor)       sec_doctor ;;
     *)            echo "usage: claw secret {init|encrypt|decrypt|edit|env|doctor}" ;;
 esac
