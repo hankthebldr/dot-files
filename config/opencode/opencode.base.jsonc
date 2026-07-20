@@ -1,0 +1,7 @@
+{
+  // Portable opencode config base — tracked in dot-files, rendered to
+  // ~/.config/opencode/opencode.jsonc by `claw ai config sync`. Add portable
+  // model/provider defaults, MCP servers, and agent defs here. Color is NOT
+  // set: opencode uses the terminal ANSI palette (claw theme set updates it).
+  "$schema": "https://opencode.ai/config.json"
+}
