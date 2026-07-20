@@ -90,17 +90,20 @@ Mirrors the numbered steps in `shell/.zshrc` (see its header comment):
 
 ### Profile System
 
-`shell/profiles/` contains context-specific environments loaded via the welcome TUI:
-- `default.zsh` — Daily driver with help function, tool check, Apple logo fastfetch
-- 8 core: `cloud.zsh`, `security.zsh`, `devops.zsh`, `ai.zsh`, `research.zsh`, `cortex.zsh`, `local.zsh` (+ default)
-- 10 specialized: `claude.zsh`, `blackwell.zsh`, `brainstorm.zsh`, `deck.zsh`, `demo.zsh`, `design.zsh`, `homelab.zsh`, `pmo.zsh`, `tunnels.zsh`, `vault.zsh` (18 profiles total)
+`shell/profiles/` contains context-specific environments loaded via the welcome TUI. Each profile is a **directory**, not a single file: a thin 5-line dispatcher `shell/profiles/<name>.zsh` sources `<name>/{meta,common,mac|linux}.zsh` (platform-split so macOS/Linux-only aliases don't leak cross-platform):
+- `default/` — Daily driver with help function, tool check, Apple logo fastfetch
+- 8 core: `cloud/`, `security/`, `devops/`, `ai/`, `research/`, `cortex/`, `local/` (+ default)
+- 10 specialized: `claude/`, `blackwell/`, `brainstorm/`, `deck/`, `demo/`, `design/`, `homelab/`, `pmo/`, `tunnels/`, `vault/` (18 profiles total)
 
-Each profile provides:
-- `CLAW_PROFILE_THEME` export
-- Domain-specific aliases grouped by category
+Each profile directory provides:
+- `meta.zsh` — `CLAW_PROFILE_THEME` / `PROFILE_THEME_DEFAULT` and other profile metadata
+- `common.zsh` — domain-specific aliases and functions shared across platforms
+- `mac.zsh` / `linux.zsh` — platform-specific overrides, sourced conditionally by the dispatcher
 - `{profile}-help` — styled quick-reference card
 - `_{profile}_tool_check` — tool presence validation
 - Profile-specific fastfetch config (`config-{profile}.jsonc`) with themed logo
+
+`claw profiles lint` (`scripts/utils/profiles-lint.sh`) validates the directory-per-profile contract — every profile has the expected files and exports the required symbols.
 
 ### Fastfetch Profile Configs
 
