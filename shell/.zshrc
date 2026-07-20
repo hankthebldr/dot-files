@@ -29,6 +29,7 @@ fi
 export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
 [[ -d "$HOME/.cargo/bin" ]] && export PATH="$HOME/.cargo/bin:$PATH"
 [[ -d "$HOME/go/bin" ]]     && export PATH="$HOME/go/bin:$PATH"
+[[ -d "$HOME/.opencode/bin" ]] && export PATH="$HOME/.opencode/bin:$PATH"
 export PATH="${DOTFILES_DIR}/scripts/utils:$PATH"
 export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 
@@ -255,6 +256,4 @@ unset _fzf_init
 # on a Mac without the drive attached.
 [[ -d /Volumes/LacieDrive ]] && export OLLAMA_MODELS="/Volumes/LacieDrive/ollama-models"
 
-# opencode
-export PATH=/Users/henry/.opencode/bin:$PATH
-. "/Users/henry/.acme.sh/acme.sh.env"
+[[ -f "$HOME/.acme.sh/acme.sh.env" ]] && . "$HOME/.acme.sh/acme.sh.env"
