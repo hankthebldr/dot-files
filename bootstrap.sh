@@ -279,6 +279,17 @@ main() {
     if command -v brew &>/dev/null; then
         local brew_extras=(bash yq gum eza zoxide atuin btop lazygit lazydocker git-delta dust duf procs glow fastfetch vivid)
         for tool in "${brew_extras[@]}"; do
+            if [[ "$tool" == bash ]]; then
+                # /bin/bash 3.2 always resolves; gate on the BREW bash existing,
+                # not `command -v bash` (which the system bash always satisfies).
+                if [[ ! -x "$(brew --prefix)/bin/bash" ]]; then
+                    log_info "Installing modern bash via brew..."
+                    brew install bash 2>/dev/null || log_warning "Failed to install bash"
+                else
+                    log_success "modern bash already installed"
+                fi
+                continue
+            fi
             if ! command -v "$tool" &>/dev/null; then
                 log_info "Installing $tool via brew..."
                 brew install "$tool" 2>/dev/null || log_warning "Failed to install $tool"

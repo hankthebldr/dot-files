@@ -37,6 +37,13 @@ if [[ "$PKG_MANAGER" == brew ]] && ! have brew; then
     log_info "installing Homebrew..."
     (( DRY )) && log_info "DRY: install Homebrew via official script" || \
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # Put brew on PATH for the rest of this run (fresh installs land in a shell
+    # that hasn't sourced .zprofile yet — the exact bug bootstrap.sh fixes).
+    if ! have brew; then
+        for _b in /opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew; do
+            [[ -x "$_b" ]] && eval "$("$_b" shellenv)" && break
+        done
+    fi
 elif [[ "$PKG_MANAGER" == apt ]]; then
     run sudo apt-get update -qq
 else
