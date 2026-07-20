@@ -25,6 +25,36 @@ from _lib import (  # noqa: E402
     C, banner_block, extract_targets, in_scope, log_row, redact, stderr,
 )
 
+# Wrapper commands and env-assignment prefixes to strip before matching a
+# segment's leading binary against RECON_TOOLS.
+_WRAPPERS = {"sudo", "doas", "env", "command", "nohup", "timeout", "nice", "xargs"}
+
+
+def _recon_segments(cmd: str) -> list[str]:
+    """Split a command line into statement/pipeline segments for recon scanning."""
+    # Break on ; && || | and command-substitution boundaries.
+    return [s for s in re.split(r"(?:\|\||&&|[;|]|\$\(|\)|`)", cmd) if s.strip()]
+
+
+def _leading_bin(segment: str) -> str:
+    """First real binary in a segment, past env-assignments and wrappers."""
+    try:
+        argv = shlex.split(segment, posix=True)
+    except ValueError:
+        argv = segment.split()
+    i = 0
+    while i < len(argv):
+        tok = argv[i]
+        if "=" in tok and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", tok):
+            i += 1  # env assignment
+            continue
+        base = tok.rsplit("/", 1)[-1]
+        if base in _WRAPPERS:
+            i += 1  # wrapper command
+            continue
+        return base
+    return ""
+
 # ─── Static block patterns ──────────────────────────────────────────────
 CATASTROPHIC = [
     re.compile(r"\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*)\s+/(\s|$)"),
@@ -169,26 +199,20 @@ def main() -> None:
                 hint="Edit the generator, then re-run: python3 scripts/utils/gen-fastfetch.py",
             )
 
-    # 3. Recon scope check
-    try:
-        argv = shlex.split(cmd, posix=True)
-    except ValueError:
-        argv = cmd.split()
-    if not argv:
-        sys.exit(0)
-    bin_name = argv[0].rsplit("/", 1)[-1]
-    if bin_name in RECON_TOOLS:
-        targets = extract_targets(cmd)
-        if not targets:
-            deny(tool, cmd, f"recon tool {bin_name} invoked with no parseable target")
-        for t in targets:
-            if not in_scope(t):
-                deny(
-                    tool, cmd,
-                    f"target {t!r} not in ~/.claude/scope.txt (default-deny)",
-                    targets=targets,
-                )
-        allow(tool, cmd, reason=f"recon-in-scope:{bin_name}", targets=targets)
+    # 3. Recon scope check — scan every pipeline/statement segment, stripping
+    #    sudo/env/wrapper prefixes so `sudo nmap` and `x; nmap` can't bypass.
+    hit_recon = False
+    for seg in _recon_segments(cmd):
+        if _leading_bin(seg) in RECON_TOOLS:
+            hit_recon = True
+            targets = extract_targets(seg)
+            if not targets:
+                deny(tool, cmd, f"recon tool in {seg.strip()!r} invoked with no parseable target")
+            for t in targets:
+                if not in_scope(t):
+                    deny(tool, cmd, f"target {t!r} not in ~/.claude/scope.txt (default-deny)", targets=targets)
+    if hit_recon:
+        allow(tool, cmd, reason="recon-in-scope")
 
     allow(tool, cmd)
 

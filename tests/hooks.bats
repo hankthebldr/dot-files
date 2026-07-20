@@ -20,3 +20,28 @@ run_hook() { run bash -c "printf '%s' '$1' | python3 '$HOOK'"; }
   run_hook '{"tool_name":"Edit","tool_input":{"file_path":"/x/config/.config/fastfetch/config-pmo.jsonc"}}'
   [ "$status" -eq 0 ]
 }
+
+@test "sudo-prefixed recon tool is scope-checked (denied out of scope)" {
+  run_hook '{"tool_name":"Bash","tool_input":{"command":"sudo nmap evil.com"}}'
+  [ "$status" -eq 2 ]
+}
+
+@test "chained recon tool is scope-checked (denied out of scope)" {
+  run_hook '{"tool_name":"Bash","tool_input":{"command":"true; nmap evil.com"}}'
+  [ "$status" -eq 2 ]
+}
+
+@test "env-assignment-prefixed recon tool is scope-checked (denied out of scope)" {
+  run_hook '{"tool_name":"Bash","tool_input":{"command":"FOO=bar nmap evil.com"}}'
+  [ "$status" -eq 2 ]
+}
+
+@test "piped recon tool is scope-checked (denied out of scope)" {
+  run_hook '{"tool_name":"Bash","tool_input":{"command":"echo x | nmap evil.com"}}'
+  [ "$status" -eq 2 ]
+}
+
+@test "non-recon command still allowed" {
+  run_hook '{"tool_name":"Bash","tool_input":{"command":"ls -la"}}'
+  [ "$status" -eq 0 ]
+}
