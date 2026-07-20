@@ -50,10 +50,72 @@ aic_render_opencode() {
     } > "$_out" 2>/dev/null
 }
 
-aic_render_openwork() { printf 'ai-config: openwork render not yet implemented\n' >&2; return 1; }
-aic_sync()   { aic_render_opencode "$OC_CONFIG"; }
-aic_status() { printf '  ai-config: opencode base %s\n' "$OC_BASE"; }
-aic_setup()  { aic_sync; }
+# --- openwork: workspace roots from the vault, seed-and-reconcile ------------
+# Emits server.json with a "_claw_managed" sentinel key. Two roots by default:
+# the Obsidian vault and ~/OpenWork. Extra workspaces present in $3 (a JSON file
+# to preserve) are merged so adopt is lossless.
+aic_render_openwork() {
+    _out="${1:-/dev/stdout}"; _seed="${2:-}"
+    _vault="$(_aic_vault)"; _ow="$HOME/OpenWork"
+    [ "$_out" != "/dev/stdout" ] && mkdir -p "$(dirname "$_out")" 2>/dev/null
+    VAULT="$_vault" OWROOT="$_ow" SEED="$_seed" python3 - "$_out" <<'PY'
+import json, os, sys
+out = sys.argv[1]
+vault, owroot, seed = os.environ["VAULT"], os.environ["OWROOT"], os.environ.get("SEED", "")
+def ws(path, name): return {"id": "ws_" + name, "path": path, "name": name, "preset": "starter", "workspaceType": "local"}
+base = [ws(vault, os.path.basename(vault.rstrip("/"))), ws(owroot, "OpenWork")]
+paths = {w["path"] for w in base}
+# preserve any extra workspaces from the seed file
+if seed and os.path.isfile(seed):
+    try:
+        old = json.load(open(seed))
+        for w in old.get("workspaces", []):
+            if w.get("path") and w["path"] not in paths:
+                base.append(w); paths.add(w["path"])
+    except (ValueError, OSError):
+        pass
+doc = {"_claw_managed": True, "workspaces": base, "authorizedRoots": sorted(paths)}
+data = json.dumps(doc, indent=2) + "\n"
+if out == "/dev/stdout":
+    sys.stdout.write(data)
+else:
+    open(out, "w").write(data)
+PY
+}
+
+aic_sync() {
+    if _aic_managed_ok "$OC_CONFIG" "$AICONFIG_SENTINEL"; then
+        aic_render_opencode "$OC_CONFIG" && printf '  ai-config: synced %s\n' "$OC_CONFIG"
+    fi
+    if _aic_managed_ok "$OW_CONFIG" '_claw_managed'; then
+        aic_render_openwork "$OW_CONFIG" "$OW_CONFIG" && printf '  ai-config: synced %s\n' "$OW_CONFIG"
+    fi
+}
+
+aic_status() {
+    printf '\n  ai-config — managed AI tool configs\n'
+    _oc_state="unmanaged"; [ -f "$OC_CONFIG" ] && head -1 "$OC_CONFIG" 2>/dev/null | grep -q "$AICONFIG_SENTINEL" && _oc_state="managed"
+    _ow_state="unmanaged"; [ -f "$OW_CONFIG" ] && grep -q '_claw_managed' "$OW_CONFIG" 2>/dev/null && _ow_state="managed"
+    printf '    opencode  %-10s %s\n' "$_oc_state" "$OC_CONFIG"
+    printf '    openwork  %-10s %s\n' "$_ow_state" "$OW_CONFIG"
+    # openwork runtime/secret files — presence only, never values
+    for f in runtime-opencode-config.json runtime.sqlite tokens.json; do
+        [ -f "$OW_DIR/$f" ] && printf '    · %-28s (app-owned, not managed)\n' "$f"
+    done
+    [ -f "$OW_DIR/tokens.json" ] && printf '    note: tokens.json holds secrets — app-owned; use claw secret for durable backup.\n'
+}
+
+aic_setup() {
+    [ -f "$OC_CONFIG" ] && ! head -1 "$OC_CONFIG" 2>/dev/null | grep -q "$AICONFIG_SENTINEL" \
+        && printf '  ai-config: existing opencode config is unmanaged — leaving it (force to adopt).\n' >&2 \
+        || aic_render_opencode "$OC_CONFIG"
+    if [ ! -f "$OW_CONFIG" ] || grep -q '_claw_managed' "$OW_CONFIG" 2>/dev/null; then
+        aic_render_openwork "$OW_CONFIG" "$OW_CONFIG"
+    else
+        printf '  ai-config: existing openwork server.json is app-owned — leaving it (force to adopt).\n' >&2
+    fi
+    aic_status
+}
 
 _cmd="${1:-status}"; shift 2>/dev/null || true
 case "$_cmd" in
