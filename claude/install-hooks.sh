@@ -41,6 +41,7 @@ def ensure(event: str, matcher: str, command: str) -> bool:
 
 changed = False
 changed |= ensure("PreToolUse", "Bash", "python3 ~/.claude/hooks/pre_tool_use.py")
+changed |= ensure("PreToolUse", "Edit|Write|MultiEdit|NotebookEdit", "python3 ~/.claude/hooks/pre_tool_use.py")
 changed |= ensure("PostToolUse", "*", "python3 ~/.claude/hooks/post_tool_use.py")
 
 if changed:
