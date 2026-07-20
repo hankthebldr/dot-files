@@ -104,6 +104,15 @@ claw_theme_list() {
             printf '    \033[38;2;139;148;158m%-18s %s\033[0m\n' "$_s" "$_n"
         fi
     done
+    # Straggler guard: surface any flat <slug>.theme not yet migrated to
+    # <slug>/palette.theme so it can't silently vanish from the listing.
+    for _tf in "$CLAW_THEME_DIR"/*.theme; do
+        [ -e "$_tf" ] || continue
+        _s="$(basename "$_tf" .theme)"
+        [ -d "$CLAW_THEME_DIR/$_s" ] && continue   # already shown as a dir
+        _n="$(sed -n 's/^name=//p' "$_tf" | head -n1)"
+        printf '    \033[38;2;215;58;58m%-18s %s (flat — migrate)\033[0m\n' "$_s" "$_n"
+    done
 }
 
 # Swatch preview for a theme (defaults to active).
@@ -201,6 +210,17 @@ claw_theme_build() {
         [ -r "$(_claw_theme_file "$_bs")" ] || continue
         if _claw_render_ghostty "$_bs" "$CLAW_THEME_DIR/$_bs/ghostty.conf"; then
             printf '  \033[38;2;63;185;80m✓\033[0m %s/ghostty.conf\n' "$_bs"
+        fi
+    done
+    # Straggler guard: build flat <slug>.theme files too (into <slug>/) so an
+    # unmigrated palette still gets a Ghostty artifact instead of vanishing.
+    for _bf in "$CLAW_THEME_DIR"/*.theme; do
+        [ -e "$_bf" ] || continue
+        _bs="$(basename "$_bf" .theme)"
+        [ -d "$CLAW_THEME_DIR/$_bs" ] && continue   # already built as a dir
+        mkdir -p "$CLAW_THEME_DIR/$_bs" 2>/dev/null
+        if _claw_render_ghostty "$_bs" "$CLAW_THEME_DIR/$_bs/ghostty.conf"; then
+            printf '  \033[38;2;215;58;58m✓ %s/ghostty.conf (flat — migrate)\033[0m\n' "$_bs"
         fi
     done
 }

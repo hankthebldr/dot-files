@@ -32,6 +32,8 @@ mod theme;
 enum Kind {
     Profile,
     Action,
+    // Matched in confirm()/ui(); only constructed by the legacy flat list (tests).
+    #[allow(dead_code)]
     Header,
 }
 
@@ -45,7 +47,9 @@ struct Item {
 impl Item {
     fn profile(k: &str) -> Self { Item { label: format!("  {}", k), key: k.into(), kind: Kind::Profile } }
     fn action(k: &str, l: &str) -> Self { Item { label: format!("  {}", l), key: k.into(), kind: Kind::Action } }
+    #[cfg(test)]
     fn header(l: &str) -> Self { Item { label: l.into(), key: String::new(), kind: Kind::Header } }
+    #[cfg(test)]
     fn selectable(&self) -> bool { !matches!(self.kind, Kind::Header) }
 }
 
@@ -156,6 +160,7 @@ impl App {
         if let Some(it) = self.current_item() {
             self.outcome = match it.kind {
                 Kind::Profile => Outcome::Profile(it.key.clone()),
+                Kind::Action if it.key == "skip" => Outcome::None,
                 Kind::Action => Outcome::Action(it.key.clone()),
                 Kind::Header => return,
             };
@@ -164,10 +169,12 @@ impl App {
     }
 }
 
+#[cfg(test)]
 fn first_selectable(items: &[Item]) -> Option<usize> {
     items.iter().position(|i| i.selectable())
 }
 
+#[cfg(test)]
 fn build_items() -> Vec<Item> {
     let mut v = vec![Item::header("  profiles")];
     for p in discover_profiles() { v.push(Item::profile(&p)); }
@@ -333,9 +340,9 @@ fn parse_line(line: &str) -> Line<'static> {
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
     while i < chars.len() {
-        if chars[i] == '$' && i + 1 < chars.len() && chars[i+1].is_digit(10) {
+        if chars[i] == '$' && i + 1 < chars.len() && chars[i+1].is_ascii_digit() {
             let digit = chars[i+1].to_digit(10).unwrap() as usize;
-            if digit >= 1 && digit <= 6 {
+            if (1..=6).contains(&digit) {
                 if !current_text.is_empty() {
                     spans.push(Span::styled(current_text.clone(), current_style));
                     current_text.clear();
@@ -741,6 +748,38 @@ mod tests {
         assert!(!Item::header("x").selectable());
         assert!(Item::profile("p").selectable());
         assert!(Item::action("a", "l").selectable());
+    }
+
+    fn app_with_action(key: &str) -> App {
+        let mut cat_state = ListState::default();
+        cat_state.select(Some(0));
+        let mut item_state = ListState::default();
+        item_state.select(Some(0));
+        App {
+            categories: vec![Category { name: "sys".into(), items: vec![Item::action(key, key)] }],
+            cat_state,
+            item_state,
+            focus_items: true,
+            readout: vec![],
+            outcome: Outcome::Action("sentinel".into()),
+            quit: false,
+            active_logo: vec![],
+        }
+    }
+
+    #[test]
+    fn confirm_skip_emits_none() {
+        let mut app = app_with_action("skip");
+        app.confirm();
+        assert_eq!(app.outcome.line(), "NONE");
+        assert!(app.quit);
+    }
+
+    #[test]
+    fn confirm_other_action_emits_action() {
+        let mut app = app_with_action("doctor");
+        app.confirm();
+        assert_eq!(app.outcome.line(), "ACTION\tdoctor");
     }
 
     #[test]
