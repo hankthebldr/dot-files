@@ -27,7 +27,7 @@ adjust-cell-height = 0%
 # more cells on screen.
 maximize = false
 window-decoration = true
-# Initial size in CELLS (font-independent — the macOS 14pt bump enlarges each
+# Initial size in CELLS (font-independent — a font-size change scales each
 # cell, not the grid). Sized for the dashboards: the claw box is 68 cols, the
 # generic fastfetch logo 81, and the profile readout + quickref stack ~52 rows.
 # 140 cols centers the 81-col art with even margins; 52 rows shows the full
