@@ -10,10 +10,10 @@ fleet:
 # (DNS-independent — works on-LAN or over a routed tailnet).
 cluster:
   context: k3s-ms01
-  traefik_ip: 192.168.1.109
+  traefik_ip: 192.168.1.110
 
 machines:
-  - { id: ms-01,  host: 192.168.1.109, user: henry, ssh: true,  role: control-plane,
+  - { id: ms-01,  host: 192.168.1.110, user: henry, ssh: true,  role: control-plane,
       services: [k3s, gitea, n8n, portainer, enclave, grafana, harbor] }
   - { id: r630,   host: 192.168.1.102, user: henry, ssh: true,  role: worker, services: [] }
   - { id: bd790i, host: 192.168.1.104, user: henry, ssh: true,  role: worker,
