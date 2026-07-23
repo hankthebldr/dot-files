@@ -30,6 +30,7 @@ export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
 [[ -d "$HOME/.cargo/bin" ]] && export PATH="$HOME/.cargo/bin:$PATH"
 [[ -d "$HOME/go/bin" ]]     && export PATH="$HOME/go/bin:$PATH"
 [[ -d "$HOME/.opencode/bin" ]] && export PATH="$HOME/.opencode/bin:$PATH"
+[[ -d "$HOME/.antigravity-ide/antigravity-ide/bin" ]] && export PATH="$HOME/.antigravity-ide/antigravity-ide/bin:$PATH"
 export PATH="${DOTFILES_DIR}/scripts/utils:$PATH"
 export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 
