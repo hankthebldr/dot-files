@@ -18,5 +18,5 @@ PROFILE_FLAIR="every note links to three others — somehow they all matter"
 PROFILE_OS_SUPPORT="mac+linux"
 
 # INSTALL TOOLING
-PROFILE_TOOLCHAIN="vault-toolchain.sh"     # to be built in B1 if needed
+PROFILE_TOOLCHAIN=""
 PROFILE_KEY_TOOLS="rg fzf glow bat pandoc yq obsidian"

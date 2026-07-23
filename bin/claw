@@ -787,6 +787,13 @@ cmd_install() {
     DOTFILES_DIR="$DOTFILES" bash "$script" "$@"
 }
 
+cmd_profiles() {
+    case "${1:-}" in
+        lint) DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/profiles-lint.sh" ;;
+        *)    err "usage: claw profiles lint"; return 1 ;;
+    esac
+}
+
 cmd_theme() {
     # Single-source-of-truth color switcher. list | current | set | preview | fzf | build | apply.
     local sub="${1:-list}"; shift || true
@@ -1039,6 +1046,7 @@ case "${1:-menu}" in
     unlock-shell)   cmd_unlock_shell ;;
     docs-sync|docs)  bash "$DOTFILES/scripts/utils/docs-to-vault.sh" ;;
     install)        shift; cmd_install "$@" ;;
+    profiles)       shift; cmd_profiles "$@" ;;
     provision)      shift; bash "$DOTFILES/scripts/install/provision.sh" "$@" ;;
     pkg|packages)   shift; bash "$DOTFILES/scripts/utils/pkg-manifest.sh" "$@" ;;
     secret|secrets)  shift; bash "$DOTFILES/scripts/utils/secret.sh" "$@" ;;

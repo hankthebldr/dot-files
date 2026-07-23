@@ -111,6 +111,7 @@ _install_one() {  # _install_one <id> <brew> <apt> <fallback>
         eget:*)           command -v eget &>/dev/null && _run eget "${fb#eget:}" --to "$HOME/.local/bin/$id" && { log_success "$id (eget)"; RESULT_INSTALLED+=("$id"); } || { log_warning "$id (eget unavailable — run: claw install nextgen)"; RESULT_FAILED+=("$id"); } ;;
         pipx)             command -v pipx &>/dev/null && _run pipx install "$id" && { log_success "$id (pipx)"; RESULT_INSTALLED+=("$id"); } || { log_warning "$id (pipx unavailable)"; RESULT_FAILED+=("$id"); } ;;
         gem)              command -v gem &>/dev/null  && _run gem install "$id" && { log_success "$id (gem)"; RESULT_INSTALLED+=("$id"); } || { log_warning "$id (gem unavailable)"; RESULT_FAILED+=("$id"); } ;;
+        cargo:*)          command -v cargo &>/dev/null && _run cargo install "${fb#cargo:}" && { log_success "$id (cargo)"; RESULT_INSTALLED+=("$id"); } || { log_warning "$id (cargo unavailable)"; RESULT_FAILED+=("$id"); } ;;
         cargo)            command -v cargo &>/dev/null && _run cargo install "$id" && { log_success "$id (cargo)"; RESULT_INSTALLED+=("$id"); } || { log_warning "$id (cargo unavailable)"; RESULT_FAILED+=("$id"); } ;;
         *)                log_warning "$id — unknown fallback '$fb'"; RESULT_FAILED+=("$id") ;;
     esac

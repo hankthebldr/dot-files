@@ -76,11 +76,17 @@ _discover() {
     # used instead of `find -printf '%f'` — that GNU-only flag fails silently on
     # macOS BSD find, which had quietly killed this whole channel there. Pure
     # bash builtins ([[ -f/-x ]] + ${f##*/}) are portable and fork-free.
-    local d f
+    local d f tgt
     for d in "$HOME/.local/bin" "$HOME/go/bin"; do
         [[ -d "$d" ]] || continue
         for f in "$d"/*; do
-            [[ -f "$f" && -x "$f" ]] && printf '%s\n' "${f##*/}"
+            [[ -f "$f" && -x "$f" ]] || continue
+            # Skip entry-point shims managed by pipx/uv/claude — not standalone tools.
+            tgt="$(readlink -f "$f" 2>/dev/null || realpath "$f" 2>/dev/null || echo "$f")"
+            case "$tgt" in
+                *"/.local/pipx/"*|*"/.local/share/uv/"*|*"/.local/share/claude/"*|*"/pipx/venvs/"*) continue ;;
+            esac
+            printf '%s\n' "${f##*/}"
         done
     done
 }
@@ -139,7 +145,7 @@ _infer_source() {
     grep -qxF "$id" <<<"$_PKG_CARGO" && { echo cargo; return; }
     grep -qxF "$id" <<<"$_PKG_PIPX"  && { echo pipx;  return; }
     grep -qxF "$id" <<<"$_PKG_NPM"   && { echo npm;   return; }
-    [[ -x "$HOME/.local/bin/$id" || -x "$HOME/go/bin/$id" ]] && { echo eget; return; }   # user binary — assume eget-fetchable
+    [[ -x "$HOME/.local/bin/$id" || -x "$HOME/go/bin/$id" ]] && { echo manual; return; }   # user binary of unknown origin — needs manual review, not a blind eget
     echo manual
 }
 

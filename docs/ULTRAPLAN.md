@@ -111,16 +111,16 @@ Excludes what we already ship. Distribution: `apt`/`brew` → `eget` (GitHub bin
 
 ### Wave 2 — Provisioning + self-update spine  ✅ (mostly landed)
 - [x] `claw provision` — one-pass fresh-box (apt/brew base → modern-cli → stow → nextgen → manifest → agentic → fonts → integrity). Idempotent, `--dry-run`, `--minimal`.
-- [x] `claw pkg` self-aware manifest (track/scan/install/update via topgrade) — the interop loop. [ ] self-update timer (next).
+- [x] `claw pkg` self-aware manifest (track/scan/install/update via topgrade) — the interop loop. [x] self-update timer (next).
 - [x] Secrets foundation: `claw secret` (age/sops) + sops-encrypted `.env.sops` auto-loaded; shared agentic env.
 
 ### Wave 3 — Agentic + interop  ✅ (core landed)
 - [x] `claude/mcp.toml` + `claw mcp-sync` (Claude Code + Gemini + Desktop renderers, 9 servers).
 - [x] `claw ai` umbrella (Ollama/aichat/open-webui/n8n). agents.toml: +hermes/openrouter/aichat.
-- [x] `claw handoff` (vault inbox). [ ] `claw capture-tasks` / `/handoff` skill (next).
+- [x] `claw handoff` (vault inbox). [x] `claw capture-tasks` / `/handoff` skill (next).
 
 ### Wave 4 — Ratatui TUI  ✅ (M0+M1 landed, compiles)
-- [x] M0 seam (outcome contract + `_claw_apply_outcome` + `CLAW_TUI=1` guard) + M1 welcome screen (logo + native two-column readout + profile picker), compiles on cargo 1.94. [ ] M2–M5 (next).
+- [x] M0 seam (outcome contract + `_claw_apply_outcome` + `CLAW_TUI=1` guard) + M1 welcome screen (logo + native two-column readout + profile picker), compiles on cargo 1.94. M2 mostly landed (categorized dual-pane + 13 actions); parity gaps: Clin Notes, AI Toolkit, toolkit launcher. [ ] M3–M5 (next).
 
 ### Wave 5 — Polish + triage
 - [ ] P3 dead-weight triage (wire or delete, with operator sign-off).
