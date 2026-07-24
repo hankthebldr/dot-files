@@ -119,9 +119,11 @@ fi
 # Live progress indicator (window title + completion banner + claw_run wrapper)
 [[ -f "$DOTFILES_DIR/shell/progress.zsh" ]] && source "$DOTFILES_DIR/shell/progress.zsh"
 [[ -f "$DOTFILES_DIR/shell/delight.zsh" ]] && source "$DOTFILES_DIR/shell/delight.zsh"
-# Obsidian Vault OS. Default assumes the vault lives under ~/Documents; override
-# per-machine by exporting VAULT_PATH in ~/.zshenv (sourced before this file).
-export VAULT_PATH="${VAULT_PATH:-$HOME/Documents/hr-vault-main-pa}"
+# Obsidian Vault OS. Canonical path is ~/hr-vault-main-pa (see the vault's
+# CLAUDE.md); override per-machine by exporting VAULT_PATH in ~/.zshenv
+# (sourced before this file). The old ~/Documents default pointed at a
+# nonexistent path and silently skipped the vault alias layer.
+export VAULT_PATH="${VAULT_PATH:-$HOME/hr-vault-main-pa}"
 [[ -f "$VAULT_PATH/_agents/shell-aliases.sh" ]] && source "$VAULT_PATH/_agents/shell-aliases.sh"
 
 # ── 7. Tool Initializations (all guarded) ───────────────
