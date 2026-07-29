@@ -21,7 +21,8 @@
 #   install          install + enable the systemd --user timer (runs `tick` ~60s)
 #   uninstall        disable + remove the timer
 #   review [--no-write]      summarize fired alerts + local-model tier-2 go/no-go
-#   schedule-review <date> [HH:MM]   one-shot --user timer that runs `review` once
+#   schedule-review <date> [HH:MM]   one-shot timer that runs `review` once
+#                                    (systemd --user on Linux · launchd on macOS)
 #   help
 #
 # Config (optional): ~/.config/claw/situation.env  (KEY=VALUE)
@@ -65,16 +66,29 @@ if ! have timeout; then
 fi
 
 # ── Desktop notification (the interrupt tier) ──────────────────────────────
+# Delegates the desktop popup to the ONE notify engine (scripts/utils/notify.sh)
+# so macOS and Linux behave identically — crit is audible + distinguishable on
+# both (macOS was previously a silent banner identical to info). The alert-log
+# TSV is the one thing kept local. Falls back to an inline osascript/notify-send
+# if the engine is somehow absent (e.g. a partial checkout).
+NOTIFY_ENGINE="$DOTFILES/scripts/utils/notify.sh"
 notify() {
     # notify <info|crit> <title> <body>
-    local urg="$1" title="CLAW · $2" body="$3"
-    case "$(uname -s)" in
-        Darwin) osascript -e "display notification \"$body\" with title \"$title\"" 2>/dev/null ;;
-        *)      if have notify-send; then
-                    local u=normal; [ "$urg" = crit ] && u=critical
-                    notify-send -u "$u" -i utilities-terminal "$title" "$body" 2>/dev/null
-                fi ;;
-    esac
+    local urg="$1" title="CLAW · $2" body="$3" flag="--info"
+    [ "$urg" = crit ] && flag="--crit"
+    if [ -r "$NOTIFY_ENGINE" ]; then
+        bash "$NOTIFY_ENGINE" send "$flag" --app "CLAW" --title "$title" "$body" 2>/dev/null
+    else
+        case "$(uname -s)" in
+            Darwin)
+                local sound=""; [ "$urg" = crit ] && sound=" sound name \"Basso\""
+                osascript -e "display notification \"$body\" with title \"$title\"${sound}" 2>/dev/null ;;
+            *)      if have notify-send; then
+                        local u=normal; [ "$urg" = crit ] && u=critical
+                        notify-send -u "$u" -i utilities-terminal "$title" "$body" 2>/dev/null
+                    fi ;;
+        esac
+    fi
     printf '%s\t%s\t%s\t%s\n' "$(date -u +%FT%TZ)" "$urg" "$2" "$body" >> "$ALERTS" 2>/dev/null || true
 }
 
@@ -557,11 +571,59 @@ Give a SHORT (4-6 lines) opinionated recommendation labelled GO / TUNE / HOLD, a
     return 0
 }
 
-# ── Schedule a one-shot review at a specific local datetime (systemd --user) ─
+# ── Schedule a one-shot review at a specific local datetime ─────────────────
+# Linux → systemd --user timer (OnCalendar). macOS → launchd LaunchAgent with a
+# StartCalendarInterval (month/day/hour/minute) that runs `review` then unloads
+# + deletes itself so it fires exactly once. Parity: this used to hard-fail on
+# MBP with "systemctl required".
 cmd_schedule_review() {
     local d="${1:-}" t="${2:-09:00}"
     [ -z "$d" ] && { echo "usage: situation schedule-review <YYYY-MM-DD> [HH:MM]"; return 1; }
-    have systemctl || { echo "systemctl required (Linux user timers)"; return 1; }
+    local hh="${t%%:*}" mm="${t#*:}"
+
+    if have launchctl && [ "$(uname -s)" = Darwin ]; then
+        # Parse YYYY-MM-DD → month/day for StartCalendarInterval (no year field
+        # in launchd; the self-unload below makes it a genuine one-shot anyway).
+        local mo dd
+        mo="$(printf '%s' "$d" | cut -d- -f2 | sed 's/^0*//')"; : "${mo:=1}"
+        dd="$(printf '%s' "$d" | cut -d- -f3 | sed 's/^0*//')"; : "${dd:=1}"
+        hh="$(printf '%s' "$hh" | sed 's/^0*//')"; : "${hh:=0}"
+        mm="$(printf '%s' "$mm" | sed 's/^0*//')"; : "${mm:=0}"
+        local plist="$HOME/Library/LaunchAgents/com.openclaw.situation-review.plist"
+        mkdir -p "$HOME/Library/LaunchAgents"
+        cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.openclaw.situation-review</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>"\$HOME/.dotfiles/scripts/utils/situation.sh" review; launchctl unload "$plist" 2>/dev/null; rm -f "$plist"</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Month</key><integer>${mo}</integer>
+        <key>Day</key><integer>${dd}</integer>
+        <key>Hour</key><integer>${hh}</integer>
+        <key>Minute</key><integer>${mm}</integer>
+    </dict>
+    <key>EnvironmentVariables</key>
+    <dict><key>PATH</key><string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+    <key>StandardOutPath</key><string>/dev/null</string>
+    <key>StandardErrorPath</key><string>/dev/null</string>
+</dict>
+</plist>
+EOF
+        launchctl unload "$plist" 2>/dev/null || true
+        launchctl load "$plist" || return 1
+        echo "✓ review scheduled for ${d} ${t} (local); runs 'situation review' once (launchd, self-removing)"
+        return 0
+    fi
+
+    have systemctl || { echo "no timer scheduler found — need launchctl (macOS) or systemctl (Linux)"; return 1; }
     local udir="$HOME/.config/systemd/user"; mkdir -p "$udir"
     cp -f "$DOTFILES/config/systemd/claw-situation-review.service" "$udir/" || return 1
     cat > "$udir/claw-situation-review.timer" <<EOF

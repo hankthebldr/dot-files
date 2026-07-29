@@ -291,6 +291,19 @@ main() {
         log_info "Install Homebrew: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
     fi
 
+    # terminal-notifier (macOS only) — the reliable backend for `claw notify` /
+    # `claw situation` desktop alerts. osascript works as a fallback, but
+    # terminal-notifier gives a real app identity, sounds, and banner grouping so
+    # crit alerts behave like Linux's urgency=critical. Skipped on Linux.
+    if [[ "$(uname -s)" == "Darwin" ]] && command -v brew &>/dev/null; then
+        if command -v terminal-notifier &>/dev/null; then
+            log_success "terminal-notifier already installed"
+        else
+            log_info "Installing terminal-notifier via brew..."
+            brew install terminal-notifier 2>/dev/null || log_warning "Failed to install terminal-notifier (osascript fallback still works)"
+        fi
+    fi
+
     # colorls — Ruby-based ls with Font Awesome / Nerd Font icons
     if command -v colorls &>/dev/null; then
         log_success "colorls already installed"

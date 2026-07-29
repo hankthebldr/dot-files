@@ -58,6 +58,7 @@ One entry point. All workflows.
 claw                  open the welcome menu (FZF picker)
 claw help             list every subcommand
 claw doctor           system + active-profile health
+claw notify           cross-platform desktop notification ("Title" "Body" · --crit · --after -- <cmd>)
 claw update           full system update (brew/npm/pip/etc)
 claw tools            interactive curated CLI tool refresh
 claw tun              SSH tunnel manager

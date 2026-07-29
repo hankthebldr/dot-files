@@ -65,6 +65,12 @@ Also: `claw update` is the one updater front door (`--tools` → tool-updater,
 `--schedule` → selfupdate); superseded/uncalled scripts live in `legacy/`
 (see `legacy/README.md`) — archive there, don't delete or leave strays.
 
+Also: `scripts/utils/notify.sh` is the one desktop-notification engine
+(`claw notify`, macOS terminal-notifier→osascript / Linux notify-send, stderr
+fallback). `platform.zsh` `claw_notify` and `situation.sh`'s interrupt tier both
+route through it so crit alerts behave identically on macOS and Linux — never
+hand-roll an `osascript`/`notify-send` call in a new surface.
+
 ### Shell Configuration Loading Order (.zshrc)
 
 Mirrors the numbered steps in `shell/.zshrc` (see its header comment):
@@ -223,6 +229,7 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | `scripts/utils/system-update.sh` | Package updater with gum spinners |
 | `scripts/utils/homelab.sh` | SSH topology manager |
 | `scripts/utils/logger.sh` | Shared logging utilities |
+| `scripts/utils/notify.sh` | One cross-platform desktop-notification engine (`claw notify`); backs `platform.zsh` `claw_notify` + `situation.sh` alerts |
 | `scripts/utils/detect-os.sh` | OS detection (macOS, Ubuntu, Kali, etc.) |
 | `scripts/setup/symlinks.sh` | GNU Stow symlink deployment |
 | `scripts/setup/link-claude.sh` | Item-level deployer for `claude/` → `~/.claude` (hooks, skills, harness) |
