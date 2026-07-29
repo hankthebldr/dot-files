@@ -45,7 +45,12 @@ struct Item {
 impl Item {
     fn profile(k: &str) -> Self { Item { label: format!("  {}", k), key: k.into(), kind: Kind::Profile } }
     fn action(k: &str, l: &str) -> Self { Item { label: format!("  {}", l), key: k.into(), kind: Kind::Action } }
+    // Exercised only by the unit tests today (build_categories() superseded
+    // build_items() in the real UI). Kept in the binary — not #[cfg(test)] — so
+    // Kind::Header keeps a constructor; allow(dead_code) silences the unused warn.
+    #[allow(dead_code)]
     fn header(l: &str) -> Self { Item { label: l.into(), key: String::new(), kind: Kind::Header } }
+    #[allow(dead_code)]
     fn selectable(&self) -> bool { !matches!(self.kind, Kind::Header) }
 }
 
@@ -164,10 +169,12 @@ impl App {
     }
 }
 
+#[allow(dead_code)]
 fn first_selectable(items: &[Item]) -> Option<usize> {
     items.iter().position(|i| i.selectable())
 }
 
+#[allow(dead_code)]
 fn build_items() -> Vec<Item> {
     let mut v = vec![Item::header("  profiles")];
     for p in discover_profiles() { v.push(Item::profile(&p)); }
@@ -333,9 +340,9 @@ fn parse_line(line: &str) -> Line<'static> {
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
     while i < chars.len() {
-        if chars[i] == '$' && i + 1 < chars.len() && chars[i+1].is_digit(10) {
+        if chars[i] == '$' && i + 1 < chars.len() && chars[i+1].is_ascii_digit() {
             let digit = chars[i+1].to_digit(10).unwrap() as usize;
-            if digit >= 1 && digit <= 6 {
+            if (1..=6).contains(&digit) {
                 if !current_text.is_empty() {
                     spans.push(Span::styled(current_text.clone(), current_style));
                     current_text.clear();
