@@ -95,8 +95,12 @@ Finder right-click menu will offer each. If one doesn't appear, enable it under
 *System Settings → Keyboard → Keyboard Shortcuts → Services*, or relaunch Finder
 (`killall Finder`).
 
-Steps 1–3 of the script are purely additive. What (if anything) `--target` takes
-away from the *other* terminal is governed by `demote_other()` in the script.
+**The script is additive-only.** `--target` *grants* the login item, Dock pin, and
+Quick Action; it never revokes them from the other terminal. Run it for `terminal`
+and then for `ghostty` and both end up as login items, both pinned, both in the
+Finder menu — intended, not a bug. The trade-off: "primary" is documentation, not
+enforcement. The policy and its one sanctioned escalation (drop the *other's* login
+item only — never its Dock pin) are recorded at `demote_other()` in the script.
 
 #### Terminal.app notes
 

@@ -134,40 +134,27 @@ else
 fi
 
 # ── 4. Demotion policy for the non-target terminal ─────────────────────
-# TODO(henry): implement. See the note in chat — this is the one real policy
-# call in this script and it is yours to make.
+# POLICY: additive-only. Decided 2026-08-05.
 #
-# Context: steps 1-3 are purely additive. Run this script for terminal, then
-# for ghostty, and BOTH end up as login items, BOTH pinned, BOTH in the Finder
-# menu. Nothing ever says "this one is primary" — the word loses its meaning.
+# --target GRANTS the three affordances above; it never REVOKES them from the
+# other terminal. Run this for terminal and then for ghostty and both end up as
+# login items, both pinned, both in the Finder menu. That is intended, not a bug.
 #
-# $OTHER_NAME / $OTHER_APP below name the terminal that is NOT the target.
-# Decide what, if anything, --target should take away from it.
+# Why: the stated goal is that both terminals stay fully functional, and
+# additive-only is the only policy that cannot cost you state you arranged by
+# hand — a Dock layout, a login item you actually wanted. Every revoking variant
+# trades that away for a tidier mental model.
 #
+# Consequence to accept: "primary" here is documentation, not enforcement.
+#
+# If that ever chafes, the narrow escalation is to drop the other's LOGIN ITEM
+# only — the one affordance where "primary" has teeth, and the only one that is
+# trivially reversible:
+#   run "osascript -e 'tell application \"System Events\" to delete login item \"$1\"'"
+# Do NOT extend it to Dock pins: removal needs a plist rewrite, and that is the
+# single step that destroys user-arranged state.
 demote_other() {
-  # shellcheck disable=SC2034  # other_app is scaffolding for the policy below.
-  local other_name="$1" other_app="$2"
-  # TODO: your policy here (~5-10 lines).
-  #
-  #   Options worth weighing:
-  #   a) No-op — purely additive. Both stay everywhere. "Primary" means nothing
-  #      but is maximally safe and reversible.
-  #   b) Remove the other's LOGIN ITEM only. Only one terminal auto-opens, but
-  #      both stay pinned and both stay in the Finder menu. Keeps "primary"
-  #      meaningful at the one moment it matters (login) and touches nothing else.
-  #   c) Full demotion — pull the other's login item, Dock pin, and Quick Action.
-  #      Cleanest mental model, but destroys a Dock arrangement you may have
-  #      hand-tuned, and Dock pins are annoying to restore.
-  #
-  #   Useful primitives:
-  #     osascript -e "tell application \"System Events\" to delete login item \"$other_name\""
-  #     rm -rf "$HOME/Library/Services/Open in ${other_name}.workflow"
-  #   Dock removal needs a plist rewrite (PlistBuddy or a defaults read/filter/write)
-  #   — note the existing pin step already backs the Dock plist up for you.
-  #
-  #   Respect DRY_RUN via the run() helper, and stay idempotent: a second run
-  #   with the same --target must be a clean no-op.
-  inf "demotion policy not implemented — $other_name left as-is"
+  inf "additive-only policy — $1 left intact (login item, Dock, Quick Action)"
 }
 
 if [[ "$TARGET" == "terminal" ]]; then
@@ -175,7 +162,7 @@ if [[ "$TARGET" == "terminal" ]]; then
 else
   OTHER_NAME="Terminal"; OTHER_APP="/System/Applications/Utilities/Terminal.app"
 fi
-[[ -d "$OTHER_APP" ]] && demote_other "$OTHER_NAME" "$OTHER_APP"
+[[ -d "$OTHER_APP" ]] && demote_other "$OTHER_NAME"
 
 printf '\n  %s set as the default macOS terminal experience.\n' "$APP_NAME"
 printf "  (macOS has no true 'default terminal' flag — this is the practical equivalent.)\n"
