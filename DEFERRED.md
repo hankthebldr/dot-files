@@ -16,3 +16,11 @@ Known gaps / deferred follow-ups surfaced during agent runs. Not blockers.
   folder doesn't surface in `_MOC Dev Projects.md`. Fix: run `project-init dot-files`.
 - **Things project note stale** (`2UHGWLicqNLi5JMfk3YS4K`, 2026-05-28) vs HEAD —
   S9 quality gates / CI have since landed; re-baseline onto TUI v2 + spec Phases 5–8.
+- **2026-07-19 hardening wave — deferred items:**
+  - Theme fzf picker + `NO_COLOR` contract deferred to the theme feature spec (out
+    of scope for this wave; §6 self-review).
+  - `stash@{0}` ("WIP: claw pkg track scan dump — triage capture noise") is still
+    on the stack, pending operator sign-off to drop — not dropped autonomously.
+  - TUI M2–M5 parity gaps: Clin Notes, AI Toolkit, toolkit launcher still missing
+    from the ratatui welcome menu (M2 itself mostly landed: categorized dual-pane
+    + 13 actions).

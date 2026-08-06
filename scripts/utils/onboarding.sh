@@ -191,52 +191,55 @@ EOF
     _anim_type "  pick the vibe. replay later with: claw onboard replay" 0.018
     echo ""
 
-    local -a labels=()
+    # Dispatch array stays sourced from _list_themes so adding a theme to
+    # the registry keeps the picker in sync — but the preview blocks below
+    # are hardcoded to 4 entries. Add a new preview block if you add a theme.
     local -a funcs=()
-    local row label fn
+    local row fn
     while IFS= read -r row; do
-        label="${row%%::*}"
         fn="${row##*::}"
-        labels+=("$label")
         funcs+=("$fn")
     done < <(_list_themes)
 
-    local i=1
-    for label in "${labels[@]}"; do
-        printf "    ${c_cyan}[${c_bold}%d${c_reset}${c_cyan}]${c_reset} ${c_white}%s${c_reset}\n" "$i" "$label"
-        ((i++)) || true
-    done
-    echo ""
+    # Preview blocks. Each theme is painted in its own palette using inline
+    # ANSI so we don't clobber the global c_* vars before the user picks.
+    if $HAS_COLOR; then
+        printf '    \e[38;2;0;245;255m[\e[1m1\e[22m]\e[0m  \e[38;2;255;46;136m\e[1m█▓▒░ SYNTHWAVE ░▒▓█\e[0m   \e[38;2;181;55;242mrad new wave dotfiles, c.1986\e[0m\n'
+        printf '         \e[38;2;255;46;136m█\e[38;2;0;245;255m█\e[38;2;181;55;242m█\e[38;2;255;111;60m█\e[38;2;57;255;20m█\e[0m  hot pink · neon cyan · synthwave purple\n\n'
 
-    local choice=""
-    if $HAS_GUM; then
-        # gum fails non-interactively; tolerate so set -e doesn't kill us.
-        choice="$(printf '%s\n' "${labels[@]}" | gum choose \
-            --cursor.foreground="#ff2e88" \
-            --selected.foreground="#00f5ff" \
-            --header="  vibe >" 2>/dev/null || true)"
-    fi
+        printf '    \e[38;2;57;255;20m[\e[1m2\e[22m]\e[0m  \e[38;2;0;255;65m\e[1m█▓▒░ MATRIX    ░▒▓█\e[0m   \e[38;2;57;255;20mwake up, neo. the terminal has you.\e[0m\n'
+        printf '         \e[38;2;0;255;65m█\e[38;2;57;255;20m█\e[38;2;180;255;100m█\e[38;2;0;120;0m█\e[38;2;0;100;0m█\e[0m  digital rain · phosphor green\n\n'
 
-    local idx=0
-    if [[ -n "$choice" ]]; then
-        local k=0
-        for label in "${labels[@]}"; do
-            if [[ "$label" == "$choice" ]]; then idx=$k; break; fi
-            ((k++)) || true
-        done
+        printf '    \e[38;2;255;176;0m[\e[1m3\e[22m]\e[0m  \e[38;2;255;176;0m\e[1m█▓▒░ DOS BBS   ░▒▓█\e[0m   \e[38;2;255;85;0m2400 baud · CONNECT · rootshell\e[0m\n'
+        printf '         \e[38;2;255;176;0m█\e[38;2;255;85;0m█\e[38;2;0;170;170m█\e[38;2;255;255;85m█\e[38;2;170;0;170m█\e[0m  amber CRT · CP437 box-drawing\n\n'
+
+        printf '    \e[38;2;255;0;220m[\e[1m4\e[22m]\e[0m  \e[38;2;255;0;220m\e[1m█▓▒░ VHS       ░▒▓█\e[0m   \e[38;2;0;220;255mplease rewind before returning\e[0m\n'
+        printf '         \e[38;2;255;0;220m█\e[38;2;0;220;255m█\e[38;2;0;255;200m█\e[38;2;255;240;0m█\e[38;2;120;0;180m█\e[0m  tracking error · scanline grit\n\n'
     else
-        local n=""
-        while true; do
-            printf "  ${c_yellow}>${c_reset} "
-            IFS= read -r n
-            [[ -z "$n" ]] && n=1
-            if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= ${#labels[@]} )); then
-                idx=$((n-1))
-                break
-            fi
-            printf "  ${c_orange}!${c_reset} ${c_dim}1..%d${c_reset}\n" "${#labels[@]}"
-        done
+        printf '    [1]  SYNTHWAVE  -  hot pink / neon cyan / purple. classic 80s.\n'
+        printf '    [2]  MATRIX     -  green phosphor. wake up, neo.\n'
+        printf '    [3]  DOS BBS    -  amber CRT / ANSI art. dial-up vibes.\n'
+        printf '    [4]  VHS        -  magenta / cyan tracking error.\n\n'
     fi
+
+    # Numeric read only — gum was here previously, but its raw-mode +
+    # arrow-key UI fights the numbered display (digits get swallowed with
+    # no echo). Plain read matches what's on screen.
+    local idx=0
+    local n=""
+    while true; do
+        printf "  ${c_yellow}>${c_reset} ${c_dim}vibe [1-%d] (enter = 1):${c_reset} " "${#funcs[@]}"
+        if ! IFS= read -r n; then
+            printf "\n  ${c_orange}!${c_reset} no input on stdin — aborting. run from a real terminal.\n" >&2
+            exit 1
+        fi
+        [[ -z "$n" ]] && n=1
+        if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= ${#funcs[@]} )); then
+            idx=$((n-1))
+            break
+        fi
+        printf "  ${c_orange}!${c_reset} ${c_dim}come on, just 1..%d${c_reset}\n" "${#funcs[@]}"
+    done
 
     "${funcs[$idx]}"
     SELECTED_THEME="${funcs[$idx]#_theme_}"
@@ -472,6 +475,24 @@ for p in cloud security devops ai research cortex claude local default vault bra
     SCORES[$p]=0
 done
 
+# One-line impact description per profile. Used by _ask to show the user
+# what their pick actually does to their shell, instead of a silent score
+# tally. Keys match the profile slugs in shell/profiles/*.zsh.
+_impact_for() {
+    case "$1" in
+        default)  echo "modern CLI replacements (eza/bat/rg/fd/zoxide), neutral prompt" ;;
+        cloud)    echo "kubectl + terraform + aws-cli aliases, k8s/aws context in prompt" ;;
+        security) echo "nmap/burp/wireshark aliases, target-IP prompt, recon helpers" ;;
+        devops)   echo "kubectl/helm/docker shortcuts, k8s context in fastfetch, ansible" ;;
+        ai)       echo "ollama + llama.cpp + lm-studio shortcuts, GPU env, model registry" ;;
+        research) echo "jupyter, arxiv lookups, paper indexing, notebook helpers" ;;
+        cortex)   echo "XSIAM/XSOAR aliases, playbook + datalake query helpers" ;;
+        claude)   echo "claude-code env, MCP server registry, skill manager wired in" ;;
+        local)    echo "minimalist shell, tmux + vim + makefile, no cloud chatter" ;;
+        *)        echo "" ;;
+    esac
+}
+
 _ask() {
     local title="$1"
     shift
@@ -493,29 +514,24 @@ _ask() {
     done
     echo ""
 
+    # Numeric read only. gum's raw-mode arrow-key UI fought the numbered
+    # display (digit keystrokes got swallowed, no echo). EOF is hardened so
+    # closed stdin fails loud instead of silently exiting the whole quiz.
     local choice=""
-    if $HAS_GUM; then
-        choice="$(printf '%s\n' "${labels[@]}" | gum choose \
-            --cursor.foreground="#ff2e88" \
-            --selected.foreground="#00f5ff" \
-            --header="  pick one >" 2>/dev/null || true)"
-    fi
-
-    # Fallback / gum failure → numeric read loop.
-    if [[ -z "$choice" ]]; then
-        local n=""
-        while true; do
-            printf "  ${c_yellow}>${c_reset} "
-            IFS= read -r n
-            # Default to 1 if they just hit enter — friendly behaviour.
-            [[ -z "$n" ]] && n=1
-            if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= ${#opts[@]} )); then
-                choice="${labels[$((n-1))]}"
-                break
-            fi
-            printf "  ${c_orange}!${c_reset} ${c_dim}come on, just 1..%d${c_reset}\n" "${#opts[@]}"
-        done
-    fi
+    local n=""
+    while true; do
+        printf "  ${c_yellow}>${c_reset} ${c_dim}pick [1-%d] (enter = 1):${c_reset} " "${#opts[@]}"
+        if ! IFS= read -r n; then
+            printf "\n  ${c_orange}!${c_reset} no input on stdin — aborting. run from a real terminal.\n" >&2
+            exit 1
+        fi
+        [[ -z "$n" ]] && n=1
+        if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= ${#opts[@]} )); then
+            choice="${labels[$((n-1))]}"
+            break
+        fi
+        printf "  ${c_orange}!${c_reset} ${c_dim}come on, just 1..%d${c_reset}\n" "${#opts[@]}"
+    done
 
     # Find the chosen option and apply its score delta.
     local picked=""
@@ -544,7 +560,16 @@ _ask() {
         SCORES[$prof]=$(( ${SCORES[$prof]:-0} + weight ))
     done
 
-    printf "  ${c_green}✓${c_reset} ${c_dim}logged: %s${c_reset}\n" "$choice"
+    # Impact callout: instead of a silent "logged: X", spell out which
+    # profiles got points and what each profile actually puts in the shell.
+    # Makes the cause-and-effect of the quiz visible.
+    printf "  ${c_green}✓${c_reset} ${c_white}%s${c_reset}\n" "$choice"
+    for prof in "${fields[@]}"; do
+        local impact
+        impact="$(_impact_for "$prof")"
+        printf "    ${c_green}→${c_reset} ${c_cyan}+%d ${c_bold}%-9s${c_reset}${c_dim}%s${c_reset}\n" \
+            "$weight" "$prof" "$impact"
+    done
 }
 
 # ============================================

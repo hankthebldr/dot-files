@@ -157,6 +157,12 @@ toolchain_extras() {
                 fi
             fi
         done
+
+        # Seed managed opencode/openwork config once (idempotent; leaves unmanaged files alone).
+        if command -v opencode &>/dev/null; then
+            DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}" \
+                sh "${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/ai-config.sh" setup >/dev/null 2>&1 || true
+        fi
     fi
 
     # ── Hermes + OpenRouter (local installers) ────────────────────────────

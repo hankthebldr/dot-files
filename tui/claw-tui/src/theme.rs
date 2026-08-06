@@ -2,7 +2,8 @@
 //! follows `claw theme set X` / profile theming like every other surface.
 //! Precedence (same contract as theme.sh / claw-dashboard.py):
 //!   CLAW_THEME env → $XDG_STATE_HOME/claw/theme → refined-dark defaults.
-//! Palettes are parsed from $DOTFILES_DIR/config/themes/<slug>.theme.
+//! Palettes are parsed from $DOTFILES_DIR/config/themes/<slug>/palette.theme
+//! (falling back to the legacy flat <slug>.theme layout).
 use ratatui::style::{Color, Modifier, Style};
 use std::sync::OnceLock;
 
@@ -60,7 +61,11 @@ fn load() -> Palette {
             .filter(|s| !s.is_empty())
     });
     let Some(slug) = slug else { return p };
-    let Ok(body) = std::fs::read_to_string(format!("{dots}/config/themes/{slug}.theme")) else {
+    let dir_path = format!("{dots}/config/themes/{slug}/palette.theme");
+    let flat_path = format!("{dots}/config/themes/{slug}.theme");
+    let Ok(body) = std::fs::read_to_string(&dir_path)
+        .or_else(|_| std::fs::read_to_string(&flat_path))
+    else {
         return p;
     };
     for line in body.lines() {
@@ -105,3 +110,13 @@ pub fn value() -> Style { Style::default().fg(pal().fg) }
 pub fn title() -> Style { Style::default().fg(pal().purple).add_modifier(Modifier::BOLD) }
 pub fn selected() -> Style { Style::default().fg(pal().fg).bg(pal().sel_bg).add_modifier(Modifier::BOLD) }
 pub fn pointer() -> Style { Style::default().fg(pal().green).add_modifier(Modifier::BOLD) }
+
+#[cfg(test)]
+mod theme_tests {
+    #[test]
+    fn hex_parses_six_digit() {
+        // guards the palette hex parser used by both layouts
+        assert!(super::hex("#58a6ff").is_some());
+        assert!(super::hex("nope").is_none());
+    }
+}
