@@ -1,6 +1,14 @@
 # Open Claw — Cross-Platform CLI Environment
 
-> Modular shell configuration system for macOS and Ubuntu/Debian. Single-command surface (`claw`), 18 workflow profiles with brand-accurate fastfetch dashboards, agent-agnostic launcher, profile-aware Obsidian vault routing, modern CLI tools, SSH tunnel management, and full Neovim IDE — all from one `bootstrap.sh`.
+> Modular shell configuration system for macOS and Ubuntu/Debian. Single-command surface (`claw`), 18 workflow profiles with brand-accurate fastfetch dashboards, a single theme engine every surface follows, a native Rust welcome TUI, an agent-agnostic launcher, profile-aware Obsidian vault routing, age/sops-encrypted secrets, a versioned Claude Code harness, modern CLI tools, SSH tunnel management, and a full Neovim IDE — all from one `bootstrap.sh`.
+
+### The spine (three consolidation contracts)
+
+Everything hangs off three invariants — add a capability by wiring it into the spine, never a parallel dispatcher/palette/dashboard:
+
+1. **One dispatcher** — `shell/claw-fn.zsh` owns the only `claw()` shell function (in-shell work: TUI relaunch, `load`/`off`); everything else passes through to `bin/claw` (bash) → `scripts/`.
+2. **One theme engine** — `scripts/utils/theme.sh` is the single color source. Palettes live in `config/themes/<slug>/palette.theme`; every surface (prompt, dashboards, fzf, the Rust TUI, clin) consumes `CLAW_C_*` / `CLAW_RGB_*`.
+3. **One render path** — login + default profile render `scripts/utils/claw-dashboard.py` (framed dashboard); fastfetch is the per-profile art + fallback.
 
 ## Quick Install
 
@@ -52,29 +60,54 @@ Step 8b ensures the `claw` dispatcher is executable and verifies it runs before 
 
 ## The `claw` Command
 
-One entry point. All workflows.
+One entry point. All workflows. `bin/claw` is a ~1000-line bash dispatcher on PATH (set inline in `shell/.zshrc` step 1, before the welcome TUI); `shell/claw-fn.zsh` intercepts `claw load`/`claw off` so they mutate the parent shell (the bash binary alone can't).
 
 ```
+# Core
 claw                  open the welcome menu (FZF picker)
 claw help             list every subcommand
 claw doctor           system + active-profile health
-claw update           full system update (brew/npm/pip/etc)
-claw tools            interactive curated CLI tool refresh
-claw tun              SSH tunnel manager
-claw mcp              MCP server manager
-claw homelab          homelab SSH topology
-claw toolkit          Open Claw workflow launcher
-claw skills           browse Claude skills (FZF over ~/.claude/skills)
-claw obsidian         vault helpers (profile-aware)  [aliased: claw vault]
-claw load <profile>   source a profile in current shell
-claw off              unset active profile
-claw <agent>          launch a registered agent (claude, hermes, …)
-claw agent list       list registered agents
-claw agent add        register a new agent in agents.toml
-claw install <tc>     opt-in toolchain installer (cloud/security/…)
-```
+claw load <profile>   source a profile in current shell   (claw off to clear)
+claw <agent>          launch a registered agent (claude · gemini · hermes · opencode · openwork · …)
 
-`bin/claw` is added to PATH inline in `shell/.zshrc` (step 1, before the welcome TUI). A zsh wrapper at `shell/claw-fn.zsh` intercepts `claw load`/`claw off` so they actually mutate the parent shell (the bash binary alone can't).
+# Look & feel
+claw theme [set <slug>]   switch color palette — single source of truth, all surfaces follow
+claw output               persist render settings (mode rich/plain · frame · banner)
+claw onboard              80s arcade character-creation profile picker
+
+# Profiles, packages, updates
+claw profiles lint    mechanically validate all 18 profile contracts
+claw install <tc>     opt-in toolchain installer (cloud/security/ai/devops/…)
+claw tools            curated CLI tool refresh (staggered cache)
+claw update           heavy hammer — every package manager
+claw pkg              self-aware package manifest (track/scan/install)
+claw provision        one-pass fresh-box setup
+
+# AI
+claw ai               Ollama / open-webui / n8n umbrella
+claw ai-services      self-hosted AI web stacks (open-webui/dify/ragflow/langfuse)
+
+# Infra & ops
+claw tun              SSH tunnel manager           claw homelab   homelab SSH topology
+claw situation        fleet awareness snapshot     claw docker    container overview
+claw mcp              MCP server manager           claw toolkit   workflow launcher
+
+# Knowledge
+claw obsidian         vault helpers (profile-aware)  [claw vault]
+claw clin             Obsidian-style note TUI (theme/vault-synced)
+claw skills           browse Claude skills (FZF over ~/.claude/skills)
+
+# Security & integrity
+claw secret           age/sops-encrypted secrets (init/encrypt/edit/env)
+claw integrity        SHA-256 tamper/partial-install audit
+claw validate         live reachability + config-chain checks
+
+# Claude Code harness
+claw harness          custom skills/commands/agents (list/new/deploy/sync/capture)
+
+# Agents
+claw agent list       list registered agents        claw agent add   register in agents.toml
+```
 
 Full reference: [`docs/claw.md`](docs/claw.md).
 
@@ -110,12 +143,13 @@ Full reference: [`docs/claw.md`](docs/claw.md).
 | **tunnels** | SSH tunnel manager — multi-hop port-forwards | `tunnels-help` |
 | **vault** | Obsidian second-brain organization | `vault-help` |
 
-Each profile provides:
+Each profile is a **directory**, not a single file: a thin 5-line dispatcher `shell/profiles/<name>.zsh` sources `<name>/{meta,common,mac|linux}.zsh` (platform-split so macOS/Linux-only aliases don't leak cross-platform). Each provides:
+- `meta.zsh` — identity (`PROFILE_CLASS`, `PROFILE_THEME_DEFAULT`, `PROFILE_TOOLCHAIN`, `PROFILE_KEY_TOOLS`)
+- `common.zsh` — domain-specific aliases (short, **unprefixed** — no `cloud-k`, just `k`), the `<profile>-help` card, and `_<profile>_tool_check`
+- `mac.zsh` / `linux.zsh` — platform-specific extras, sourced conditionally
 - Themed fastfetch dashboard (`config/.config/fastfetch/config-<profile>.jsonc`)
-- Domain-specific aliases (short, **unprefixed** — no `cloud-k`, just `k`)
-- `<profile>-help` quick-reference card
-- `_<profile>_tool_check` install-status validator
-- Optional `_claw_guard` wrappers that print install hints when a tool is missing
+
+`claw profiles lint` mechanically validates every profile's contract (declared toolchain resolves on disk, help + tool-check present, no dead metadata) and runs in CI, so a half-wired profile can't merge.
 
 ### Activating
 
@@ -170,7 +204,81 @@ claw agent add hermes hermes-cli ai
 claw hermes               # → loads ai profile dashboard, then exec hermes-cli
 ```
 
-`claw <agent>` resolves the registry, optionally renders the matching profile's fastfetch dashboard, then `exec`s the binary. Adding a new agent is a TOML edit, never a code change.
+`claw <agent>` resolves the registry, optionally renders the matching profile's fastfetch dashboard, then `exec`s the binary. Adding a new agent is a TOML edit, never a code change. Registered agents include `claude`, `gemini`, `hermes` (local Nous Hermes), `openrouter`, `aichat`, and the terminal AI coding agents **opencode** and **openwork** (headless OpenWork orchestrator on opencode).
+
+---
+
+## Theme Engine
+
+One palette drives every surface. `scripts/utils/theme.sh` is the single source of truth; palettes live in `config/themes/<slug>/palette.theme` (bare `key=hex`), rendered into `CLAW_C_*` / `CLAW_RGB_*` that the prompt, dashboards, fzf, the Rust TUI, and clin all consume. No surface hardcodes color.
+
+```bash
+claw theme                # list palettes (● = active)
+claw theme set tokyo-night
+claw theme preview matrix
+claw theme fzf            # live-swatch picker
+```
+
+Precedence: `CLAW_THEME` env (set by profile loads) → persisted `claw theme set` → refined-dark fallback. `claw theme set` re-renders the Ghostty include and clin's config so the whole environment tracks one palette. Six library themes ship (refined-dark, github-dark, catppuccin-mocha, tokyo-night, rose-pine, gruvbox-material) plus the flat classics (matrix, synthwave, vhs, dosbbs).
+
+---
+
+## Native Rust TUI (`claw-tui`)
+
+An optional ratatui welcome screen at `tui/claw-tui/` — a truecolor logo, a two-column categorized profile/action picker, and a native readout — reading the same theme state as the shell (`src/theme.rs`). It emits an outcome contract (`ACTION`/`EXEC`/`PROFILE`/`NONE`) that the zsh side applies, so selecting a profile mutates the parent shell. Opt in with `CLAW_TUI=1`; the fzf welcome-TUI remains the default.
+
+---
+
+## Claude Code Harness
+
+The `claude/` tree is a versioned Claude Code config, deployed into `~/.claude/` by `scripts/setup/link-claude.sh` (item-level, backup-on-collision, idempotent) — **not** GNU-Stowed. It carries:
+
+- **Hooks** (`claude/hooks/`) — a `pre_tool_use.py` that default-denies out-of-scope recon (segment-aware, defeats `sudo`/chain/env-prefix bypass), blocks credential exfil and catastrophic ops, and guards generator-owned files; a `post_tool_use.py` that logs every call to SQLite and lints edited shell files at the CI tier.
+- **Harness** (`claude/harness/`) — custom skills/commands/agents/plugins, managed via `claw harness {list|new|deploy|sync|capture}`.
+- A repo-scoped agent-readable **knowledge base** (`knowledge-base/`) of verified structural facts.
+
+---
+
+## Secrets (age + sops)
+
+`claw secret` is the offline-first secret store — `age` keypair, `sops` encrypting only the *values* so files stay diffable and git-safe.
+
+```bash
+claw secret init          # generate an age key (idempotent), print pubkey
+claw secret env           # edit the encrypted env (config/secrets/.env.sops)
+claw secret doctor        # age/sops/key/.sops.yaml presence
+```
+
+The encrypted env auto-loads at shell start (decrypted in a subprocess so `set -u`/`pipefail` never leak into the interactive shell). API keys reference `op://` 1Password paths or land here — never plaintext in the repo.
+
+---
+
+## Integrity & Validation
+
+```bash
+claw integrity generate   # SHA-256 manifest of the whole tree (config/integrity/)
+claw integrity verify     # diff on-disk vs manifest — CHANGED/MISSING/EXTRA, exit 1 on drift
+claw integrity audit      # verify + provenance (git commit/branch, manifest age)
+claw validate             # live reachability of services + config-chain checks
+```
+
+Portable across macOS (`shasum`) and Linux (`sha256sum`); auto-generated at the end of `bootstrap.sh`.
+
+---
+
+## Self-Hosted AI Stacks
+
+`claw ai-services` manages self-hosted AI web stacks under namespaced `claw-<svc>` compose projects:
+
+```bash
+claw ai-services up open-webui    # ChatGPT-style Ollama UI          :3000
+claw ai-services up langfuse      # LLM observability / tracing
+claw ai-services up dify          # LLM app-builder platform         :8080
+claw ai-services up ragflow       # RAG engine w/ deep-doc parsing   :8081
+claw ai-services status           # live reachability of each stack
+```
+
+`local` services ship their compose file in the repo (`config/<svc>/`); `upstream` services shallow-clone the project's repo into a per-machine data dir and run *their* version-coupled compose. Port map is collision-free.
 
 ---
 
@@ -351,36 +459,39 @@ Long-running single-process ops (`claw pkg install`/`track`/`scan`) render an in
 ~/.dotfiles/
 ├── bootstrap.sh                  # Primary installer (9 steps + claw verify)
 ├── install.sh                    # One-liner curl wrapper
-├── bin/
-│   └── claw                      # Single dispatcher (~250 lines)
+├── bin/claw                      # Single bash dispatcher (~1000 lines)
 ├── shell/
 │   ├── .zshrc                    # Main config; PATH set inline (brew, cargo, go, bin/claw)
-│   ├── platform.zsh              # Cross-platform shims (clip/open/IP)
+│   ├── platform.zsh              # Cross-platform shims (clip/open/IP/vpn)
 │   ├── exports.zsh               # Environment variables
-│   ├── aliases.zsh               # ~680 lines of aliases & functions
-│   ├── security.zsh              # Safety aliases + network recon
-│   ├── obsidian.zsh              # Profile-aware folder routing + helpers
-│   ├── claw-fn.zsh               # zsh fn for claw load/off (parent shell)
-│   ├── profile-helpers.zsh       # _claw_guard for install-hint aliases
-│   ├── welcome-tui.zsh           # Interactive login dashboard
-│   └── profiles/                 # 18 workflow profiles
+│   ├── aliases.zsh               # Core aliases & functions
+│   ├── load-env.zsh              # .env + sops secret auto-load (subprocess-guarded)
+│   ├── obsidian.zsh · clin.zsh   # Vault routing + note TUI (theme/vault-synced)
+│   ├── claw-fn.zsh               # zsh fn for claw load/off (parent shell) — sole claw()
+│   ├── profile-helpers.zsh       # Generic tool-check + install-hint helpers
+│   ├── welcome-tui.zsh           # Interactive fzf login dashboard
+│   └── profiles/                 # 18 workflow profiles (directory-per-profile)
+├── tui/claw-tui/                 # Native Rust ratatui welcome screen (opt-in)
 ├── vim/config/nvim/              # Neovim config (lazy.nvim)
 ├── config/
-│   ├── .config/fastfetch/        # 9 profile-specific dashboards + logos
-│   ├── ssh/                      # Tunnel configs + remote-env
-│   └── .config/themes/           # iTerm + Terminal.app themes
+│   ├── themes/<slug>/            # Theme library — palette.theme + ghostty.conf (single color source)
+│   ├── .config/fastfetch/        # 19 dashboards (9 generated + 10 hand-maintained) + logos
+│   ├── homelab/fleet.yml         # Homelab inventory
+│   ├── secrets/.env.sops         # sops-encrypted env (git-safe; created by `claw secret`)
+│   └── ssh/                      # Tunnel configs + remote-env
+├── claude/                       # Claude Code config (hooks, harness, skills) → ~/.claude
+├── knowledge-base/               # Agent-readable repo-structural facts (INDEX + topics/)
 ├── scripts/
-│   ├── install/                  # Package & toolchain installers
-│   ├── utils/                    # tunnel-manager, toolkit, homelab,
-│   │                             # mcp-manager, system-update, tool-updater,
-│   │                             # tui-style, logo-from-image
-│   └── setup/                    # GNU Stow symlink deployment
+│   ├── install/                  # Package & toolchain installers (+ lib/toolchain-runner.sh)
+│   ├── utils/                    # theme, claw-dashboard.py, gen-fastfetch, ai-services,
+│   │                             # secret, integrity, pkg-manifest, profiles-lint, …
+│   └── setup/                    # GNU Stow + link-claude.sh deployment
+├── tests/                        # bats suites + shellcheck harness (CI-gated)
+├── legacy/                       # Archived/superseded scripts (see README)
 ├── docs/
 │   ├── claw.md                   # Full claw user guide
 │   └── superpowers/specs/        # Design specs for major changes
-├── git/.gitconfig                # Git config with delta
-├── tmux/.tmux.conf               # Tmux (GitHub Dark, cross-platform clip)
-└── terminal/.config/starship.toml
+├── git/.gitconfig · tmux/.tmux.conf · terminal/.config/starship.toml
 ```
 
 ---
@@ -421,14 +532,15 @@ progress on / off     # live progress panel for long pkg ops (master switch)
 
 ## Customization
 
-- **Local overrides:** create `~/.zshrc.local` (not tracked)
-- **Environment variables:** copy `.env.example` to `.env`
-- **Profiles:** add aliases to `shell/profiles/<name>.zsh`; new profile = new file
+- **Local overrides:** create `~/.zshrc.local` (not tracked) — put machine-specific `export`s here, never in the tracked `.zshrc`
+- **Environment variables:** copy `.env.example` to `.env`; secrets go through `claw secret` (sops), not plaintext
+- **Theme:** `claw theme set <slug>`; add a palette at `config/themes/<slug>/palette.theme` — every surface follows automatically
+- **Profiles:** a profile is a **directory** `shell/profiles/<name>/`; scaffold with the `new-profile` harness skill, then `claw profiles lint`
 - **Logos:** swap with `bash scripts/utils/logo-from-image.sh <profile> <url>`
 - **Agents:** edit `~/.config/claw/agents.toml` (TOML edit, no code changes)
 - **Vault routing:** override per-shell with `export OBSIDIAN_VAULT_OVERRIDE=<name-or-path>`
 - **SSH tunnels:** `config/ssh/tunnels.yml` (see `.example`)
-- **Profile-load breadcrumbs:** `export CLAW_VAULT_BREADCRUMBS=1`
+- **Claude harness:** add skills/commands/agents under `claude/harness/`, then `claw harness deploy`
 - **Display:** persist render settings with `claw output` (`mode` rich/plain · `frame` viewfinder/none · `banner` on/off); state in `${XDG_STATE_HOME}/claw/output`
 - **Live progress:** master switch `progress on|off|status` (exports `CLAW_PROGRESS_ENABLED`); panel defaults tuned via `claw output`
 

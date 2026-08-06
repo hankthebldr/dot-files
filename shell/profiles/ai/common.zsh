@@ -39,6 +39,7 @@ alias aisup="claw ai-services up"
 alias aisdown="claw ai-services down"
 alias aisst="claw ai-services status"
 alias owui="claw ai-services up open-webui"     # ChatGPT-style Ollama UI :3000
+alias aicfg="claw ai config"                     # manage opencode/openwork config
 
 # --- Agent frameworks (CLIs via pipx; libs are per-project) ---
 alias crew="crewai"                              # CrewAI multi-agent CLI
@@ -97,6 +98,7 @@ ai-help() {
   printf "  ${purple}claw gemini${reset}    ${dim}Google Gemini CLI (@google/gemini-cli)${reset}\n"
   printf "  ${purple}claw opencode${reset}  ${dim}terminal AI coding agent (opencode.ai)${reset}\n"
   printf "  ${purple}claw openwork${reset}  ${dim}headless OpenWork (Cowork alt, on opencode)${reset}\n"
+  printf "  ${purple}claw ai config${reset} ${dim}manage opencode/openwork config (render/sync/status)${reset}\n"
   printf "  ${purple}claw <name>${reset}    ${dim}any registered agent${reset}\n"
   printf "  ${purple}claw agent list${reset} ${dim}see all registered agents${reset}\n"
   printf "\n"

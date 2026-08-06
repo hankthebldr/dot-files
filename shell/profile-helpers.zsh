@@ -44,7 +44,7 @@ _claw_profile_tool_check() {
         if command -v "$bin" &>/dev/null; then
             printf "    \e[38;2;63;185;80m✓\e[0m %s\n" "$bin"
         else
-            printf "    \e[38;2;255;123;114m✗\e[0m %s ${CLAW_PROFILE_TOOLCHAIN:+— claw install ${CLAW_ACTIVE_PROFILE}}\n" "$bin"
+            printf "    \e[38;2;255;123;114m✗\e[0m %s${PROFILE_TOOLCHAIN:+ — claw install ${PROFILE_TOOLCHAIN%-toolchain.sh}}\n" "$bin"
         fi
     done
 }

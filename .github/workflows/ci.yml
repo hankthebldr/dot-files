@@ -43,6 +43,8 @@ jobs:
           exit $fail
       - name: bats tests
         run: bats tests/
+      - name: profiles lint
+        run: DOTFILES_DIR="$PWD" bash scripts/utils/profiles-lint.sh
 
   rust:
     name: rust — build · test · clippy

@@ -37,7 +37,7 @@ TOOLCHAIN_MAP=(
     "gcloud|google-cloud-sdk|google-cloud-cli|manual:https://cloud.google.com/sdk/docs/install#linux|GCP SDK — needs Google apt repo"
 
     # ── 02. Kubernetes CLIs ────────────────────────────────────────────────
-    "kubectl|kubernetes-cli|kubectl|curl:https://dl.k8s.io/release/stable.txt|k8s CLI — apt pkg is upstream-tracking but lags"
+    "kubectl|kubernetes-cli|kubectl|none|k8s CLI — apt/brew; use official repo on bare Ubuntu"
     "eksctl|eksctl|?|curl:https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_${_arch}.tar.gz|AWS EKS provisioner"
     "oc|openshift-cli|?|manual:https://docs.openshift.com/container-platform/latest/cli_reference/openshift_cli/getting-started-cli.html|OpenShift CLI"
 
@@ -57,7 +57,7 @@ TOOLCHAIN_MAP=(
     "kube-hunter|kube-hunter|?|pipx|k8s pen-test scanner"
 
     # ── 06. Auth / Utilities ───────────────────────────────────────────────
-    "aws-iam-authenticator|aws-iam-authenticator|?|curl:https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/latest/download/aws-iam-authenticator_${_arch}|AWS IAM → k8s auth"
+    "aws-iam-authenticator|aws-iam-authenticator|?|none|AWS IAM → k8s auth — install via official release page"
     "jq|jq|jq|none|JSON swiss army knife"
 )
 

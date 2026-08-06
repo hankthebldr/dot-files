@@ -3,7 +3,7 @@ id: 20260718-profile-directory-contract
 title: Profile directory contract
 tags: [profiles, shell]
 created: 2026-07-18
-updated: 2026-07-18
+updated: 2026-07-19
 related: [20260718-profile-registration-points, 20260718-one-theme-engine]
 summary: The dispatcher + meta/common/mac/linux per-profile layout (post-dates CLAUDE.md's single-file description).
 ---
@@ -33,6 +33,9 @@ on 2026-07-18.
   stubs.
 - The harness skill `new-profile` (claude/harness/skills/) carries the full
   scaffold checklist.
+- `claw profiles lint` (`scripts/utils/profiles-lint.sh`, 2026-07-19 hardening
+  wave) validates the contract — every profile dir has the expected files and
+  exports the required `meta.zsh` symbols.
 
 ## Related
 - [Profile registration points](profile-registration-points.md) — prerequisite: files alone don't surface the profile anywhere.

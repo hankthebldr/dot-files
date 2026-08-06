@@ -28,6 +28,16 @@
 # [profile] user@host: cwd set on precmd, instead of repainting the running cmd.
 : "${CLAW_PROGRESS_TITLE:=0}"
 
+# progress.zsh is the SOLE title author. Ghostty's own title feature is already
+# off (`no-title` in terminal/.config/ghostty/config), but Oh-My-Zsh ships its
+# own auto-title (lib/termsupport.zsh) whose preexec hook repaints the title
+# with the running command — resurrecting the exact flicker `no-title` killed
+# and clobbering the static title whenever anything is running. OMZ checks this
+# var at hook runtime, so setting it here (sourced after oh-my-zsh.sh) disables
+# both of its title hooks; omz_termsupport_cwd (OSC 7 cwd for Terminal.app) is
+# unaffected. If progress.zsh ever stops loading, OMZ titles return as fallback.
+DISABLE_AUTO_TITLE=true
+
 # ─── State ──────────────────────────────────────────────────────────────
 typeset -g __claw_progress_pid=""
 typeset -g __claw_progress_t0=0

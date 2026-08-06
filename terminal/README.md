@@ -64,27 +64,56 @@ Note: the existing `.terminal` plist contains base64-encoded color blobs
 because that's how macOS stores them — it works but isn't editable by
 hand. For palette changes, switch to iTerm2 or Wezterm.
 
-## Making Ghostty the default terminal
+## Choosing the default terminal
 
-The Ghostty config (`terminal/.config/ghostty/config`) is the canonical
-cross-platform experience — authored on the BD790i (GNOME/X11), stowed identically
+**Apple Terminal.app is the primary daily driver on macOS; Ghostty is a
+first-class peer.** Both stay installed and fully functional — the choice only
+decides which one gets the three "primary" affordances below.
+
+The Ghostty config (`terminal/.config/ghostty/config`) remains the canonical
+*cross-platform* experience — authored on the BD790i (GNOME/X11), stowed identically
 to macOS. It tracks `claw theme set` (writes a git-ignored `theme.conf` include),
 ships ssh-terminfo, and uses `⌘`/`Super` keybinds that work on both platforms.
+On Linux it is still the default; the macOS pivot does not change that.
 
 ### macOS
 
 macOS has **no OS-level "default terminal"** setting (unlike Linux's
 `x-terminal-emulator`). The practical equivalent — login item + Dock pin + a Finder
-"Open in Ghostty" Quick Action — is applied idempotently by:
+"Open in …" Quick Action — is applied idempotently by:
 
 ```bash
-bash ~/.dotfiles/scripts/setup/macos-default-terminal.sh
+bash ~/.dotfiles/scripts/setup/macos-default-terminal.sh                    # Terminal.app (default)
+bash ~/.dotfiles/scripts/setup/macos-default-terminal.sh --target ghostty   # Ghostty
+bash ~/.dotfiles/scripts/setup/macos-default-terminal.sh --dry-run          # preview only
 ```
 
-The Quick Action bundle lives in the repo at `terminal/macos/Open in Ghostty.workflow`
-and is copied to `~/Library/Services/`. If it doesn't appear in a folder's right-click
-**Quick Actions** menu, enable it under *System Settings → Keyboard → Keyboard
-Shortcuts → Services*, or relaunch Finder (`killall Finder`).
+Quick Action bundles live in the repo at `terminal/macos/Open in Terminal.workflow`
+and `terminal/macos/Open in Ghostty.workflow`, and are copied to `~/Library/Services/`.
+They are independent Services entries, so **both can be installed at once** — the
+Finder right-click menu will offer each. If one doesn't appear, enable it under
+*System Settings → Keyboard → Keyboard Shortcuts → Services*, or relaunch Finder
+(`killall Finder`).
+
+**The script is additive-only.** `--target` *grants* the login item, Dock pin, and
+Quick Action; it never revokes them from the other terminal. Run it for `terminal`
+and then for `ghostty` and both end up as login items, both pinned, both in the
+Finder menu — intended, not a bug. The trade-off: "primary" is documentation, not
+enforcement. The policy and its one sanctioned escalation (drop the *other's* login
+item only — never its Dock pin) are recorded at `demote_other()` in the script.
+
+#### Terminal.app notes
+
+- Window/tab titles: handled by `shell/progress.zsh` via OSC 0, which Terminal.app
+  honors — no Ghostty-specific path involved.
+- Profile: `terminal/mbp-m4.terminal`. Import via *Terminal → Settings → Profiles →
+  ⚙︎ → Import*. Terminal.app has a habit of resetting the Nerd Font back to SF Mono
+  after updates; re-import or reset the font in the profile if glyphs turn to boxes.
+- Inline graphics: Terminal.app supports neither the kitty nor the iTerm2 image
+  protocol, so `shell/fastfetch.zsh` falls through to the ASCII logo automatically.
+  This is expected, not a misconfiguration.
+- `shell/ghostty-terminfo.zsh` is guarded on `TERM == xterm-ghostty` and is a
+  clean no-op under Terminal.app.
 
 ### Linux / BD790i (GNOME)
 

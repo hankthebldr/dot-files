@@ -599,7 +599,9 @@ _claw_profile_readout() {
     local -a refs=()
     (( ${+functions[$help_cmd]} ))  && refs+=("${c_green}${help_cmd}${c_reset} ${c_dim}reference${c_reset}")
     (( ${+functions[$check_cmd]} )) && refs+=("${c_green}${check_cmd}${c_reset} ${c_dim}status${c_reset}")
-    [[ -n "${PROFILE_TOOLCHAIN:-}" ]] && refs+=("${c_green}${PROFILE_TOOLCHAIN}${c_reset} ${c_dim}install${c_reset}")
+    if [[ -n "${PROFILE_TOOLCHAIN:-}" && -f "${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/install/${PROFILE_TOOLCHAIN}" ]]; then
+        refs+=("${c_green}claw install ${PROFILE_TOOLCHAIN%-toolchain.sh}${c_reset} ${c_dim}install${c_reset}")
+    fi
 
     # Glyph mirrors the picker
     local glyph

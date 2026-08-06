@@ -701,6 +701,12 @@ alias emptytrash='sudo rm -rfv /Volumes/*/.Trashes; sudo rm -rfv ~/.Trash'
 # Lock screen
 alias lock='/System/Library/CoreServices/Menu\ Extras/User.menu/Contents/Resources/CGSession -suspend'
 
+# Claude Desktop config salvage (bug #32345 — mcpServers wipe recovery).
+# Repo: ~/hr-vault-main-pa/_agents/claude-desktop-config (pushes to Gitea).
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    alias claude-cfg-restore='bash "$HOME/hr-vault-main-pa/_agents/claude-desktop-config/restore.sh"'
+fi
+
 # ============================================
 # SMART FUNCTIONS
 # ============================================
