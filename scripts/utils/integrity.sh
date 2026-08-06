@@ -258,7 +258,11 @@ cmd_verify() {
         | awk '{$1=""; sub(/^  /,""); print}' \
         | LC_ALL=C sort -u \
         | LC_ALL=C comm -12 - "$manifest_paths" \
-        | LC_ALL=C comm -12 - "$current_paths")"
+        | LC_ALL=C comm -12 - "$current_paths")" || true
+    # `|| true` is load-bearing: this pipeline exits non-zero whenever there IS
+    # drift, and `set -e` (line 29) would kill cmd_verify right here — before a
+    # single CHANGED/MISSING/EXTRA line is printed. The net effect was a tamper
+    # detector that exited 1 and reported nothing exactly when it mattered.
 
     local m_count e_count c_count
     m_count=$(printf '%s\n' "$missing" | grep -c '[^[:space:]]' || true)
