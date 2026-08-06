@@ -91,6 +91,7 @@ claw ai-services      self-hosted AI web stacks (open-webui/dify/ragflow/langfus
 claw tun              SSH tunnel manager           claw homelab   homelab SSH topology
 claw situation        fleet awareness snapshot     claw docker    container overview
 claw mcp              MCP server manager           claw toolkit   workflow launcher
+claw notify           desktop notification ("Title" "Body" · --crit · --after -- <cmd>)
 
 # Knowledge
 claw obsidian         vault helpers (profile-aware)  [claw vault]

@@ -188,6 +188,7 @@ cmd_help() {
     ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
     ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
     ${c_white}claw situation${c_reset}        ${c_dim}fleet/system awareness snapshot (show|probe|tick|alerts|install)${c_reset}
+    ${c_white}claw notify${c_reset}           ${c_dim}cross-platform desktop notification: "Title" "Body" · --crit · --after -- <cmd>${c_reset}
     ${c_white}claw restore-shell${c_reset}    ${c_dim}re-link ~/.zshrc, ~/.p10k.zsh, … to the repo (fix clobbered symlinks)${c_reset}
     ${c_white}claw lock-shell${c_reset}       ${c_dim}make ~/.zshrc & ~/.p10k.zsh immutable so p10k configure can't clobber them${c_reset}
     ${c_white}claw unlock-shell${c_reset}     ${c_dim}lift the immutable lock (before re-stow / running the wizard)${c_reset}
@@ -550,6 +551,13 @@ cmd_homelab() {
 cmd_situation() {
     # Fleet/system situational-awareness model: probe|tick|show|alerts|install.
     DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/situation.sh" "$@"
+}
+
+cmd_notify() {
+    # One cross-platform desktop-notification front door (macOS + Linux).
+    #   claw notify "Title" "Body"          claw notify --crit "Tailscale down"
+    #   claw notify --after -- <cmd…>       (notify on completion, exit + duration)
+    DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/notify.sh" "$@"
 }
 
 cmd_toolkit() {
@@ -1066,5 +1074,6 @@ case "${1:-menu}" in
     claude-sync|csync) shift; cmd_claude "$@" ;;
     agent)          shift; cmd_agent "$@" ;;
     situation|sit)  shift; cmd_situation "$@" ;;
+    notify|notify-send) shift; cmd_notify "$@" ;;
     *)              cmd_run_agent "$@" ;;
 esac
