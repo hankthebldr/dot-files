@@ -71,6 +71,52 @@ else
     bad "no git repo at $DOTFILES_DIR"
 fi
 
+# ── 1b. Ghostty config chain (2026-07-18 experience spec § 5) ─────────────────
+# Guards the repo→app chain: ~/.config/ghostty must resolve into the repo,
+# os-active.conf must point at THIS OS's layer, theme.conf must exist (claw
+# theme build), and on macOS no App Support shadow config may lurk. Skipped
+# entirely when Ghostty is neither installed nor deployed on this box.
+if command -v ghostty >/dev/null || [[ -e "$HOME/.config/ghostty" ]]; then
+    phase "1b · Ghostty chain"
+    gdir="$HOME/.config/ghostty"
+    # Normalize both sides — DOTFILES_DIR may arrive unnormalized (tests/..).
+    droot="$(readlink -f "$DOTFILES_DIR" 2>/dev/null || echo "$DOTFILES_DIR")"
+    if [[ -e "$gdir" ]]; then
+        greal="$(readlink -f "$gdir" 2>/dev/null || echo "$gdir")"
+        case "$greal" in
+            "$droot"/*) ok "~/.config/ghostty → repo ($greal)" ;;
+            *) warn "~/.config/ghostty is NOT linked into the repo ($greal)"; fix "bash $DOTFILES_DIR/scripts/setup/symlinks.sh   # relink terminal/" ;;
+        esac
+        osa="$gdir/os-active.conf"
+        [[ "$OS" == "Darwin" ]] && oswant="os-macos.conf" || oswant="os-linux.conf"
+        if [[ -L "$osa" || -e "$osa" ]]; then
+            osreal="$(readlink "$osa" 2>/dev/null || echo "?")"
+            case "$osreal" in
+                *"$oswant") ok "os-active.conf → $oswant" ;;
+                *) warn "os-active.conf → $osreal (expected $oswant for $OS)"; fix "bash $DOTFILES_DIR/scripts/setup/symlinks.sh   # re-point os-active.conf" ;;
+            esac
+        else
+            warn "os-active.conf missing — per-OS layer (font size, titlebar, quick terminal) not loaded"; fix "bash $DOTFILES_DIR/scripts/setup/symlinks.sh"
+        fi
+        if [[ -s "$gdir/theme.conf" ]]; then ok "theme.conf present (palette wired)"
+        else warn "theme.conf missing — Ghostty runs on fallback colors"; fix "claw theme build   # then cmd+shift+r in Ghostty"; fi
+    else
+        warn "ghostty installed but ~/.config/ghostty not deployed"; fix "bash $DOTFILES_DIR/scripts/setup/symlinks.sh"
+    fi
+    if [[ "$OS" == "Darwin" ]]; then
+        appsup="$HOME/Library/Application Support/com.mitchellh.ghostty"
+        shadow=""
+        for f in "$appsup"/config "$appsup"/config.*; do
+            if [[ -e "$f" ]]; then shadow="$f"; break; fi
+        done
+        if [[ -n "$shadow" ]]; then
+            warn "App Support shadow config exists: $shadow (may override the repo config)"; fix "mv '$shadow' '$shadow.bak'   # then restart Ghostty"
+        else
+            ok "no App Support shadow config"
+        fi
+    fi
+fi
+
 # ── 2. Shell stack (bootstrap steps 5 & 7) ────────────────────────────────────
 phase "2 · Shell & fonts"
 command -v zsh >/dev/null && ok "zsh $(zsh --version | awk '{print $2}')" || { bad "zsh not installed"; fix "bash $DOTFILES_DIR/bootstrap.sh"; }
