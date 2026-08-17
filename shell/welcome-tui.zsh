@@ -104,6 +104,10 @@ function claw_welcome_tui() {
     # Warm the homelab fleet cache in the background (reads ~/.cache/claw/homelab.json
     # at render; this refreshes it). Cheap no-op off-tailnet; never blocks login.
     "$_d/scripts/utils/situation.sh" homelab &>/dev/null &!
+    # Refresh pending-update counts (~/.cache/claw/updates.json) so the login
+    # dashboards + situation ticks read fresh data. Self-throttled to 6h inside
+    # update-status.sh, so most logins are a no-op; never blocks login.
+    "$_d/scripts/utils/update-status.sh" --refresh &>/dev/null &!
 
     # Colors from the ACTIVE theme (CLAW_RGB_* exported by theme.sh, sourced in
     # .zshrc step 2b). Fallbacks are the refined-dark values so the TUI renders

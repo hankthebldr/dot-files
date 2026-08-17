@@ -28,6 +28,7 @@
 # Config (optional): ~/.config/claw/situation.env  (KEY=VALUE)
 #   OLLAMA_HOST=127.0.0.1:11434   HOMELAB_HOST=bd790i   DISK_WARN_PCT=90
 #   GPU_TEMP_WARN=85              KUBECONFIG_PATH=/etc/rancher/k3s/k3s.yaml
+#   UPDATES_NOTIFY=info           # repo-behind notify tier: info | off
 set -u
 
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
@@ -48,11 +49,24 @@ HOMELAB_FLEET="$DOTFILES/config/homelab/fleet.yml"
 : "${DISK_WARN_PCT:=90}"
 : "${GPU_TEMP_WARN:=85}"
 : "${KUBECONFIG_PATH:=${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}}"
+: "${UPDATES_NOTIFY:=info}"                            # repo-behind alerts: info|off
 
 mkdir -p "$CACHE_DIR" 2>/dev/null
 
 have() { command -v "$1" >/dev/null 2>&1; }
 gf()   { jq -r "$2" "$1" 2>/dev/null; }                # gf <file> <jq-filter>
+
+# seconds since a file's mtime (GNU/BSD stat); huge number when unreadable so
+# a missing cache always reads as stale
+file_age() {
+    local m; m="$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null)"
+    if [ -n "$m" ]; then echo $(( $(date +%s) - m )); else echo 999999999; fi
+}
+
+# digits-only guard for values embedded raw into the JSON snapshot — anything
+# else (jq's "null", an error, a corrupt cache) degrades to null, never breaks
+# the emitted document
+num_or_null() { case "${1:-}" in ''|*[!0-9]*) echo null ;; *) echo "$1" ;; esac; }
 
 # GNU `timeout` is absent on stock macOS (brew coreutils ships only gtimeout).
 # Every probe below is wrapped in `timeout N`, so shim it: prefer gtimeout,
@@ -145,6 +159,19 @@ probe_json() {
         if timeout 2 ping -c1 -W1 "$HOMELAB_HOST" >/dev/null 2>&1; then hl_reach=true; else hl_reach=false; fi
     fi
 
+    # Pending updates: merge update-status.sh's cache when fresh (<24h), else
+    # nulls. Deliberately a cache READ — probing package managers here would
+    # slow every ~60s tick; the welcome-TUI kick / --force keeps it warm.
+    local up_brew=null up_apt=null up_behind=null up_ahead=null up_last=null
+    local upf="$CACHE_DIR/updates.json"
+    if have jq && [ -r "$upf" ] && [ "$(file_age "$upf")" -lt 86400 ]; then
+        up_brew="$(num_or_null "$(gf "$upf" '.brew')")"
+        up_apt="$(num_or_null "$(gf "$upf" '.apt')")"
+        up_behind="$(num_or_null "$(gf "$upf" '.repo_behind')")"
+        up_ahead="$(num_or_null "$(gf "$upf" '.repo_ahead')")"
+        up_last="$(num_or_null "$(gf "$upf" '.last_run')")"
+    fi
+
     cat <<EOF
 {
   "ts": "$ts",
@@ -154,6 +181,7 @@ probe_json() {
   "gpu": { "present": $gpu_present, "util": ${gpu_util:-null}, "mem_used": ${gpu_mem_u:-null}, "mem_total": ${gpu_mem_t:-null}, "temp": ${gpu_temp:-null} },
   "disk_root_pct": ${disk_pct:-0},
   "k3s": { "ready": ${k_ready:-null}, "total": ${k_total:-null} },
+  "updates": { "brew": ${up_brew:-null}, "apt": ${up_apt:-null}, "repo_behind": ${up_behind:-null}, "repo_ahead": ${up_ahead:-null}, "last_run": ${up_last:-null} },
   "homelab_reachable": ${hl_reach:-null}
 }
 EOF
@@ -446,6 +474,18 @@ cmd_tick() {
     [ "$ph" = "true" ] && [ "$ch" = "false" ] && notify crit "Homelab unreachable" "${HOMELAB_HOST} not responding"
     [ "$ph" = "false" ] && [ "$ch" = "true" ] && notify info "Homelab back" "${HOMELAB_HOST} reachable"
 
+    # Dotfiles repo fell behind upstream — rising edge ONLY (0-or-null → N),
+    # so a machine that stays behind nags once, not every tick. Info tier,
+    # gated by UPDATES_NOTIFY in situation.env ('off' disables).
+    if [ "$UPDATES_NOTIFY" != "off" ]; then
+        local pub cub; pub="$(gf "$p" '.updates.repo_behind')"; cub="$(gf "$c" '.updates.repo_behind')"
+        if [ "$cub" != "null" ] && [ "${cub:-0}" -gt 0 ] 2>/dev/null; then
+            if [ "$pub" = "null" ] || [ "${pub:-0}" -eq 0 ] 2>/dev/null; then
+                notify info "Dotfiles behind" "repo ↓${cub} vs upstream — run: claw update"
+            fi
+        fi
+    fi
+
     return 0   # don't leak the last test's status — the systemd unit would show 'failed' on a clean run
 }
 
@@ -460,6 +500,9 @@ cmd_show() {
           + (if .gpu.present then "  gpu:"+(.gpu.temp|tostring)+"°C/"+(.gpu.util|tostring)+"%" else "" end)
           + "  disk:" + (.disk_root_pct|tostring) + "%"
           + (if .homelab_reachable==null then "" else "  homelab:"+(if .homelab_reachable then "up" else "DOWN" end) end)
+          + (if ((.updates.brew // null) != null or (.updates.apt // null) != null)
+             then "  updates:" + (((.updates.brew // 0) + (.updates.apt // 0))|tostring) else "" end)
+          + (if (.updates.repo_behind // 0) > 0 then "  repo:↓" + (.updates.repo_behind|tostring) else "" end)
           + "   (" + .ts + ")"
         ' "$SNAP"
         [ "${1:-}" = "--json" ] && jq . "$SNAP"
