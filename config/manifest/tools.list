@@ -1,5 +1,7 @@
 # Open Claw — tracked tool manifest (the self-aware registry).
-# Format: id|source   ·   source ∈ brew apt cargo pipx gem npm eget:<repo> go:<pkg> curl:<url> manual
+# Format: id|source[|cadence]   ·   source ∈ brew apt cargo pipx gem npm eget:<repo> go:<pkg> curl:<url> manual
+# cadence ∈ daily weekly biweekly monthly — opts the row into tool-updater.sh's
+# background fast lane (rows without a cadence are never auto-updated there).
 # `claw pkg track` appends newly-installed tools here; `claw provision` installs them all.
 
 ## Core / shell
@@ -10,11 +12,11 @@ stow|brew
 curl|brew
 wget|brew
 fzf|brew
-ripgrep|brew
-fd|brew
-bat|brew
-eza|brew
-zoxide|brew
+ripgrep|brew|weekly
+fd|brew|weekly
+bat|brew|weekly
+eza|brew|weekly
+zoxide|brew|weekly
 atuin|brew
 starship|brew
 neovim|brew
@@ -35,7 +37,7 @@ glow|brew
 gum|brew
 vivid|brew
 navi|brew
-zellij|brew
+zellij|brew|weekly
 yazi|brew
 fastfetch|brew
 tldr|brew
@@ -77,3 +79,11 @@ claude|npm
 gemini|npm
 aichat|brew
 ollama|curl:https://ollama.com/install.sh
+
+## Fast lane (cadence-tagged — tool-updater.sh background auto-updates)
+bottom|brew|weekly
+rovr|pipx|weekly
+osint-d2|pipx|weekly
+clawea|go:github.com/cladamos/clawea|biweekly
+netwatch-tui|cargo|monthly
+eilmeldung|cargo|monthly

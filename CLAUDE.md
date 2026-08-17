@@ -61,9 +61,31 @@ the spine — do not add a parallel dispatcher, palette, or dashboard.
    no-python fallback only. Data comes from `ff-readout.sh fields` (incl.
    `<res>_pct` for the bars).
 
-Also: `claw update` is the one updater front door (`--tools` → tool-updater,
-`--schedule` → selfupdate); superseded/uncalled scripts live in `legacy/`
-(see `legacy/README.md`) — archive there, don't delete or leave strays.
+Also: `claw update` is the one updater front door, and it is **phased**:
+phase 1 `scripts/utils/repo-sync.sh` (conservative ff-only pull of the
+dotfiles repo — a dirty tree or diverged branch skips with a reason, never
+auto-stash/merge — then regen of only the derived artifacts the pull touched:
+gen-fastfetch, `stow -R shell`, link-claude, integrity manifest); phase 2
+`scripts/utils/system-update.sh`, the ONE package engine — topgrade-first,
+run as a single streamed `claw_step` under the repo-shipped
+`config/topgrade.toml` when `topgrade` is installed, with the hand-rolled
+sweep surviving only as the fallback. Flags: `--repo` / `--packages` run one
+phase, `--dry-run` previews without executing, `--last` pretty-prints recent
+receipts, `--tools` → tool-updater fast lane, `--schedule` → selfupdate
+(whose weekly timer runs `bin/claw update --non-interactive`, so scheduled ≡
+manual; `claw pkg update` delegates to the engine too). Every run appends one
+receipt row (ISO ts, trigger, duration, ok|fail, detail) to
+`~/.cache/claw/updates.tsv`. The fast lane reads the ONE tool registry:
+`config/manifest/tools.list` rows carry an optional third field
+`id|source|cadence` (daily|weekly|biweekly|monthly) and only cadence-tagged
+rows update in the background (hardcoded categories are the manifest-less
+fallback only). Update state is data: `scripts/utils/update-status.sh` probes
+pending counts into `~/.cache/claw/updates.json` (atomic, ≥6h throttle unless
+`--force`; absent manager = null), read by `situation.sh` (`.updates`,
+info-notify on the rising edge of repo-behind), `ff-readout.sh` (`updates`
+field), `claw doctor`, and refreshed in the background at login by the
+welcome TUI. Superseded/uncalled scripts live in `legacy/` (see
+`legacy/README.md`) — archive there, don't delete or leave strays.
 
 Also: `scripts/utils/notify.sh` is the one desktop-notification engine
 (`claw notify`, macOS terminal-notifier→osascript / Linux notify-send, stderr
@@ -189,8 +211,8 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 - `scripts/utils/ai-services.sh` — unified manager for self-hosted AI web stacks (open-webui, dify, ragflow, langfuse) via `claw ai-services`
 - `scripts/utils/homelab.sh` — SSH topology manager (parses ~/.ssh/config)
 - `scripts/utils/mcp-manager.sh` — MCP server manager (list/register/scaffold)
-- `scripts/utils/system-update.sh` — Cumulative updater with gum spinners (graceful fallback)
-- `scripts/utils/tool-updater.sh` — Background auto-updater with staggered intervals
+- `scripts/utils/system-update.sh` — The one package-update engine (topgrade-first via `config/topgrade.toml`, streamed `claw_step`; hand-rolled sweep as fallback)
+- `scripts/utils/tool-updater.sh` — Background fast-lane updater driven by cadence-tagged rows of `config/manifest/tools.list` (per-category cache; hardcoded categories only as manifest-less fallback)
 
 ## Conventions
 
@@ -229,7 +251,7 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | `scripts/utils/ai-services.sh` | Unified manager for self-hosted AI web stacks (open-webui/dify/ragflow/langfuse) |
 | `config/open-webui/docker-compose.yml` | Open WebUI stack (ChatGPT-style Ollama UI, :3000) |
 | `scripts/utils/toolkit.sh` | Interactive workflow launcher |
-| `scripts/utils/system-update.sh` | Package updater with gum spinners |
+| `scripts/utils/system-update.sh` | One package-update engine (topgrade-first, sweep fallback) |
 | `scripts/utils/homelab.sh` | SSH topology manager |
 | `scripts/utils/logger.sh` | Shared logging utilities |
 | `scripts/utils/notify.sh` | One cross-platform desktop-notification engine (`claw notify`); backs `platform.zsh` `claw_notify` + `situation.sh` alerts |

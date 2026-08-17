@@ -1,0 +1,42 @@
+# config/topgrade.toml — declarative config for the ONE package engine.
+#
+# `claw update` (scripts/utils/system-update.sh) runs
+#   topgrade --config <this file> -y        (-n appended under --dry-run)
+# as a single streamed claw_step whenever topgrade is installed; the
+# hand-rolled sweep in system-update.sh is only the no-topgrade fallback.
+# Coverage parity with that sweep (brew/apt/npm/pipx/uv/cargo/rustup/gem/
+# omz/flatpak/snap/firmware) comes from topgrade's auto-detection — steps
+# for absent tools are skipped silently, same philosophy as the fastfetch
+# dashboards.
+# Design: docs/superpowers/specs/2026-08-17-claw-update-one-engine-design.md
+
+[misc]
+# The engine streams unattended (claw_step) — never block on a mid-run prompt.
+assume_yes = true
+
+# Disabled steps — every entry justified:
+#   containers — pulling/recreating container images mid-update is disruptive
+#                on the homelab; container lifecycle belongs to
+#                `claw ai-services` / compose, not the package engine.
+#   git_repos  — repo-sync.sh (phase 1 of `claw update`) owns the dotfiles
+#                pull (ff-only + conditional regen); topgrade pulling git
+#                repos would duplicate — and race — that phase.
+# `system` stays ENABLED on purpose: on Linux it IS the apt/dnf/pacman
+# coverage today's sweep provides — disabling it would shrink coverage.
+disable = ["containers", "git_repos"]
+
+# The topgrade binary itself is registry-managed (config/manifest/tools.list,
+# eget source) — its self-update belongs to the manifest, not to every run.
+no_self_update = true
+
+# Parity with the sweep's tidy passes (`brew cleanup`, `apt autoremove`).
+cleanup = true
+
+# One attempt per step: failures land in the run receipt (updates.tsv) for
+# the operator to rerun — retry loops just stall the streamed step.
+no_retry = true
+
+[firmware]
+# The sweep applies fwupd updates (`fwupdmgr update -y`); topgrade's default
+# only refreshes metadata. Keep applying.
+upgrade = true

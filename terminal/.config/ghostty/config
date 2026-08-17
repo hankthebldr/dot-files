@@ -7,13 +7,15 @@
 #                          (git-ignored). LAST so its colors win.
 # The leading `?` makes each include optional: a fresh checkout (before stow /
 # theme build has run) still loads cleanly instead of erroring on a missing file.
-# Font:  JetBrainsMono Nerd Font Mono @ 10pt
+# Font:  JetBrainsMono Nerd Font Mono — 10pt base (Linux/BD790i); macOS
+#        bumps to 13pt in os-macos.conf for the Retina panel.
 # Keys:  Mac-style — ⌘/Super for copy/paste/tab/window/find/clear
 
 # ── Font ──────────────────────────────────────────────────────────────
 font-family = "JetBrainsMono Nerd Font Mono"
 font-size = 10
-font-feature = "-calt"
+# Ligatures ON (operator pick 2026-08-17): ->, =>, != fuse into glyphs.
+# To go back to literal characters, restore:  font-feature = "-calt"
 # Heavier strokes are platform-specific and live in the OS layers:
 #   macOS → font-thicken;  Linux → freetype-load-flags  (see os-*.conf).
 # Tight line height for a dense viewport (was +10%, which loosened rows).
@@ -165,6 +167,8 @@ keybind = cmd+nine=last_tab
 # Windows & splits
 keybind = cmd+n=new_window
 keybind = cmd+shift+n=new_split:right
+# iTerm muscle memory (operator pick 2026-08-17): ⌘D splits right too.
+keybind = cmd+d=new_split:right
 keybind = cmd+shift+d=new_split:down
 keybind = cmd+shift+enter=toggle_split_zoom
 keybind = cmd+shift+h=goto_split:left
