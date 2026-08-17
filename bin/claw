@@ -197,7 +197,7 @@ cmd_help() {
     ${c_white}claw validate${c_reset}         ${c_dim}full top-to-bottom install check + update/missing detection${c_reset}
     ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
     ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
-    ${c_white}claw update${c_reset}           ${c_dim}full system update (brew/npm/pip/etc); ${c_white}--tools${c_dim} curated CLI refresh, ${c_white}--schedule${c_dim} weekly timer · alias: ${c_white}claw upgrade${c_reset}
+    ${c_white}claw update${c_reset}           ${c_dim}phased update: repo-sync → packages; ${c_white}--repo${c_dim}/${c_white}--packages${c_dim} one phase, ${c_white}--dry-run${c_dim}, ${c_white}--last${c_dim} receipts, ${c_white}--tools${c_dim} curated refresh, ${c_white}--schedule${c_dim} weekly timer · alias: ${c_white}claw upgrade${c_reset}
     ${c_white}claw output${c_reset}           ${c_dim}display settings: mode auto|rich|plain · frame viewfinder|none · banner on|off${c_reset}
     ${c_white}progress {on|off|status}${c_reset} ${c_dim}live progress panel master switch for long pkg ops (shell fn · CLAW_PROGRESS_ENABLED)${c_reset}
 
@@ -405,6 +405,14 @@ cmd_doctor() {
         info "no profile loaded ${c_dim}(default)${c_reset}"
     info "dotfiles: ${c_dim}${DOTFILES}${c_reset}"
     info "agents:   ${c_dim}$(agent_list_sections | tr '\n' ' ')${c_reset}"
+    # Update state — read-only peek at the one-engine cache (updates.json,
+    # written by update-status.sh). Guarded: doctor never probes, and both the
+    # reader and its cache may not exist yet → dim n/a.
+    if [[ -r "$DOTFILES/scripts/utils/update-status.sh" && -r "$CLAW_CACHE_DIR/updates.json" ]]; then
+        info "updates:  $(bash "$DOTFILES/scripts/utils/update-status.sh" read 2>/dev/null || echo n/a)"
+    else
+        info "updates:  ${c_dim}n/a${c_reset}"
+    fi
 
     printf "\n  ${c_purple}${c_bold}Core CLI${c_reset}\n"
     for tool in eza bat rg fd fzf zoxide atuin delta btop lazygit yazi starship gum glow tldr fastfetch; do
@@ -519,17 +527,96 @@ cmd_doctor() {
     echo ""
 }
 
-# ONE front door for the three updaters (each keeps its own job):
-#   claw update              system packages (brew/apt/npm/pip…)  → system-update.sh
-#   claw update --tools      interactive curated CLI refresh      → tool-updater.sh
-#   claw update --schedule   weekly auto-update timer             → selfupdate.sh
+# ONE front door for updates, now phased (spine contract). The selfupdate
+# timer runs this same door (`claw update --non-interactive`), so scheduled
+# and manual runs are identical:
+#   claw update              phase 1 repo-sync → phase 2 packages
+#   claw update --repo       phase 1 only (ff-only pull + conditional regen)
+#   claw update --packages   phase 2 only (brew/apt/npm/pip…)  → system-update.sh
+#   claw update --last       pretty-print the last ≤5 update receipts
+#   claw update --tools      interactive curated CLI refresh    → tool-updater.sh
+#   claw update --schedule   weekly auto-update timer           → selfupdate.sh
+# --dry-run / --non-interactive are forwarded to both phases.
 # `claw tools` / `claw selfupdate` still work as muscle-memory aliases.
 cmd_update() {
-    case "${1:-}" in
-        --tools|tools)       shift; bash "$DOTFILES/scripts/utils/tool-updater.sh" --interactive "$@" ;;
-        --schedule|schedule) shift; bash "$DOTFILES/scripts/utils/selfupdate.sh" "${1:-install}" ;;
-        *)                   bash "$DOTFILES/scripts/utils/system-update.sh" "$@" ;;
-    esac
+    local phase=all
+    local fwd=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tools|tools|--schedule|schedule)
+                local door="$1" _a; shift
+                # --dry-run/--non-interactive have no meaning behind these
+                # doors — silently dropping them once ran REAL upgrades under
+                # an explicit --dry-run, so refuse the combination loudly.
+                for _a in ${fwd[@]+"${fwd[@]}"} "$@"; do
+                    case "$_a" in
+                        --dry-run|--non-interactive)
+                            err "$_a does not apply to $door"
+                            info "usage: claw update [--repo|--packages] [--dry-run] [--non-interactive] | --last | --tools | --schedule"
+                            return 1
+                            ;;
+                    esac
+                done
+                if [[ "$door" == "--tools" || "$door" == "tools" ]]; then
+                    bash "$DOTFILES/scripts/utils/tool-updater.sh" --interactive "$@"
+                else
+                    bash "$DOTFILES/scripts/utils/selfupdate.sh" "${1:-install}"
+                fi
+                return
+                ;;
+            --last)              cmd_update_last; return ;;
+            --repo)              phase=repo ;;
+            --packages)          phase=packages ;;
+            --dry-run|--non-interactive) fwd+=("$1") ;;
+            *)
+                err "unknown update flag: $1"
+                info "usage: claw update [--repo|--packages] [--dry-run] [--non-interactive] | --last | --tools | --schedule"
+                return 1
+                ;;
+        esac
+        shift
+    done
+    local rc=0
+    if [[ "$phase" != "packages" ]]; then
+        # Guarded so a mid-bootstrap tree without repo-sync.sh still updates
+        # packages; an explicit --repo on such a tree is a real error.
+        if [[ -r "$DOTFILES/scripts/utils/repo-sync.sh" ]]; then
+            bash "$DOTFILES/scripts/utils/repo-sync.sh" ${fwd[@]+"${fwd[@]}"} || rc=$?
+        elif [[ "$phase" == "repo" ]]; then
+            err "repo-sync.sh not found: $DOTFILES/scripts/utils/repo-sync.sh"
+            return 1
+        fi
+    fi
+    if [[ "$phase" != "repo" ]]; then
+        if [[ "$phase" == "all" ]]; then
+            # Phase 2 of the phased run: suppress system-update's interactive
+            # `clear` so phase 1's repo-sync report survives on screen.
+            CLAW_UPDATE_PHASED=1 bash "$DOTFILES/scripts/utils/system-update.sh" ${fwd[@]+"${fwd[@]}"} || rc=$?
+        else
+            bash "$DOTFILES/scripts/utils/system-update.sh" ${fwd[@]+"${fwd[@]}"} || rc=$?
+        fi
+    fi
+    return $rc
+}
+
+# Receipt tail — both update phases append one TSV row per run to updates.tsv
+# (ISO-ts \t trigger \t duration_s \t ok|fail \t detail). Show the last ≤5.
+cmd_update_last() {
+    local receipts="$CLAW_CACHE_DIR/updates.tsv"
+    if [[ ! -s "$receipts" ]]; then
+        info "no update receipts yet ${c_dim}($receipts)${c_reset}"
+        info "run claw update, then re-run claw update --last"
+        return 0
+    fi
+    printf "\n  ${c_purple}${c_bold}update receipts${c_reset}  ${c_dim}— last runs (%s)${c_reset}\n" "$receipts"
+    printf "  ${c_dim}─────────────────────────────────────${c_reset}\n"
+    local ts trig dur result detail mark
+    while IFS=$'\t' read -r ts trig dur result detail; do
+        [[ "$result" == "ok" ]] && mark="${c_green}✓${c_reset}" || mark="${c_red}✗${c_reset}"
+        printf "  %s %s  ${c_dim}%-7s${c_reset} %5ss  ${c_dim}%s${c_reset}\n" \
+            "$mark" "$ts" "$trig" "$dur" "$detail"
+    done < <(tail -5 "$receipts")
+    echo ""
 }
 
 cmd_tools() {
