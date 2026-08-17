@@ -80,9 +80,11 @@ if command -v ghostty >/dev/null || [[ -e "$HOME/.config/ghostty" ]]; then
     phase "1b · Ghostty chain"
     gdir="$HOME/.config/ghostty"
     # Normalize both sides — DOTFILES_DIR may arrive unnormalized (tests/..).
-    droot="$(readlink -f "$DOTFILES_DIR" 2>/dev/null || echo "$DOTFILES_DIR")"
+    # readlink -f is GNU/macOS-12.3+; fall back to realpath then the literal
+    # path on older BSD userlands (same idiom as pkg-manifest.sh).
+    droot="$(readlink -f "$DOTFILES_DIR" 2>/dev/null || realpath "$DOTFILES_DIR" 2>/dev/null || echo "$DOTFILES_DIR")"
     if [[ -e "$gdir" ]]; then
-        greal="$(readlink -f "$gdir" 2>/dev/null || echo "$gdir")"
+        greal="$(readlink -f "$gdir" 2>/dev/null || realpath "$gdir" 2>/dev/null || echo "$gdir")"
         case "$greal" in
             "$droot"/*) ok "~/.config/ghostty → repo ($greal)" ;;
             *) warn "~/.config/ghostty is NOT linked into the repo ($greal)"; fix "bash $DOTFILES_DIR/scripts/setup/symlinks.sh   # relink terminal/" ;;
