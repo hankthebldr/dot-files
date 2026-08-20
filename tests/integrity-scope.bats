@@ -79,6 +79,17 @@ gen() { run bash "$REPO/scripts/utils/integrity.sh" generate; }
   [ "$status" -ne 0 ]
 }
 
+@test "integrity scope: git-ignored name with glob metacharacters is matched literally" {
+  # Membership is bash pattern matching, so an unquoted "$rel" would let a
+  # filename like a[bc].txt match the wrong line (or nothing).
+  printf 'x\n' > "$REPO/junk/a[bc].txt"
+  gen
+  [ "$status" -eq 0 ]
+  ! grep -qF 'junk/a[bc].txt' "$MANIFEST"
+  run bash "$REPO/scripts/utils/integrity.sh" verify
+  [ "$status" -eq 0 ]
+}
+
 @test "integrity scope: non-git (tarball) tree still generates" {
   rm -rf "$REPO/.git"
   gen
