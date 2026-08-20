@@ -91,6 +91,7 @@ _default_ignore_patterns=(
     'config/integrity/manifest.sha256'
     'config/integrity/manifest.sha256.prev'
     'browser-profiles/'
+    '.remember/'
     '*.sqlite'
     '*.db'
     '*.pem'
@@ -122,11 +123,39 @@ _read_ignore_patterns() {
     grep -Ev '^\s*(#|$)' "$IGNORE_FILE" 2>/dev/null || true
 }
 
+# ── Git-ignored files are never repo CONTENT ────────────────────────────────
+# The manifest is COMMITTED, so it must describe the repo's own files only.
+# Hashing git-ignored paths (vendored skills, __pycache__, machine-local state)
+# made a tracked file machine-DEPENDENT: regenerating on another box silently
+# dropped those rows, and `verify` then cried EXTRA for every such file the
+# other machine happened to have. Skipping what git already declares "not
+# content" makes the manifest deterministic everywhere — and self-maintaining,
+# since a new .gitignore entry needs no matching .integrityignore edit.
+#
+# One `git ls-files` call builds the set; membership is a grep over an
+# in-memory string (bash 3.2 has no associative arrays). A tarball install with
+# no git, or no .git dir, degrades to the .integrityignore patterns alone.
+_GIT_IGNORED=""
+_GIT_IGNORED_LOADED=""
+_load_git_ignored() {
+    [[ -n "$_GIT_IGNORED_LOADED" ]] && return 0
+    _GIT_IGNORED_LOADED=1
+    command -v git &>/dev/null || return 0
+    git -C "$REPO_ROOT" rev-parse --git-dir &>/dev/null || return 0
+    _GIT_IGNORED="$(git -C "$REPO_ROOT" ls-files --others --ignored --exclude-standard 2>/dev/null || true)"
+    return 0
+}
+
 # Should this relative path be ignored? Matches against either a literal
 # directory prefix (pattern ending in /) or a glob via `case` matching.
 _is_ignored() {
     local rel="$1"
     local pat
+    # Git's own ignore rules first — cheapest and the broadest correct signal.
+    _load_git_ignored
+    if [[ -n "$_GIT_IGNORED" ]] && printf '%s\n' "$_GIT_IGNORED" | grep -qxF "$rel"; then
+        return 0
+    fi
     while IFS= read -r pat; do
         [[ -z "$pat" ]] && continue
         if [[ "$pat" == */ ]]; then
