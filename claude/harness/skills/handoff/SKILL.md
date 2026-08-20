@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Generate a concise session-handoff summary — TL;DR, what changed, decisions taken, open items, and context for the next session — and optionally save it to the Obsidian vault _wip/ inbox via the capture skill. Use at the end of a working session, when switching context, or when the user says "handoff", "hand this off", "wrap up", "session summary", or "/handoff". Never include raw credentials or PII; use surrogates.
+description: "Use when a working session ends, when switching context, or when the user says \"handoff\", \"hand this off\", \"wrap up\", \"session summary\", or \"/handoff\". Produces a TL;DR, what changed, decisions taken, open items, and context for the next session, optionally captured to the vault _wip/ inbox. Never include raw credentials or PII; use surrogates."
 ---
 
 # Session Handoff

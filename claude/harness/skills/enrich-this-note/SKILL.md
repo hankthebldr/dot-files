@@ -1,6 +1,6 @@
 ---
 name: enrich-this-note
-description: Analyze an Obsidian vault note and suggest enrichment — improved/missing frontmatter, 3-5 wikilinks to related vault notes, the right MOC to file it under, and a 1-sentence MOC summary. Use when the user asks to "enrich this note", wants frontmatter/tag/link/MOC suggestions for a note, or is triaging a _wip/ note. Suggests only; never overwrites frontmatter without confirmation.
+description: "Use when the user asks to \"enrich this note\", wants frontmatter, tag, wikilink, or MOC suggestions for a note, or is triaging a _wip/ note. Suggests only; never overwrites frontmatter without confirmation."
 ---
 
 # Vault Note Enrichment

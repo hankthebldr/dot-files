@@ -1,13 +1,6 @@
 ---
 name: project-cadence
-description: >-
-  Run the cadence rituals for a repo-bound project — phase kickoff, sprint
-  planning that emits tasks, and the RESUME HERE marker for picking a session
-  back up. Use when the user says "start a phase", "plan the sprint", "sprint
-  planning for {repo}", "kick off phase N", "set a resume point", "where did we
-  leave off", or when a working session ends mid-stream and needs a durable
-  re-entry marker in Things 3. Emits and completes todos ONLY through docsync's
-  verbs — never raw add_todo.
+description: "Use when the user says \"start a phase\", \"plan the sprint\", \"sprint planning for {repo}\", \"kick off phase N\", \"set a resume point\", \"where did we leave off\", or when a working session ends mid-stream and needs a durable re-entry marker in Things 3. Emits and completes todos ONLY through docsync's verbs — never raw add_todo."
 ---
 
 # project-cadence — phases, sprints, resume markers
