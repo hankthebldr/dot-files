@@ -63,6 +63,23 @@ function claw_welcome_tui() {
     [[ ! -t 0 ]] && return
     # SAFETY: Never run inside SSH that's piping data (e.g. scp, rsync)
     [[ -n "$SSH_CONNECTION" && ! -t 1 ]] && return
+    # SAFETY: A dumb terminal can't drive fzf's full-screen UI
+    [[ "$TERM" == dumb ]] && return
+    # SAFETY: Interactive SSH logins skip the picker by default. Terminal
+    # wrappers that bootstrap SSH sessions (Warp's "setting up session…",
+    # VS Code Remote, JetBrains Gateway, …) hold the login until the first
+    # shell prompt renders; a full-screen fzf menu blocking before that
+    # prompt deadlocks the session — the client waits for a prompt, the
+    # shell waits for a keypress. Load the default profile instead so SSH
+    # shells still get the branded environment, and let plain-ssh users opt
+    # back into the menu with CLAW_SSH_TUI=1 (e.g. in ~/.zshrc.local on the
+    # remote host, or via ssh SendEnv/SetEnv).
+    if [[ -n "$SSH_CONNECTION" || -n "$SSH_TTY" ]] && [[ "${CLAW_SSH_TUI:-0}" != 1 ]]; then
+        export CLAW_ACTIVE_PROFILE="default"
+        [[ -f "$DOTFILES_DIR/shell/profiles/default.zsh" ]] && \
+            source "$DOTFILES_DIR/shell/profiles/default.zsh"
+        return
+    fi
     # Skip if a profile is already active to prevent infinite loop
     [[ -n "$CLAW_ACTIVE_PROFILE" ]] && return
 
