@@ -221,7 +221,7 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 - **Color theme:** GitHub macOS Dark throughout — Blue `#58a6ff`, Green `#3fb950`, Purple `#bc8cff`, Orange `#d29922`, Red `#ff7b72`, Muted `#8b949e`
 - **Logging pattern:** Color-coded `log_info`, `log_success`, `log_warning`, `log_error` (blue/green/yellow/red)
 - **Idempotent installs:** All scripts check `command -v` before installing
-- **SSH safety:** Welcome TUI never runs in non-interactive/piped shells. load-env.zsh is silent. No stdout pollution.
+- **SSH safety:** Welcome TUI never runs in non-interactive/piped shells, and skips the fzf picker on interactive SSH logins too (loads the default profile instead) — a pre-prompt full-screen menu deadlocks SSH clients that wait for the first prompt ("setting up session…" hangs). `CLAW_SSH_TUI=1` opts back in for plain ssh. load-env.zsh is silent. No stdout pollution.
 - **Machine-local config goes in `~/.zshrc.local`, not the repo:** `~/.zshrc` is a stow symlink *into* the repo (`shell/.zshrc`), so any tool that does `echo >> ~/.zshrc` writes host-specific data (absolute paths, secrets, machine env) straight into the tracked, portable dotfiles. `.zshrc` sources `~/.zshrc.local` (untracked) near the end — put per-machine `export`s there instead. Periodically check `git status` on `shell/.zshrc` for stray appended lines.
 - **Shell scripts use `set -e`** (exit on error); master-setup also uses `set -u`
 - **Safety aliases:** Destructive ops always prompt (`rm -i`, `mv -i`, `cp -i`)
