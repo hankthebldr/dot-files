@@ -11,6 +11,13 @@ PROFILE_THEME_DEFAULT="dosbbs"
 PROFILE_TAG="scraped your second brain and organized it by vibe"
 PROFILE_FLAIR="every note links to three others — somehow they all matter"
 
+# START DIRECTORY
+# Where `claw load` / a welcome-TUI pick drops you. Grammar + precedence:
+# shell/profile-helpers.zsh (@vault tokens, `|` candidates, empty = stay put).
+# @vault = the registered Obsidian vault ROOT (~/hr-vault-main-pa) — the whole
+# second brain, not one profile-scoped folder (that would be @vault-folder).
+PROFILE_START_DIR="@vault"
+
 # OS SUPPORT
 # Vault tooling is mostly OS-agnostic (ripgrep, fzf, Obsidian via URL scheme).
 # Mac-specific bits: Spotlight (mdfind), Granola audio capture.

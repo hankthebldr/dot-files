@@ -190,7 +190,15 @@ if [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then
     # PROFILE_NAME (set by every profile's meta.zsh) = "already sourced by the
     # TUI" sentinel. The old sentinel was CLAW_PROFILE_THEME, a dead export
     # removed in the P2 theme unification.
-    [[ -f "$PROFILE_PATH" && -z "${PROFILE_NAME:-}" ]] && source "$PROFILE_PATH"
+    if [[ -f "$PROFILE_PATH" && -z "${PROFILE_NAME:-}" ]]; then
+        source "$PROFILE_PATH"
+        # An env-set profile (export CLAW_ACTIVE_PROFILE=… && exec zsh) never
+        # went through the TUI, so land in its start dir here too — the same
+        # applier and the same knobs (PROFILE_START_DIR in meta.zsh,
+        # CLAW_PROFILE_CD, ~/.config/claw/start-dirs.conf). profile-helpers.zsh
+        # loaded in step 6.
+        typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd "$CLAW_ACTIVE_PROFILE"
+    fi
 fi
 
 # ── Powerlevel10k prompt — sourced from the REPO, not ~/.p10k.zsh ───────────

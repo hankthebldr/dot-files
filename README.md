@@ -68,6 +68,7 @@ claw                  open the welcome menu (FZF picker)
 claw help             list every subcommand
 claw doctor           system + active-profile health
 claw load <profile>   source a profile in current shell   (claw off to clear)
+                      — also lands you in that profile's start dir (cd - to go back)
 claw <agent>          launch a registered agent (claude · gemini · hermes · opencode · openwork · …)
 
 # Look & feel
@@ -77,6 +78,7 @@ claw onboard              80s arcade character-creation profile picker
 
 # Profiles, packages, updates
 claw profiles lint    mechanically validate all 18 profile contracts
+claw profiles paths   where each profile drops you (declared → resolved here)
 claw install <tc>     opt-in toolchain installer (cloud/security/ai/devops/…)
 claw tools            curated CLI tool refresh (staggered cache)
 claw update           heavy hammer — every package manager
@@ -145,12 +147,34 @@ Full reference: [`docs/claw.md`](docs/claw.md).
 | **vault** | Obsidian second-brain organization | `vault-help` |
 
 Each profile is a **directory**, not a single file: a thin 5-line dispatcher `shell/profiles/<name>.zsh` sources `<name>/{meta,common,mac|linux}.zsh` (platform-split so macOS/Linux-only aliases don't leak cross-platform). Each provides:
-- `meta.zsh` — identity (`PROFILE_CLASS`, `PROFILE_THEME_DEFAULT`, `PROFILE_TOOLCHAIN`, `PROFILE_KEY_TOOLS`)
+- `meta.zsh` — identity (`PROFILE_CLASS`, `PROFILE_THEME_DEFAULT`, `PROFILE_START_DIR`, `PROFILE_TOOLCHAIN`, `PROFILE_KEY_TOOLS`)
 - `common.zsh` — domain-specific aliases (short, **unprefixed** — no `cloud-k`, just `k`), the `<profile>-help` card, and `_<profile>_tool_check`
 - `mac.zsh` / `linux.zsh` — platform-specific extras, sourced conditionally
 - Themed fastfetch dashboard (`config/.config/fastfetch/config-<profile>.jsonc`)
 
-`claw profiles lint` mechanically validates every profile's contract (declared toolchain resolves on disk, help + tool-check present, no dead metadata) and runs in CI, so a half-wired profile can't merge.
+`claw profiles lint` mechanically validates every profile's contract (declared toolchain resolves on disk, help + tool-check present, no dead metadata, a `PROFILE_START_DIR` with a known token, no hand-rolled top-level `cd`) and runs in CI, so a half-wired profile can't merge.
+
+### Start directories
+
+A profile is a *place* as much as a toolset, so each one declares where it drops you — `PROFILE_START_DIR` in its `meta.zsh`, applied by the single applier in `shell/profile-helpers.zsh` that `claw load`, the fzf welcome TUI and the Rust TUI all call. Pick **Knowledge & Ideation ▸ Vault** and you land in the Obsidian vault itself; `devops` lands in your infra tree; `default` never moves you.
+
+| Spec | Lands you in |
+|---|---|
+| `@vault` | the Obsidian vault root (`~/hr-vault-main-pa`) — what `vault` uses |
+| `@vault-folder` | the profile's mapped vault folder (`cortex`→`CORTEX`, `security`→`Secops`, …), vault root if it doesn't exist yet |
+| `@vault:<Folder>` | an explicit folder inside the vault |
+| `~/path`, `$VAR/path` | a plain path (`$VAR` and `~` expanded when applied) |
+| `a\|b\|c` | first candidate that **exists** — one spec, two OS layouts |
+| `""` | stay put |
+
+```bash
+claw profiles paths                     # declared → resolved on this machine
+CLAW_START_DIR=~/scratch claw load ai   # override for this shell only
+CLAW_PROFILE_CD=0                       # never relocate  (home = only from $HOME)
+cd -                                    # always takes you back
+```
+
+Machine-specific paths go in `~/.config/claw/start-dirs.conf` (untracked, like `~/.zshrc.local`) — template: [`config/claw/start-dirs.conf.example`](config/claw/start-dirs.conf.example). Non-interactive shells are never relocated.
 
 ### Activating
 
@@ -320,6 +344,8 @@ claw obsidian capture "stand-up notes for Q3"
 | everything else | `_wip` (triage) |
 
 Daily notes (`otoday`/`ocapture`) are **global** — always the `Daily Note/` journal, independent of the active profile.
+
+The same map backs the `@vault-folder` start-dir token, so loading `security` can drop you straight into `Secops/` — while the `vault` profile (`@vault`) lands in the vault root, the whole second brain. See [Start directories](#start-directories).
 
 Override per-shell:
 

@@ -11,6 +11,12 @@ PROFILE_THEME_DEFAULT="matrix"
 PROFILE_TAG="knows what XSOAR stands for · actually likes it"
 PROFILE_FLAIR="XSIAM tenants on speed-dial · panos-cli for the rest"
 
+# START DIRECTORY
+# Where `claw load` / a welcome-TUI pick drops you. Grammar + precedence:
+# shell/profile-helpers.zsh (@vault tokens, `|` candidates, empty = stay put).
+# playbooks/scripts/loot/config — created by common.zsh
+PROFILE_START_DIR="${CORTEX_WORKSPACE:-$HOME/.cortex}"
+
 # OS SUPPORT
 # All 7 migrated profiles are cross-platform via platform.zsh shims.
 # Mac/Linux-specific bits (if any emerge) live in mac.zsh / linux.zsh.

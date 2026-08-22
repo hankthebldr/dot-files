@@ -124,14 +124,30 @@ Mirrors the numbered steps in `shell/.zshrc` (see its header comment):
 - 10 specialized: `claude/`, `blackwell/`, `brainstorm/`, `deck/`, `demo/`, `design/`, `homelab/`, `pmo/`, `tunnels/`, `vault/` (18 profiles total)
 
 Each profile directory provides:
-- `meta.zsh` — `CLAW_PROFILE_THEME` / `PROFILE_THEME_DEFAULT` and other profile metadata
+- `meta.zsh` — `CLAW_PROFILE_THEME` / `PROFILE_THEME_DEFAULT`, `PROFILE_START_DIR`, and other profile metadata
 - `common.zsh` — domain-specific aliases and functions shared across platforms
 - `mac.zsh` / `linux.zsh` — platform-specific overrides, sourced conditionally by the dispatcher
 - `{profile}-help` — styled quick-reference card
 - `_{profile}_tool_check` — tool presence validation
 - Profile-specific fastfetch config (`config-{profile}.jsonc`) with themed logo
 
-`claw profiles lint` (`scripts/utils/profiles-lint.sh`) validates the directory-per-profile contract — every profile has the expected files and exports the required symbols.
+**Start directories — one applier, declared per profile.** WHERE a profile drops
+you is data, not code: `PROFILE_START_DIR` in `meta.zsh` (e.g. `vault` →
+`@vault`, the Obsidian vault root; `devops` → `${DEVOPS_WORKSPACE:-$HOME/devops}`),
+resolved and applied by `_claw_profile_cd` in `shell/profile-helpers.zsh` — the
+ONE applier every load path calls (`claw load`, the fzf welcome TUI, the
+rust-TUI outcome applier). Never hand-roll a top-level `cd` in a profile file.
+Spec grammar: plain paths (`$VAR`/`~` expanded), `@vault` (vault root),
+`@vault-folder` (the profile's mapped folder via `obsidian.zsh`, vault root if
+absent), `@vault:<Folder>`, `a|b|c` (first candidate that exists), `""` (stay
+put — what `default` uses). Precedence: `$CLAW_START_DIR` (this shell) →
+`~/.config/claw/start-dirs.conf` (per-machine, untracked; template in
+`config/claw/start-dirs.conf.example`) → `PROFILE_START_DIR`. Escape hatches:
+`CLAW_PROFILE_CD=0` (never), `=home` (only from `$HOME`), `cd -` (always goes
+back), and non-interactive shells are never relocated. `claw profiles paths`
+prints the resolved table.
+
+`claw profiles lint` (`scripts/utils/profiles-lint.sh`) validates the directory-per-profile contract — every profile has the expected files, declares `PROFILE_START_DIR` with a known `@token`, exports the required symbols, and hand-rolls no top-level `cd`.
 
 ### Fastfetch Profile Configs
 

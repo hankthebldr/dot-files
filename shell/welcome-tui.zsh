@@ -11,6 +11,13 @@ _claw_apply_outcome() {
             [[ -f "$DOTFILES_DIR/shell/profiles/${rest}.zsh" ]] && {
                 export CLAW_ACTIVE_PROFILE="$rest"
                 source "$DOTFILES_DIR/shell/profiles/${rest}.zsh"
+                # Land in the profile's declared start dir — the SAME applier
+                # the fzf path and `claw load` use (shell/profile-helpers.zsh).
+                if ! typeset -f _claw_profile_cd &>/dev/null && \
+                   [[ -f "$DOTFILES_DIR/shell/profile-helpers.zsh" ]]; then
+                    source "$DOTFILES_DIR/shell/profile-helpers.zsh"
+                fi
+                typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd "$rest"
             } ;;
         ACTION)
             case "$rest" in
@@ -78,6 +85,14 @@ function claw_welcome_tui() {
         export CLAW_ACTIVE_PROFILE="default"
         [[ -f "$DOTFILES_DIR/shell/profiles/default.zsh" ]] && \
             source "$DOTFILES_DIR/shell/profiles/default.zsh"
+        # default declares an empty PROFILE_START_DIR (stay put), so this is a
+        # no-op unless the host overrides it in ~/.config/claw/start-dirs.conf —
+        # the applier is called anyway so every load path behaves identically.
+        if ! typeset -f _claw_profile_cd &>/dev/null && \
+           [[ -f "$DOTFILES_DIR/shell/profile-helpers.zsh" ]]; then
+            source "$DOTFILES_DIR/shell/profile-helpers.zsh"
+        fi
+        typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd default
         return
     fi
     # Skip if a profile is already active to prevent infinite loop
@@ -353,6 +368,15 @@ function claw_welcome_tui() {
             else
                 _claw_profile_readout "$key"
             fi
+            # Land in the profile's declared start dir (PROFILE_START_DIR in
+            # meta.zsh → _claw_profile_cd, the ONE applier). profile-helpers.zsh
+            # loads at .zshrc step 6 but the TUI fires at step 3, so pull it in
+            # on demand — same lazy-load as obsidian.zsh in `vault_open` below.
+            if ! typeset -f _claw_profile_cd &>/dev/null && \
+               [[ -f "$_d/shell/profile-helpers.zsh" ]]; then
+                source "$_d/shell/profile-helpers.zsh"
+            fi
+            typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd "$key"
             ;;
         homelab_ssh)
             # Direct action — bypasses the profile, just launches the SSH topology TUI.
@@ -503,6 +527,11 @@ function claw_welcome_tui() {
             # Fallback: load default profile
             export CLAW_ACTIVE_PROFILE="default"
             [[ -f "$_d/shell/profiles/default.zsh" ]] && source "$_d/shell/profiles/default.zsh"
+            if ! typeset -f _claw_profile_cd &>/dev/null && \
+               [[ -f "$_d/shell/profile-helpers.zsh" ]]; then
+                source "$_d/shell/profile-helpers.zsh"
+            fi
+            typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd default
             ;;
     esac
 }
