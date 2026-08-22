@@ -13,15 +13,18 @@ setup() {
            "$FAKE/hr-vault-main-pa/_brainstorm" "$FAKE/devops" "$FAKE/pentest"
 }
 
-# Run a zsh snippet with profile-helpers.zsh sourced against the fake home.
+# XDG_CONFIG_HOME is pinned into the fake tree because the resolver reads the
+# per-machine map from ${XDG_CONFIG_HOME:-$HOME/.config}/claw/start-dirs.conf —
+# overriding HOME alone leaves the override lookup pointing at the real machine
+# (CI runners export XDG_CONFIG_HOME; most laptops don't).
 zrun() {
-  HOME="$FAKE" OBSIDIAN_ROOT="$FAKE" DOTFILES_DIR="$REPO" \
+  HOME="$FAKE" XDG_CONFIG_HOME="$FAKE/.config" OBSIDIAN_ROOT="$FAKE" DOTFILES_DIR="$REPO" \
     run zsh -c "source '$REPO/shell/profile-helpers.zsh'; $1"
 }
 
 # Same, but interactive (the applier is interactive-only by design).
 zrun_i() {
-  HOME="$FAKE" OBSIDIAN_ROOT="$FAKE" DOTFILES_DIR="$REPO" \
+  HOME="$FAKE" XDG_CONFIG_HOME="$FAKE/.config" OBSIDIAN_ROOT="$FAKE" DOTFILES_DIR="$REPO" \
     run zsh -ic "source '$REPO/shell/profile-helpers.zsh'; $1"
 }
 
@@ -123,7 +126,7 @@ zrun_i() {
 }
 
 @test "claw profiles paths renders one row per profile" {
-  HOME="$FAKE" OBSIDIAN_ROOT="$FAKE" DOTFILES_DIR="$REPO" \
+  HOME="$FAKE" XDG_CONFIG_HOME="$FAKE/.config" OBSIDIAN_ROOT="$FAKE" DOTFILES_DIR="$REPO" \
     run bash "$REPO/bin/claw" profiles paths
   [ "$status" -eq 0 ]
   [[ "$output" == *"vault"* ]]
