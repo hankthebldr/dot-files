@@ -15,8 +15,10 @@ claw skills           browse Claude skills
 claw harness <cmd>    custom agentic tooling: new <kind> <name> · list [--all|--fzf] · sync · deploy · path
 claw ai-services <c>  manage local AI service stacks (litellm, llama-swap, …)
 claw gateway <c>      OpenShell sandbox / gateway manager
-claw load <profile>   source a profile in current shell
+claw load <profile>   source a profile in current shell + land in its start dir
 claw off              unset active profile
+claw profiles paths   where each profile drops you (declared → resolved here)
+claw profiles lint    mechanically validate every profile contract
 claw <agent>          launch a registered agent (claude, hermes, …)
 claw agent list       list registered agents
 claw agent add        claw agent add <name> <command> [profile]
@@ -47,8 +49,9 @@ from the welcome menu on shell login, or load on demand with `claw load <name>`:
 | cortex   | Palo Alto XSOAR · XSIAM · PAN-OS        | Cortex orange     |
 | local    | Custom-built CLI tools                  | Raspberry Pi      |
 
-Each profile sets `CLAW_PROFILE_THEME`, defines its own `<profile>-help`
-function, and ships a profile-specific fastfetch dashboard
+Each profile sets `CLAW_PROFILE_THEME`, declares where it drops you
+(`PROFILE_START_DIR`), defines its own `<profile>-help` function, and ships a
+profile-specific fastfetch dashboard
 (`config/.config/fastfetch/config-<profile>.jsonc`).
 
 **Aliases are unprefixed** — `cloud-k`, `osint-nmap`, etc. were dropped
@@ -65,6 +68,30 @@ for the surviving aliases.
   to run in your *current* shell (claw itself runs in a subshell and
   can't mutate your interactive shell directly).
 - **Auto-launch agents** — see Agents below.
+
+### Start directories
+
+Loading a profile also lands you where that profile's work lives — `vault` in
+the Obsidian vault root, `devops` in `$DEVOPS_WORKSPACE`, `cortex` in
+`$CORTEX_WORKSPACE`; `default` leaves you exactly where you were. Each profile
+declares it as `PROFILE_START_DIR` in its `meta.zsh`; one applier
+(`_claw_profile_cd`, `shell/profile-helpers.zsh`) runs it for every load path.
+
+```
+claw profiles paths                     # declared → resolved on this machine
+CLAW_START_DIR=~/scratch claw load ai   # this shell only
+CLAW_PROFILE_CD=0 / =home               # never relocate / only from $HOME
+cd -                                    # always takes you back
+```
+
+Specs are plain paths (`$VAR` and `~` expanded), the vault tokens `@vault` /
+`@vault-folder` / `@vault:<Folder>`, `a|b|c` candidate lists (first that
+exists), or `""` for stay-put. Per-machine overrides live in
+`~/.config/claw/start-dirs.conf` (template:
+`config/claw/start-dirs.conf.example`) — never in the tracked repo. A missing
+directory is never fatal: the shell says so and stays put, and non-interactive
+shells are never relocated. Full contract:
+[`docs/profiles/architecture.md`](profiles/architecture.md#start-directories).
 
 ### Switching off
 
@@ -397,8 +424,13 @@ Requires `chafa` and `librsvg` (`brew install chafa librsvg`).
   `kubectl` / `nmap` / `helm` directly. See per-profile `*-help` for the
   short mnemonics that survived.
 - **Security profile no longer auto-creates `~/pentest/<date>_engagement/`** —
-  loading the profile is now non-destructive. Run `sec_engagement [name]`
-  to create + cd into a new engagement workspace.
+  loading the profile is non-destructive. Run `sec_engagement [name]` to create
+  + cd into a new engagement workspace. (Loading it *does* land you in
+  `$PENTEST_WORKSPACE` when that already exists — see Start directories;
+  `CLAW_PROFILE_CD=0` turns relocation off.)
+- **A profile moved my shell** — that's `PROFILE_START_DIR`. `cd -` goes back,
+  `claw profiles paths` shows the whole table, `CLAW_PROFILE_CD=0` disables it,
+  and `CLAW_PROFILE_CD=home` limits it to shells that start in `$HOME`.
 - **`agents.toml` not auto-found?** — set `XDG_CONFIG_HOME` if you keep
   it elsewhere; defaults to `~/.config/claw/agents.toml`.
 

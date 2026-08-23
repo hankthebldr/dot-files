@@ -52,6 +52,10 @@ PROFILE_THEME_DEFAULT="synthwave"             # synthwave | matrix | dosbbs | vh
 PROFILE_TAG="boots up clusters before breakfast"
 PROFILE_FLAIR="owns 4 TLDs you've never heard of"
 
+# START DIRECTORY
+# Where loading this profile drops you. "" = stay put. See "Start directories".
+PROFILE_START_DIR="${CLOUD_WORKSPACE:-$HOME/cloud}|@vault-folder"
+
 # OS SUPPORT
 # Values describe the *role* of each OS for this profile:
 #   "mac+linux"             — full parity, slightly different tools
@@ -73,11 +77,57 @@ PROFILE_KEY_TOOLS="kubectl terraform aws gcloud az helm"   # space-separated, us
 | `PROFILE_CLASS` | RPG-style class name | claw load ceremony, onboarding verdict |
 | `PROFILE_TIER` | Menu grouping (1-6) | welcome TUI menu generator |
 | `PROFILE_THEME_DEFAULT` | Default cinematic theme | claw load splash, fastfetch palette |
+| `PROFILE_START_DIR` | Where the profile drops you | `_claw_profile_cd` (claw load, welcome TUI), `claw profiles paths` |
 | `PROFILE_TAG` | One-line description | menus, fastfetch subtitle, claw doctor |
 | `PROFILE_FLAIR` | Roast-y subtitle | onboarding box reveal, claw load ceremony |
 | `PROFILE_OS_SUPPORT` | OS-role declaration | claw doctor warnings, welcome TUI filter |
 | `PROFILE_TOOLCHAIN` | Install script name | `claw install <profile>` dispatch |
 | `PROFILE_KEY_TOOLS` | Tools to probe for health | `claw doctor` |
+
+## Start directories
+
+A profile is a *place* as much as a toolset — the vault profile belongs in the
+Obsidian vault, devops in the infra tree. That is declared **once**, in
+`meta.zsh`, and applied by **one** function (`_claw_profile_cd` in
+[`shell/profile-helpers.zsh`](../../shell/profile-helpers.zsh)) that every load
+path calls: `claw load <p>`, the fzf welcome TUI, and the rust-TUI outcome
+applier. Never write a top-level `cd` in a profile file — `claw profiles lint`
+fails the tree if you do (that regression shipped once, in cortex).
+
+### Spec grammar
+
+| Spec | Lands you in |
+|---|---|
+| `""` | nowhere — the profile leaves you where you are |
+| `~/path`, `$VAR/path` | that path (`$VAR` and `~` expanded when applied) |
+| `@vault` | the Obsidian vault **root** (`~/hr-vault-main-pa`) |
+| `@vault-folder` | vault root + this profile's mapped folder (`obsidian.zsh`'s `_CLAW_OBSIDIAN_FOLDERS`: cortex→`CORTEX`, security→`Secops`, …), falling back to the vault root when that folder doesn't exist yet |
+| `@vault:<Folder>` | vault root + an explicit folder |
+| `a\|b\|c` | the **first candidate that exists** — one spec covers divergent macOS / Linux layouts |
+
+The `@vault*` tokens resolve through `shell/obsidian.zsh`, so the vault/folder
+map has exactly one definition. A resolved-but-missing directory is never fatal:
+the shell stays put and says which path was missing.
+
+### Precedence
+
+1. `$CLAW_START_DIR` — this shell only (`CLAW_START_DIR=/tmp claw load cloud`)
+2. `~/.config/claw/start-dirs.conf` — per-machine `<profile> = <spec>` rows
+   (untracked, like `~/.zshrc.local`; template in
+   [`config/claw/start-dirs.conf.example`](../../config/claw/start-dirs.conf.example))
+3. `PROFILE_START_DIR` from the profile's `meta.zsh`
+
+### Escape hatches
+
+- `CLAW_PROFILE_CD=0` — never relocate (aliases and exports still load)
+- `CLAW_PROFILE_CD=home` — relocate only when the shell is sitting in `$HOME`,
+  so an IDE/terminal opened in a project dir keeps its cwd at login
+- `cd -` — always goes back; the load line prints the destination and says so
+- Non-interactive shells are never relocated (a sourced profile must not move a
+  script's cwd)
+
+`claw profiles paths` prints the whole table — declared spec → where it resolves
+on this machine, with missing dirs flagged.
 
 ## `common.zsh` — shared aliases / exports / help
 
@@ -179,7 +229,8 @@ The dispatcher's existence check (`[[ -f "${_PROFILE_DIR}/${OS_FAMILY}.zsh" ]]`)
 ## Adding a new profile — checklist
 
 1. **Create the directory:** `mkdir -p shell/profiles/<name>`
-2. **Write `meta.zsh`:** all required fields, see schema above
+2. **Write `meta.zsh`:** all required fields, see schema above — including
+   `PROFILE_START_DIR` (`""` is a valid answer; lint requires the line)
 3. **Write `common.zsh`:** shared aliases + `<name>-help` function
 4. **Write `mac.zsh` and/or `linux.zsh`:** OS-specific bits
 5. **Write the dispatcher:** copy the 4-line template, replace name

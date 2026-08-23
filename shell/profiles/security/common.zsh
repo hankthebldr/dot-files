@@ -9,9 +9,11 @@ export PENTEST_WORKSPACE="${PENTEST_WORKSPACE:-$HOME/pentest}"
 # sane default that exists on most pentest distros.
 export WORDLISTS="${WORDLISTS:-/usr/share/wordlists/SecLists}"
 
-# IMPORTANT: profile load no longer auto-creates an engagement directory or
-# auto-cd's into it (footgun — selecting a profile shouldn't relocate you).
-# Use `sec_engagement` to create + jump on demand. See below.
+# IMPORTANT: profile load never auto-CREATES an engagement directory — use
+# `sec_engagement` to carve + jump into one on demand (see below). Load-time
+# relocation is a separate, declarative thing: meta.zsh's PROFILE_START_DIR
+# lands you in $PENTEST_WORKSPACE when it already exists (else the vault's
+# Secops folder), reversibly (`cd -`) and opt-out-able (CLAW_PROFILE_CD=0).
 
 # ==========================================
 # ALIASES — short, unprefixed, value-add only

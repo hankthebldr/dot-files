@@ -11,6 +11,12 @@ PROFILE_THEME_DEFAULT="matrix"
 PROFILE_TAG="has a 70B model on a thumb drive · runs the bigger ones too"
 PROFILE_FLAIR="FP4 enabled · 24GB VRAM · Tensor cores warm"
 
+# START DIRECTORY
+# Where `claw load` / a welcome-TUI pick drops you. Grammar + precedence:
+# shell/profile-helpers.zsh (@vault tokens, `|` candidates, empty = stay put).
+# GPU work tree, falling back to the shared model dir
+PROFILE_START_DIR="${BLACKWELL_WORKSPACE:-$HOME/blackwell}|${AI_WORKSPACE:-$HOME/ai_models}"
+
 # OS SUPPORT — cockpit pattern:
 #   mac   → remote — SSH wrappers for nvtop, vLLM submit, model registry
 #   linux → native — direct GPU monitor, vLLM serve, training launchers

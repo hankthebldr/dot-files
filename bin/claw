@@ -215,8 +215,10 @@ cmd_help() {
     ${c_white}claw integrity${c_reset}        ${c_dim}tamper-check + install verification${c_reset}
 
   ${c_orange}${c_bold}Profiles${c_reset}
-    ${c_white}claw load <profile>${c_reset}   ${c_dim}source a profile in current shell${c_reset}
+    ${c_white}claw load <profile>${c_reset}   ${c_dim}source a profile in current shell (lands you in its start dir)${c_reset}
     ${c_white}claw off${c_reset}              ${c_dim}unset active profile${c_reset}
+    ${c_white}claw profiles paths${c_reset}   ${c_dim}where each profile drops you (PROFILE_START_DIR → resolved)${c_reset}
+    ${c_white}claw profiles lint${c_reset}    ${c_dim}mechanically validate every profile contract${c_reset}
 
   ${c_purple}${c_bold}Agents${c_reset}
     ${c_white}claw <agent>${c_reset}          ${c_dim}launch a registered agent (claude, hermes, …)${c_reset}
@@ -885,7 +887,17 @@ cmd_install() {
 cmd_profiles() {
     case "${1:-}" in
         lint) DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/profiles-lint.sh" ;;
-        *)    err "usage: claw profiles lint"; return 1 ;;
+        paths|dirs|start)
+            # Every profile's PROFILE_START_DIR → where it resolves on THIS
+            # machine. Rendered by the same zsh resolver the load paths use
+            # (shell/profile-helpers.zsh) — never a second implementation.
+            if ! command -v zsh &>/dev/null; then
+                err "zsh required to resolve profile start dirs"; return 1
+            fi
+            DOTFILES_DIR="$DOTFILES" zsh -c \
+                'source "$DOTFILES_DIR/shell/profile-helpers.zsh"; _claw_profile_paths'
+            ;;
+        *)    err "usage: claw profiles {lint|paths}"; return 1 ;;
     esac
 }
 

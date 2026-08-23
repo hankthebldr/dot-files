@@ -1,0 +1,38 @@
+# ~/.config/claw/start-dirs.conf — per-machine profile start directories.
+#
+# Copy this file to $XDG_CONFIG_HOME/claw/start-dirs.conf (default
+# ~/.config/claw/start-dirs.conf) and edit. It is NOT tracked by the repo on
+# purpose: machine-specific paths belong here, the same way machine-specific
+# exports belong in ~/.zshrc.local. Rows here override the PROFILE_START_DIR
+# declared in shell/profiles/<name>/meta.zsh; $CLAW_START_DIR overrides both
+# for a single shell.
+#
+# Syntax:  <profile> = <spec>          (one per line, # starts a comment line)
+#
+# Spec grammar — the same one meta.zsh uses:
+#   ~/path  $VAR/path   plain path ($VAR and ~ expanded when applied)
+#   @vault              the Obsidian vault ROOT              (~/hr-vault-main-pa)
+#   @vault-folder       vault root + the profile's mapped folder (cortex→CORTEX,
+#                       security→Secops, …), vault root if that folder is absent
+#   @vault:<Folder>     vault root + an explicit folder
+#   a|b|c               candidate list — the first candidate that EXISTS wins
+#   (empty)             stay put — the profile never relocates you
+#
+# See `claw profiles paths` for the resolved table on this machine, and the
+# header of shell/profile-helpers.zsh for the full contract.
+
+# Knowledge & Ideation — land in the vault itself, not a scoped folder
+# vault      = @vault
+# brainstorm = @vault:_brainstorm
+
+# A second vault or a work laptop with a different layout
+# vault      = ~/work-vault
+# pmo        = @vault:Projects
+
+# Code workspaces that differ per machine
+# devops     = ~/src/infra
+# cloud      = ~/src/terraform|~/cloud
+# claude     = ~/dev/projects
+
+# Opt one profile out of relocation entirely (empty value = stay put)
+# security   =

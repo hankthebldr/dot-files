@@ -7,6 +7,22 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- Per-profile start directories — a profile is a *place*, not just a toolset:
+  every `meta.zsh` declares `PROFILE_START_DIR` and ONE applier
+  (`_claw_profile_cd`, `shell/profile-helpers.zsh`) lands you there from every
+  load path (`claw load`, the fzf welcome TUI, the rust-TUI outcome applier).
+  Knowledge & Ideation ▸ Vault drops you in the Obsidian vault root; `devops`
+  in `$DEVOPS_WORKSPACE`; `default` never moves you. Spec grammar: plain paths
+  (`$VAR`/`~` expanded), `@vault` / `@vault-folder` / `@vault:<Folder>` (routed
+  through `obsidian.zsh`'s one folder map, falling back to the vault root),
+  `a|b|c` candidate lists (first that exists — one spec, two OS layouts), `""`
+  for stay-put. Precedence `$CLAW_START_DIR` → `~/.config/claw/start-dirs.conf`
+  (per-machine, untracked; template `config/claw/start-dirs.conf.example`) →
+  `PROFILE_START_DIR`. Reversible (`cd -`), announced on load, opt-out with
+  `CLAW_PROFILE_CD=0` (or `=home` to relocate only from `$HOME`), and never
+  applied in non-interactive shells
+- `claw profiles paths` — the resolved start-dir table for this machine
+  (declared spec → where it lands, missing dirs flagged)
 - Phased `claw update` — one engine: phase 1 `scripts/utils/repo-sync.sh`
   (conservative ff-only pull of the dotfiles repo; a dirty tree or diverged
   branch skips with a reason, never auto-stash/merge; regen only of what the
@@ -54,6 +70,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - Real brand art for 8 profile fastfetch logos via chafa pipeline (58060e1)
 
 ### Changed
+- `claw profiles lint` now also fails a profile that omits `PROFILE_START_DIR`,
+  declares an unknown `@token`, or hand-rolls a top-level `cd` in a profile file
+- The cortex profile's hard-coded `cd "$CORTEX_WORKSPACE"` is gone — it is now
+  declared as that profile's `PROFILE_START_DIR`, so it is visible, reversible
+  and opt-out-able like every other profile's
 - Scheduled ≡ manual: the weekly self-update timer now runs the same phased
   front door (`bin/claw update --non-interactive`, `CLAW_UPDATE_TRIGGER=timer`)
   and fires a `notify.sh` crit alert on failure; `claw pkg update` delegates

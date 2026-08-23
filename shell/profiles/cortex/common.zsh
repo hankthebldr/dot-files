@@ -9,8 +9,10 @@ export CORTEX_WORKSPACE="$HOME/.cortex"
 # Auto-create workspace directory structure
 mkdir -p "$CORTEX_WORKSPACE"/{playbooks,scripts,loot,config}
 
-# Automatically jump to the workspace directory
-cd "$CORTEX_WORKSPACE" || true
+# NOTE: no `cd` here. Where a profile drops you is declared once, in meta.zsh
+# (PROFILE_START_DIR="${CORTEX_WORKSPACE:-$HOME/.cortex}"), and applied by the
+# ONE applier in shell/profile-helpers.zsh — so every load path behaves the
+# same, `cd -` takes you back, and CLAW_PROFILE_CD=0 turns it off.
 
 # ==========================================
 # CORTEX CLI ALIASES

@@ -77,6 +77,12 @@ claw() {
             _claw_fn_log load "$p"
             # per-profile MOTD: the profile's flavor tag (set in meta.zsh)
             [[ -n "${PROFILE_TAG:-}" ]] && printf "  ${_dim}%s${_rst}\n" "$PROFILE_TAG"
+            # Land in the profile's declared start dir (PROFILE_START_DIR in
+            # meta.zsh). ONE applier for every load path — see the grammar +
+            # precedence header in shell/profile-helpers.zsh. Reversible: cd -.
+            if typeset -f _claw_profile_cd >/dev/null 2>&1; then
+                _claw_profile_cd "$p"
+            fi
             # load↔install bridge: nudge if the profile's key tools aren't present.
             if [[ -n "${PROFILE_KEY_TOOLS:-}" ]]; then
                 local _miss=() _t
