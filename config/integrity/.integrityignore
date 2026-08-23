@@ -33,3 +33,6 @@ browser-profiles/
 
 # Per-machine active-theme pointer (git-ignored; copied from the theme library)
 terminal/.config/ghostty/theme.conf
+
+# Session scratch written by the /remember hook — churns every session
+.remember/
