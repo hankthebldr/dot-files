@@ -61,7 +61,13 @@ _pkg_warm_cache() {
     command -v brew  &>/dev/null && _PKG_BREW="$(brew leaves 2>/dev/null | sed 's#.*/##')"
     command -v cargo &>/dev/null && _PKG_CARGO="$(cargo install --list 2>/dev/null | grep -E '^\S+ v' | awk '{print $1}')"
     command -v pipx  &>/dev/null && _PKG_PIPX="$(pipx list --short 2>/dev/null | awk '{print $1}')"
-    command -v npm   &>/dev/null && _PKG_NPM="$(npm ls -g --depth=0 --parseable 2>/dev/null | sed 's#.*/##' | grep -v '^npm$')"
+    # npm parse strips through `/node_modules/`, NOT the last `/`. The old
+    # `sed 's#.*/##'` flattened `@anthropic-ai/claude-agent-sdk` to
+    # `claude-agent-sdk`, so `pkg install` fetched a DIFFERENT, unscoped
+    # package; and it turned the prefix root line (`/opt/homebrew/lib`, always
+    # emitted first by --parseable) into a phantom tool `lib`. The grep drops
+    # that root line — it is the only one without a `/node_modules/` segment.
+    command -v npm   &>/dev/null && _PKG_NPM="$(npm ls -g --depth=0 --parseable 2>/dev/null | grep '/node_modules/' | sed 's#^.*/node_modules/##' | grep -v '^npm$')"
     return 0
 }
 
