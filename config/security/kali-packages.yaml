@@ -1,0 +1,54 @@
+# Provisioning traps (spec §13).
+#
+# Three of these fail *quietly*, producing an empty result set that reads as a
+# clean target — which is why the executor separates `empty` from `ok`, and why
+# `claw sec doctor` asserts identity rather than presence. `command -v`
+# reported four tools present on this workstation that were a Python library
+# and three git aliases.
+#
+# Keyed by tool name in config/security/tools.yaml. Package names live with
+# the tool entry; what lives here is the trap and the fix.
+
+httpx:
+  trap: >-
+    Name collision. `apt install httpx` or `pipx install httpx` installs the
+    Python HTTP client, which shadows the ProjectDiscovery binary on PATH and
+    exits 0 while producing nothing. Observed on this workstation.
+  package_note: "Kali packages the scanner as httpx-toolkit, not httpx."
+  fix: "sudo apt install httpx-toolkit; confirm with: claw sec doctor httpx"
+
+naabu:
+  trap: >-
+    Without libpcap-dev and CAP_NET_RAW it silently degrades to a connect
+    scan — slower, louder, and different results with no warning.
+  package_note: "Needs libpcap-dev at build time and CAP_NET_RAW at run time."
+  fix: "sudo apt install libpcap-dev && sudo setcap cap_net_raw+eip $(command -v naabu)"
+
+nuclei:
+  trap: >-
+    Apt-shipped templates lag upstream badly, so a scan reports clean against
+    checks it never had. Templates are resolved once in Phase 0 and pinned for
+    the engagement; the pinned version is recorded in the audit.
+  package_note: "Template set is versioned separately from the binary."
+  fix: "nuclei -update-templates once per engagement, then pin the version"
+
+subfinder:
+  trap: >-
+    Passive yield collapses to near zero without provider API keys, and it
+    fails open and quiet — a thin result set looks like a small attack surface.
+  package_note: "Reads ~/.config/subfinder/provider-config.yaml."
+  fix: "Populate provider-config.yaml; Phase 0 checks for its presence and warns loudly."
+
+katana:
+  trap: >-
+    Headless mode downloads Chromium on first run, which stalls the first
+    crawl of an engagement and fails outright on a host with no egress.
+  package_note: "First headless run pulls a browser."
+  fix: "Run once before an engagement to warm the browser cache."
+
+tlsx:
+  trap: >-
+    Certificate SANs routinely name hosts outside the engagement. They are new
+    targets, not authorized ones — they re-enter through the gate at phase 3.
+  package_note: ""
+  fix: "No action; the flow's feeds_back_to handles it. Never scan a SAN directly."
