@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+import sys
+if "-version" in sys.argv:
+    print("fake-fail v0.1 projectdiscovery")
+    sys.exit(0)
+sys.stderr.write("connection refused\n")
+sys.exit(2)

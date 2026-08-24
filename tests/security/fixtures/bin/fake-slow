@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+import sys, time
+if "-version" in sys.argv:
+    print("fake-slow v0.1 projectdiscovery")
+    sys.exit(0)
+print('{"url": "https://web.lab.example.com/partial"}', flush=True)
+time.sleep(30)

@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+"""Stand-in for a scanner: emits JSONL rows, honours a count flag."""
+import sys
+n = 3
+if "-count" in sys.argv:
+    n = int(sys.argv[sys.argv.index("-count") + 1])
+if "-version" in sys.argv:
+    print("fake-emit v1.2.3 projectdiscovery")
+    sys.exit(0)
+for i in range(n):
+    print('{"url": "https://web.lab.example.com/%d", "status_code": 200, "title": "Page %d"}' % (i, i))
