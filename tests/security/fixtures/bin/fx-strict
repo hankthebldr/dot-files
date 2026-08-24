@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""A tool that rejects flags it does not define, the way Go's flag package does."""
+import sys
+KNOWN = {"-list", "-silent", "-version"}
+args = sys.argv[1:]
+if "-version" in args:
+    print("fx-strict v1.0 projectdiscovery"); sys.exit(0)
+i = 0
+while i < len(args):
+    a = args[i]
+    if a.startswith("-"):
+        if a not in KNOWN:
+            sys.stderr.write(f"flag provided but not defined: {a}\n")
+            sys.exit(2)
+        if a == "-list":
+            i += 1
+    i += 1
+sys.exit(0)

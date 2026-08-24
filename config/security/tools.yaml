@@ -105,9 +105,9 @@ tlsx:
     - "{input_file}"
     - "-json"
     - "-silent"
+    # -san/-cn cannot be combined with other probes; -expired is one.
     - "-san"
     - "-cn"
-    - "-expired"
     - "-c"
     - "{concurrency}"
   params:
@@ -218,7 +218,7 @@ katana:
   argv:
     - "-list"
     - "{input_file}"
-    - "-json"
+    - "-jsonl"
     - "-jc"
     - "-silent"
     - "-depth"

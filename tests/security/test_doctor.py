@@ -122,6 +122,47 @@ class TestTraps(DoctorCase):
         self.assertIsNone(D.check({"faketool": spec()})[0].trap)
 
 
+class TestFlagPreflight(DoctorCase):
+    """Declared argv must match the flags the installed binary actually has.
+
+    katana takes -jsonl, not -json; tlsx refuses -san alongside another probe.
+    Both were wrong in the registry and both failed at run time as an empty
+    result set — the quiet failure this whole design keeps trying to make loud.
+    """
+
+    def strict(self, argv):
+        return {"strict": {**spec(binary="fx-strict", verify=["fx-strict", "-version"],
+                                  argv=argv, params={"input_file": {
+                                      "type": "artifact", "of": "authorized_host",
+                                      "source": "artifact"}})}}
+
+    def test_valid_flags_pass(self):
+        rows = D.check_flags(self.strict(["-list", "{input_file}", "-silent"]))
+        self.assertTrue(rows[0].flags_ok, rows[0].detail)
+
+    def test_an_undefined_flag_is_caught(self):
+        rows = D.check_flags(self.strict(["-list", "{input_file}", "-nope"]))
+        self.assertFalse(rows[0].flags_ok)
+        self.assertIn("-nope", rows[0].detail)
+
+    def test_a_missing_binary_is_skipped_not_failed(self):
+        reg = self.strict(["-list", "{input_file}"])
+        reg["strict"]["binary"] = "definitely-not-installed-xyz"
+        row = D.check_flags(reg)[0]
+        self.assertTrue(row.skipped)
+        self.assertTrue(row.flags_ok)
+
+    def test_one_row_per_tool(self):
+        reg = self.strict(["-list", "{input_file}"])
+        reg["other"] = spec()
+        self.assertEqual(len(D.check_flags(reg)), 2)
+
+    def test_no_target_is_ever_supplied_during_preflight(self):
+        # Preflight must not scan. It runs each tool against an empty list.
+        rows = D.check_flags(self.strict(["-list", "{input_file}", "-silent"]))
+        self.assertNotIn("192.", rows[0].detail)
+
+
 class TestShippedRegistryPackaging(unittest.TestCase):
     def test_every_shipped_tool_declares_an_install_route(self):
         import lint as L

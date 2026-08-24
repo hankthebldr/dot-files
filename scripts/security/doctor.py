@@ -13,7 +13,10 @@ tool so it is surfaced before a run rather than diagnosed after one.
 from __future__ import annotations
 
 import platform
+import shutil
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,7 +27,8 @@ import registry as R
 REPO = Path(__file__).resolve().parents[2]
 TRAPS_PATH = REPO / "config" / "security" / "kali-packages.yaml"
 
-__all__ = ["check", "all_ok", "load_traps", "ToolStatus", "main"]
+__all__ = ["check", "check_flags", "all_ok", "load_traps", "ToolStatus",
+           "FlagStatus", "main"]
 
 
 @dataclass
@@ -55,6 +59,66 @@ class ToolStatus:
     @property
     def ok(self) -> bool:
         return self.present and self.identity_ok
+
+
+@dataclass
+class FlagStatus:
+    name: str
+    flags_ok: bool
+    skipped: bool
+    detail: str
+
+
+# Messages a tool emits when the registry declares a flag it does not have, or
+# a combination it refuses. Each of these has already bitten this registry.
+_FLAG_ERRORS = (
+    "flag provided but not defined",
+    "unknown flag",
+    "unknown shorthand",
+    "could not validate options",
+    "cannot be used with",
+)
+
+_EMPTY_INPUT = "claw-sec-preflight-empty"
+
+
+def check_flags(registry: dict, only=None, timeout: int = 45) -> list[FlagStatus]:
+    """Run each tool against an *empty* input list and look for flag errors.
+
+    This sends nothing anywhere — there are no targets in an empty list — but
+    it does prove the declared argv parses against the installed binary, which
+    is the difference between a scan that found nothing and a scan that never
+    ran.
+    """
+    import registry as R  # local: doctor is imported by tools that import R
+
+    names = sorted(registry) if only is None else sorted(only)
+    empty = Path(tempfile.gettempdir()) / _EMPTY_INPUT
+    empty.write_text("", encoding="utf-8")
+
+    rows = []
+    for name in names:
+        spec = registry[name]
+        if shutil.which(spec.get("binary", name)) is None:
+            rows.append(FlagStatus(name, True, True, "binary not installed; skipped"))
+            continue
+        params = {p: str(empty) for p, s in (spec.get("params") or {}).items()
+                  if s.get("type") in ("artifact", "path")}
+        try:
+            argv = R.build_argv(name, spec, params)
+            proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            rows.append(FlagStatus(name, False, False, f"timed out after {timeout}s"))
+            continue
+        except Exception as exc:
+            rows.append(FlagStatus(name, False, False, f"{type(exc).__name__}: {exc}"))
+            continue
+        blob = (proc.stdout or "") + (proc.stderr or "")
+        bad = [l.strip() for l in blob.splitlines()
+               if any(marker in l for marker in _FLAG_ERRORS)]
+        rows.append(FlagStatus(name, not bad, False,
+                               bad[0] if bad else "declared argv parses"))
+    return rows
 
 
 def detect_platform() -> str:
@@ -111,6 +175,8 @@ def main(argv=None) -> int:
     import lint as L
 
     argv = sys.argv[1:] if argv is None else list(argv)
+    want_flags = "--flags" in argv
+    argv = [a for a in argv if a != "--flags"]
     registry = L.load_registry()
     try:
         report = check(registry, only=argv or None)
@@ -136,6 +202,15 @@ def main(argv=None) -> int:
 
     total = len(report)
     print(f"\n{total - failures}/{total} tool(s) verified on {plat}")
+
+    if want_flags:
+        print("\nflag preflight (empty input list — nothing is scanned):")
+        flag_rows = check_flags(registry, only=argv or None)
+        for row in flag_rows:
+            state = "skip" if row.skipped else ("ok  " if row.flags_ok else "FAIL")
+            print(f"  {state}     {row.name:<{width}}  {row.detail}")
+        failures += sum(1 for r in flag_rows if not r.flags_ok)
+
     return 1 if failures else 0
 
 
