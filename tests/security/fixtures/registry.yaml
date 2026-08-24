@@ -1,0 +1,76 @@
+# Fixture registry: the webrecon shape, backed by offline stand-in binaries.
+# Used by the integration test and by `claw sec demo`, so the whole flow can be
+# exercised on a workstation with none of the real chain installed.
+fx-enum:
+  description: >-
+    Enumerate hostnames for a domain from passive sources. Offline fixture
+    stand-in for the passive enumeration phase.
+  binary: fx-enum
+  scope_class: passive
+  consumes: [domain]
+  emits: [hostname]
+  packages: { kali: fx-enum }
+  verify: ["fx-enum", "-version"]
+  expect: "projectdiscovery"
+  argv: ["-list", "{input_file}"]
+  params:
+    input_file: { type: artifact, of: domain, source: artifact }
+  parser: jsonl
+  taint_fields: [host, source]
+  timeout: 30
+
+fx-resolve:
+  description: >-
+    Resolve hostnames to addresses so the gate has something to authorize
+    against. Offline fixture stand-in for the resolution phase.
+  binary: fx-resolve
+  scope_class: passive
+  consumes: [hostname]
+  emits: [host]
+  packages: { kali: fx-resolve }
+  verify: ["fx-resolve", "-version"]
+  expect: "projectdiscovery"
+  argv: ["-list", "{input_file}"]
+  params:
+    input_file: { type: artifact, of: hostname, source: artifact }
+  parser: jsonl
+  taint_fields: [host, cname]
+  timeout: 30
+
+fx-probe:
+  description: >-
+    Probe authorized hosts for live HTTP services. Offline fixture stand-in
+    for the live phase; emits an injection payload because a real target would.
+  binary: fx-probe
+  scope_class: active
+  consumes: [authorized_host]
+  emits: [endpoint]
+  packages: { kali: fx-probe }
+  verify: ["fx-probe", "-version"]
+  expect: "projectdiscovery"
+  argv: ["-list", "{input_file}"]
+  params:
+    input_file: { type: artifact, of: authorized_host, source: artifact }
+  parser: jsonl
+  taint_fields: [url, title, webserver]
+  rate: { per_target_rps: 50, max_concurrency: 4 }
+  timeout: 30
+
+fx-signal:
+  description: >-
+    Run templated checks against authorized endpoints and report matches.
+    Offline fixture stand-in for the signal phase.
+  binary: fx-signal
+  scope_class: active
+  consumes: [endpoint]
+  emits: [finding]
+  packages: { kali: fx-signal }
+  verify: ["fx-signal", "-version"]
+  expect: "projectdiscovery"
+  argv: ["-list", "{input_file}"]
+  params:
+    input_file: { type: artifact, of: endpoint, source: artifact }
+  parser: jsonl
+  taint_fields: [matched-at, template-id]
+  rate: { per_target_rps: 50, max_concurrency: 2 }
+  timeout: 30

@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""Resolution stand-in: hostname rows -> host rows with addresses.
+
+The lab names resolve inside the lab range; the stray name resolves to a third
+party, and one lab name CNAMEs out to a CDN — the §5.1 case.
+"""
+import json, sys
+if "-version" in sys.argv:
+    print("fx-resolve v1.0 projectdiscovery"); sys.exit(0)
+path = sys.argv[sys.argv.index("-list") + 1]
+MAP = {"web": ["192.0.2.10"], "api": ["192.0.2.11"], "old": ["23.185.0.4"]}
+for line in open(path):
+    line = line.strip()
+    if not line:
+        continue
+    host = json.loads(line).get("host", "")
+    label = host.split(".", 1)[0]
+    addrs = MAP.get(label, ["198.51.100.7"])
+    print(json.dumps({"host": host, "addrs": addrs, "cname": None}))

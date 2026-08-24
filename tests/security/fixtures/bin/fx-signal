@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Template scanner stand-in: endpoint rows -> finding rows."""
+import json, sys
+if "-version" in sys.argv:
+    print("fx-signal v1.0 projectdiscovery"); sys.exit(0)
+path = sys.argv[sys.argv.index("-list") + 1]
+for line in open(path):
+    line = line.strip()
+    if not line:
+        continue
+    row = json.loads(line)
+    if row.get("status_code") == 403:
+        print(json.dumps({"template-id": "exposed-admin-panel", "severity": "medium",
+                          "matched-at": row.get("url"), "host": row.get("host")}))

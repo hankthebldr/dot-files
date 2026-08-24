@@ -15,16 +15,20 @@ if [[ -f "$DOTFILES/scripts/utils/theme.sh" ]]; then
     # shellcheck disable=SC1091
     source "$DOTFILES/scripts/utils/theme.sh" 2>/dev/null || true
 fi
-C_HEAD="${CLAW_C_ACCENT:-\033[38;5;111m}"
-C_OK="${CLAW_C_SUCCESS:-\033[38;5;114m}"
-C_WARN="${CLAW_C_WARNING:-\033[38;5;179m}"
-C_MUTED="${CLAW_C_MUTED:-\033[38;5;245m}"
+# CLAW_RGB_* are "r;g;b" triplets from the palette; refined-dark is the
+# fallback, exactly as every other surface does it.
+C_HEAD="\033[38;2;${CLAW_RGB_BLUE:-88;166;255}m"
+C_OK="\033[38;2;${CLAW_RGB_GREEN:-63;185;80}m"
+C_WARN="\033[38;2;${CLAW_RGB_AMBER:-227;179;65}m"
+C_MUTED="\033[38;2;${CLAW_RGB_MUTED:-139;148;158}m"
 C_OFF="\033[0m"
 
 py() { PYTHONPATH="$SEC_DIR${PYTHONPATH:+:$PYTHONPATH}" python3 "$@"; }
 
 usage() {
     printf "${C_HEAD}claw sec${C_OFF} — scope-gated security harness\n\n"
+    printf "  ${C_OK}run${C_OFF} <flow>        execute a flow (--domain X [--dry-run] [--engagement DIR])\n"
+    printf "  ${C_OK}demo${C_OFF}              full offline run on fixture tools — no toolchain needed\n"
     printf "  ${C_OK}lint${C_OFF}              validate the registry and flows (type + egress + argv rules)\n"
     printf "  ${C_OK}doctor${C_OFF} [tool...]  assert binary identity, not presence\n"
     printf "  ${C_OK}tools${C_OFF}             list declared tools with scope class and types\n"
@@ -85,7 +89,8 @@ PY
 }
 
 cmd_audit() {
-    local root="${2:-$PWD}"
+    local sub="${1:-verify}" root="${2:-$PWD}"
+    [[ "$sub" == "verify" ]] || { printf "${C_WARN}usage: claw sec audit verify [dir]${C_OFF}\n"; return 2; }
     CLAW_SEC_ROOT="$root" py - <<'PY'
 import os, pathlib, registry as R, scope as S
 root = pathlib.Path(os.environ["CLAW_SEC_ROOT"])
@@ -96,13 +101,54 @@ raise SystemExit(0 if ok else 1)
 PY
 }
 
+cmd_demo() {
+    # A complete run with none of the real chain installed: fixture binaries
+    # stand in for the tool surface, so the gate, the audit chain and the taint
+    # marking are all exercised for real against a documentation-range scope.
+    local fx="$DOTFILES/tests/security/fixtures"
+    local eng="${1:-${TMPDIR:-/tmp}/claw-sec-demo}"
+    # Only ever reset a directory this command created. A demo must not be a
+    # way to delete an arbitrary path someone passed by mistake.
+    if [[ -e "$eng" ]]; then
+        if [[ -f "$eng/.claw-sec-demo" ]]; then
+            command rm -rf "${eng:?}"
+        else
+            printf "${C_WARN}%s exists and was not created by 'claw sec demo'.${C_OFF}\n" "$eng"
+            printf "  Remove it yourself, or pass a different path.\n"
+            return 2
+        fi
+    fi
+    mkdir -p "$eng"
+    : > "$eng/.claw-sec-demo"
+    cat > "$eng/scope.demo" <<'SCOPE'
+# Demo scope. RFC 5737 documentation range — nothing here is routable.
+resolve-policy: enforce
+*.lab.internal
+192.0.2.0/24
+SCOPE
+    printf "${C_HEAD}demo${C_OFF}       fixture tool chain, no network, no toolchain\n"
+    PATH="$fx/bin:$PATH" py "$SEC_DIR/run.py" fxrecon \
+        --domain lab.internal \
+        --engagement "$eng" \
+        --registry "$fx/registry.yaml" \
+        --flows-dir "$fx/flows" \
+        --scope "$eng/scope.demo" "$@"
+    local rc=$?
+    printf "\n  ${C_MUTED}artifacts:${C_OFF} %s\n" "$eng"
+    printf "  ${C_MUTED}gate:${C_OFF}      %s\n" "$eng/gate/"
+    printf "  ${C_MUTED}audit:${C_OFF}     %s\n" "$eng/audit.jsonl"
+    return $rc
+}
+
 case "${1:-help}" in
+    run)             shift; py "$SEC_DIR/run.py" "$@" ;;
+    demo)            shift; cmd_demo "$@" ;;
     lint)            shift; py "$SEC_DIR/lint.py" "$@" ;;
     doctor)          shift; py "$SEC_DIR/doctor.py" "$@" ;;
     tools)           shift; cmd_tools "$@" ;;
     flows)           shift; cmd_flows "$@" ;;
     scope)           shift; cmd_scope "$@" ;;
-    audit)           cmd_audit "$@" ;;
+    audit)           shift; cmd_audit "$@" ;;
     test)            shift; ( cd "$DOTFILES" && python3 -m unittest discover -s tests/security "$@" ) ;;
     help|-h|--help)  usage ;;
     *)               printf "${C_WARN}unknown: claw sec %s${C_OFF}\n\n" "$1"; usage; exit 2 ;;

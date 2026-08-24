@@ -1,0 +1,10 @@
+name: fxrecon
+description: Offline mirror of webrecon, backed by fixture binaries
+phases:
+  - { id: 0, name: init,      scope_class: local, emits: [domain] }
+  - { id: 1, name: passive,   tools: [fx-enum],    consumes: [domain],           emits: [hostname] }
+  - { id: 2, name: resolve,   tools: [fx-resolve], consumes: [hostname],         emits: [host] }
+  - { id: 3, name: gate,      gate: true,          consumes: [host],             emits: [authorized_host] }
+  - { id: 4, name: live,      tools: [fx-probe],   consumes: [authorized_host],  emits: [endpoint], feeds_back_to: 3 }
+  - { id: 5, name: signal,    tools: [fx-signal],  consumes: [endpoint],         emits: [finding] }
+  - { id: 6, name: synthesis, scope_class: local,  consumes: [finding],          emits: [report] }
