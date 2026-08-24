@@ -1,0 +1,59 @@
+# Authorized web application attack-surface discovery.
+#
+# The gate is phase 3. Every phase after it consumes only types that descend
+# from `authorized_host`, so no later tool can be handed a target the gate did
+# not pass. Phase 4 declares `feeds_back_to: 3` because certificate SANs and
+# redirect targets are new hosts — they re-enter through the gate, never around it.
+#
+# Tier 1 depth (ffuf, dalfox, wafw00f, testssl) joins phases 5 and 6 once those
+# entries land in the registry; the flow is linted against what is installed.
+name: webrecon
+description: Authorized web application attack-surface discovery
+phases:
+  - id: 0
+    name: init
+    scope_class: local
+    emits: [domain]
+
+  - id: 1
+    name: passive
+    tools: [subfinder]
+    consumes: [domain]
+    emits: [hostname]
+
+  - id: 2
+    name: resolve
+    tools: [dnsx]
+    consumes: [hostname]
+    emits: [host]
+
+  - id: 3
+    name: gate
+    gate: true
+    consumes: [host]
+    emits: [authorized_host]
+
+  - id: 4
+    name: live
+    tools: [naabu, httpx, tlsx]
+    consumes: [authorized_host]
+    emits: [endpoint, cert]
+    feeds_back_to: 3
+
+  - id: 5
+    name: content
+    tools: [katana]
+    consumes: [endpoint]
+    emits: [url, param]
+
+  - id: 6
+    name: signal
+    tools: [nuclei]
+    consumes: [endpoint, url]
+    emits: [finding]
+
+  - id: 7
+    name: synthesis
+    scope_class: local
+    consumes: [finding]
+    emits: [report]
