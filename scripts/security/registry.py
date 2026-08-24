@@ -35,6 +35,7 @@ import scope as S
 __all__ = [
     "Status", "Result", "Engagement", "ParamError",
     "invoke", "build_argv", "halt", "resume", "is_halted", "verify_audit",
+    "audit_event", "targets_from_artifact",
 ]
 
 SAMPLE_ROWS = 5
@@ -127,6 +128,31 @@ class Engagement:
     @property
     def scans_dir(self) -> Path:
         return Path(self.root) / "scans"
+
+    def gate_record(self) -> dict:
+        """host -> addresses, as established by the gate.
+
+        Types downstream of the gate (endpoint, url, param) name a host but
+        carry no addresses — resolution happened upstream. Re-authorization
+        therefore reads the addresses the gate itself recorded. A host the gate
+        never saw resolves to nothing and, under `enforce`, is denied: a
+        fabricated endpoint row cannot smuggle a target past this.
+        """
+        path = Path(self.root) / "gate" / "authorized.jsonl"
+        if not path.exists():
+            return {}
+        out = {}
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(row, dict) and row.get("host"):
+                out[str(row["host"])] = [str(a) for a in (row.get("addrs") or [])]
+        return out
 
 
 # --------------------------------------------------------------------------
@@ -364,6 +390,17 @@ def _audit(ctx: Engagement, record: dict) -> dict:
     return record
 
 
+def audit_event(ctx: Engagement, **fields) -> dict:
+    """Append a non-tool record — a gate decision, a phase boundary — to the
+    same chain. Callers cannot set seq, prev_hash or record_hash."""
+    record = {"ts": _now(), "run_id": ctx.run_id, "phase": ctx.phase,
+              "actor": ctx.actor, "scope_sha256": ctx.scope.sha256(),
+              "policy": ctx.scope.policy}
+    record.update({k: v for k, v in fields.items()
+                   if k not in ("seq", "prev_hash", "record_hash")})
+    return _audit(ctx, record)
+
+
 def verify_audit(ctx: Engagement) -> tuple[bool, str]:
     """Walk the chain. Appending is normal; editing history breaks it."""
     path = ctx.audit_path
@@ -450,6 +487,8 @@ def invoke(tool: str, params: dict, ctx: Engagement) -> Result:
         for pname, pspec in (spec.get("params") or {}).items():
             if pspec.get("type") == "artifact" and pname in params:
                 targets += targets_from_artifact(params[pname])
+        gate = ctx.gate_record()
+        targets = [(host, addrs or gate.get(host, [])) for host, addrs in targets]
         for host, addrs in targets:
             verdict = S.authorize(host, addrs, ctx.scope, scope_class=scope_class)
             if not verdict.allowed:

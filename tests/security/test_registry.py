@@ -180,6 +180,35 @@ class TestGate(HarnessCase):
         r = self.invoke()
         self.assertEqual(r.status, R.Status.DENIED_DISCLOSURE)
 
+    def test_a_downstream_row_is_authorized_against_the_gate_record(self):
+        # endpoint/url rows name a host but carry no addresses; the addresses
+        # come from what the gate itself recorded.
+        gate = self.write_artifact("gate/authorized.jsonl", [
+            {"host": "web.lab.example.com", "addrs": ["192.0.2.10"]},
+        ])
+        self.assertTrue(gate.exists())
+        endpoints = self.write_artifact("scans/endpoints.jsonl", [
+            {"url": "https://web.lab.example.com/admin", "host": "web.lab.example.com"},
+        ])
+        self.reg["faketool"] = spec(consumes=["endpoint"])
+        self.reg["faketool"]["params"]["input_file"]["of"] = "endpoint"
+        self.assertEqual(self.invoke(input_file=str(endpoints)).status, R.Status.OK)
+
+    def test_a_fabricated_downstream_row_cannot_smuggle_a_target(self):
+        # A host the gate never saw resolves to nothing, and under `enforce`
+        # nothing to verify is a denial.
+        self.write_artifact("gate/authorized.jsonl", [
+            {"host": "web.lab.example.com", "addrs": ["192.0.2.10"]},
+        ])
+        forged = self.write_artifact("scans/forged.jsonl", [
+            {"url": "https://victim.example.org/", "host": "victim.example.org"},
+        ])
+        self.reg["faketool"] = spec(consumes=["endpoint"])
+        self.reg["faketool"]["params"]["input_file"]["of"] = "endpoint"
+        r = self.invoke(input_file=str(forged))
+        self.assertEqual(r.status, R.Status.DENIED_SCOPE)
+        self.assertIn("victim.example.org", r.reason)
+
     def test_passive_tool_is_not_target_gated(self):
         # Passive sources touch third parties, not the target (§5.4).
         self.reg["faketool"] = spec(scope_class="passive", consumes=["domain"])

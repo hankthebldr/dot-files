@@ -87,6 +87,19 @@ class Scope:
         # §5.2: a scope that declares at least one authorized address can and
         # must verify addresses; one that lists only names cannot.
         self.policy = declared_policy or ("enforce" if self.allow_addrs else "warn")
+        self.global_sha256 = None  # set by from_text/from_files
+
+    def facts(self) -> dict:
+        """The structural summary resumption compares against (§11)."""
+        return {
+            "policy": self.policy,
+            "global_sha256": self.global_sha256,
+            "scope_sha256": self.sha256(),
+            "allow_names": sorted(set(self.allow_names)),
+            "allow_addrs": sorted({str(n) for n in self.allow_addrs}),
+            "deny_names": sorted(set(self.deny_names)),
+            "deny_addrs": sorted({str(n) for n in self.deny_addrs}),
+        }
 
     # -- construction ------------------------------------------------------
     @classmethod
@@ -99,7 +112,13 @@ class Scope:
             declared = cls._parse_into(
                 source, allow_names, deny_names, allow_addrs, deny_addrs, declared
             )
-        return cls(allow_names, deny_names, allow_addrs, deny_addrs, declared)
+        scope = cls(allow_names, deny_names, allow_addrs, deny_addrs, declared)
+        # The durable layer is tracked separately: an engagement overlay churns
+        # by design (§5.7), the global file does not, and resumption treats the
+        # two differently (§11).
+        scope.global_sha256 = (cls.from_text(text).sha256() if overlay_text is not None
+                               else scope.sha256())
+        return scope
 
     @classmethod
     def from_files(cls, global_path, overlay_path=None) -> "Scope":
