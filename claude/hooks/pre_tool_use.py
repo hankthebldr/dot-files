@@ -130,6 +130,41 @@ def _recon_segments(cmd: str) -> list[str]:
     return [s for s in segments if s.strip()]
 
 
+# A recon tool invoked with only these sends no packets and names no target.
+# The exemption holds only when *every* argument is one of them, so adding a
+# target removes it — it cannot be used to hide one.
+_HELP_ONLY = {"-h", "--help", "-help", "help", "-version", "--version", "-usage"}
+
+
+def _is_help_only(segment: str) -> bool:
+    try:
+        argv = shlex.split(segment, posix=True)
+    except ValueError:
+        return False
+    args, skip_next = [], False
+    for tok in argv[1:] if argv else []:
+        if skip_next:
+            skip_next = False
+            continue
+        # Redirections are shell plumbing, not arguments to the tool.
+        redirect = re.match(r"^\d*&?(>>|>|<)&?\d*$", tok)
+        if redirect:
+            skip_next = tok.rstrip("&0123456789").endswith((">", "<"))
+            continue
+        if re.match(r"^\d*&?(>>|>|<)", tok):
+            continue  # filename attached to the operator, e.g. >/dev/null
+        base = tok.rsplit("/", 1)[-1]
+        if base in _WRAPPERS or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", tok):
+            continue
+        args.append(tok)
+    # argv[0] may itself be a wrapper; drop leading wrappers before judging.
+    while args and args[0].rsplit("/", 1)[-1] in _WRAPPERS:
+        args.pop(0)
+    if args and args[0] == _leading_bin(segment):
+        args.pop(0)
+    return all(a in _HELP_ONLY for a in args)
+
+
 def recon_hits(cmd: str) -> list[tuple]:
     """Segments that actually invoke a recon tool in command position.
 
@@ -139,7 +174,7 @@ def recon_hits(cmd: str) -> list[tuple]:
     """
     scanned = _strip_line_comments(_strip_heredocs(cmd))
     return [(seg, _leading_bin(seg)) for seg in _recon_segments(scanned)
-            if _leading_bin(seg) in RECON_TOOLS]
+            if _leading_bin(seg) in RECON_TOOLS and not _is_help_only(seg)]
 
 
 def _leading_bin(segment: str) -> str:
