@@ -1035,6 +1035,7 @@ case "${1:-menu}" in
     docker|containers|dps) shift; cmd_docker "$@" ;;
     skills)         shift; cmd_skills "$@" ;;
     harness)        shift; cmd_harness "$@" ;;
+    sec|security)   shift; bash "$DOTFILES/scripts/security/sec.sh" "$@" ;;
     obsidian|vault) shift; cmd_obsidian "$@" ;;
     onboard|onboarding|character) shift; cmd_onboard "$@" ;;
     gamble|slots|casino) shift; bash "$DOTFILES/scripts/utils/gamble.sh" "$@" ;;
