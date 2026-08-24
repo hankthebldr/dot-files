@@ -30,7 +30,8 @@ subfinder:
     debian: "go:github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest"
     darwin: subfinder
   verify: ["subfinder", "-version"]
-  expect: "projectdiscovery"
+  # -version prints a logger line, not the banner the other tools print.
+  expect: "Subfinder Config Directory"
   argv:
     - "-dL"
     - "{input_file}"
@@ -253,7 +254,8 @@ nuclei:
     debian: "go:github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
     darwin: nuclei
   verify: ["nuclei", "-version"]
-  expect: "projectdiscovery"
+  # -version prints a logger line, not the banner the other tools print.
+  expect: "Nuclei Engine Version"
   argv:
     - "-list"
     - "{input_file}"

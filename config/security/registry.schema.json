@@ -54,6 +54,10 @@
           "type": "string",
           "pattern": "^(jsonl|json|lines|kv|nmap-xml|regex:[a-z0-9_]+|py:[a-z0-9_.]+)$"
         },
+        "input_format": {
+          "enum": ["lines", "jsonl"],
+          "description": "How artifact params reach the tool. 'lines' (default) materializes a plain deduplicated list; 'jsonl' passes the canonical artifact through."
+        },
         "taint_fields": { "type": "array", "items": { "type": "string" } },
         "rate": {
           "type": "object",

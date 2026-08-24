@@ -35,7 +35,7 @@ import scope as S
 __all__ = [
     "Status", "Result", "Engagement", "ParamError",
     "invoke", "build_argv", "halt", "resume", "is_halted", "verify_audit",
-    "audit_event", "targets_from_artifact",
+    "audit_event", "targets_from_artifact", "materialize_input",
 ]
 
 SAMPLE_ROWS = 5
@@ -281,6 +281,72 @@ def targets_from_artifact(path) -> list[tuple[str, list[str]]]:
 
 
 # --------------------------------------------------------------------------
+# Tool-native input
+# --------------------------------------------------------------------------
+# Canonical artifacts are JSONL. Real scanners take a plain list on -list, and
+# a scanner handed JSON reads each line as a hostname and finds nothing — one
+# more way to produce zero rows that look like a clean target.
+FIELD_FOR_TYPE = {
+    "domain": "domain",
+    "hostname": "host",
+    "host": "host",
+    "authorized_host": "host",
+    "endpoint": "url",
+    "url": "url",
+    "param": "name",
+    "cert": "host",
+    "finding": "matched-at",
+    "secret": "value",
+    "wordlist": "path",
+}
+_FIELD_FALLBACKS = ("url", "host", "hostname", "domain", "value", "matched-at")
+
+
+def materialize_input(ctx: Engagement, tool: str, param: str,
+                      artifact, artifact_type: str) -> Path:
+    """Write the plain, deduplicated list a scanner expects, inside the
+    engagement so it is as auditable as everything else."""
+    field = FIELD_FOR_TYPE.get(artifact_type)
+    seen, values = set(), []
+    for line in Path(artifact).read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(row, dict):
+            continue
+        value = row.get(field) if field else None
+        if value is None:
+            value = next((row[k] for k in _FIELD_FALLBACKS if row.get(k)), None)
+        if value is None or value in seen:
+            continue
+        seen.add(value)
+        values.append(str(value))
+    out = Path(ctx.root) / "inputs" / f"{tool}-{param}.txt"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("".join(v + "\n" for v in values), encoding="utf-8")
+    return out
+
+
+def _prepare_inputs(ctx: Engagement, tool: str, spec: dict, params: dict) -> dict:
+    if spec.get("input_format", "lines") != "lines":
+        return params
+    prepared = dict(params)
+    for pname, pspec in (spec.get("params") or {}).items():
+        if pspec.get("type") != "artifact" or pname not in prepared:
+            continue
+        artifact = Path(prepared[pname])
+        if not artifact.exists():
+            continue
+        prepared[pname] = str(materialize_input(ctx, tool, pname, artifact,
+                                                pspec.get("of", "")))
+    return prepared
+
+
+# --------------------------------------------------------------------------
 # Rate limiting (§10) — buckets key on resolved address, not hostname
 # --------------------------------------------------------------------------
 def _take_tokens(ctx: Engagement, addrs, rps: float) -> int | None:
@@ -498,9 +564,9 @@ def invoke(tool: str, params: dict, ctx: Engagement) -> Result:
                     "deny", {"target_count": len(targets)})
             unverified = unverified or verdict.unverified_addr
 
-    # 5. argv
+    # 5. argv — over a tool-native input, not the canonical artifact
     try:
-        argv = build_argv(tool, spec, params)
+        argv = build_argv(tool, spec, _prepare_inputs(ctx, tool, spec, params))
     except ParamError as exc:
         return finish(Result(Status.MALFORMED, reason=str(exc), duration_ms=elapsed()),
                       "error", {"target_count": len(targets)})

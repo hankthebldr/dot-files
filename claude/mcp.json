@@ -1,5 +1,18 @@
 {
   "_comment": "MCP server registry for Claude Code. Source of truth for ~/.claude/mcp.json. Phase 4 will populate the foundational tier (filesystem, git, memory, fetch, smart-connections); Phase 6 the OSINT tier (shodan, osint-37, security-hub). Secrets reference env vars by name only — never inline values.",
   "_spec": "ADR-002-mcp-server-selection.md",
-  "mcpServers": {}
+  "mcpServers": {
+    "claw-sec": {
+      "command": "python3",
+      "args": [
+        "${DOTFILES_DIR:-${HOME}/.dotfiles}/scripts/security/mcp_server.py",
+        "--engagement",
+        "${CLAW_SEC_ENGAGEMENT:-${HOME}/.local/state/claw/sec/default}"
+      ],
+      "env": {
+        "PYTHONPATH": "${DOTFILES_DIR:-${HOME}/.dotfiles}/scripts/security"
+      },
+      "_comment": "Scope-gated security toolchain (ADR-002 OSINT tier). Every tools/call goes through registry.invoke(), which holds the gate, the rate limiter, the kill switch and the hash-chained audit — the adapter itself has no authorization logic. active-invasive tools are absent from tools/list unless the engagement opts in with --invasive. Spec: docs/superpowers/specs/2026-08-23-security-harness-design.md"
+    }
+  }
 }

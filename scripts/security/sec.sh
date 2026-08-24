@@ -35,6 +35,7 @@ usage() {
     printf "  ${C_OK}flows${C_OFF}             list declared flows and their phases\n"
     printf "  ${C_OK}scope${C_OFF} <target>    show the gate's verdict for a host\n"
     printf "  ${C_OK}audit${C_OFF} verify      walk the hash chain of an engagement\n"
+    printf "  ${C_OK}mcp${C_OFF}               serve the tool surface over MCP stdio\n"
     printf "  ${C_OK}test${C_OFF}              run the harness test suite\n\n"
     printf "  ${C_MUTED}Registry:  config/security/tools.yaml${C_OFF}\n"
     printf "  ${C_MUTED}Flows:     config/security/flows/${C_OFF}\n"
@@ -149,6 +150,7 @@ case "${1:-help}" in
     flows)           shift; cmd_flows "$@" ;;
     scope)           shift; cmd_scope "$@" ;;
     audit)           shift; cmd_audit "$@" ;;
+    mcp)             shift; py "$SEC_DIR/mcp_server.py" "$@" ;;
     test)            shift; ( cd "$DOTFILES" && python3 -m unittest discover -s tests/security "$@" ) ;;
     help|-h|--help)  usage ;;
     *)               printf "${C_WARN}unknown: claw sec %s${C_OFF}\n\n" "$1"; usage; exit 2 ;;

@@ -43,6 +43,7 @@ def spec(**over):
             "count": {"type": "integer", "default": 3, "min": 1, "max": 100, "source": "model"},
         },
         "parser": "jsonl",
+        "input_format": "jsonl",
         "taint_fields": ["url", "title"],
         "rate": {"per_target_rps": 100, "max_concurrency": 4},
         "timeout": 10,
@@ -218,6 +219,73 @@ class TestGate(HarnessCase):
 
 
 # --------------------------------------------------------------------------
+class TestToolNativeInput(HarnessCase):
+    """Canonical artifacts are JSONL; real scanners take a plain list on -list.
+
+    The executor materializes a tool-native input from the artifact rather than
+    handing over the JSONL, because a scanner fed JSON reads it as hostnames
+    and produces nothing — the quiet failure `empty` exists to catch.
+    """
+
+    def test_lines_format_writes_one_value_per_line(self):
+        self.reg["faketool"] = spec(input_format="lines")
+        R.invoke("faketool", {"input_file": str(self.authorized)}, self.ctx)
+        native = self.tmp / "inputs" / "faketool-input_file.txt"
+        self.assertEqual(native.read_text().split(),
+                         ["web.lab.example.com", "api.lab.example.com"])
+
+    def test_argv_points_at_the_materialized_file_not_the_artifact(self):
+        self.reg["faketool"] = spec(input_format="lines")
+        self.ctx.dry_run = True
+        r = R.invoke("faketool", {"input_file": str(self.authorized)}, self.ctx)
+        self.assertIn(str(self.tmp / "inputs" / "faketool-input_file.txt"), r.argv)
+        self.assertNotIn(str(self.authorized), r.argv)
+
+    def test_endpoint_artifacts_materialize_urls(self):
+        self.write_artifact("gate/authorized.jsonl",
+                            [{"host": "web.lab.example.com", "addrs": ["192.0.2.10"]}])
+        endpoints = self.write_artifact("scans/endpoints.jsonl", [
+            {"url": "https://web.lab.example.com/a", "host": "web.lab.example.com"},
+            {"url": "https://web.lab.example.com/b", "host": "web.lab.example.com"},
+        ])
+        self.reg["faketool"] = spec(consumes=["endpoint"], input_format="lines")
+        self.reg["faketool"]["params"]["input_file"]["of"] = "endpoint"
+        R.invoke("faketool", {"input_file": str(endpoints)}, self.ctx)
+        native = (self.tmp / "inputs" / "faketool-input_file.txt").read_text().split()
+        self.assertEqual(native, ["https://web.lab.example.com/a",
+                                  "https://web.lab.example.com/b"])
+
+    def test_values_are_deduplicated(self):
+        dupes = self.write_artifact("gate/dupes.jsonl", [
+            {"host": "web.lab.example.com", "addrs": ["192.0.2.10"]},
+            {"host": "web.lab.example.com", "addrs": ["192.0.2.10"]},
+        ])
+        self.reg["faketool"] = spec(input_format="lines")
+        R.invoke("faketool", {"input_file": str(dupes)}, self.ctx)
+        self.assertEqual((self.tmp / "inputs" / "faketool-input_file.txt").read_text().split(),
+                         ["web.lab.example.com"])
+
+    def test_jsonl_format_passes_the_artifact_through_unchanged(self):
+        self.reg["faketool"] = spec(input_format="jsonl")
+        self.ctx.dry_run = True
+        r = R.invoke("faketool", {"input_file": str(self.authorized)}, self.ctx)
+        self.assertIn(str(self.authorized), r.argv)
+
+    def test_lines_is_the_default_for_a_tool_that_declares_nothing(self):
+        self.reg["faketool"] = spec()
+        self.reg["faketool"].pop("input_format")
+        self.ctx.dry_run = True
+        r = R.invoke("faketool", {"input_file": str(self.authorized)}, self.ctx)
+        self.assertIn(str(self.tmp / "inputs" / "faketool-input_file.txt"), r.argv)
+
+    def test_the_materialized_file_lives_inside_the_engagement(self):
+        self.reg["faketool"] = spec(input_format="lines")
+        R.invoke("faketool", {"input_file": str(self.authorized)}, self.ctx)
+        native = self.tmp / "inputs" / "faketool-input_file.txt"
+        self.assertTrue(native.exists())
+        self.assertTrue(str(native).startswith(str(self.tmp)))
+
+
 class TestExecution(HarnessCase):
     def test_rows_are_written_to_an_artifact_not_returned(self):
         r = self.invoke(count=50)

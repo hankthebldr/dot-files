@@ -12,10 +12,10 @@ import os
 import sys
 from pathlib import Path
 
+import engagement as E
 import lint as L
 import phases as P
 import registry as R
-import scope as S
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -71,16 +71,15 @@ def main(argv=None) -> int:
         return 1
 
     flow = _find_flow(args.flow, Path(args.flows_dir))
-    root = Path(args.engagement or (Path.cwd() / "engagements" / args.flow))
-    overlay = root / "scope.local"
-    sc = S.Scope.from_files(args.scope, overlay if overlay.exists() else None)
-
     if not args.domain:
         raise SystemExit("at least one --domain is required to seed the flow")
 
-    ctx = R.Engagement(root=root, run_id=f"{args.flow}-{os.getpid()}", scope=sc,
-                       registry=registry, allow_invasive=args.invasive,
-                       allow_disclosure=args.disclose, actor="operator")
+    root = Path(args.engagement or (Path.cwd() / "engagements" / args.flow))
+    ctx = E.build(root, run_id=f"{args.flow}-{os.getpid()}", scope_path=args.scope,
+                  registry_path=args.registry, allow_invasive=args.invasive,
+                  allow_disclosure=args.disclose, actor="operator")
+    ctx.registry = registry
+    sc = ctx.scope
 
     print(f"{C_HEAD}flow{C_OFF}       {args.flow}"
           f"{'  (dry run)' if args.dry_run else ''}")

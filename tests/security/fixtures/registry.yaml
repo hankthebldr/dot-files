@@ -16,6 +16,7 @@ fx-enum:
   params:
     input_file: { type: artifact, of: domain, source: artifact }
   parser: jsonl
+  input_format: jsonl
   taint_fields: [host, source]
   timeout: 30
 
@@ -34,6 +35,7 @@ fx-resolve:
   params:
     input_file: { type: artifact, of: hostname, source: artifact }
   parser: jsonl
+  input_format: jsonl
   taint_fields: [host, cname]
   timeout: 30
 
@@ -52,6 +54,7 @@ fx-probe:
   params:
     input_file: { type: artifact, of: authorized_host, source: artifact }
   parser: jsonl
+  input_format: jsonl
   taint_fields: [url, title, webserver]
   rate: { per_target_rps: 50, max_concurrency: 4 }
   timeout: 30
@@ -71,6 +74,7 @@ fx-signal:
   params:
     input_file: { type: artifact, of: endpoint, source: artifact }
   parser: jsonl
+  input_format: jsonl
   taint_fields: [matched-at, template-id]
   rate: { per_target_rps: 50, max_concurrency: 2 }
   timeout: 30
