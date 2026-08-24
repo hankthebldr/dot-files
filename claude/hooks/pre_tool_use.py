@@ -30,10 +30,116 @@ from _lib import (  # noqa: E402
 _WRAPPERS = {"sudo", "doas", "env", "command", "nohup", "timeout", "nice", "xargs"}
 
 
+# Commands that execute a heredoc body as shell. Their bodies stay in scope;
+# every other heredoc body is data (a file being written, a doc, a payload).
+_SHELL_INTERPRETERS = {
+    "bash", "sh", "zsh", "dash", "ksh", "csh", "tcsh", "fish",
+    "eval", "source", ".", "ssh", "su", "docker", "kubectl", "podman",
+}
+
+_HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+
+
+def _strip_heredocs(cmd: str) -> str:
+    """Drop heredoc bodies that are data rather than script.
+
+    The matcher previously saw tool names inside heredoc payloads — commit
+    messages, documentation, report text — and denied the command. A body is
+    removed only when the command that owns it is not a shell, and only when
+    its terminator is found: an unterminated heredoc means we cannot prove
+    where data ends, so nothing is stripped and the scan stays fail-closed.
+    """
+    lines = cmd.split("\n")
+    kept: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        kept.append(line)
+        i += 1
+        openers = list(_HEREDOC_RE.finditer(line))
+        if not openers:
+            continue
+        owner = _leading_bin(line[: openers[0].start()])
+        for match in openers:
+            word = match.group(2)
+            end = i
+            while end < len(lines) and lines[end].strip() != word:
+                end += 1
+            if end >= len(lines):
+                break  # unterminated — fail closed, scan the remainder
+            if owner in _SHELL_INTERPRETERS:
+                kept.extend(lines[i:end])  # a script, not data
+            kept.append(lines[end])
+            i = end + 1
+    return "\n".join(kept)
+
+
+def _strip_line_comments(cmd: str) -> str:
+    """Drop whole-line comments. A trailing comment is left alone so it cannot
+    be used to hide the command it follows."""
+    return "\n".join(l for l in cmd.split("\n") if not l.lstrip().startswith("#"))
+
+
 def _recon_segments(cmd: str) -> list[str]:
-    """Split a command line into statement/pipeline segments for recon scanning."""
-    # Break on ; && || | and command-substitution boundaries.
-    return [s for s in re.split(r"(?:\|\||&&|[;|]|\$\(|\)|`)", cmd) if s.strip()]
+    """Split a command line into statement/pipeline segments for recon scanning.
+
+    Quote-aware: a separator inside a quoted string is text, not a boundary.
+    Splitting blindly meant prose like "the `nmap` entry" produced a segment
+    whose leading word was a tool name.
+    """
+    segments: list[str] = []
+    buf: list[str] = []
+    quote = None
+    i, n = 0, len(cmd)
+    while i < n:
+        ch = cmd[i]
+        if quote:
+            if ch == "\\" and quote == '"' and i + 1 < n:
+                buf.append(ch)
+                buf.append(cmd[i + 1])
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+            buf.append(ch)
+            i += 1
+            continue
+        if ch in "'\"":
+            quote = ch
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == "\\" and i + 1 < n:
+            buf.append(ch)
+            buf.append(cmd[i + 1])
+            i += 2
+            continue
+        if cmd.startswith("&&", i) or cmd.startswith("||", i) or cmd.startswith("$(", i):
+            segments.append("".join(buf))
+            buf = []
+            i += 2
+            continue
+        if ch in ";|&`()\n":
+            segments.append("".join(buf))
+            buf = []
+            i += 1
+            continue
+        buf.append(ch)
+        i += 1
+    segments.append("".join(buf))
+    return [s for s in segments if s.strip()]
+
+
+def recon_hits(cmd: str) -> list[tuple]:
+    """Segments that actually invoke a recon tool in command position.
+
+    Heredoc payloads and whole-line comments are removed first, so a command
+    that merely *discusses* a tool is not treated as running one. See §20.1 of
+    docs/superpowers/specs/2026-08-23-security-harness-design.md.
+    """
+    scanned = _strip_line_comments(_strip_heredocs(cmd))
+    return [(seg, _leading_bin(seg)) for seg in _recon_segments(scanned)
+            if _leading_bin(seg) in RECON_TOOLS]
 
 
 def _leading_bin(segment: str) -> str:
@@ -202,15 +308,14 @@ def main() -> None:
     # 3. Recon scope check — scan every pipeline/statement segment, stripping
     #    sudo/env/wrapper prefixes so `sudo nmap` and `x; nmap` can't bypass.
     hit_recon = False
-    for seg in _recon_segments(cmd):
-        if _leading_bin(seg) in RECON_TOOLS:
-            hit_recon = True
-            targets = extract_targets(seg)
-            if not targets:
-                deny(tool, cmd, f"recon tool in {seg.strip()!r} invoked with no parseable target")
-            for t in targets:
-                if not in_scope(t):
-                    deny(tool, cmd, f"target {t!r} not in ~/.claude/scope.txt (default-deny)", targets=targets)
+    for seg, _bin in recon_hits(cmd):
+        hit_recon = True
+        targets = extract_targets(seg)
+        if not targets:
+            deny(tool, cmd, f"recon tool in {seg.strip()!r} invoked with no parseable target")
+        for t in targets:
+            if not in_scope(t):
+                deny(tool, cmd, f"target {t!r} not in ~/.claude/scope.txt (default-deny)", targets=targets)
     if hit_recon:
         allow(tool, cmd, reason="recon-in-scope")
 
