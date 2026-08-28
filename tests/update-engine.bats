@@ -198,3 +198,13 @@ EOF
   [ "$(tail -n 1 "$RCPT" | cut -f4)" = "fail" ]          # ...and a fail receipt
   [ "$(tail -n 1 "$RCPT" | cut -f3)" -lt 30 ]            # terminated fast, not hung
 }
+
+@test "stall regression: topgrade path primes sudo (was sweep-only, unreachable)" {
+  make_stub topgrade
+  make_stub sudo
+  make_stub apt-get           # makes claw_sudo_prime's `need` check fire
+  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  [ "$status" -eq 0 ]
+  grep -qF "sudo -n true" "$CALLS"                       # ticket validated...
+  grep -qF "topgrade --config" "$CALLS"                  # ...before topgrade ran
+}
