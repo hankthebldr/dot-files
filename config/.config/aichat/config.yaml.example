@@ -47,3 +47,29 @@ clients:
       - name: hermes3:8b
       - name: hermes3:70b
       - name: nous-hermes2-mixtral
+
+  # Local vLLM on the Blackwell card (enclave-vllm containers, :8000).
+  # ALL switchable models are registered here on purpose. Exactly one is live
+  # at a time — 24 GB fits one 27B — and which one is chosen by
+  # ~/projects/enclave-vllm/switch-model.sh, NOT by this file. Nothing here is
+  # set as the aichat default: pick explicitly at runtime so you always know
+  # which weights answered you.
+  #
+  #   aichat -m vllm:qwen3.8-27b-abliterated
+  #
+  # Asking for a model that is not the live one returns a 404 from vLLM rather
+  # than silently answering from the wrong weights. That is the desired failure
+  # mode — on 2026-08-28 a boot race left the STOCK model on :8000 while every
+  # client believed it was talking to the abliterated one, and the only symptom
+  # was unexplained refusals.
+  - type: openai-compatible
+    name: vllm
+    api_base: http://127.0.0.1:8000/v1
+    api_key: vllm
+    models:
+      - name: qwen3.8-27b-abliterated
+        max_input_tokens: 62464
+      - name: qwen3.8-27b
+        max_input_tokens: 62464
+      - name: qwen3.6-27b
+        max_input_tokens: 38912
