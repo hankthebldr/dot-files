@@ -71,6 +71,50 @@ finish() {
 }
 
 # ============================================
+# NON-INTERACTIVE CONTRACT  (applies to BOTH paths below)
+# ============================================
+# Every step runs under claw_step, which feeds the child /dev/null on stdin,
+# captures stdout+stderr through a pipe, and repaints its viewport with
+# cursor-up + erase. A package manager that opens a TTY dialog therefore
+# blocks forever behind a screen that has already scrubbed the prompt — no
+# output, no error, no end. That is the observed `claw update` stall, and it
+# has three sources; all three are closed declaratively here rather than
+# per-caller, because every previous per-caller fix was lost to a refactor.
+#
+#   needrestart    Ubuntu 22.04+ hooks it into apt. Its "Which services should
+#                  be restarted?" whiptail dialog reads the TTY MID-run.
+#   dpkg conffile  "A new version of /etc/... is available" on a locally
+#                  modified config file — same dialog, same deadlock.
+#   topgrade       its own end-of-run "Reboot?" question — suppressed
+#                  declaratively via no_reboot in config/topgrade.toml.
+#
+# NEEDRESTART_MODE=l (list, do not restart) is deliberate over =a (auto):
+# these boxes run k3s, and silently bouncing containerd/kubelet mid-patch is
+# a worse outcome than a service running old code until the operator reboots.
+# Override with NEEDRESTART_MODE=a for an unattended-security posture.
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE="${NEEDRESTART_MODE:-l}"
+export NEEDRESTART_SUSPEND=1              # older needrestart honors this only
+export APT_LISTCHANGES_FRONTEND=none
+export UCF_FORCE_CONFOLD=1                # keep the local conffile, never ask
+export GIT_TERMINAL_PROMPT=0              # a private remote must fail, not hang
+export HOMEBREW_NO_AUTO_UPDATE=1          # brew self-update belongs to the manifest
+
+# claw_deadline <cmd...> — hard wall-clock ceiling. Suppressing today's three
+# prompts does not prove a fourth cannot exist; this guarantees that whatever
+# blocks, the run still terminates and still writes its receipt. Mirrors the
+# gtimeout shim in repo-sync.sh (stock macOS ships no GNU timeout) rather than
+# inventing a second idiom.
+CLAW_UPDATE_TIMEOUT="${CLAW_UPDATE_TIMEOUT:-2700}"   # 45 min
+if command -v timeout &>/dev/null; then
+    claw_deadline() { timeout -k 30 "$CLAW_UPDATE_TIMEOUT" "$@"; }
+elif command -v gtimeout &>/dev/null; then
+    claw_deadline() { gtimeout -k 30 "$CLAW_UPDATE_TIMEOUT" "$@"; }
+else
+    claw_deadline() { "$@"; }
+fi
+
+# ============================================
 # TOPGRADE — the one engine (declarative, streamed)
 # ============================================
 # One streamed step covers every ecosystem topgrade detects; the repo config
@@ -81,7 +125,7 @@ if command -v topgrade &>/dev/null; then
     claw_ui_header "🔄 SYSTEM UPDATE" "$tg_sub"
     tg_args=(--config "$DOTFILES/config/topgrade.toml" -y)
     [[ $DRY_RUN -eq 1 ]] && tg_args+=(-n)   # topgrade prints its own plan
-    claw_step "Running topgrade across all ecosystems..." -- topgrade "${tg_args[@]}"
+    claw_step "Running topgrade across all ecosystems..." -- claw_deadline topgrade "${tg_args[@]}"
     _detail="engine=topgrade"
     [[ $DRY_RUN -eq 1 ]] && _detail="${_detail} dry_run=1"
     finish "$_detail"
