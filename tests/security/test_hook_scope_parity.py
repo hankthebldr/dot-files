@@ -279,7 +279,14 @@ class TestTwoLayerParity(ScopeParityCase):
 
     def setUp(self):
         super().setUp()
+        import os
         import scope_edit as E
+
+        # Pin the engagement inside the test's tmpdir. Without this,
+        # overlay_path() falls back to CWD/engagements/current and the test
+        # writes a scope file into the repo — which it did.
+        self._saved_eng = os.environ.get("CLAW_SEC_ENGAGEMENT")
+        os.environ["CLAW_SEC_ENGAGEMENT"] = str(self.tmp / "engagement")
 
         overlay = E.overlay_path()
         overlay.parent.mkdir(parents=True, exist_ok=True)
@@ -294,6 +301,14 @@ class TestTwoLayerParity(ScopeParityCase):
 
     def test_an_overlay_allow_is_visible_to_the_hook(self):
         self.assertParity("extra.example.org", True)
+
+    def tearDown(self):
+        import os
+        if self._saved_eng is None:
+            os.environ.pop("CLAW_SEC_ENGAGEMENT", None)
+        else:
+            os.environ["CLAW_SEC_ENGAGEMENT"] = self._saved_eng
+        super().tearDown()
 
     def test_an_undenied_sibling_still_passes(self):
         self.assertParity("web.lab.internal", True)
