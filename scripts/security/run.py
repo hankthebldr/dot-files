@@ -49,7 +49,7 @@ def main(argv=None) -> int:
     ap.add_argument("--domain", action="append", default=[],
                     help="seed domain (repeatable)")
     ap.add_argument("--engagement", default=None,
-                    help="engagement directory (default: ./engagements/<flow>)")
+                    help="engagement directory (default: $CLAW_SEC_ENGAGEMENT, else ./engagements/<flow>)")
     ap.add_argument("--registry", default=str(REPO / "config" / "security" / "tools.yaml"))
     ap.add_argument("--flows-dir", default=str(REPO / "config" / "security" / "flows"))
     ap.add_argument("--scope", default=os.path.expanduser("~/.claude/scope.txt"))
@@ -74,7 +74,14 @@ def main(argv=None) -> int:
     if not args.domain:
         raise SystemExit("at least one --domain is required to seed the flow")
 
-    root = Path(args.engagement or (Path.cwd() / "engagements" / args.flow))
+    # Same resolution `claw sec scope add` uses, so a target added to the
+    # overlay is in scope for the very next run with no flag repeated:
+    # --engagement > CLAW_SEC_ENGAGEMENT > ./engagements/<flow>.
+    root = Path(args.engagement).expanduser() if args.engagement else None
+    if root is None:
+        env_root = os.environ.get("CLAW_SEC_ENGAGEMENT")
+        root = Path(env_root).expanduser() if env_root else (
+            Path.cwd() / "engagements" / args.flow)
     ctx = E.build(root, run_id=f"{args.flow}-{os.getpid()}", scope_path=args.scope,
                   registry_path=args.registry, allow_invasive=args.invasive,
                   allow_disclosure=args.disclose, actor="operator")

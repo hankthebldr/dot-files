@@ -34,6 +34,8 @@ usage() {
     printf "  ${C_OK}tools${C_OFF}             list declared tools with scope class and types\n"
     printf "  ${C_OK}flows${C_OFF}             list declared flows and their phases\n"
     printf "  ${C_OK}scope${C_OFF} <target>    show the gate's verdict for a host\n"
+    printf "  ${C_OK}scope add${C_OFF} <t>     authorize a target — engagement overlay, ${C_MUTED}--global${C_OFF} for durable\n"
+    printf "  ${C_OK}scope show${C_OFF}        both scope layers and the effective policy\n"
     printf "  ${C_OK}audit${C_OFF} verify      walk the hash chain of an engagement\n"
     printf "  ${C_OK}mcp${C_OFF}               serve the tool surface over MCP stdio\n"
     printf "  ${C_OK}test${C_OFF}              run the harness test suite\n\n"
@@ -68,24 +70,110 @@ PY
 }
 
 cmd_scope() {
-    local target="${1:-}"
-    [[ -n "$target" ]] || { printf "${C_WARN}usage: claw sec scope <host> [addr...]${C_OFF}\n"; return 2; }
-    shift || true
+    case "${1:-}" in
+        add)  shift; cmd_scope_add "$@"; return $? ;;
+        show|"") cmd_scope_show; return $? ;;
+    esac
+
+    local target="$1"; shift || true
     CLAW_SEC_TARGET="$target" CLAW_SEC_ADDRS="$*" py - <<'PY'
-import os, scope as S
-path = os.path.expanduser("~/.claude/scope.txt")
-sc = S.Scope.from_files(path)
+import os, scope as S, scope_edit as E
+info = E.describe_layers()
+sc = info["scope"]
 host = os.environ["CLAW_SEC_TARGET"]
 addrs = os.environ.get("CLAW_SEC_ADDRS", "").split()
 v = S.authorize(host, addrs, sc)
-print(f"  scope file : {path}")
+name_ok = (not sc.denied(host, [])) and sc.name_allows(host)
+print(f"  global     : {info['global_path']}")
+print(f"  overlay    : {info['overlay_path']}"
+      f"{'' if info['overlay_active'] else '  (none)'}")
 print(f"  policy     : {sc.policy}")
 print(f"  verdict    : {'ALLOW' if v.allowed else 'DENY'}  ({v.reason})")
 if v.unverified_addr:
     print("  note       : allowed without address verification")
-if v.proposal:
+# This command does not resolve DNS — it answers from the files alone. Under
+# `enforce` a name with no address is refused here but may well pass at run
+# time, when phases.py resolves it for real. Say which of the two happened
+# rather than leaving an operator who just added the name staring at DENY.
+if name_ok and not v.allowed and not addrs and sc.policy == "enforce":
+    print("  name       : authorized — the DENY above is the address check")
+    print(f"  check one  : claw sec scope {host} <addr>   (a run resolves it for you)")
+elif not name_ok:
+    print(f"  authorize  : claw sec scope add {S._norm_host(host)}"
+          "        (engagement overlay)")
+    print(f"               claw sec scope add {S._norm_host(host)} --global"
+          "  (durable)")
+if v.proposal and addrs:
     print(f"  proposal   : {v.proposal}")
 raise SystemExit(0 if v.allowed else 1)
+PY
+}
+
+cmd_scope_show() {
+    py - <<'PY'
+import scope_edit as E
+info = E.describe_layers()
+f = info["facts"]
+print(f"  global     : {info['global_path']}")
+print(f"  overlay    : {info['overlay_path']}"
+      f"{'' if info['overlay_active'] else '  (none — nothing added this engagement)'}")
+print(f"  policy     : {f['policy']}")
+for label, key in (("allow name", "allow_names"), ("allow addr", "allow_addrs"),
+                   ("DENY name", "deny_names"), ("DENY addr", "deny_addrs")):
+    for entry in f[key]:
+        print(f"  {label:<10} : {entry}")
+PY
+}
+
+# Overlay adds are unattended by design (§5.7) — on-demand targets churn, and
+# ceremony there just pushes people back to hand-editing the durable file.
+# A --global add is standing authority, so it always confirms; with no TTY it
+# refuses rather than assuming consent, and --yes is the explicit override.
+cmd_scope_add() {
+    local to_global=0 assume_yes=0 entry=""
+    while (( $# )); do
+        case "$1" in
+            --global) to_global=1 ;;
+            --yes|-y) assume_yes=1 ;;
+            -h|--help)
+                printf "usage: claw sec scope add <target> [--global] [--yes]\n"
+                printf "  default target file: \$CLAW_SEC_ENGAGEMENT/scope.local\n"
+                return 0 ;;
+            -*) printf "${C_WARN}unknown flag: %s${C_OFF}\n" "$1"; return 2 ;;
+            *)  [[ -z "$entry" ]] || { printf "${C_WARN}one target per add${C_OFF}\n"; return 2; }
+                entry="$1" ;;
+        esac
+        shift
+    done
+    [[ -n "$entry" ]] || { printf "${C_WARN}usage: claw sec scope add <target> [--global]${C_OFF}\n"; return 2; }
+
+    if (( to_global )) && (( ! assume_yes )); then
+        local dest; dest="${CLAW_SEC_SCOPE_FILE:-$HOME/.claude/scope.txt}"
+        if [[ ! -t 0 ]]; then
+            printf "${C_WARN}refusing to amend %s without confirmation${C_OFF}\n" "$dest"
+            printf "  ${C_MUTED}no TTY to prompt on — re-run with --yes if this is intended${C_OFF}\n"
+            return 2
+        fi
+        printf "  ${C_HEAD}durable authority${C_OFF} — add ${C_OK}%s${C_OFF} to %s?\n" "$entry" "$dest"
+        local reply; read -r -p "  type 'yes' to confirm: " reply
+        [[ "$reply" == "yes" ]] || { printf "  ${C_MUTED}unchanged${C_OFF}\n"; return 1; }
+    fi
+
+    CLAW_SEC_ENTRY="$entry" CLAW_SEC_GLOBAL="$to_global" py - <<'PY'
+import os, sys, scope as S, scope_edit as E
+try:
+    r = E.add_entry(os.environ["CLAW_SEC_ENTRY"],
+                    to_global=os.environ["CLAW_SEC_GLOBAL"] == "1")
+except S.ScopeParseError as exc:
+    print(f"  refused: {exc}")
+    sys.exit(2)
+if r.status == "denied":
+    print(f"  refused: {r.entry} — {r.detail}")
+    print("  a deny entry outranks any allow; edit the scope file to change that")
+    sys.exit(2)
+verb = "added" if r.status == "added" else "already present"
+print(f"  {verb}: {r.entry}  [{r.layer}]")
+print(f"  file : {r.path}")
 PY
 }
 
