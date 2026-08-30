@@ -17,6 +17,12 @@ setup() {
   RCPT="$XDG_CACHE_HOME/claw/updates.tsv"
   mkdir -p "$HOME" "$STUB"
   : > "$CALLS"
+  # Sweep tests must not see the host's topgrade — the engine is topgrade-FIRST,
+  # so leaking the real $PATH silently reroutes them to the wrong branch (every
+  # sweep assertion then fails on any box that actually has topgrade, i.e. the
+  # design's preferred setup). Pin a minimal PATH — the idiom tests/claw.bats
+  # already uses — and let $STUB supply every manager the sweep reaches for.
+  SWEEP_PATH="$STUB:/usr/bin:/bin"
 }
 
 # make_stub <name> [exit-code] — PATH-stub fake that records its argv.
@@ -90,7 +96,7 @@ stub_sweep_managers() {
 
 @test "sweep dry-run: prints the plan, executes nothing, still writes a receipt" {
   stub_sweep_managers
-  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive --dry-run
+  run env PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive --dry-run
   [ "$status" -eq 0 ]
   [ ! -s "$CALLS" ]                       # not one stub was ever invoked
   [[ "$output" == *"apt-get upgrade -y"* ]]
@@ -103,7 +109,7 @@ stub_sweep_managers() {
 
 @test "sweep: sudo primed upfront, gem updates gems, no modcache wipe" {
   stub_sweep_managers
-  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  run env PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
   [ "$status" -eq 0 ]
   # ticket probed before any step; non-interactive uses -n (no tty to prompt on)
   [ "$(head -n 1 "$CALLS")" = "sudo -n true" ]
@@ -116,7 +122,7 @@ stub_sweep_managers() {
 @test "sweep non-interactive: no sudo ticket skips sudo sections, exit 0" {
   stub_sweep_managers
   make_stub sudo 1   # overwrite: `sudo -n true` fails — no cached ticket, no tty
-  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  run env PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
   [ "$status" -eq 0 ]
   ! grep -q 'apt-get' "$CALLS"            # not one sudo-needing step ran
   ! grep -q 'snap refresh' "$CALLS"
@@ -130,7 +136,7 @@ stub_sweep_managers() {
 @test "sweep: a failing step yields exit != 0 and a fail receipt with the tally" {
   stub_sweep_managers
   make_stub gem 2   # overwrite: gem step fails
-  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  run env PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
   [ "$status" -ne 0 ]
   row="$(tail -n 1 "$RCPT")"
   [ "$(printf '%s\n' "$row" | cut -f4)" = "fail" ]
@@ -139,7 +145,7 @@ stub_sweep_managers() {
 
 @test "flags: parse in any order (--dry-run before --non-interactive)" {
   stub_sweep_managers
-  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --dry-run --non-interactive
+  run env PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --dry-run --non-interactive
   [ "$status" -eq 0 ]
   [ ! -s "$CALLS" ]
 }
