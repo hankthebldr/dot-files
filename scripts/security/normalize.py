@@ -37,7 +37,15 @@ _ANSI_CSI = re.compile(r"\x1b[\[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-PR
 _OSC = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
 _STRAY_ESC = re.compile(r"\x1b\\?")
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
-_WHITESPACE = re.compile(r"[\t\n\r\v\f]+")
+# U+2028/U+2029 are the trap here. They are NOT matched by \n or the C1
+# range, but str.splitlines() DOES split on them — and every consumer in
+# this harness (targets_from_artifact, materialize_input, artifacts.query)
+# reads rows with splitlines(). One of them in a page title or a TLS CN
+# forged a row boundary: the row counted as present in the audit and
+# vanished from every reader, so a finding could delete itself from the
+# report and shift every provenance row index after it.
+# U+0085 NEL is already covered by the C1 range in _CONTROL.
+_WHITESPACE = re.compile(r"[\t\n\r\v\f\u2028\u2029]+")
 _BACKTICKS = re.compile(r"`{3,}")
 
 
