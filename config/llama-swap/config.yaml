@@ -20,16 +20,16 @@ models:
     cmd: >
       docker run --rm --gpus all --name llamaswap-vllm
       -v /home/henry/.cache/huggingface:/root/.cache/huggingface
-      -p 8000:8000 vllm/vllm-openai:latest
+      -p 8010:8000 vllm/vllm-openai:latest
       --model Qwen/Qwen2.5-7B-Instruct --port 8000 --max-model-len 8192
-    proxy: http://127.0.0.1:8000
+    proxy: http://127.0.0.1:8010
     ttl: 600
 
   "Qwen/Qwen2.5-0.5B-Instruct":
     cmd: >
       docker run --rm --gpus all --name llamaswap-vllm
       -v /home/henry/.cache/huggingface:/root/.cache/huggingface
-      -p 8000:8000 vllm/vllm-openai:latest
+      -p 8010:8000 vllm/vllm-openai:latest
       --model Qwen/Qwen2.5-0.5B-Instruct --port 8000 --max-model-len 4096
-    proxy: http://127.0.0.1:8000
+    proxy: http://127.0.0.1:8010
     ttl: 300
