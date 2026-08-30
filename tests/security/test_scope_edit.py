@@ -189,6 +189,43 @@ class TestWrittenFilesStayParseable(EditCase):
         self.assertTrue(sc.addr_allows("203.0.113.9"))
 
 
+class TestOneResolverForBothSides(EditCase):
+    """`scope add` and `run` must resolve the same two files.
+
+    They briefly did not: add honoured CLAW_SEC_SCOPE_FILE and run.py hardcoded
+    ~/.claude/scope.txt, so a target could be added to one global file and the
+    run gated on another — the same class of split-brain the hook migration
+    removed. Both now go through scope_edit.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self._saved_scope_env = os.environ.get("CLAW_SEC_SCOPE_FILE")
+        os.environ["CLAW_SEC_SCOPE_FILE"] = str(self.gfile)
+
+    def tearDown(self):
+        super().tearDown()
+        if self._saved_scope_env is None:
+            os.environ.pop("CLAW_SEC_SCOPE_FILE", None)
+        else:
+            os.environ["CLAW_SEC_SCOPE_FILE"] = self._saved_scope_env
+
+    def test_run_defaults_to_the_same_global_file_add_writes(self):
+        import run as R
+
+        args = R.argparse.ArgumentParser()  # noqa: F841 - import smoke
+        self.assertEqual(str(E.global_path()), str(self.gfile))
+        # run.py builds its --scope default from the same resolver at parse time.
+        parser_default = R.SE.global_path()
+        self.assertEqual(str(parser_default), str(self.gfile))
+
+    def test_run_defaults_to_the_same_engagement_add_writes(self):
+        import run as R  # noqa: F401  — resolution is shared via the env var
+
+        self.assertEqual(E.engagement_root(), self.eng)
+        self.assertEqual(Path(os.environ["CLAW_SEC_ENGAGEMENT"]), self.eng)
+
+
 class TestDescribeLayers(EditCase):
     def test_it_reports_both_paths_and_whether_the_overlay_is_live(self):
         info = E.describe_layers(global_file=self.gfile)

@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 import engagement as E
+import scope_edit as SE
 import lint as L
 import phases as P
 import registry as R
@@ -52,7 +53,9 @@ def main(argv=None) -> int:
                     help="engagement directory (default: $CLAW_SEC_ENGAGEMENT, else ./engagements/<flow>)")
     ap.add_argument("--registry", default=str(REPO / "config" / "security" / "tools.yaml"))
     ap.add_argument("--flows-dir", default=str(REPO / "config" / "security" / "flows"))
-    ap.add_argument("--scope", default=os.path.expanduser("~/.claude/scope.txt"))
+    # One resolver for the durable file, shared with `claw sec scope add`, so
+    # the layer a target was added to is the layer the run reads.
+    ap.add_argument("--scope", default=str(SE.global_path()))
     ap.add_argument("--dry-run", action="store_true",
                     help="build argv and enforce the gate, execute nothing")
     ap.add_argument("--redo", action="append", type=int, default=[],

@@ -29,6 +29,7 @@ usage() {
     printf "${C_HEAD}claw sec${C_OFF} — scope-gated security harness\n\n"
     printf "  ${C_OK}run${C_OFF} <flow>        execute a flow (--domain X [--dry-run] [--engagement DIR])\n"
     printf "  ${C_OK}demo${C_OFF}              full offline run on fixture tools — no toolchain needed\n"
+    printf "  ${C_OK}drill${C_OFF} <target>    end-to-end rehearsal on the REAL chain ${C_MUTED}[--live]${C_OFF}\n"
     printf "  ${C_OK}lint${C_OFF}              validate the registry and flows (type + egress + argv rules)\n"
     printf "  ${C_OK}doctor${C_OFF} [tool...]  assert binary identity, not presence\n"
     printf "  ${C_OK}tools${C_OFF}             list declared tools with scope class and types\n"
@@ -177,6 +178,86 @@ print(f"  file : {r.path}")
 PY
 }
 
+# `claw sec drill <target>` — exercise the LIVE path end to end: real registry,
+# real Tier 0 binaries, real gate, real audit chain. `demo` proves the machinery
+# with fixtures; `drill` proves this box.
+#
+# It deliberately does NOT authorize the target for you. A command that both
+# grants authority and then uses it is a gate with a hole in it, so drill
+# refuses an unauthorized target and tells you to run `scope add` — the
+# deliberate, separate act. Dry run is the default; --live executes.
+cmd_drill() {
+    local target="" live=0 keep=0
+    while (( $# )); do
+        case "$1" in
+            --live) live=1 ;;
+            --keep) keep=1 ;;
+            -h|--help)
+                printf "usage: claw sec drill <target> [--live] [--keep]\n"
+                printf "  default is a dry run — the gate decides, nothing executes\n"
+                printf "  the target must already be authorized (claw sec scope add)\n"
+                return 0 ;;
+            -*) printf "${C_WARN}unknown flag: %s${C_OFF}\n" "$1"; return 2 ;;
+            *)  [[ -z "$target" ]] || { printf "${C_WARN}one target per drill${C_OFF}\n"; return 2; }
+                target="$1" ;;
+        esac
+        shift
+    done
+    [[ -n "$target" ]] || { printf "${C_WARN}usage: claw sec drill <target> [--live]${C_OFF}\n"; return 2; }
+
+    printf "${C_HEAD}drill${C_OFF}      %s%s\n\n" "$target" \
+        "$( (( live )) && printf '  (LIVE — tools will execute)' || printf '  (dry run)' )"
+
+    # 1. Authorization is a precondition, never a side effect.
+    #    The precondition is *name* authority only. Under resolve-policy
+    #    enforce the full verdict also needs resolved addresses, which the run
+    #    itself supplies — demanding them here would refuse every freshly added
+    #    name and make the drill unusable for exactly its intended case.
+    printf "${C_HEAD}1. gate${C_OFF}\n"
+    if ! CLAW_SEC_TARGET="$target" py - <<'PY'
+import os, sys, scope_edit as E
+sc = E.describe_layers()["scope"]
+host = os.environ["CLAW_SEC_TARGET"]
+sys.exit(0 if (not sc.denied(host, [])) and sc.name_allows(host) else 1)
+PY
+    then
+        cmd_scope "$target" || true
+        printf "\n  ${C_WARN}not authorized — drill will not add it for you${C_OFF}\n"
+        printf "  ${C_MUTED}authorize it deliberately, then re-run:${C_OFF}\n"
+        printf "    claw sec scope add %s\n" "$target"
+        return 2
+    fi
+    printf "  ${C_OK}name authorized${C_OFF}  %s ${C_MUTED}(addresses verified at run time)${C_OFF}\n\n" "$target"
+
+    # 2. Identity, not presence — a missing or shadowed binary is a finding.
+    printf "${C_HEAD}2. toolchain${C_OFF}\n"
+    cmd_doctor || printf "  ${C_WARN}some tools failed identity — phases using them will report tool_missing${C_OFF}\n"
+    printf "\n"
+
+    # 3. The run itself, in its own engagement so a drill never mixes with real work.
+    local eng="${CLAW_SEC_DRILL_DIR:-${TMPDIR:-/tmp}/claw-sec-drill}"
+    if [[ -e "$eng" && ! -f "$eng/.claw-sec-drill" ]]; then
+        printf "${C_WARN}%s exists and was not created by 'claw sec drill'.${C_OFF}\n" "$eng"
+        return 2
+    fi
+    command rm -rf "${eng:?}"
+    mkdir -p "$eng"
+    : > "$eng/.claw-sec-drill"
+
+    printf "${C_HEAD}3. flow${C_OFF}\n"
+    local rc=0
+    local args=(webrecon --domain "$target" --engagement "$eng")
+    (( live )) || args+=(--dry-run)
+    py "$SEC_DIR/run.py" "${args[@]}" || rc=$?
+
+    printf "\n${C_HEAD}4. evidence${C_OFF}\n"
+    printf "  ${C_MUTED}artifacts:${C_OFF} %s\n" "$eng"
+    printf "  ${C_MUTED}gate:${C_OFF}      %s\n" "$eng/gate/"
+    printf "  ${C_MUTED}audit:${C_OFF}     %s\n" "$eng/audit.jsonl"
+    (( keep )) || printf "  ${C_MUTED}(next drill resets this directory; --keep is advisory only)${C_OFF}\n"
+    return $rc
+}
+
 cmd_audit() {
     local sub="${1:-verify}" root="${2:-$PWD}"
     [[ "$sub" == "verify" ]] || { printf "${C_WARN}usage: claw sec audit verify [dir]${C_OFF}\n"; return 2; }
@@ -232,6 +313,7 @@ SCOPE
 case "${1:-help}" in
     run)             shift; py "$SEC_DIR/run.py" "$@" ;;
     demo)            shift; cmd_demo "$@" ;;
+    drill)           shift; cmd_drill "$@" ;;
     lint)            shift; py "$SEC_DIR/lint.py" "$@" ;;
     doctor)          shift; py "$SEC_DIR/doctor.py" "$@" ;;
     tools)           shift; cmd_tools "$@" ;;
