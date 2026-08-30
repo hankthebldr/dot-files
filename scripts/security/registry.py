@@ -242,16 +242,54 @@ def _validate(tool: str, name: str, pspec: dict, value):
 # --------------------------------------------------------------------------
 # Targets — read from the input artifact, never from the caller
 # --------------------------------------------------------------------------
-def targets_from_artifact(path) -> list[tuple[str, list[str]]]:
+# THE ONE FIELD VOCABULARY. Every key here is read by both the gate
+# (targets_from_artifact) and the input materializer (materialize_input). They
+# must not diverge: a key the materializer writes into a scanner's -list file
+# but the gate does not read is a target that reaches the tool unauthorized.
+# `lint_registry` asserts FIELD_FOR_TYPE ⊆ these, so adding an artifact type
+# without teaching the gate its field is a lint failure, not a silent hole.
+_HOST_FIELDS = ("host", "hostname", "address", "ip", "domain", "value", "name")
+_URL_FIELDS = ("url", "matched-at", "endpoint")
+GATE_FIELDS = _HOST_FIELDS + _URL_FIELDS
+def _host_from_url(value) -> str | None:
+    """Hostname out of a URL, including the scheme-less forms scanners emit.
+
+    `urlparse("example.com:8080/admin").hostname` is None — Python reads
+    `example.com` as the scheme. `endpoint` rows in this pipeline are routinely
+    scheme-less, so the naive call left them with no host at all: invisible to
+    the gate, perfectly visible to the scanner.
+    """
+    text = str(value).strip()
+    if not text:
+        return None
+    host = urlparse(text).hostname
+    if host:
+        return host
+    if text.startswith("//"):
+        return urlparse(text).hostname
+    if text.startswith("/"):
+        return None      # a path-only reference names no host; do not invent one
+    # No scheme: re-parse as a network-relative reference so the authority
+    # component is where urlparse expects it.
+    return urlparse("//" + text).hostname
+
+
+def targets_from_artifact(path) -> tuple[list[tuple[str, list[str]]], int]:
     """Extract (host, addrs) pairs from a canonical artifact.
 
     The caller supplies an artifact reference, not a target. This is what makes
     the type rule (§6.2) load-bearing at runtime rather than only at lint time.
+
+    Returns the targets AND the number of parseable rows seen, because the two
+    are not interchangeable: "this artifact holds no hosts" and "this artifact
+    holds hosts I did not recognise" look identical from the target list alone,
+    and the second must never be read as nothing to authorize.
     """
     out = []
+    rows = 0
     p = Path(path)
     if not p.exists():
-        return out
+        return out, rows
     for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
         if not line:
@@ -262,9 +300,24 @@ def targets_from_artifact(path) -> list[tuple[str, list[str]]]:
             continue
         if not isinstance(row, dict):
             continue
-        host = row.get("host") or row.get("hostname") or row.get("address") or row.get("ip")
-        if not host and row.get("url"):
-            host = urlparse(str(row["url"])).hostname
+        rows += 1
+        # ONE field vocabulary with materialize_input (_FIELD_FALLBACKS +
+        # FIELD_FOR_TYPE). They diverged: the materializer wrote `domain`,
+        # `value` and `matched-at` into the scanner's -list file while the gate
+        # read none of them, so those rows produced zero targets, skipped
+        # authorize() entirely, and were scanned anyway. The harness's own
+        # phase-0 seed is `{"domain": ...}`.
+        host = None
+        for key in _HOST_FIELDS:
+            if row.get(key):
+                host = row[key]
+                break
+        if not host:
+            for key in _URL_FIELDS:
+                if row.get(key):
+                    host = _host_from_url(row[key])
+                    if host:
+                        break
         if not host:
             continue
         addrs = row.get("addrs") or row.get("a") or []
@@ -277,7 +330,7 @@ def targets_from_artifact(path) -> list[tuple[str, list[str]]]:
             elif isinstance(extra, list):
                 addrs = list(addrs) + extra
         out.append((str(host), [str(a) for a in addrs]))
-    return out
+    return out, rows
 
 
 # --------------------------------------------------------------------------
@@ -299,6 +352,8 @@ FIELD_FOR_TYPE = {
     "secret": "value",
     "wordlist": "path",
 }
+# Ordered fallbacks for a row that lacks the field its declared type names.
+# Every entry MUST appear in GATE_FIELDS — see the note there.
 _FIELD_FALLBACKS = ("url", "host", "hostname", "domain", "value", "matched-at")
 
 
@@ -550,9 +605,27 @@ def invoke(tool: str, params: dict, ctx: Engagement) -> Result:
     # 4. THE GATE — every target, re-authorized here regardless of adapter
     targets, unverified = [], False
     if scope_class in GATED_CLASSES:
+        seen_rows = 0
         for pname, pspec in (spec.get("params") or {}).items():
             if pspec.get("type") == "artifact" and pname in params:
-                targets += targets_from_artifact(params[pname])
+                found, rows = targets_from_artifact(params[pname])
+                targets += found
+                seen_rows += rows
+        # FAIL CLOSED on an artifact we could not read. An empty target list
+        # used to skip the loop below and fall through to execution, so "this
+        # artifact holds no hosts I recognise" was indistinguishable from
+        # "there is nothing to authorize" — and the materializer would still
+        # write those rows into the scanner's -list file. Rows present but no
+        # targets extracted is a parser gap, and a parser gap must not be an
+        # authorization gap.
+        if seen_rows and not targets:
+            return finish(
+                Result(Status.DENIED_SCOPE,
+                       reason=(f"{seen_rows} row(s) in the input artifact named no "
+                               "host this gate recognises — refusing rather than "
+                               "running unauthorized"),
+                       duration_ms=elapsed()),
+                "deny", {"target_count": 0, "unrecognized_rows": seen_rows})
         gate = ctx.gate_record()
         targets = [(host, addrs or gate.get(host, [])) for host, addrs in targets]
         for host, addrs in targets:
