@@ -658,12 +658,12 @@ on this workstation.
 
 | Surface | Change |
 |---|---|
-| `bin/claw` | `sec)` → `scripts/security/sec.sh`; `tools · flows · run · doctor · lint · scope · audit · halt · tool new · mcp` |
+| `bin/claw` | `sec)` → `scripts/security/sec.sh`; `tools · flows · run · demo · drill · doctor · lint · scope [add\|show] · audit · halt · tool new · mcp · test` |
 | `bin/pi` | New agent front door, mirrors `bin/hermes` (`--serve`, `--model`) |
 | `~/.config/claw/agents.toml` | `claw agent add pi` → `profile = "security"` |
 | `claude/mcp.json` | Register `claw-sec` stdio server — fills the ADR-002 OSINT slot |
 | `claude/hooks/pre_tool_use.py` | **Import `scope.py`** instead of its own parser — one grammar, no drift |
-| `claude/scope.txt` | Document `!deny` and `resolve-policy:` in the header comment |
+| `claude/scope.txt` | **Done** — header documents `!deny`, `resolve-policy:`, the two layers, and the `scope add` commands |
 | `shell/profiles/security/common.zsh` | `pi`, `wr` aliases; `sec-help` rows; guarded on `command -v` |
 | `shell/profiles/security/linux.zsh` | Fix `WORDLISTS` for Kali's `seclists` path |
 | `shell/profiles/security/meta.zsh` | Extend `PROFILE_KEY_TOOLS` with the Tier 0 chain |

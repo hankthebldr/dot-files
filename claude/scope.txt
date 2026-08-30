@@ -1,18 +1,40 @@
 # ~/.claude/scope.txt — Authorized targets for active recon/scan tools.
 #
-# One target per line. Comments start with #. Empty lines ignored.
-# Targets may be:
-#   - Domains:    example.com, *.lab.example.com (glob suffix)
-#   - IPv4:       192.0.2.45
-#   - CIDR:       10.10.0.0/24
-#   - Hostnames:  internal-host.lab
+# DURABLE layer. Standing authority and stable network ranges live here; hosts
+# that churn belong in an engagement overlay (see below), not in this file.
 #
-# The pre_tool_use.py hook validates EVERY active recon command
-# (nmap, masscan, nuclei, ffuf, gobuster, sqlmap, subfinder, hydra, ...)
-# against this file. Anything not listed is denied.
+# One entry per line. `#` comments and blank lines are ignored.
 #
-# Add via the /scope slash command — confirms before append.
-# Default-deny is enforced. No silent expansion.
+#   name        example.com            exact host or domain
+#   wildcard    *.lab.example.com      any subdomain. NOT the apex: this does
+#                                      not authorize lab.example.com itself
+#   address     192.0.2.45
+#   CIDR        10.10.0.0/24
+#   DENY        !prod.lab.example.com  removes authority. A deny beats every
+#                                      allow, in this file or an overlay
+#   directive   resolve-policy: warn   enforce | warn | off (see below)
+#
+# resolve-policy governs the address check after a name matches. It defaults to
+# `enforce` when this file declares any CIDR, otherwise `warn`. Under enforce a
+# host must resolve inside an authorized range — declaring your lab CIDR here
+# buys address verification for every generated host in it, for free.
+#
+# TWO LAYERS. Effective scope is this file UNION the current engagement's
+# overlay (<engagement>/scope.local); a deny in either wins. Ephemeral targets
+# go to the overlay so this file does not fill up with disposable hosts:
+#
+#   claw sec scope add lab-a7f3.lab.internal      -> overlay, no prompt
+#   claw sec scope add 198.51.100.0/24 --global   -> this file, confirms first
+#   claw sec scope show                           -> both layers, effective policy
+#   claw sec scope <host> [addr]                  -> the gate's verdict, and why
+#
+# The engagement is $CLAW_SEC_ENGAGEMENT, else ./engagements/current.
+#
+# BOTH readers parse this file with scripts/security/scope.py: the
+# pre_tool_use.py hook, which gates every active recon command Claude Code
+# runs, and the harness gate in registry.invoke(). Default-deny, no silent
+# expansion, and a malformed line makes the hook authorize nothing rather than
+# guess.
 
 # --- Authorized lab / homelab ---
 *.lab.example.com
