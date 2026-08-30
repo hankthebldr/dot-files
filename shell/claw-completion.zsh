@@ -15,7 +15,7 @@ _claw() {
     'doctor:environment health check'
     'validate:full install validation'
     'stats:usage statistics'
-    'update:system package updater'
+    'update:phased update — repo sync then packages'
     'tools:interactive tool updater'
     'install:install a domain toolchain'
     'ai-services:manage self-hosted AI/web stacks'
@@ -42,7 +42,7 @@ _claw() {
     'provision:machine provisioning'
     'pkg:package manifest'
     'handoff:session handoff'
-    'selfupdate:update the dotfiles repo'
+    'selfupdate:weekly auto-update timer (now/install/status/uninstall)'
     'cheatsheet:command cheatsheet'
     'docs-sync:sync docs to the vault'
     'capture-tasks:capture tasks'
@@ -99,6 +99,19 @@ _claw() {
           ;;
         agent)
           _values 'action' list run
+          ;;
+        update|upgrade)
+          _values 'flag' \
+            '--repo[phase 1 only: ff-only pull + conditional regen]' \
+            '--packages[phase 2 only: the one package engine]' \
+            '--dry-run[print both phases plan, execute nothing]' \
+            '--non-interactive[no clear/pause — what the timer runs]' \
+            '--last[pretty-print recent run receipts]' \
+            '--tools[curated fast-lane CLI refresh]' \
+            '--schedule[weekly auto-update timer]'
+          ;;
+        selfupdate)
+          _values 'action' now install status uninstall
           ;;
       esac
       ;;
