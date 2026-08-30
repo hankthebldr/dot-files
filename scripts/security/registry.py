@@ -43,6 +43,7 @@ DEFAULT_BUDGET_ROWS = 10_000
 STDERR_TAIL_BYTES = 512
 HALT_FILE = "HALT"
 AUDIT_FILE = "audit.jsonl"
+AUDIT_HEAD_FILE = "audit.head"
 
 GATED_CLASSES = S.GATED_CLASSES
 
@@ -499,6 +500,34 @@ def _audit_tail(ctx: Engagement) -> tuple[int, str]:
     return seq, prev
 
 
+def _head_path(ctx: Engagement) -> Path:
+    return Path(ctx.root) / AUDIT_HEAD_FILE
+
+
+def _write_head(ctx: Engagement, seq: int, record_hash: str) -> None:
+    """Anchor the chain's expected length outside the chain itself.
+
+    A hash chain detects edits to history but not removal of its tail: drop the
+    last N lines and the remaining prefix verifies perfectly. §8 says "the
+    absence [of a refusal log] is itself a finding", and silent truncation is
+    exactly how that absence would be produced.
+
+    This is a marker, not a trust root. Anyone who can truncate audit.jsonl can
+    also rewrite audit.head — it raises tampering from "delete lines" to "delete
+    lines and keep a second file consistent", and it catches the realistic
+    accidental cases outright (crash mid-append, ENOSPC, a partial sync).
+    A real anchor would have to live off this filesystem.
+    """
+    head = _head_path(ctx)
+    tmp = head.with_name(head.name + f".tmp.{os.getpid()}")
+    try:
+        tmp.write_text(json.dumps({"seq": seq, "record_hash": record_hash}) + "\n",
+                       encoding="utf-8")
+        os.replace(tmp, head)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def _audit(ctx: Engagement, record: dict) -> dict:
     seq, prev = _audit_tail(ctx)
     record = dict(record)
@@ -508,6 +537,9 @@ def _audit(ctx: Engagement, record: dict) -> dict:
     ctx.audit_path.parent.mkdir(parents=True, exist_ok=True)
     with ctx.audit_path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record, sort_keys=True, ensure_ascii=False) + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    _write_head(ctx, record["seq"], record["record_hash"])
     return record
 
 
@@ -523,7 +555,13 @@ def audit_event(ctx: Engagement, **fields) -> dict:
 
 
 def verify_audit(ctx: Engagement) -> tuple[bool, str]:
-    """Walk the chain. Appending is normal; editing history breaks it."""
+    """Walk the chain. Appending is normal; editing history breaks it.
+
+    The walk alone cannot see a REMOVED tail — drop the last N lines and the
+    surviving prefix verifies perfectly — so the length is cross-checked
+    against the head marker written beside it. See _write_head for what that
+    marker is and is not worth.
+    """
     path = ctx.audit_path
     if not path.exists():
         return True, "no audit log"
@@ -539,7 +577,20 @@ def verify_audit(ctx: Engagement) -> tuple[bool, str]:
         if _record_hash(rec, prev) != rec.get("record_hash"):
             return False, f"record {rec.get('seq')}: content does not match its hash"
         prev, expect_seq = rec["record_hash"], expect_seq + 1
-    return True, f"{expect_seq - 1} record(s) verified"
+
+    count = expect_seq - 1
+    head = _head_path(ctx)
+    if not head.exists():
+        return True, f"{count} record(s) verified (tail unanchored — no head marker)"
+    try:
+        marker = json.loads(head.read_text(encoding="utf-8"))
+    except ValueError:
+        return False, f"{count} record(s) verified but the head marker is unreadable"
+    if marker.get("seq") != count or marker.get("record_hash") != prev:
+        return False, (f"chain ends at record {count}, head marker says "
+                       f"{marker.get('seq')} — {max(0, (marker.get('seq') or 0) - count)} "
+                       "record(s) missing from the tail")
+    return True, f"{count} record(s) verified"
 
 
 # --------------------------------------------------------------------------
