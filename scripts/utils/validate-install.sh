@@ -208,6 +208,60 @@ else
     bad "integrity manifest empty/missing"; fix "claw integrity generate"
 fi
 
+# ── 10. Security harness (spec §14) ───────────────────────────────────────────
+# Readiness, not a scan. Nothing here touches a target or resolves a name — it
+# reports whether the gate, the registry and the tool identities are sound.
+if [[ -d "$DOTFILES_DIR/scripts/security" ]]; then
+    phase "10 · Security harness"
+    sec="$DOTFILES_DIR/scripts/security/sec.sh"
+
+    if bash "$sec" lint &>/dev/null; then
+        ok "registry + flows lint clean"
+    else
+        warn "registry or flows fail lint"; fix "claw sec lint   # type, egress and argv rules"
+    fi
+
+    # One scope grammar for the hook and the gate. A hook that cannot import
+    # scope.py authorizes nothing, which is safe but silently disables recon.
+    if DOTFILES_DIR="$DOTFILES_DIR" python3 -c "
+import sys; sys.path.insert(0, '$DOTFILES_DIR/claude/hooks')
+import _lib; sys.exit(0 if _lib._scope_module() is not None else 1)" &>/dev/null; then
+        ok "hook and gate share one scope parser"
+    else
+        warn "pre_tool_use hook cannot reach scope.py — it will authorize nothing"
+        fix "claw harness deploy   # relink claude/ into ~/.claude"
+    fi
+
+    # Presence is not identity (§13): a Python httpx or a shell alias reads as
+    # installed and produces nothing. Note this runs under the PATH set at the
+    # top of this script, which prepends ~/.local/bin — deliberately a harsher
+    # ordering than an interactive shell, because the harness must resolve the
+    # right binary under any PATH, not just a friendly one.
+    if out="$(bash "$sec" doctor 2>&1)"; then
+        ok "tool identity: $(printf '%s' "$out" | grep -oE '[0-9]+/[0-9]+ tool\(s\) verified.*' || echo 'all verified')"
+    else
+        shadowed="$(printf '%s' "$out" | awk '$1=="IDENTITY"{printf "%s ", $2}')"
+        warn "tool identity failed: ${shadowed:-unknown} (wrong binary ahead on PATH)"
+        note "presence is not identity — a shadowing binary exits 0 and returns nothing"
+        fix "claw sec doctor        # names the imposter and the fix per tool"
+    fi
+
+    scope_file="${CLAW_SEC_SCOPE_FILE:-$HOME/.claude/scope.txt}"
+    if [[ -r "$scope_file" ]]; then
+        if bash "$sec" scope show &>/dev/null; then
+            ok "scope parses ($(grep -cvE '^\s*#|^\s*$' "$scope_file" || true) entries)"
+        else
+            bad "scope file does not parse — the hook is authorizing nothing"
+            fix "claw sec scope show   # find the offending line"
+        fi
+    else
+        warn "no scope file at $scope_file — all active recon is denied"
+        fix "claw sec scope add <target> --global"
+    fi
+else
+    note "security harness not present in this checkout"
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 printf '\n  \033[1mResult:\033[0m \033[0;32m%d pass\033[0m · \033[0;33m%d warn\033[0m · \033[0;31m%d fail\033[0m\n' "$PASS" "$WARN" "$FAIL"
 if [[ ${#FIXES[@]} -gt 0 ]]; then

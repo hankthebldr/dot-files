@@ -25,6 +25,16 @@ _claw_guard nharvest theHarvester  theHarvester -d
 _claw_guard amasse   amass         amass enum -d
 _claw_guard subf     subfinder     subfinder -d
 
+# --- Scope-gated harness (claw sec) ---
+# Deliberately thin: every one of these is the dispatcher, not a reimplementation.
+# Authorization lives in registry.invoke(); nothing here may shortcut it.
+alias secscope='claw sec scope'
+alias secadd='claw sec scope add'
+alias secshow='claw sec scope show'
+alias secdoc='claw sec doctor'
+alias secdrill='claw sec drill'
+alias wr='claw sec run webrecon --domain'
+
 # --- Offensive ---
 _claw_guard sqli     sqlmap        sqlmap --batch --random-agent
 _claw_guard listen   nc            nc -lvnp
@@ -49,8 +59,14 @@ sec_engagement() {
     mkdir -p "$dir"/{scans,exploits,loot,evidence}
     cd "$dir" || return 1
     export ENGAGEMENT_DIR="$dir"
+    # The harness reads CLAW_SEC_ENGAGEMENT to place its scope overlay, gate
+    # log and audit chain (§5.7). Binding it here means `claw sec scope add`
+    # and `claw sec run` land in the engagement you just carved, instead of a
+    # stray ./engagements/current beside wherever you happened to be standing.
+    export CLAW_SEC_ENGAGEMENT="$dir"
     printf "  \e[38;2;57;255;20m✓\e[0m engagement workspace: %s\n" "$dir"
     printf "  \e[38;2;139;148;158m  scans/ exploits/ loot/ evidence/\e[0m\n"
+    printf "  \e[38;2;139;148;158m  harness scope overlay → %s/scope.local\e[0m\n" "$dir"
 }
 
 # ==========================================
@@ -91,6 +107,15 @@ sec-help() {
     printf "  ${bold}Workspace${reset}\n"
     printf "  ${white}sec_engagement${reset}  ${dim}create + cd into engagement dir${reset}\n"
     printf "                  ${dim}(NOT auto-loaded; explicit only)${reset}\n"
+    printf "\n"
+    printf "  ${bold}Scope-gated harness${reset}  ${dim}(claw sec — default-deny, audited)${reset}\n"
+    printf "  ${white}secshow${reset}   ${dim}both scope layers + effective policy${reset}\n"
+    printf "  ${white}secscope${reset}  ${dim}<host> — the gate's verdict, and why${reset}\n"
+    printf "  ${white}secadd${reset}    ${dim}<host> — authorize it (engagement overlay)${reset}\n"
+    printf "            ${dim}--global for durable authority, confirms first${reset}\n"
+    printf "  ${white}secdoc${reset}    ${dim}assert tool identity, not presence${reset}\n"
+    printf "  ${white}wr${reset}        ${dim}<domain> — run the webrecon flow${reset}\n"
+    printf "  ${white}secdrill${reset}  ${dim}<host> — end-to-end rehearsal (--live to execute)${reset}\n"
     printf "\n"
     printf "  ${bold}Use directly${reset}  ${dim}(no profile prefix)${reset}\n"
     printf "  ${dim}nmap · sslyze · whatweb · wafw00f · dirb · wpscan · msfconsole${reset}\n"
