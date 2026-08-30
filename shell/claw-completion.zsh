@@ -31,6 +31,7 @@ _claw() {
     'onboard:gamified onboarding'
     'integrity:integrity manifest (generate/verify/audit)'
     'load:load a workflow profile'
+    'profiles:profile contracts (lint) + start dirs (paths)'
     'off:reset to a plain shell'
     'restore-shell:relink shell dotfiles'
     'lock-shell:make shell symlinks immutable'
@@ -83,6 +84,9 @@ _claw() {
         load)
           local -a profiles; profiles=($dotfiles/shell/profiles/*.zsh(N:t:r))
           _values 'profile' $profiles
+          ;;
+        profiles)
+          _values 'action' lint paths
           ;;
         integrity|verify|check)
           _values 'action' generate verify audit

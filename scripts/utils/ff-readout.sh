@@ -108,6 +108,16 @@ g() {  # g <field> → value (best-effort, fast, never errors)
             for t in git make tmux nvim fzf; do command -v "$t" >/dev/null 2>&1 && out="$out $t"; done
             printf '%s' "${out# }" ;;
     date)   date '+%a %b %d  %H:%M' ;;
+    updates) # Pending-update glance ("12 pkg · repo ↓3" / "current") rendered
+            # by update-status.sh `read` — a pure cache read of updates.json
+            # (the welcome-TUI kick refreshes it; this NEVER probes). Guarded:
+            # no cache / no jq / no script → empty, so the field drops out.
+            # Muted label color via cf()'s default class.
+            local uf="${XDG_CACHE_HOME:-$HOME/.cache}/claw/updates.json"
+            local us="$_ffr_dots/scripts/utils/update-status.sh"
+            command -v jq >/dev/null 2>&1 || return 0
+            [[ -r "$uf" && -r "$us" ]] || return 0
+            bash "$us" read 2>/dev/null ;;
   esac
 }
 
@@ -166,7 +176,7 @@ case "${1:-all}" in
   # Machine-readable dump for claw-dashboard.py (one key=value per line),
   # plus <res>_pct utilization values that feed the resource bars.
   fields)
-    for _f in os host kernel uptime load shell term pkgs locale cpu cores mem mem_pct swap disk disk_pct ip wifi batt date; do
+    for _f in os host kernel uptime load shell term pkgs locale cpu cores mem mem_pct swap disk disk_pct ip wifi batt date updates; do
         printf '%s=%s\n' "$_f" "$(g "$_f")"
     done
     for _p in cpu mem swap disk batt; do

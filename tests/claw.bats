@@ -18,6 +18,38 @@ setup() {
   [[ "$output" == *"ripgrep"* ]]
 }
 
+@test "pkg-manifest: npm parse keeps @scope and drops the --parseable root line" {
+  # Regression: `sed 's#.*/##'` took the basename, which flattened
+  # @anthropic-ai/claude-agent-sdk to claude-agent-sdk (a DIFFERENT package on
+  # install) and turned npm's prefix root line into a phantom tool `lib`.
+  df="$BATS_TEST_TMPDIR/df"; mkdir -p "$df/config/manifest" "$df/scripts/utils"
+  for f in cinematic.sh detect-os.sh claw-progress.sh; do
+    cp "$BATS_TEST_DIRNAME/../scripts/utils/$f" "$df/scripts/utils/" 2>/dev/null || true
+  done
+  : > "$df/config/manifest/tools.list"
+
+  stub="$BATS_TEST_TMPDIR/stub"; mkdir -p "$stub"
+  cat > "$stub/npm" <<'SH'
+#!/usr/bin/env bash
+# `npm ls -g --depth=0 --parseable` emits the prefix ROOT first, then one
+# absolute path per installed package.
+printf '%s\n' /opt/homebrew/lib \
+               /opt/homebrew/lib/node_modules/npm \
+               /opt/homebrew/lib/node_modules/@anthropic-ai/claude-agent-sdk \
+               /opt/homebrew/lib/node_modules/defuddle
+SH
+  chmod +x "$stub/npm"
+
+  # PATH without brew/cargo/pipx so npm is the only live discovery channel.
+  run env DOTFILES_DIR="$df" HOME="$BATS_TEST_TMPDIR" PATH="$stub:/usr/bin:/bin" \
+      bash "$BATS_TEST_DIRNAME/../scripts/utils/pkg-manifest.sh" scan
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"@anthropic-ai/claude-agent-sdk"* ]]   # scope survives
+  [[ "$output" == *"defuddle"* ]]                          # unscoped still works
+  [[ "$output" != *"    lib"* ]]                           # root line is not a tool
+  [[ "$output" != *"    npm"* ]]                           # npm itself stays filtered
+}
+
 @test "toolchain-runner: dry-run renders summary and installs nothing" {
   run env DRY_RUN=1 USER=tester bash "$BATS_TEST_DIRNAME/../scripts/install/cloud-toolchain.sh"
   [ "$status" -eq 0 ]

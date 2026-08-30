@@ -1,6 +1,6 @@
 ---
 name: project-init
-description: Onboard a GitHub repo as a vault dev-project — resolve (or create, with confirmation) its Things 3 project, then scaffold Github-Projects/<repo>/ with the _MOC <repo>.md binding anchor via the vault-os MCP tools. Use when starting work on a new repo, or when the user says "onboard <repo>", "project-init <repo>", "set up docsync for <repo>", or before the first /sync-docs on a repo. One-time per repo; afterward docsync and /sync-docs take the deterministic binding path automatically.
+description: "Use when starting work on a new repo, or when the user says \"onboard <repo>\", \"project-init <repo>\", \"set up docsync for <repo>\", or before the first /sync-docs on a repo. Resolves (or creates, with confirmation) the Things 3 project and scaffolds github-projects/<repo>/ with its _MOC <repo>.md binding anchor. One-time per repo; afterward docsync and /sync-docs take the deterministic binding path automatically."
 ---
 
 # project-init — onboard a dev project
@@ -29,7 +29,7 @@ If no repo is given, ask which repo to onboard (offer `vault_list_projects` to s
      Or accept a pasted UUID, or `skip` (scaffold with an empty uuid; /sync-docs resolves + persists later).
 3. **Persist the binding:** call
    `vault_project_home(project, repo_path=<abs>, things_uuid=<uuid>, things_name=<title>, create=true)`.
-   This scaffolds `Github-Projects/<project>/` with `_MOC <project>.md` (binding frontmatter +
+   This scaffolds `github-projects/<project>/` with `_MOC <project>.md` (binding frontmatter +
    self-locating folder tree), a `design/` dir, and `sync-log.md`.
 4. **Report:** the created `moc_path`, `sync_log_path`, and the bound Things project.
    Point the user to `/sync-docs <repo-path>` as the next step.

@@ -1,6 +1,11 @@
 # Open Claw integrity-check ignore patterns (gitignore-style globs).
 # One pattern per line. Lines starting with # are comments.
 # Patterns are matched against the file path relative to the repo root.
+#
+# NOTE: files git already ignores are skipped automatically (integrity.sh asks
+# git directly), so .gitignore entries need no duplicate here. This file is for
+# paths git does NOT ignore but that are still machine-local, plus the patterns
+# a non-git (tarball) install has to fall back on.
 
 .git/
 node_modules/
@@ -34,5 +39,6 @@ browser-profiles/
 # Per-machine active-theme pointer (git-ignored; copied from the theme library)
 terminal/.config/ghostty/theme.conf
 
-# Session scratch written by the /remember hook — churns every session
+# Machine-local agent/session state — untracked but NOT git-ignored, so it must
+# be named here or it lands in the committed manifest and drifts per machine.
 .remember/

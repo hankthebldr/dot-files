@@ -1,6 +1,6 @@
 ---
 name: new-theme
-description: Add a new Open Claw color theme across the whole spine — config/themes/<slug>/palette.theme with the full key set, generated ghostty.conf, clin built-in slug map, and verification on every surface. Use when the user says "new theme", "add a palette", or names a color scheme to bring into claw. A partial add silently falls back to refined-dark on some surfaces; this checklist prevents that.
+description: "Use when the user says \"new theme\", \"add a palette\", or names a color scheme to bring into Open Claw. Covers the whole spine — palette.theme key set, generated ghostty.conf, clin built-in slug map, and per-surface verification — because a partial add silently falls back to refined-dark on some surfaces."
 disable-model-invocation: true
 ---
 

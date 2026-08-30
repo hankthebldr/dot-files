@@ -343,7 +343,16 @@ claw_ui_footer() {  # claw_ui_footer ["<message>"]
     "$(_c muted)" "$(_claw_glyph skip)" "$_CLAW_PROG_SKIP" "$(_creset)" \
     "$(_c muted)" "$dur" "$(_creset)"
   claw_frame_bottom
-  [[ -n "${1:-}" ]] && printf '  %s%s %s%s\n' "$(_c green)" "$(_claw_glyph ok)" "$1" "$(_creset)"
+  # Verdict line is honest: red ✗ when any step failed, green ✓ otherwise
+  # (a green check next to "finished with failures" reads as success).
+  if [[ -n "${1:-}" ]]; then
+    if (( _CLAW_PROG_FAIL > 0 )); then
+      printf '  %s%s %s%s\n' "$(_c red)" "$(_claw_glyph fail)" "$1" "$(_creset)"
+    else
+      printf '  %s%s %s%s\n' "$(_c green)" "$(_claw_glyph ok)" "$1" "$(_creset)"
+    fi
+  fi
+  return 0
 }
 
 claw_ui_pause() {

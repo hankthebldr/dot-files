@@ -11,6 +11,12 @@ PROFILE_THEME_DEFAULT="dosbbs"
 PROFILE_TAG="compiles everything from source · owns 11 unfinished CLI tools"
 PROFILE_FLAIR="11 half-finished CLI tools — one of them will ship in 2027"
 
+# START DIRECTORY
+# Where `claw load` / a welcome-TUI pick drops you. Grammar + precedence:
+# shell/profile-helpers.zsh (@vault tokens, `|` candidates, empty = stay put).
+# the hand-built CLIs themselves; falls back to the repo root
+PROFILE_START_DIR="${LOCAL_CLI_DIR:-$HOME/Github/local-clis}|$HOME/Github"
+
 # OS SUPPORT
 # All 7 migrated profiles are cross-platform via platform.zsh shims.
 # Mac/Linux-specific bits (if any emerge) live in mac.zsh / linux.zsh.

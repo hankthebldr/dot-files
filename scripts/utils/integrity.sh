@@ -91,6 +91,7 @@ _default_ignore_patterns=(
     'config/integrity/manifest.sha256'
     'config/integrity/manifest.sha256.prev'
     'browser-profiles/'
+    '.remember/'
     '*.sqlite'
     '*.db'
     '*.pem'
@@ -122,11 +123,47 @@ _read_ignore_patterns() {
     grep -Ev '^\s*(#|$)' "$IGNORE_FILE" 2>/dev/null || true
 }
 
+# ── Git-ignored files are never repo CONTENT ────────────────────────────────
+# The manifest is COMMITTED, so it must describe the repo's own files only.
+# Hashing git-ignored paths (vendored skills, __pycache__, machine-local state)
+# made a tracked file machine-DEPENDENT: regenerating on another box silently
+# dropped those rows, and `verify` then cried EXTRA for every such file the
+# other machine happened to have. Skipping what git already declares "not
+# content" makes the manifest deterministic everywhere — and self-maintaining,
+# since a new .gitignore entry needs no matching .integrityignore edit.
+#
+# One `git ls-files` call builds the set, newline-delimited and newline-BOUNDED
+# so membership is an exact whole-line match done with bash pattern matching —
+# no fork per file (bash 3.2 has no associative arrays, and _is_ignored runs
+# once per file in both generate and verify, which repo-sync now calls after
+# every pull). "$rel" is quoted inside the pattern, so a filename containing
+# glob metacharacters is matched literally. A tarball install with no git, or
+# no .git dir, degrades to the .integrityignore patterns alone.
+_GIT_IGNORED=""
+_GIT_IGNORED_LOADED=""
+_load_git_ignored() {
+    [[ -n "$_GIT_IGNORED_LOADED" ]] && return 0
+    _GIT_IGNORED_LOADED=1
+    command -v git &>/dev/null || return 0
+    git -C "$REPO_ROOT" rev-parse --git-dir &>/dev/null || return 0
+    local listed
+    listed="$(git -C "$REPO_ROOT" ls-files --others --ignored --exclude-standard 2>/dev/null || true)"
+    # Bound with leading/trailing newlines so *\n<rel>\n* can only match a
+    # whole line (the equivalent of grep -qxF, without the process).
+    [[ -n "$listed" ]] && _GIT_IGNORED=$'\n'"$listed"$'\n'
+    return 0
+}
+
 # Should this relative path be ignored? Matches against either a literal
 # directory prefix (pattern ending in /) or a glob via `case` matching.
 _is_ignored() {
     local rel="$1"
     local pat
+    # Git's own ignore rules first — cheapest and the broadest correct signal.
+    _load_git_ignored
+    if [[ -n "$_GIT_IGNORED" && "$_GIT_IGNORED" == *$'\n'"$rel"$'\n'* ]]; then
+        return 0
+    fi
     while IFS= read -r pat; do
         [[ -z "$pat" ]] && continue
         if [[ "$pat" == */ ]]; then

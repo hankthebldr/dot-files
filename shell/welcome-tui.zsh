@@ -11,6 +11,13 @@ _claw_apply_outcome() {
             [[ -f "$DOTFILES_DIR/shell/profiles/${rest}.zsh" ]] && {
                 export CLAW_ACTIVE_PROFILE="$rest"
                 source "$DOTFILES_DIR/shell/profiles/${rest}.zsh"
+                # Land in the profile's declared start dir — the SAME applier
+                # the fzf path and `claw load` use (shell/profile-helpers.zsh).
+                if ! typeset -f _claw_profile_cd &>/dev/null && \
+                   [[ -f "$DOTFILES_DIR/shell/profile-helpers.zsh" ]]; then
+                    source "$DOTFILES_DIR/shell/profile-helpers.zsh"
+                fi
+                typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd "$rest"
             } ;;
         ACTION)
             case "$rest" in
@@ -63,6 +70,31 @@ function claw_welcome_tui() {
     [[ ! -t 0 ]] && return
     # SAFETY: Never run inside SSH that's piping data (e.g. scp, rsync)
     [[ -n "$SSH_CONNECTION" && ! -t 1 ]] && return
+    # SAFETY: A dumb terminal can't drive fzf's full-screen UI
+    [[ "$TERM" == dumb ]] && return
+    # SAFETY: Interactive SSH logins skip the picker by default. Terminal
+    # wrappers that bootstrap SSH sessions (Warp's "setting up session…",
+    # VS Code Remote, JetBrains Gateway, …) hold the login until the first
+    # shell prompt renders; a full-screen fzf menu blocking before that
+    # prompt deadlocks the session — the client waits for a prompt, the
+    # shell waits for a keypress. Load the default profile instead so SSH
+    # shells still get the branded environment, and let plain-ssh users opt
+    # back into the menu with CLAW_SSH_TUI=1 (e.g. in ~/.zshrc.local on the
+    # remote host, or via ssh SendEnv/SetEnv).
+    if [[ -n "$SSH_CONNECTION" || -n "$SSH_TTY" ]] && [[ "${CLAW_SSH_TUI:-0}" != 1 ]]; then
+        export CLAW_ACTIVE_PROFILE="default"
+        [[ -f "$DOTFILES_DIR/shell/profiles/default.zsh" ]] && \
+            source "$DOTFILES_DIR/shell/profiles/default.zsh"
+        # default declares an empty PROFILE_START_DIR (stay put), so this is a
+        # no-op unless the host overrides it in ~/.config/claw/start-dirs.conf —
+        # the applier is called anyway so every load path behaves identically.
+        if ! typeset -f _claw_profile_cd &>/dev/null && \
+           [[ -f "$DOTFILES_DIR/shell/profile-helpers.zsh" ]]; then
+            source "$DOTFILES_DIR/shell/profile-helpers.zsh"
+        fi
+        typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd default
+        return
+    fi
     # Skip if a profile is already active to prevent infinite loop
     [[ -n "$CLAW_ACTIVE_PROFILE" ]] && return
 
@@ -104,6 +136,10 @@ function claw_welcome_tui() {
     # Warm the homelab fleet cache in the background (reads ~/.cache/claw/homelab.json
     # at render; this refreshes it). Cheap no-op off-tailnet; never blocks login.
     "$_d/scripts/utils/situation.sh" homelab &>/dev/null &!
+    # Refresh pending-update counts (~/.cache/claw/updates.json) so the login
+    # dashboards + situation ticks read fresh data. Self-throttled to 6h inside
+    # update-status.sh, so most logins are a no-op; never blocks login.
+    "$_d/scripts/utils/update-status.sh" --refresh &>/dev/null &!
 
     # Colors from the ACTIVE theme (CLAW_RGB_* exported by theme.sh, sourced in
     # .zshrc step 2b). Fallbacks are the refined-dark values so the TUI renders
@@ -332,6 +368,15 @@ function claw_welcome_tui() {
             else
                 _claw_profile_readout "$key"
             fi
+            # Land in the profile's declared start dir (PROFILE_START_DIR in
+            # meta.zsh → _claw_profile_cd, the ONE applier). profile-helpers.zsh
+            # loads at .zshrc step 6 but the TUI fires at step 3, so pull it in
+            # on demand — same lazy-load as obsidian.zsh in `vault_open` below.
+            if ! typeset -f _claw_profile_cd &>/dev/null && \
+               [[ -f "$_d/shell/profile-helpers.zsh" ]]; then
+                source "$_d/shell/profile-helpers.zsh"
+            fi
+            typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd "$key"
             ;;
         homelab_ssh)
             # Direct action — bypasses the profile, just launches the SSH topology TUI.
@@ -482,6 +527,11 @@ function claw_welcome_tui() {
             # Fallback: load default profile
             export CLAW_ACTIVE_PROFILE="default"
             [[ -f "$_d/shell/profiles/default.zsh" ]] && source "$_d/shell/profiles/default.zsh"
+            if ! typeset -f _claw_profile_cd &>/dev/null && \
+               [[ -f "$_d/shell/profile-helpers.zsh" ]]; then
+                source "$_d/shell/profile-helpers.zsh"
+            fi
+            typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd default
             ;;
     esac
 }

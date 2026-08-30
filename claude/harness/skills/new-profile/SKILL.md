@@ -1,6 +1,6 @@
 ---
 name: new-profile
-description: Scaffold a new Open Claw workflow profile end-to-end across every registration surface — profile directory (meta/common/mac/linux), dispatcher, welcome TUI, claw-fn list, onboarding, bin/claw allowlist, rust TUI grouping, fastfetch config + logo, and optional toolchain. Use when the user says "new profile", "add a profile", or names a workflow that should become a claw profile. Prevents the classic half-wired profile (loads fine, missing from the TUI or onboarding).
+description: "Use when the user says \"new profile\", \"add a profile\", or names a workflow that should become an Open Claw profile. Covers every registration surface (profile dir, dispatcher, welcome TUI, claw-fn list, onboarding, bin/claw allowlist, rust TUI grouping, fastfetch config and logo, optional toolchain) to prevent the classic half-wired profile that loads fine but is missing from the TUI or onboarding."
 disable-model-invocation: true
 ---
 

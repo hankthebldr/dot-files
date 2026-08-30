@@ -1,13 +1,6 @@
 ---
 name: in-flight
-description: >-
-  Track work items that are mid-stream during a working session — capture a unit
-  of work as a Things 3 todo when it starts, land it when it ships. Use when the
-  user says "track this work item", "what's in flight", "WI this", "park this
-  work item", "that landed / ship it off the board", or when an agentic session
-  starts a multi-step piece of work that could outlive the session and needs a
-  durable in-flight record. Emits and completes todos ONLY through docsync's
-  verbs — never raw add_todo.
+description: "Use when the user says \"track this work item\", \"what's in flight\", \"WI this\", \"park this work item\", \"that landed / ship it off the board\", or when an agentic session starts a multi-step piece of work that could outlive the session and needs a durable in-flight record. Emits and completes todos ONLY through docsync's verbs — never raw add_todo."
 ---
 
 # in-flight — work-item tracking

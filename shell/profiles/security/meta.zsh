@@ -12,6 +12,12 @@ PROFILE_THEME_DEFAULT="matrix"
 PROFILE_TAG="thinks your password is cute"
 PROFILE_FLAIR="has been in your router since Tuesday"
 
+# START DIRECTORY
+# Where `claw load` / a welcome-TUI pick drops you. Grammar + precedence:
+# shell/profile-helpers.zsh (@vault tokens, `|` candidates, empty = stay put).
+# engagement root (sec_engagement carves dirs here), else Secops notes
+PROFILE_START_DIR="${PENTEST_WORKSPACE:-$HOME/pentest}|@vault-folder"
+
 # OS SUPPORT
 # Linux (especially Parrot/Kali) has the strongest native tooling story;
 # Mac runs the same toolkit via Homebrew with a few package-name differences

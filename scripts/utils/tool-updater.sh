@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # scripts/utils/tool-updater.sh
 # Background auto-updater for integrated CLI tools, with optional interactive UI.
+# The fast lane is driven by cadence-tagged rows of config/manifest/tools.list
+# (the ONE registry — spine contract): `id|source|cadence`, cadence ∈
+# daily|weekly|biweekly|monthly. Rows without a cadence never enter the lane.
 #
 # Modes:
 #   tool-updater.sh                  silent background daemon (default — runs
@@ -11,8 +14,10 @@
 #   tool-updater.sh --force          like --interactive but ignores cache
 #                                    intervals (run everything now)
 #
-# Cache granularity is per-CATEGORY (brew/pipx/go/cargo), not per-tool.
-# Each category has its own interval — see CATEGORIES below.
+# Cache granularity is per-CATEGORY — one (source, cadence) group — not
+# per-tool. Runner mapping by source: brew → brew upgrade <id> · pipx →
+# pipx upgrade <id> · cargo → nice -n 19 cargo install <id> ·
+# go:<pkg> → go install <pkg>@latest.
 
 # ============================================
 # CONFIG
@@ -22,6 +27,34 @@ mkdir -p "$CACHE_DIR"
 
 CURRENT_TIME=$(date +%s)
 
+DOTFILES="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+MANIFEST="$DOTFILES/config/manifest/tools.list"
+
+# cadence → seconds (design contract; `fast` is not a cadence — daily is the floor)
+cadence_seconds() {
+    case "$1" in
+        daily)    echo 86400   ;;
+        weekly)   echo 604800  ;;
+        biweekly) echo 1209600 ;;
+        monthly)  echo 2592000 ;;
+        *)        echo ""      ;;   # unknown cadence → row is not fast-lane
+    esac
+}
+
+# seconds → cadence label, for the fallback entries' section headers
+interval_cadence() {
+    case "$1" in
+        86400)   echo daily    ;;
+        604800)  echo weekly   ;;
+        1209600) echo biweekly ;;
+        2592000) echo monthly  ;;
+        *)       echo "${1}s"  ;;
+    esac
+}
+
+# FALLBACK ONLY. The registry merge moved fast-lane curation into
+# config/manifest/tools.list (cadence-tagged rows); this hardcoded set is used
+# solely when the manifest is missing or carries no cadence-tagged rows.
 # Per-category: name | interval-seconds | tool list (space-separated)
 # - brew  weekly      pre-built binaries, lightweight
 # - pipx  weekly      python wheels, fast
@@ -34,6 +67,64 @@ CATEGORIES=(
     "cargo|2592000|netwatch-tui eilmeldung"
 )
 
+# Build the runtime category set from cadence-tagged manifest rows, grouped by
+# (source, cadence) at startup. Entry: manager|cache-key|interval|cadence|tools.
+# Both silent and interactive modes consume this same parsed set.
+RUN_SET=()
+build_run_set() {
+    local id src cad mgr tool secs key found i
+    local keys=() mgrs=() intervals=() cads=() toolsets=()
+    [[ -r "$MANIFEST" ]] || return 0
+    while IFS='|' read -r id src cad; do
+        id="${id//[[:space:]]/}"; src="${src//[[:space:]]/}"; cad="${cad//[[:space:]]/}"
+        [[ -z "$id" || "$id" == \#* ]] && continue   # comments / section headers
+        [[ -z "$cad" ]] && continue                  # 2-field row — not fast lane
+        secs="$(cadence_seconds "$cad")"
+        [[ -z "$secs" ]] && continue
+        case "$src" in                               # runner mapping by source
+            brew|pipx|cargo) mgr="$src"; tool="$id" ;;
+            go:*)            mgr="go";   tool="${src#go:}@latest" ;;
+            *)               continue ;;             # no fast-lane runner for this source
+        esac
+        key="${mgr}-${cad}"
+        found=0; i=0
+        while (( i < ${#keys[@]} )); do
+            if [[ "${keys[$i]}" == "$key" ]]; then
+                toolsets[$i]="${toolsets[$i]} $tool"
+                found=1; break
+            fi
+            i=$(( i + 1 ))
+        done
+        if (( ! found )); then
+            keys+=("$key"); mgrs+=("$mgr"); intervals+=("$secs")
+            cads+=("$cad"); toolsets+=("$tool")
+        fi
+    done < "$MANIFEST"
+    i=0
+    while (( i < ${#keys[@]} )); do
+        RUN_SET+=("${mgrs[$i]}|${keys[$i]}|${intervals[$i]}|${cads[$i]}|${toolsets[$i]}")
+        i=$(( i + 1 ))
+    done
+}
+build_run_set
+
+if (( ${#RUN_SET[@]} == 0 )); then
+    # Fallback path — keep the legacy bare-source cache keys (brew/pipx/go/cargo).
+    for entry in "${CATEGORIES[@]}"; do
+        IFS='|' read -r name interval tools <<< "$entry"
+        RUN_SET+=("${name}|${name}|${interval}|$(interval_cadence "$interval")|${tools}")
+    done
+else
+    # Cache-key continuity: pre-merge releases stamped bare per-source keys.
+    # Adopt a legacy stamp for a new (source,cadence) composite key once, so
+    # the first login after the registry merge doesn't rebuild every tool.
+    for entry in "${RUN_SET[@]}"; do
+        IFS='|' read -r mgr key _ _ _ <<< "$entry"
+        [[ ! -f "$CACHE_DIR/$key" && -f "$CACHE_DIR/$mgr" ]] \
+            && cp "$CACHE_DIR/$mgr" "$CACHE_DIR/$key" 2>/dev/null
+    done
+fi
+
 # ============================================
 # ARGV PARSING
 # ============================================
@@ -44,7 +135,7 @@ for arg in "$@"; do
         --interactive|-i) INTERACTIVE=1 ;;
         --force|-f)       FORCE=1; INTERACTIVE=1 ;;  # force implies interactive
         --help|-h)
-            sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
@@ -91,10 +182,10 @@ time_until_due() {
 # Run the brew tool list (or just `brew upgrade <list>`). stderr is NOT
 # suppressed so claw_step can stream a real failure live; the exit code
 # propagates so the step renders ✓/✗ correctly.
-run_brew()  { brew upgrade $*; }
-run_pipx()  { for t in $*; do pipx upgrade "$t"; done; }
-run_go()    { for t in $*; do go install "$t"; done; }
-run_cargo() { for t in $*; do nice -n 19 cargo install "$t"; done; }
+run_brew()  { brew upgrade "$@"; }
+run_pipx()  { for t in "$@"; do pipx upgrade "$t"; done; }
+run_go()    { for t in "$@"; do go install "$t"; done; }
+run_cargo() { for t in "$@"; do nice -n 19 cargo install "$t"; done; }
 # Export so the gum-spinner subshell (`bash -c "run_<name> <tool>"`) resolves
 # them — without this they are "command not found" (exit 127) in that subshell,
 # which made `claw tools` a silent no-op that still claimed success.
@@ -123,15 +214,15 @@ if [[ $INTERACTIVE -eq 0 ]]; then
     fi
     (
         trap 'rm -rf "$LOCK_DIR" 2>/dev/null' EXIT
-        for entry in "${CATEGORIES[@]}"; do
-            IFS='|' read -r name interval tools <<< "$entry"
-            if needs_update "$name" "$interval"; then
-                if command -v "$name" &>/dev/null; then
-                    if ! "run_$name" $tools 2>>"$ERR_LOG"; then
-                        echo "[$(date '+%F %T')] $name update returned nonzero" >> "$ERR_LOG"
+        for entry in "${RUN_SET[@]}"; do
+            IFS='|' read -r mgr key interval _ tools <<< "$entry"
+            if needs_update "$key" "$interval"; then
+                if command -v "$mgr" &>/dev/null; then
+                    if ! "run_$mgr" $tools 2>>"$ERR_LOG"; then
+                        echo "[$(date '+%F %T')] $key update returned nonzero" >> "$ERR_LOG"
                     fi
                 fi
-                mark_updated "$name"
+                mark_updated "$key"
             fi
         done
     ) >/dev/null 2>>"$ERR_LOG" &
@@ -147,8 +238,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/claw-progress.sh"
 clear
 
 total_tools=0
-for entry in "${CATEGORIES[@]}"; do
-    IFS='|' read -r _ _ tools <<< "$entry"
+for entry in "${RUN_SET[@]}"; do
+    IFS='|' read -r _ _ _ _ tools <<< "$entry"
     for _ in $tools; do ((total_tools++)); done
 done
 
@@ -164,42 +255,42 @@ SUMMARY_FAILED=0
 SUMMARY_DEFERRED=0
 SUMMARY_UNAVAILABLE=0
 
-for entry in "${CATEGORIES[@]}"; do
-    IFS='|' read -r name interval tools <<< "$entry"
+for entry in "${RUN_SET[@]}"; do
+    IFS='|' read -r mgr key interval cad tools <<< "$entry"
 
     # Pretty section name
-    case "$name" in
+    case "$mgr" in
         brew)  pretty="Homebrew" ;;
         pipx)  pretty="pipx (Python)" ;;
         go)    pretty="Go" ;;
         cargo) pretty="Cargo (Rust)" ;;
-        *)     pretty="$name" ;;
+        *)     pretty="$mgr" ;;
     esac
-    claw_ui_section "$pretty"
+    claw_ui_section "$pretty · $cad"
 
     # Is the manager itself installed?
-    if ! command -v "$name" &>/dev/null; then
-        claw_ui_skip "$name"
+    if ! command -v "$mgr" &>/dev/null; then
+        claw_ui_skip "$mgr"
         for _ in $tools; do ((SUMMARY_UNAVAILABLE++)); done
         continue
     fi
 
     # Decide: due, forced, or deferred?
-    if (( FORCE )) || needs_update "$name" "$interval"; then
+    if (( FORCE )) || needs_update "$key" "$interval"; then
         for tool in $tools; do
             # Pretty short label for the spinner
             label="${tool##*/}"
             label="${label%%@*}"
-            if claw_step "Upgrading ${label}…" -- "run_$name" "$tool"; then
+            if claw_step "Upgrading ${label}…" -- "run_$mgr" "$tool"; then
                 SUMMARY_UPDATED=$((SUMMARY_UPDATED + 1))
             else
                 SUMMARY_FAILED=$((SUMMARY_FAILED + 1))
             fi
         done
-        mark_updated "$name"
+        mark_updated "$key"
     else
-        local_due=$(time_until_due "$name" "$interval")
-        printf "  %s○ %s — next update in %s%s\n" "$(_c muted)" "$name" "$local_due" "$(_creset)"
+        local_due=$(time_until_due "$key" "$interval")
+        printf "  %s○ %s — next update in %s%s\n" "$(_c muted)" "$mgr" "$local_due" "$(_creset)"
         printf "    %sdeferred: %s%s\n" "$(_c muted)" "$tools" "$(_creset)"
         for _ in $tools; do ((SUMMARY_DEFERRED++)); done
     fi

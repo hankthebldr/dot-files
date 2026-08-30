@@ -7,6 +7,46 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- Per-profile start directories — a profile is a *place*, not just a toolset:
+  every `meta.zsh` declares `PROFILE_START_DIR` and ONE applier
+  (`_claw_profile_cd`, `shell/profile-helpers.zsh`) lands you there from every
+  load path (`claw load`, the fzf welcome TUI, the rust-TUI outcome applier).
+  Knowledge & Ideation ▸ Vault drops you in the Obsidian vault root; `devops`
+  in `$DEVOPS_WORKSPACE`; `default` never moves you. Spec grammar: plain paths
+  (`$VAR`/`~` expanded), `@vault` / `@vault-folder` / `@vault:<Folder>` (routed
+  through `obsidian.zsh`'s one folder map, falling back to the vault root),
+  `a|b|c` candidate lists (first that exists — one spec, two OS layouts), `""`
+  for stay-put. Precedence `$CLAW_START_DIR` → `~/.config/claw/start-dirs.conf`
+  (per-machine, untracked; template `config/claw/start-dirs.conf.example`) →
+  `PROFILE_START_DIR`. Reversible (`cd -`), announced on load, opt-out with
+  `CLAW_PROFILE_CD=0` (or `=home` to relocate only from `$HOME`), and never
+  applied in non-interactive shells
+- `claw profiles paths` — the resolved start-dir table for this machine
+  (declared spec → where it lands, missing dirs flagged)
+- Phased `claw update` — one engine: phase 1 `scripts/utils/repo-sync.sh`
+  (conservative ff-only pull of the dotfiles repo; a dirty tree or diverged
+  branch skips with a reason, never auto-stash/merge; regen only of what the
+  pull changed — gen-fastfetch, `stow -R shell`, link-claude, integrity
+  manifest), phase 2 topgrade-first `system-update.sh` (one streamed
+  `claw_step` run under the repo-shipped `config/topgrade.toml`; the
+  hand-rolled sweep survives only as the no-topgrade fallback). New flags:
+  `--repo` / `--packages` (single phase), `--dry-run` (plan only, executes
+  nothing), `--last` (recent run receipts)
+- Update receipts: every run — manual or timer — appends one TSV row
+  (ISO timestamp, trigger, duration, ok|fail, detail) to
+  `~/.cache/claw/updates.tsv`; `claw update --last` pretty-prints them
+- Update state as data: new `scripts/utils/update-status.sh` probes brew/apt
+  pending counts + repo ahead/behind + last run into
+  `~/.cache/claw/updates.json` (atomic, self-throttled to ≥6h unless
+  `--force`; absent manager = null, never 0) — merged by `situation.sh probe`
+  as `.updates` (info-notify on the rising edge of repo-behind), exposed as
+  the `updates` field in `ff-readout.sh`, printed by `claw doctor`, and
+  refreshed in the background at login by the welcome TUI
+- Registry merge: optional third field in `config/manifest/tools.list`
+  (`id|source|cadence`, cadence `daily`/`weekly`/`biweekly`/`monthly`); the
+  tool-updater background fast lane now runs only cadence-tagged rows of the
+  one registry, keeping the hardcoded category list solely as the fallback
+  when the manifest is missing or carries no tagged rows
 - Streaming step runner `claw_step` + themed `claw_ui_*` chrome in
   `claw-progress.sh` — `claw update` / `claw update --tools` now stream every
   install step live (viewport that collapses on success, retained on failure,
@@ -30,6 +70,19 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - Real brand art for 8 profile fastfetch logos via chafa pipeline (58060e1)
 
 ### Changed
+- `claw profiles lint` now also fails a profile that omits `PROFILE_START_DIR`,
+  declares an unknown `@token`, or hand-rolls a top-level `cd` in a profile file
+- The cortex profile's hard-coded `cd "$CORTEX_WORKSPACE"` is gone — it is now
+  declared as that profile's `PROFILE_START_DIR`, so it is visible, reversible
+  and opt-out-able like every other profile's
+- Scheduled ≡ manual: the weekly self-update timer now runs the same phased
+  front door (`bin/claw update --non-interactive`, `CLAW_UPDATE_TRIGGER=timer`)
+  and fires a `notify.sh` crit alert on failure; `claw pkg update` delegates
+  to the one package engine
+- Sweep fixes on the no-topgrade fallback: upfront `sudo -v` + keepalive when
+  a sudo-needing manager is present, dropped `go clean -modcache` (a cache
+  wipe, not an update), `gem update --system` → `gem update` (user gems),
+  `--dry-run` prints the step plan without executing
 - Bootstrap now ensures `bin/claw` and scripts are executable + verifies install (7931a0e)
 - Restored OS auto-detect logo for the generic fastfetch dashboard (2e74b63)
 - Extracted shared `tui-style.sh` helpers; slimmed `system-update.sh` (065b08e)

@@ -10,7 +10,9 @@
 #   4. `claw provision` on a fresh box reinstalls EVERYTHING tracked here.
 #
 # Manifest format (config/manifest/tools.list), one tool per line:
-#   id|source            source ∈ brew apt cargo pipx gem npm eget:<repo> go:<pkg> curl:<url> manual
+#   id|source[|cadence]  source ∈ brew apt cargo pipx gem npm eget:<repo> go:<pkg> curl:<url> manual
+#                        cadence ∈ daily weekly biweekly monthly — opts the row
+#                        into tool-updater.sh's background fast lane
 #   # comments + blank lines ignored; "## Section" lines are kept for grouping.
 #
 # Usage:
@@ -19,7 +21,7 @@
 #   claw pkg track [--commit]      add untracked tools to the manifest (+commit)
 #   claw pkg add <id> [source]     add one tool manually
 #   claw pkg install [id|all]      install tracked tool(s) via their source
-#   claw pkg update                update everything (topgrade, else per-source)
+#   claw pkg update                update everything → one engine (system-update.sh)
 ################################################################################
 set -uo pipefail
 DOTFILES="${DOTFILES_DIR:-$HOME/.dotfiles}"
@@ -59,7 +61,13 @@ _pkg_warm_cache() {
     command -v brew  &>/dev/null && _PKG_BREW="$(brew leaves 2>/dev/null | sed 's#.*/##')"
     command -v cargo &>/dev/null && _PKG_CARGO="$(cargo install --list 2>/dev/null | grep -E '^\S+ v' | awk '{print $1}')"
     command -v pipx  &>/dev/null && _PKG_PIPX="$(pipx list --short 2>/dev/null | awk '{print $1}')"
-    command -v npm   &>/dev/null && _PKG_NPM="$(npm ls -g --depth=0 --parseable 2>/dev/null | sed 's#.*/##' | grep -v '^npm$')"
+    # npm parse strips through `/node_modules/`, NOT the last `/`. The old
+    # `sed 's#.*/##'` flattened `@anthropic-ai/claude-agent-sdk` to
+    # `claude-agent-sdk`, so `pkg install` fetched a DIFFERENT, unscoped
+    # package; and it turned the prefix root line (`/opt/homebrew/lib`, always
+    # emitted first by --parseable) into a phantom tool `lib`. The grep drops
+    # that root line — it is the only one without a `/node_modules/` segment.
+    command -v npm   &>/dev/null && _PKG_NPM="$(npm ls -g --depth=0 --parseable 2>/dev/null | grep '/node_modules/' | sed 's#^.*/node_modules/##' | grep -v '^npm$')"
     return 0
 }
 
@@ -227,15 +235,11 @@ pkg_install() {
 }
 
 pkg_update() {
-    if command -v topgrade &>/dev/null; then
-        log_info "updating everything via ${c_white}topgrade${c_reset} (covers all manifest sources)"
-        topgrade --disable=containers "$@"; return
-    fi
-    log_info "topgrade not installed — per-source update (run: claw install nextgen)"
-    command -v brew  &>/dev/null && { log_info "brew";  brew update && brew upgrade; }
-    [[ "$PKG_MANAGER" == apt ]]   && { log_info "apt";   sudo apt-get update && sudo apt-get upgrade -y; }
-    command -v cargo &>/dev/null && command -v cargo-install-update &>/dev/null && { log_info "cargo"; cargo install-update -a; }
-    command -v pipx  &>/dev/null && { log_info "pipx";  pipx upgrade-all; }
+    # ONE package engine (spine contract): system-update.sh is topgrade-first
+    # and owns the no-topgrade sweep too, so this door no longer hand-rolls
+    # its own per-source pass. Muscle memory preserved, engine unified.
+    log_info "one engine — routing to ${c_white}claw update --packages${c_reset}"
+    bash "$_U/system-update.sh" "$@"
 }
 
 case "${1:-list}" in

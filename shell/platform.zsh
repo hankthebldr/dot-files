@@ -103,10 +103,22 @@ alias paste='clip_paste'
 
 # ── Desktop Notifications ────────────────────────────────
 # Usage: claw_notify "Title" "Body text" [icon-or-sound]
-# macOS  → osascript display notification
-# Linux  → notify-send (libnotify-bin)
-# Fallback prints to stderr so scripts still see the message.
-if [[ "$CLAW_OS" == "macos" ]]; then
+# Delegates to the ONE cross-platform engine (scripts/utils/notify.sh) so macOS
+# and Linux behave identically — the same engine that backs `claw notify` and
+# the situation interrupt tier. The 3rd arg maps to the platform's channel:
+# macOS → sound name, Linux → notify-send icon. Inline osascript/notify-send/
+# stderr fallbacks below keep it working if the engine is missing.
+_claw_notify_engine="${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/notify.sh"
+if [[ -r "$_claw_notify_engine" ]]; then
+    claw_notify() {
+        local title="${1:-Open Claw}" body="${2:-}" extra="${3:-}"
+        local -a flags=(--title "$title")
+        if [[ -n "$extra" ]]; then
+            if [[ "$CLAW_OS" == "macos" ]]; then flags+=(--sound "$extra"); else flags+=(--icon "$extra"); fi
+        fi
+        "${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/notify.sh" send "${flags[@]}" "$body"
+    }
+elif [[ "$CLAW_OS" == "macos" ]]; then
     claw_notify() {
         local title="${1:-Open Claw}" body="${2:-}" sound="${3:-}"
         local sound_clause=""

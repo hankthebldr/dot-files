@@ -1,14 +1,6 @@
 ---
 name: gitsync
-description: >-
-  End-of-session git hygiene for a repo — sweep the working tree, commit named
-  files at sensible boundaries per the commit policy, push the working branch,
-  and capture anything deliberately NOT done as a deferred todo in the repo's
-  Things 3 project. Use when the user says "gitsync", "sync up the repo", "wrap
-  up the branch", "commit and capture the rest", or when a session ends with
-  known follow-ups (skipped tests, TODOs noticed, refactors parked) that must
-  not evaporate with the context window. Emits todos ONLY through docsync's
-  verbs — never raw add_todo.
+description: "Use when the user says \"gitsync\", \"sync up the repo\", \"wrap up the branch\", \"commit and capture the rest\", or when a session ends with known follow-ups (skipped tests, TODOs noticed, refactors parked) that must not evaporate with the context window. Emits todos ONLY through docsync's verbs — never raw add_todo."
 ---
 
 # gitsync — commit sweep + deferred capture

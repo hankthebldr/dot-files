@@ -21,12 +21,14 @@
 #   install          install + enable the systemd --user timer (runs `tick` ~60s)
 #   uninstall        disable + remove the timer
 #   review [--no-write]      summarize fired alerts + local-model tier-2 go/no-go
-#   schedule-review <date> [HH:MM]   one-shot --user timer that runs `review` once
+#   schedule-review <date> [HH:MM]   one-shot timer that runs `review` once
+#                                    (systemd --user on Linux · launchd on macOS)
 #   help
 #
 # Config (optional): ~/.config/claw/situation.env  (KEY=VALUE)
 #   OLLAMA_HOST=127.0.0.1:11434   HOMELAB_HOST=bd790i   DISK_WARN_PCT=90
 #   GPU_TEMP_WARN=85              KUBECONFIG_PATH=/etc/rancher/k3s/k3s.yaml
+#   UPDATES_NOTIFY=info           # repo-behind notify tier: info | off
 set -u
 
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
@@ -47,11 +49,24 @@ HOMELAB_FLEET="$DOTFILES/config/homelab/fleet.yml"
 : "${DISK_WARN_PCT:=90}"
 : "${GPU_TEMP_WARN:=85}"
 : "${KUBECONFIG_PATH:=${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}}"
+: "${UPDATES_NOTIFY:=info}"                            # repo-behind alerts: info|off
 
 mkdir -p "$CACHE_DIR" 2>/dev/null
 
 have() { command -v "$1" >/dev/null 2>&1; }
 gf()   { jq -r "$2" "$1" 2>/dev/null; }                # gf <file> <jq-filter>
+
+# seconds since a file's mtime (GNU/BSD stat); huge number when unreadable so
+# a missing cache always reads as stale
+file_age() {
+    local m; m="$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null)"
+    if [ -n "$m" ]; then echo $(( $(date +%s) - m )); else echo 999999999; fi
+}
+
+# digits-only guard for values embedded raw into the JSON snapshot — anything
+# else (jq's "null", an error, a corrupt cache) degrades to null, never breaks
+# the emitted document
+num_or_null() { case "${1:-}" in ''|*[!0-9]*) echo null ;; *) echo "$1" ;; esac; }
 
 # GNU `timeout` is absent on stock macOS (brew coreutils ships only gtimeout).
 # Every probe below is wrapped in `timeout N`, so shim it: prefer gtimeout,
@@ -65,16 +80,29 @@ if ! have timeout; then
 fi
 
 # ── Desktop notification (the interrupt tier) ──────────────────────────────
+# Delegates the desktop popup to the ONE notify engine (scripts/utils/notify.sh)
+# so macOS and Linux behave identically — crit is audible + distinguishable on
+# both (macOS was previously a silent banner identical to info). The alert-log
+# TSV is the one thing kept local. Falls back to an inline osascript/notify-send
+# if the engine is somehow absent (e.g. a partial checkout).
+NOTIFY_ENGINE="$DOTFILES/scripts/utils/notify.sh"
 notify() {
     # notify <info|crit> <title> <body>
-    local urg="$1" title="CLAW · $2" body="$3"
-    case "$(uname -s)" in
-        Darwin) osascript -e "display notification \"$body\" with title \"$title\"" 2>/dev/null ;;
-        *)      if have notify-send; then
-                    local u=normal; [ "$urg" = crit ] && u=critical
-                    notify-send -u "$u" -i utilities-terminal "$title" "$body" 2>/dev/null
-                fi ;;
-    esac
+    local urg="$1" title="CLAW · $2" body="$3" flag="--info"
+    [ "$urg" = crit ] && flag="--crit"
+    if [ -r "$NOTIFY_ENGINE" ]; then
+        bash "$NOTIFY_ENGINE" send "$flag" --app "CLAW" --title "$title" "$body" 2>/dev/null
+    else
+        case "$(uname -s)" in
+            Darwin)
+                local sound=""; [ "$urg" = crit ] && sound=" sound name \"Basso\""
+                osascript -e "display notification \"$body\" with title \"$title\"${sound}" 2>/dev/null ;;
+            *)      if have notify-send; then
+                        local u=normal; [ "$urg" = crit ] && u=critical
+                        notify-send -u "$u" -i utilities-terminal "$title" "$body" 2>/dev/null
+                    fi ;;
+        esac
+    fi
     printf '%s\t%s\t%s\t%s\n' "$(date -u +%FT%TZ)" "$urg" "$2" "$body" >> "$ALERTS" 2>/dev/null || true
 }
 
@@ -131,6 +159,19 @@ probe_json() {
         if timeout 2 ping -c1 -W1 "$HOMELAB_HOST" >/dev/null 2>&1; then hl_reach=true; else hl_reach=false; fi
     fi
 
+    # Pending updates: merge update-status.sh's cache when fresh (<24h), else
+    # nulls. Deliberately a cache READ — probing package managers here would
+    # slow every ~60s tick; the welcome-TUI kick / --force keeps it warm.
+    local up_brew=null up_apt=null up_behind=null up_ahead=null up_last=null
+    local upf="$CACHE_DIR/updates.json"
+    if have jq && [ -r "$upf" ] && [ "$(file_age "$upf")" -lt 86400 ]; then
+        up_brew="$(num_or_null "$(gf "$upf" '.brew')")"
+        up_apt="$(num_or_null "$(gf "$upf" '.apt')")"
+        up_behind="$(num_or_null "$(gf "$upf" '.repo_behind')")"
+        up_ahead="$(num_or_null "$(gf "$upf" '.repo_ahead')")"
+        up_last="$(num_or_null "$(gf "$upf" '.last_run')")"
+    fi
+
     cat <<EOF
 {
   "ts": "$ts",
@@ -140,6 +181,7 @@ probe_json() {
   "gpu": { "present": $gpu_present, "util": ${gpu_util:-null}, "mem_used": ${gpu_mem_u:-null}, "mem_total": ${gpu_mem_t:-null}, "temp": ${gpu_temp:-null} },
   "disk_root_pct": ${disk_pct:-0},
   "k3s": { "ready": ${k_ready:-null}, "total": ${k_total:-null} },
+  "updates": { "brew": ${up_brew:-null}, "apt": ${up_apt:-null}, "repo_behind": ${up_behind:-null}, "repo_ahead": ${up_ahead:-null}, "last_run": ${up_last:-null} },
   "homelab_reachable": ${hl_reach:-null}
 }
 EOF
@@ -432,6 +474,18 @@ cmd_tick() {
     [ "$ph" = "true" ] && [ "$ch" = "false" ] && notify crit "Homelab unreachable" "${HOMELAB_HOST} not responding"
     [ "$ph" = "false" ] && [ "$ch" = "true" ] && notify info "Homelab back" "${HOMELAB_HOST} reachable"
 
+    # Dotfiles repo fell behind upstream — rising edge ONLY (0-or-null → N),
+    # so a machine that stays behind nags once, not every tick. Info tier,
+    # gated by UPDATES_NOTIFY in situation.env ('off' disables).
+    if [ "$UPDATES_NOTIFY" != "off" ]; then
+        local pub cub; pub="$(gf "$p" '.updates.repo_behind')"; cub="$(gf "$c" '.updates.repo_behind')"
+        if [ "$cub" != "null" ] && [ "${cub:-0}" -gt 0 ] 2>/dev/null; then
+            if [ "$pub" = "null" ] || [ "${pub:-0}" -eq 0 ] 2>/dev/null; then
+                notify info "Dotfiles behind" "repo ↓${cub} vs upstream — run: claw update"
+            fi
+        fi
+    fi
+
     return 0   # don't leak the last test's status — the systemd unit would show 'failed' on a clean run
 }
 
@@ -446,6 +500,9 @@ cmd_show() {
           + (if .gpu.present then "  gpu:"+(.gpu.temp|tostring)+"°C/"+(.gpu.util|tostring)+"%" else "" end)
           + "  disk:" + (.disk_root_pct|tostring) + "%"
           + (if .homelab_reachable==null then "" else "  homelab:"+(if .homelab_reachable then "up" else "DOWN" end) end)
+          + (if ((.updates.brew // null) != null or (.updates.apt // null) != null)
+             then "  updates:" + (((.updates.brew // 0) + (.updates.apt // 0))|tostring) else "" end)
+          + (if (.updates.repo_behind // 0) > 0 then "  repo:↓" + (.updates.repo_behind|tostring) else "" end)
           + "   (" + .ts + ")"
         ' "$SNAP"
         [ "${1:-}" = "--json" ] && jq . "$SNAP"
@@ -557,11 +614,59 @@ Give a SHORT (4-6 lines) opinionated recommendation labelled GO / TUNE / HOLD, a
     return 0
 }
 
-# ── Schedule a one-shot review at a specific local datetime (systemd --user) ─
+# ── Schedule a one-shot review at a specific local datetime ─────────────────
+# Linux → systemd --user timer (OnCalendar). macOS → launchd LaunchAgent with a
+# StartCalendarInterval (month/day/hour/minute) that runs `review` then unloads
+# + deletes itself so it fires exactly once. Parity: this used to hard-fail on
+# MBP with "systemctl required".
 cmd_schedule_review() {
     local d="${1:-}" t="${2:-09:00}"
     [ -z "$d" ] && { echo "usage: situation schedule-review <YYYY-MM-DD> [HH:MM]"; return 1; }
-    have systemctl || { echo "systemctl required (Linux user timers)"; return 1; }
+    local hh="${t%%:*}" mm="${t#*:}"
+
+    if have launchctl && [ "$(uname -s)" = Darwin ]; then
+        # Parse YYYY-MM-DD → month/day for StartCalendarInterval (no year field
+        # in launchd; the self-unload below makes it a genuine one-shot anyway).
+        local mo dd
+        mo="$(printf '%s' "$d" | cut -d- -f2 | sed 's/^0*//')"; : "${mo:=1}"
+        dd="$(printf '%s' "$d" | cut -d- -f3 | sed 's/^0*//')"; : "${dd:=1}"
+        hh="$(printf '%s' "$hh" | sed 's/^0*//')"; : "${hh:=0}"
+        mm="$(printf '%s' "$mm" | sed 's/^0*//')"; : "${mm:=0}"
+        local plist="$HOME/Library/LaunchAgents/com.openclaw.situation-review.plist"
+        mkdir -p "$HOME/Library/LaunchAgents"
+        cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.openclaw.situation-review</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>"\$HOME/.dotfiles/scripts/utils/situation.sh" review; launchctl unload "$plist" 2>/dev/null; rm -f "$plist"</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Month</key><integer>${mo}</integer>
+        <key>Day</key><integer>${dd}</integer>
+        <key>Hour</key><integer>${hh}</integer>
+        <key>Minute</key><integer>${mm}</integer>
+    </dict>
+    <key>EnvironmentVariables</key>
+    <dict><key>PATH</key><string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+    <key>StandardOutPath</key><string>/dev/null</string>
+    <key>StandardErrorPath</key><string>/dev/null</string>
+</dict>
+</plist>
+EOF
+        launchctl unload "$plist" 2>/dev/null || true
+        launchctl load "$plist" || return 1
+        echo "✓ review scheduled for ${d} ${t} (local); runs 'situation review' once (launchd, self-removing)"
+        return 0
+    fi
+
+    have systemctl || { echo "no timer scheduler found — need launchctl (macOS) or systemctl (Linux)"; return 1; }
     local udir="$HOME/.config/systemd/user"; mkdir -p "$udir"
     cp -f "$DOTFILES/config/systemd/claw-situation-review.service" "$udir/" || return 1
     cat > "$udir/claw-situation-review.timer" <<EOF

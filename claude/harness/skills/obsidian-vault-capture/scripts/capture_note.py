@@ -19,7 +19,7 @@ Routing model (matches wip-router.py behavior):
     area:cortex-xdr -> CORTEX/XDR, area:lab -> _agents, etc.
   * A note with no recognized `area` returns "no routing signal" and stalls in
     _wip/. So: for a domain note you want auto-routed, ALWAYS pass --area.
-  * The explicit seams (_research, _projects, Github-Projects/<repo>) are NOT
+  * The explicit seams (_research, _projects, github-projects/<repo>) are NOT
     produced by the router. Assert them at write time with --dest; the router is
     skipped entirely for those.
 
@@ -174,7 +174,7 @@ def main(argv=None):
     ap.add_argument("--dest", default=DEFAULT_DEST,
                     help="Destination folder relative to vault root. Default '_wip' lets the router "
                          "classify by area. Pass a seam folder (e.g. '_research', '_projects', "
-                         "'Github-Projects/<repo>', 'CORTEX/Cortex Cloud') to write directly and skip routing.")
+                         "'github-projects/<repo>', 'CORTEX/Cortex Cloud') to write directly and skip routing.")
     ap.add_argument("--vault-root", default=DEFAULT_VAULT_ROOT, help="Vault root (default: $VAULT_PATH).")
     ap.add_argument("--date", default=None, help="Override date for created/modified (YYYY-MM-DD). Defaults to today.")
     ap.add_argument("--body", default=None, help="Note body as a string.")

@@ -19,3 +19,12 @@
 192.0.2.0/24
 
 # --- Add engagement scopes below this line ---
+
+# --- Homelab, approved by operator 2026-08-22 ---
+# Henry Reed's own lab: BD790i / MS-01 / R630 / Pi / PA-440 / Cisco 3560.
+# 100.64.0.0/10 is the Tailscale CGNAT range carrying the baboon-loggerhead
+# tailnet; only this operator's own nodes are routable within it.
+192.168.1.0/24
+*.lab.local
+*.baboon-loggerhead.ts.net
+100.64.0.0/10

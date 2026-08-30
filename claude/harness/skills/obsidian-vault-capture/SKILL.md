@@ -1,6 +1,6 @@
 ---
 name: obsidian-vault-capture
-description: Capture research findings, slash-command output, decisions, or other substantive session output as a structured Obsidian note in Henry's vault. Use this skill automatically whenever a session produces output with lasting reference value — research conclusions, comparison/evaluation results, command output worth keeping, architecture decisions, or notable findings — even if the user does not explicitly say "save this to my vault." Trigger on phrases like "capture this," "save to my vault," "note this," "vault this," and as the default RECORD/REFLECT step in autonomous loops. This is the canonical way to write vault notes; do not hand-roll frontmatter or write notes ad hoc when this skill applies.
+description: "Use whenever a session produces output with lasting reference value — research conclusions, comparison or evaluation results, command output worth keeping, architecture decisions, or notable findings — even if the user does not explicitly say \"save this to my vault\". Also trigger on \"capture this\", \"save to my vault\", \"note this\", \"vault this\", and as the default RECORD/REFLECT step in autonomous loops. This is the canonical way to write vault notes; do not hand-roll frontmatter or write notes ad hoc when this skill applies."
 ---
 
 # Obsidian Vault Capture
@@ -40,7 +40,7 @@ shapes:
 | --- | --- | --- |
 | Research | research output | `_research` |
 | Project doc | project why/how | `_projects` |
-| Repo docs | code-coupled docs | `Github-Projects/<repo>` (repo name == Things project == folder) |
+| Repo docs | code-coupled docs | `github-projects/<repo>` (repo name == Things project == folder) |
 | Domain note | Cortex etc. | the domain folder, e.g. `CORTEX/Cortex Cloud` |
 
 **Everything else** → omit `dest` → the note stages in `_wip/` and the router
@@ -152,7 +152,7 @@ side or the next `oroute --apply` run.
 - `--aliases` — comma-separated aliases.
 - `--dest` — destination folder relative to vault root. Default `_wip` lets the
   router classify by `area`. Pass a seam folder (`_research`, `_projects`,
-  `Github-Projects/<repo>`, `CORTEX/Cortex Cloud`, …) to write directly and skip
+  `github-projects/<repo>`, `CORTEX/Cortex Cloud`, …) to write directly and skip
   routing.
 - `--vault-root` — vault root; defaults to `$VAULT_PATH`
   (`/Users/henry/hr-vault-main-pa`).
@@ -228,9 +228,9 @@ fallback.
 ## Boundary with docsync / vault-os
 
 This skill captures notes. The dev-project workspace plumbing —
-`Github-Projects/{repo}/`, its `_MOC {repo}.md` binding anchor, `sync-log.md`, and
+`github-projects/{repo}/`, its `_MOC {repo}.md` binding anchor, `sync-log.md`, and
 mirrored repo artifacts — is owned by the `docsync` skill and the vault-os tools.
-You may *capture a note into* `Github-Projects/<repo>` (via `dest`/`--dest`), but
+You may *capture a note into* `github-projects/<repo>` (via `dest`/`--dest`), but
 never write or edit a project binding anchor or sync-log from here. During a
 `/sync-docs` run, per-run history goes to `sync-log.md`; use capture only for
 **notable findings or decisions** that deserve a durable, filable note — a higher

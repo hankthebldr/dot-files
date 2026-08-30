@@ -61,9 +61,37 @@ the spine — do not add a parallel dispatcher, palette, or dashboard.
    no-python fallback only. Data comes from `ff-readout.sh fields` (incl.
    `<res>_pct` for the bars).
 
-Also: `claw update` is the one updater front door (`--tools` → tool-updater,
-`--schedule` → selfupdate); superseded/uncalled scripts live in `legacy/`
-(see `legacy/README.md`) — archive there, don't delete or leave strays.
+Also: `claw update` is the one updater front door, and it is **phased**:
+phase 1 `scripts/utils/repo-sync.sh` (conservative ff-only pull of the
+dotfiles repo — a dirty tree or diverged branch skips with a reason, never
+auto-stash/merge — then regen of only the derived artifacts the pull touched:
+gen-fastfetch, `stow -R shell`, link-claude, integrity manifest); phase 2
+`scripts/utils/system-update.sh`, the ONE package engine — topgrade-first,
+run as a single streamed `claw_step` under the repo-shipped
+`config/topgrade.toml` when `topgrade` is installed, with the hand-rolled
+sweep surviving only as the fallback. Flags: `--repo` / `--packages` run one
+phase, `--dry-run` previews without executing, `--last` pretty-prints recent
+receipts, `--tools` → tool-updater fast lane, `--schedule` → selfupdate
+(whose weekly timer runs `bin/claw update --non-interactive`, so scheduled ≡
+manual; `claw pkg update` delegates to the engine too). Every run appends one
+receipt row (ISO ts, trigger, duration, ok|fail, detail) to
+`~/.cache/claw/updates.tsv`. The fast lane reads the ONE tool registry:
+`config/manifest/tools.list` rows carry an optional third field
+`id|source|cadence` (daily|weekly|biweekly|monthly) and only cadence-tagged
+rows update in the background (hardcoded categories are the manifest-less
+fallback only). Update state is data: `scripts/utils/update-status.sh` probes
+pending counts into `~/.cache/claw/updates.json` (atomic, ≥6h throttle unless
+`--force`; absent manager = null), read by `situation.sh` (`.updates`,
+info-notify on the rising edge of repo-behind), `ff-readout.sh` (`updates`
+field), `claw doctor`, and refreshed in the background at login by the
+welcome TUI. Superseded/uncalled scripts live in `legacy/` (see
+`legacy/README.md`) — archive there, don't delete or leave strays.
+
+Also: `scripts/utils/notify.sh` is the one desktop-notification engine
+(`claw notify`, macOS terminal-notifier→osascript / Linux notify-send, stderr
+fallback). `platform.zsh` `claw_notify` and `situation.sh`'s interrupt tier both
+route through it so crit alerts behave identically on macOS and Linux — never
+hand-roll an `osascript`/`notify-send` call in a new surface.
 
 ### Shell Configuration Loading Order (.zshrc)
 
@@ -96,14 +124,30 @@ Mirrors the numbered steps in `shell/.zshrc` (see its header comment):
 - 10 specialized: `claude/`, `blackwell/`, `brainstorm/`, `deck/`, `demo/`, `design/`, `homelab/`, `pmo/`, `tunnels/`, `vault/` (18 profiles total)
 
 Each profile directory provides:
-- `meta.zsh` — `CLAW_PROFILE_THEME` / `PROFILE_THEME_DEFAULT` and other profile metadata
+- `meta.zsh` — `CLAW_PROFILE_THEME` / `PROFILE_THEME_DEFAULT`, `PROFILE_START_DIR`, and other profile metadata
 - `common.zsh` — domain-specific aliases and functions shared across platforms
 - `mac.zsh` / `linux.zsh` — platform-specific overrides, sourced conditionally by the dispatcher
 - `{profile}-help` — styled quick-reference card
 - `_{profile}_tool_check` — tool presence validation
 - Profile-specific fastfetch config (`config-{profile}.jsonc`) with themed logo
 
-`claw profiles lint` (`scripts/utils/profiles-lint.sh`) validates the directory-per-profile contract — every profile has the expected files and exports the required symbols.
+**Start directories — one applier, declared per profile.** WHERE a profile drops
+you is data, not code: `PROFILE_START_DIR` in `meta.zsh` (e.g. `vault` →
+`@vault`, the Obsidian vault root; `devops` → `${DEVOPS_WORKSPACE:-$HOME/devops}`),
+resolved and applied by `_claw_profile_cd` in `shell/profile-helpers.zsh` — the
+ONE applier every load path calls (`claw load`, the fzf welcome TUI, the
+rust-TUI outcome applier). Never hand-roll a top-level `cd` in a profile file.
+Spec grammar: plain paths (`$VAR`/`~` expanded), `@vault` (vault root),
+`@vault-folder` (the profile's mapped folder via `obsidian.zsh`, vault root if
+absent), `@vault:<Folder>`, `a|b|c` (first candidate that exists), `""` (stay
+put — what `default` uses). Precedence: `$CLAW_START_DIR` (this shell) →
+`~/.config/claw/start-dirs.conf` (per-machine, untracked; template in
+`config/claw/start-dirs.conf.example`) → `PROFILE_START_DIR`. Escape hatches:
+`CLAW_PROFILE_CD=0` (never), `=home` (only from `$HOME`), `cd -` (always goes
+back), and non-interactive shells are never relocated. `claw profiles paths`
+prints the resolved table.
+
+`claw profiles lint` (`scripts/utils/profiles-lint.sh`) validates the directory-per-profile contract — every profile has the expected files, declares `PROFILE_START_DIR` with a known `@token`, exports the required symbols, and hand-rolls no top-level `cd`.
 
 ### Fastfetch Profile Configs
 
@@ -183,8 +227,8 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 - `scripts/utils/ai-services.sh` — unified manager for self-hosted AI web stacks (open-webui, dify, ragflow, langfuse) via `claw ai-services`
 - `scripts/utils/homelab.sh` — SSH topology manager (parses ~/.ssh/config)
 - `scripts/utils/mcp-manager.sh` — MCP server manager (list/register/scaffold)
-- `scripts/utils/system-update.sh` — Cumulative updater with gum spinners (graceful fallback)
-- `scripts/utils/tool-updater.sh` — Background auto-updater with staggered intervals
+- `scripts/utils/system-update.sh` — The one package-update engine (topgrade-first via `config/topgrade.toml`, streamed `claw_step`; hand-rolled sweep as fallback)
+- `scripts/utils/tool-updater.sh` — Background fast-lane updater driven by cadence-tagged rows of `config/manifest/tools.list` (per-category cache; hardcoded categories only as manifest-less fallback)
 
 ## Conventions
 
@@ -193,7 +237,7 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 - **Color theme:** GitHub macOS Dark throughout — Blue `#58a6ff`, Green `#3fb950`, Purple `#bc8cff`, Orange `#d29922`, Red `#ff7b72`, Muted `#8b949e`
 - **Logging pattern:** Color-coded `log_info`, `log_success`, `log_warning`, `log_error` (blue/green/yellow/red)
 - **Idempotent installs:** All scripts check `command -v` before installing
-- **SSH safety:** Welcome TUI never runs in non-interactive/piped shells. load-env.zsh is silent. No stdout pollution.
+- **SSH safety:** Welcome TUI never runs in non-interactive/piped shells, and skips the fzf picker on interactive SSH logins too (loads the default profile instead) — a pre-prompt full-screen menu deadlocks SSH clients that wait for the first prompt ("setting up session…" hangs). `CLAW_SSH_TUI=1` opts back in for plain ssh. load-env.zsh is silent. No stdout pollution.
 - **Machine-local config goes in `~/.zshrc.local`, not the repo:** `~/.zshrc` is a stow symlink *into* the repo (`shell/.zshrc`), so any tool that does `echo >> ~/.zshrc` writes host-specific data (absolute paths, secrets, machine env) straight into the tracked, portable dotfiles. `.zshrc` sources `~/.zshrc.local` (untracked) near the end — put per-machine `export`s there instead. Periodically check `git status` on `shell/.zshrc` for stray appended lines.
 - **Shell scripts use `set -e`** (exit on error); master-setup also uses `set -u`
 - **Safety aliases:** Destructive ops always prompt (`rm -i`, `mv -i`, `cp -i`)
@@ -223,9 +267,10 @@ Domain toolchain scripts (`scripts/install/`): `ai-toolchain.sh`, `cloud-toolcha
 | `scripts/utils/ai-services.sh` | Unified manager for self-hosted AI web stacks (open-webui/dify/ragflow/langfuse) |
 | `config/open-webui/docker-compose.yml` | Open WebUI stack (ChatGPT-style Ollama UI, :3000) |
 | `scripts/utils/toolkit.sh` | Interactive workflow launcher |
-| `scripts/utils/system-update.sh` | Package updater with gum spinners |
+| `scripts/utils/system-update.sh` | One package-update engine (topgrade-first, sweep fallback) |
 | `scripts/utils/homelab.sh` | SSH topology manager |
 | `scripts/utils/logger.sh` | Shared logging utilities |
+| `scripts/utils/notify.sh` | One cross-platform desktop-notification engine (`claw notify`); backs `platform.zsh` `claw_notify` + `situation.sh` alerts |
 | `scripts/utils/detect-os.sh` | OS detection (macOS, Ubuntu, Kali, etc.) |
 | `scripts/setup/symlinks.sh` | GNU Stow symlink deployment |
 | `scripts/setup/link-claude.sh` | Item-level deployer for `claude/` → `~/.claude` (hooks, skills, harness) |

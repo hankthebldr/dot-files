@@ -1,16 +1,6 @@
 ---
 name: docsync
-description: >
-  Project-aware sync between a GitHub repo, its Things 3 project, and its Obsidian
-  vault subdirectory. The repo NAME is the common key across all three surfaces.
-  Use whenever an agent needs to create, find, complete, or update Things 3 todos
-  tied to a repo, onboard a repo, or mirror a repo's key markdown into the vault.
-  Replaces ad-hoc add_todo calls that silently land in the Inbox, and ad-hoc
-  update/complete calls that fuzzy-match titles. Trigger on "docsync", "sync this
-  repo to Things", "create a todo for {repo}", "mark X done", "complete the task",
-  "close out", "finished the todo", "update the task", "the task we tracked",
-  sprint planning that emits tasks, any repo-scoped task capture, or any
-  completion/update/close of a task previously tracked for a repo.
+description: "Use whenever an agent needs to create, find, complete, or update Things 3 todos tied to a repo, onboard a repo, or mirror a repo's key markdown into the vault. Trigger on \"docsync\", \"sync this repo to Things\", \"create a todo for {repo}\", \"mark X done\", \"complete the task\", \"close out\", \"finished the todo\", \"update the task\", \"the task we tracked\", sprint planning that emits tasks, any repo-scoped task capture, or any completion/update/close of a task previously tracked for a repo. Replaces ad-hoc add_todo calls that silently land in the Inbox, and ad-hoc update/complete calls that fuzzy-match titles."
 ---
 
 # docsync
@@ -24,14 +14,14 @@ MAC  ~/Github/Github_desktop/{repo}/        (left) code, authoritative for ident
               |
         +-----+-----------------------+
         v                             v
-THINGS 3 project "{repo}"      VAULT  Github-Projects/{repo}/
+THINGS 3 project "{repo}"      VAULT  github-projects/{repo}/
    (manages the work)                (one-way mirror of repo artifacts + your context)
                                       anchored by  _MOC {repo}.md
 ```
 
 Authority model:
 - **Repo name** = identity key. Same string names the repo dir, the Things project, and the vault subdir.
-- **`{VAULT}/Github-Projects/{repo}/_MOC {repo}.md`** = the single binding anchor.
+- **`{VAULT}/github-projects/{repo}/_MOC {repo}.md`** = the single binding anchor.
   Carries the binding frontmatter (`repo-path`, `things-project-uuid`,
   `things-project-name`, `last-sync-date`, `last-sync-sha`) AND a self-locating
   dataviewjs folder tree. Owned and written by the MCP tools, never by docsync directly.
@@ -41,7 +31,7 @@ Authority model:
 Paths:
 - Repos root (Mac): `~/Github/Github_desktop`
 - Vault root: `/Users/henry/hr-vault-main-pa`   (direct path; vault = hr-vault-main-pa. Adjust if your home dir differs.)
-- Vault mirror root: `{VAULT}/Github-Projects`
+- Vault mirror root: `{VAULT}/github-projects`
 
 ---
 
@@ -216,7 +206,7 @@ Default artifact set (copy if present, skip silently if not; overwrite-on-change
 
 Never touch:
 - `_MOC {repo}.md` (the binding anchor — tool-owned)
-- any file you authored under `Github-Projects/{repo}/` with no repo counterpart
+- any file you authored under `github-projects/{repo}/` with no repo counterpart
   (those are your context notes; leave them).
 
 In DRY-RUN: print the proposed copies. In APPLY: copy, then `vault_log_sync(...)`
@@ -269,7 +259,7 @@ identity: "todo identity = docsync's KIND REGISTRY key scheme."
 
 ---
 
-## Binding anchor — `{VAULT}/Github-Projects/{repo}/_MOC {repo}.md`
+## Binding anchor — `{VAULT}/github-projects/{repo}/_MOC {repo}.md`
 
 Written by `vault_project_home`. Schema (frontmatter keys are authoritative — match exactly):
 
@@ -318,12 +308,12 @@ binding on first sync. After that, every run takes the BINDING path.
 docsync and `obsidian-vault-capture` share the vault but own different territory.
 Respect the seam:
 
-- **docsync / vault-os tools** own the project workspace: `Github-Projects/{repo}/`
+- **docsync / vault-os tools** own the project workspace: `github-projects/{repo}/`
   — the `_MOC {repo}.md` anchor, `sync-log.md`, `design/`, and mirrored repo
   artifacts. Written only through the vault-os MCP tools.
 - **obsidian-vault-capture** owns the inbox: `_wip/` only. Research findings,
   ADR-style decisions, and notable command output captured during a run go there
-  via its own `capture_note.py`, never into `Github-Projects/`.
+  via its own `capture_note.py`, never into `github-projects/`.
 - A `/sync-docs` run records its **run history** to the project `sync-log.md`
   (every sync). It captures to `_wip/` only for **notable findings/decisions**
   surfaced during the sync — a higher, selective bar. The two never double-log the

@@ -30,6 +30,7 @@ export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
 [[ -d "$HOME/.cargo/bin" ]] && export PATH="$HOME/.cargo/bin:$PATH"
 [[ -d "$HOME/go/bin" ]]     && export PATH="$HOME/go/bin:$PATH"
 [[ -d "$HOME/.opencode/bin" ]] && export PATH="$HOME/.opencode/bin:$PATH"
+[[ -d "$HOME/.antigravity-ide/antigravity-ide/bin" ]] && export PATH="$HOME/.antigravity-ide/antigravity-ide/bin:$PATH"
 export PATH="${DOTFILES_DIR}/scripts/utils:$PATH"
 export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 
@@ -118,9 +119,11 @@ fi
 # Live progress indicator (window title + completion banner + claw_run wrapper)
 [[ -f "$DOTFILES_DIR/shell/progress.zsh" ]] && source "$DOTFILES_DIR/shell/progress.zsh"
 [[ -f "$DOTFILES_DIR/shell/delight.zsh" ]] && source "$DOTFILES_DIR/shell/delight.zsh"
-# Obsidian Vault OS. Default assumes the vault lives under ~/Documents; override
-# per-machine by exporting VAULT_PATH in ~/.zshenv (sourced before this file).
-export VAULT_PATH="${VAULT_PATH:-$HOME/Documents/hr-vault-main-pa}"
+# Obsidian Vault OS. Canonical path is ~/hr-vault-main-pa (see the vault's
+# CLAUDE.md); override per-machine by exporting VAULT_PATH in ~/.zshenv
+# (sourced before this file). The old ~/Documents default pointed at a
+# nonexistent path and silently skipped the vault alias layer.
+export VAULT_PATH="${VAULT_PATH:-$HOME/hr-vault-main-pa}"
 [[ -f "$VAULT_PATH/_agents/shell-aliases.sh" ]] && source "$VAULT_PATH/_agents/shell-aliases.sh"
 
 # ── 7. Tool Initializations (all guarded) ───────────────
@@ -187,7 +190,15 @@ if [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then
     # PROFILE_NAME (set by every profile's meta.zsh) = "already sourced by the
     # TUI" sentinel. The old sentinel was CLAW_PROFILE_THEME, a dead export
     # removed in the P2 theme unification.
-    [[ -f "$PROFILE_PATH" && -z "${PROFILE_NAME:-}" ]] && source "$PROFILE_PATH"
+    if [[ -f "$PROFILE_PATH" && -z "${PROFILE_NAME:-}" ]]; then
+        source "$PROFILE_PATH"
+        # An env-set profile (export CLAW_ACTIVE_PROFILE=… && exec zsh) never
+        # went through the TUI, so land in its start dir here too — the same
+        # applier and the same knobs (PROFILE_START_DIR in meta.zsh,
+        # CLAW_PROFILE_CD, ~/.config/claw/start-dirs.conf). profile-helpers.zsh
+        # loaded in step 6.
+        typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd "$CLAW_ACTIVE_PROFILE"
+    fi
 fi
 
 # ── Powerlevel10k prompt — sourced from the REPO, not ~/.p10k.zsh ───────────
