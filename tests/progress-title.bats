@@ -61,3 +61,55 @@ setup() {
   [[ "$output" == *"AFTER_ON=1"* ]]
   [[ "$output" == *"AFTER_OFF=0"* ]]
 }
+
+# The tab is narrow and Ghostty's GTK tabs ellipsize the END, so whatever leads
+# the title is what the operator actually sees. The directory has to lead: the
+# old "[profile] user@host: cwd" order spent the visible width on a hostname
+# and truncated away the one thing a tab is for.
+@test "idle title: the working directory comes first" {
+  run zsh -c '
+    export CLAW_ACTIVE_PROFILE=security
+    source "'"$PROG"'"
+    cd /tmp
+    __claw_session_resolve
+    print -Pn "%~${REPLY:+  ·  [$REPLY]}  ·  %n@%m"
+  '
+  [ "$status" -eq 0 ]
+  # /tmp is the cwd, and it must appear before the profile label.
+  [[ "$output" == *"/tmp"* ]]
+  cwd_pos=$(awk -v s="$output" 'BEGIN{print index(s, "/tmp")}')
+  lbl_pos=$(awk -v s="$output" 'BEGIN{print index(s, "[security]")}')
+  [ "$cwd_pos" -gt 0 ]
+  [ "$lbl_pos" -gt 0 ]
+  [ "$cwd_pos" -lt "$lbl_pos" ]
+}
+
+@test "idle title: user@host trails the directory, it does not lead" {
+  run zsh -c '
+    unset CLAW_ACTIVE_PROFILE CLAW_SESSION
+    source "'"$PROG"'"
+    cd /tmp
+    __claw_session_resolve
+    print -Pn "%~${REPLY:+  ·  [$REPLY]}  ·  %n@%m"
+  '
+  [ "$status" -eq 0 ]
+  cwd_pos=$(awk -v s="$output" 'BEGIN{print index(s, "/tmp")}')
+  at_pos=$(awk -v s="$output" 'BEGIN{print index(s, "@")}')
+  [ "$cwd_pos" -lt "$at_pos" ]
+}
+
+# Same rule for the opt-in live title: a truncated tab must still say where you
+# are, even while a command is running.
+@test "live title: the location leads, the profile label trails" {
+  run grep -n '__claw_progress_set_title "${loc' "$BATS_TEST_DIRNAME/../shell/progress.zsh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'${loc:+$loc }⏳'* ]]
+  [[ "$output" == *'${lbl:+  ·  [$lbl]}'* ]]
+}
+
+# progress.zsh must remain the sole title author — Ghostty's own title feature
+# is off and OMZ's auto-title is disabled here, so nothing else repaints it.
+@test "progress.zsh still disables the OMZ auto-title" {
+  run grep -q '^DISABLE_AUTO_TITLE=true' "$BATS_TEST_DIRNAME/../shell/progress.zsh"
+  [ "$status" -eq 0 ]
+}
