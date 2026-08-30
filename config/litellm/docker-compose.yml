@@ -3,24 +3,37 @@
 #
 #   Gateway:  http://localhost:4000  (OpenAI-compatible /v1)
 #   Config:   ./config.yaml  (model_list + routing)
-#   Backends: host ollama :11434, llama-swap :8090, vLLM :8000 — reached via
-#             host.docker.internal (the container itself needs no GPU).
+#   Backends: host ollama :11434, llama-swap :8090, vLLM :8010
 #
 # OPSEC: image pinned to a specific version (NOT a moving :main-stable tag).
 # LiteLLM had a PyPI supply-chain compromise in 2026-03 (v1.82.7/1.82.8);
 # v1.89.2 is well past it. Bump deliberately, re-verify, don't float.
+#
+# NETWORKING — READ BEFORE CHANGING (2026-08-30)
+#   This used to be a bridge container reaching the host by mapping
+#   host.docker.internal to the host-gateway address (172.17.0.1). That path is
+#   DEAD on this box: ufw is enabled and DROPS traffic from the docker0 bridge
+#   into the host, so every backend call hung for the full request timeout with
+#   nothing logged — the gateway looked "up" (/v1/models still answered, since
+#   that is served from config) while every actual completion timed out.
+#   Verified from inside the container: 172.17.0.1 ports 8010, 11434 and 8000
+#   all raised TimeoutError, while the very same ports were reachable from the
+#   host itself.
+#
+#   Host networking is the fix rather than "ufw allow in on docker0", which
+#   would expose every host port to every container on the box. enclave-vllm
+#   already runs with host networking anyway. With network_mode: host the
+#   api_base targets in config.yaml are plain 127.0.0.1, and Docker ignores
+#   `ports:`, so the gateway still binds 0.0.0.0:4000 exactly as before.
 services:
   litellm:
     image: ghcr.io/berriai/litellm:v1.89.2
     container_name: litellm
     restart: unless-stopped
-    ports:
-      - "4000:4000"
+    network_mode: host
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     environment:
-      # Clients must send this as the Bearer key. Override in ~/.dotfiles/.env.
+      # Clients must send this as the Bearer token. Override in ~/.dotfiles/.env.
       - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-local-changeme}
     volumes:
       - ./config.yaml:/app/config.yaml:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
