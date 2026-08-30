@@ -86,6 +86,35 @@ toolchain_preflight_extras() {
     fi
 }
 
+# Remove the shims `pipx install --include-deps <pkg>` published for <pkg>'s
+# dependencies, keeping only the command named after the package itself.
+#
+# Only ever touches symlinks in ~/.local/bin that resolve INTO that package's
+# own pipx venv — a real binary, or a shim belonging to a different venv, is
+# never a candidate. Idempotent: a second run finds nothing to do.
+_prune_include_deps_shims() {  # _prune_include_deps_shims <pkg>
+    local pkg="$1"
+    local bin_dir="${PIPX_BIN_DIR:-$HOME/.local/bin}"
+    local venv_dir="${PIPX_HOME:-$HOME/.local/share/pipx}/venvs/$pkg"
+    [[ -d "$bin_dir" && -d "$venv_dir" ]] || return 0
+
+    local pruned=0 shim target name
+    for shim in "$bin_dir"/*; do
+        [[ -L "$shim" ]] || continue                 # symlinks only
+        name="${shim##*/}"
+        [[ "$name" == "$pkg" ]] && continue          # the command we wanted
+        target="$(readlink -f "$shim" 2>/dev/null)" || continue
+        [[ "$target" == "$venv_dir/"* ]] || continue # must be THIS venv
+        if [[ "$DRY_RUN" == "1" ]]; then
+            log_info "DRY: rm $shim  (dependency shim from $pkg)"
+        else
+            rm -f "$shim" && pruned=$((pruned + 1))
+        fi
+    done
+    (( pruned > 0 )) && log_info "pruned $pruned dependency shim(s) published by $pkg --include-deps"
+    return 0
+}
+
 # ── Post-install: pipx SDKs, npm SDKs, hermes, openrouter ────────────────
 toolchain_extras() {
     # ── pipx SDKs ──────────────────────────────────────────────────────────
@@ -126,6 +155,18 @@ toolchain_extras() {
                 fi
             fi
         done
+
+        # `--include-deps` exposes EVERY entry point of every dependency, not
+        # just the one we wanted. On this workstation crewai alone published 27
+        # commands into ~/.local/bin — `httpx`, `mcp`, `jsonschema`, `typer`,
+        # `uvicorn`, `distro`, `tqdm`, `normalizer` and friends.
+        #
+        # That is not cosmetic. `httpx` there is the Python HTTP client, and it
+        # shadows ProjectDiscovery's scanner wherever ~/.local/bin precedes
+        # ~/go/bin — which silently turns a security scan into a tool that
+        # exits 0 and finds nothing (spec §20.1 blocker 3). Keep the one command
+        # the package was installed for; drop the rest.
+        _prune_include_deps_shims crewai
     fi
 
     # ── Agent CLIs (npm) ──────────────────────────────────────────────────
