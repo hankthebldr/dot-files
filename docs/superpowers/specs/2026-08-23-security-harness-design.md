@@ -658,18 +658,18 @@ on this workstation.
 
 | Surface | Change |
 |---|---|
-| `bin/claw` | `sec)` → `scripts/security/sec.sh`; `tools · flows · run · doctor · lint · scope · audit · halt · tool new · mcp` |
+| `bin/claw` | `sec)` → `scripts/security/sec.sh`; `tools · flows · run · demo · drill · doctor · lint · scope [add\|show] · audit · halt · tool new · mcp · test` |
 | `bin/pi` | New agent front door, mirrors `bin/hermes` (`--serve`, `--model`) |
 | `~/.config/claw/agents.toml` | `claw agent add pi` → `profile = "security"` |
 | `claude/mcp.json` | Register `claw-sec` stdio server — fills the ADR-002 OSINT slot |
 | `claude/hooks/pre_tool_use.py` | **Import `scope.py`** instead of its own parser — one grammar, no drift |
-| `claude/scope.txt` | Document `!deny` and `resolve-policy:` in the header comment |
-| `shell/profiles/security/common.zsh` | `pi`, `wr` aliases; `sec-help` rows; guarded on `command -v` |
+| `claude/scope.txt` | **Done** — header documents `!deny`, `resolve-policy:`, the two layers, and the `scope add` commands |
+| `shell/profiles/security/common.zsh` | **Done** (`wr`, `secscope`, `secadd`, `secshow`, `secdoc`, `secdrill`; `sec-help` rows; `sec_engagement` exports `CLAW_SEC_ENGAGEMENT`). `pi` waits on step 9 |
 | `shell/profiles/security/linux.zsh` | Fix `WORDLISTS` for Kali's `seclists` path |
-| `shell/profiles/security/meta.zsh` | Extend `PROFILE_KEY_TOOLS` with the Tier 0 chain |
-| `scripts/install/security-toolchain.sh` | Add Tier 0/1 with the Kali package map |
-| `claw validate` | Harness readiness rows (lint, doctor, MCP reachability, audit chain) |
-| `claude/harness/skills/webrecon/` | Skill teaching Claude Code to drive the flow; deployed by `link-claude.sh` |
+| `shell/profiles/security/meta.zsh` | **Done** — `PROFILE_KEY_TOOLS` carries the Tier 0 chain |
+| `scripts/install/security-toolchain.sh` | **Done** — reads `tools.yaml` for the package map (no second copy); applies naabu's CAP_NET_RAW |
+| `claw validate` | **Done** — phase 10: registry lint, one-scope-parser check, tool identity, scope parses |
+| `claude/harness/skills/webrecon/` | **Done** — deployed by `link-claude.sh`. Companion `sec-harness-qa` agent attacks the controls |
 | `config/integrity/manifest.sha256` | Regenerate after implementation |
 
 **Invariants respected:** one dispatcher (`claw sec` routes through `bin/claw`; no second `claw()`);
@@ -707,7 +707,10 @@ listed explicitly · empty scope file · scope with only names ⇒ policy `warn`
 policy `enforce` · `resolve-policy: off` ⇒ invasive still blocked.
 
 `bats` is not installed on `bd790i` — shell tests follow the existing `tests/*.test.sh` pattern;
-Python layers use `pytest`.
+Python layers use stdlib `unittest` (`claw sec test` → `python3 -m unittest
+discover -s tests/security`), so the suite runs on a box with no test
+dependencies installed. `pyyaml` and `jsonschema` are the only runtime
+third-party imports.
 
 ---
 
@@ -754,8 +757,15 @@ None of these are enforced by prompting.
 7. `phases.py` + `flows/webrecon.yaml`; `--dry-run` integration test; kill switch.
 8. `mcp_server.py`; register in `claude/mcp.json`; verify from Claude Code.
 9. `ollama_bridge.py` + `bin/pi`; model probe; register in `agents.toml`.
-10. `pre_tool_use.py` migration to shared `scope.py`.
+10. `pre_tool_use.py` migration to shared `scope.py`. **Done** — `_lib.in_scope`
+    now answers with `Scope.denied()` + `Scope.name_allows()`. It borrows the
+    name/deny half only; address verification stays in the harness gate, which
+    is therefore strictly stricter than the hook, never more permissive.
 11. Toolchain, profile surface, `claw validate` rows, `webrecon` harness skill.
+    **Done**, except the `pi` alias (step 9). The toolchain reads this registry
+    for its package map rather than restating it; `claw validate` phase 10 runs
+    under a `~/.local/bin`-first PATH so tool identity is tested under a hostile
+    ordering, not a friendly one.
 12. Regenerate integrity manifest.
 
 **Steps 1–6 deliver a gated, audited, testable tool surface with no model involved.** That is the
@@ -790,9 +800,9 @@ Known-unmet prerequisites on `bd790i`, discovered 2026-08-23. None block build-o
 | # | Blocker | Evidence | Resolution | Blocks |
 |---|---|---|---|---|
 | 1 | Ollama 0.32.1 lacks the `qwen3.8` renderer — `/api/chat` returns `unknown renderer "qwen3.8"` | Live probe against the pulled model | Upgrade to `v0.32.15` (2026-08-19; release notes reference Qwen 3.8). **Restarts the daemon — operator confirmation required.** | Step 9 only |
-| 2 | Tier 0 chain not installed — only `nmap`, `curl`, `jq`, `yq` present | Live inventory | `security-toolchain.sh` extension, build-order step 11 | Live runs |
-| 3 | `command -v` yields false positives: Python `httpx` shadows the ProjectDiscovery binary; `gau`/`gf`/`notify` are shell aliases | Live inventory | `claw sec doctor` identity assertions (step 5) — this blocker is *why* §13 exists | Nothing; already designed around |
-| 4 | `bats` not installed | Prior session | Python layers use `pytest`; shell tests follow `tests/*.test.sh` | Nothing |
+| 2 | ~~Tier 0 chain not installed~~ **cleared 2026-08-30** — all 8 present, `claw sec doctor` 8/8 under an interactive PATH | Live inventory | Done: `security-toolchain.sh` installs from the registry | Nothing |
+| 3 | `command -v` yields false positives: Python `httpx` shadows the ProjectDiscovery binary; `gau`/`gf`/`notify` are shell aliases | Live inventory. **2026-08-30:** still live and *PATH-order dependent* — `~/go/bin/httpx` wins in an interactive shell, `~/.local/bin/httpx` (the Python client) wins wherever `~/.local/bin` is prepended, e.g. inside `validate-install.sh` | `claw sec doctor` identity assertions (step 5) — this blocker is *why* §13 exists. `claw validate` phase 10 now runs doctor under the hostile ordering on purpose | Nothing; already designed around |
+| 4 | `bats` not installed | Prior session | Python layers use stdlib `unittest`; shell tests follow `tests/*.test.sh` | Nothing |
 
 Blocker 1 is the only one requiring a decision rather than implementation. Until it clears, the
 verified default model is `huihui_ai/qwen3-abliterated:30b`.
@@ -814,3 +824,9 @@ precision, not its default.
 
 **Do not** paper over this with a scope amendment; widening the allowlist to accommodate a parser
 defect weakens a control to fix a bug that isn't a scope problem.
+
+**Status: fixed.** `recon_hits()` now parses the command into pipeline/statement
+segments and matches only in command position, scanning a heredoc body only when
+the owning command is a shell. A tool invoked with nothing but `-h`/`-version` is
+not treated as recon. Covered by `tests/security/test_hook_matcher.py` and
+`test_hook_help_flags.py`.

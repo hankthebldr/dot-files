@@ -137,7 +137,88 @@ toolchain_extras() {
         esac
     fi
 
-    _section 8 "Wordlists  (SecLists)"
+    # ── Harness Tier 0 ─────────────────────────────────────────────────────
+    # The package map is NOT restated here. config/security/tools.yaml already
+    # carries kali/debian/darwin packages per tool, `claw sec doctor` asserts
+    # identity against the same file, and a second copy in this array is a copy
+    # that drifts. Read the registry instead.
+    #
+    # These traps are why the registry exists (§13): Kali ships the scanner as
+    # httpx-toolkit while `pipx install httpx` silently shadows it with a
+    # Python HTTP client; naabu degrades to a connect scan without libpcap-dev
+    # and CAP_NET_RAW. Presence is not identity — verify with `claw sec doctor`.
+    _section 8 "Security  Harness  (Tier  0)"
+    local reg="$DOTFILES_DIR/config/security/tools.yaml"
+    if [[ ! -r "$reg" ]]; then
+        log_skip "registry not found — skipping harness chain ($reg)"
+        RESULT_SKIPPED+=("sec-harness-tier0")
+    elif ! command -v python3 &>/dev/null; then
+        log_skip "python3 missing — cannot read the tool registry"
+        RESULT_SKIPPED+=("sec-harness-tier0")
+    else
+        local _key
+        case "$OS_TYPE" in
+            kali|parrot) _key=kali ;;
+            macos)       _key=darwin ;;
+            *)           _key=debian ;;
+        esac
+        local _rows
+        _rows="$(CLAW_REG="$reg" CLAW_KEY="$_key" python3 - <<'PY' 2>/dev/null || true
+import os, yaml
+reg = yaml.safe_load(open(os.environ["CLAW_REG"])) or {}
+for name, spec in reg.items():
+    pkg = (spec.get("packages") or {}).get(os.environ["CLAW_KEY"])
+    if pkg:
+        print(f"{name}\t{pkg}")
+PY
+)"
+        if [[ -z "$_rows" ]]; then
+            log_warning "could not read packages from the registry"
+            RESULT_FAILED+=("sec-harness-tier0")
+        fi
+        local _name _pkg
+        while IFS=$'\t' read -r _name _pkg; do
+            [[ -n "$_name" ]] || continue
+            if command -v "$_name" &>/dev/null; then
+                log_skip "$_name present — verify identity with: claw sec doctor $_name"
+                RESULT_SKIPPED+=("$_name")
+                continue
+            fi
+            log_info "installing $_name ($_pkg)"
+            # The registry's debian values already carry @latest.
+            case "$_pkg" in
+                go:*)
+                    if command -v go &>/dev/null && _run go install "${_pkg#go:}"; then
+                        RESULT_INSTALLED+=("$_name (go)")
+                    else
+                        log_warning "$_name: go install failed (is the Go toolchain present?)"
+                        RESULT_FAILED+=("$_name")
+                    fi
+                    ;;
+                *)
+                    if [[ "$PKG_MANAGER" == "brew" ]]; then
+                        _run brew install "$_pkg"
+                    else
+                        _run sudo apt-get install -y "$_pkg"
+                    fi && RESULT_INSTALLED+=("$_name ($_pkg)") || {
+                        log_warning "$_name: installing $_pkg failed"
+                        RESULT_FAILED+=("$_name")
+                    }
+                    ;;
+            esac
+        done <<< "$_rows"
+
+        # naabu's raw-socket capability is the difference between the scan the
+        # operator thinks they ran and a quieter, slower connect scan.
+        if command -v naabu &>/dev/null && [[ "$OS_TYPE" != "macos" ]] \
+           && command -v setcap &>/dev/null; then
+            _run sudo setcap cap_net_raw+eip "$(command -v naabu)" 2>/dev/null \
+                || log_warning "naabu: setcap failed — it will degrade to a connect scan"
+        fi
+        log_info "verify identity, not presence: ${c_white}claw sec doctor${c_reset}"
+    fi
+
+    _section 9 "Wordlists  (SecLists)"
     # OS-aware path. Kali/Parrot/Ubuntu all use /usr/share/wordlists; macOS
     # uses /usr/local/share/wordlists for Homebrew alignment.
     local wordlists_dir

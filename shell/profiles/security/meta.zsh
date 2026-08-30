@@ -26,4 +26,6 @@ PROFILE_OS_SUPPORT="mac+linux"
 
 # INSTALL TOOLING
 PROFILE_TOOLCHAIN="security-toolchain.sh"
-PROFILE_KEY_TOOLS="nmap sqlmap hashcat hydra ffuf gobuster nikto trivy msfconsole tshark binwalk"
+# Classic arsenal + the harness Tier 0 chain (config/security/tools.yaml).
+# Presence only — `claw sec doctor` is what asserts these are the RIGHT binaries.
+PROFILE_KEY_TOOLS="nmap sqlmap hashcat hydra ffuf gobuster nikto trivy msfconsole tshark binwalk subfinder dnsx tlsx naabu httpx katana nuclei notify"

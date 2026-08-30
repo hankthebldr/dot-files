@@ -1,11 +1,15 @@
 """Shared helpers for Claude Code hooks.
 
-Owns: scope.txt parsing, SQLite log path, ANSI styling for stderr.
+Owns: scope resolution (delegated), SQLite log path, ANSI styling for stderr.
+
+Scope authority lives in ONE place — `scripts/security/scope.py` — and this
+module borrows it (build order §18.10). It used to carry a second, independent
+parser, which read a `!deny` entry as an ordinary allow-list name that never
+matched, silently discarding the exclusion. The hook then permitted recon the
+harness gate refused: a confused deputy in the fail-open direction.
 """
 from __future__ import annotations
 
-import fnmatch
-import ipaddress
 import os
 import re
 import sqlite3
@@ -40,38 +44,86 @@ def banner_block(title: str, lines: Iterable[str], color: str = C.RED) -> str:
 
 
 # ─── Scope ──────────────────────────────────────────────────────────────
-def load_scope() -> list[str]:
-    if not SCOPE_FILE.exists():
-        return []
-    out = []
-    for line in SCOPE_FILE.read_text().splitlines():
-        s = line.split("#", 1)[0].strip()
-        if s:
-            out.append(s)
-    return out
+def _scope_module():
+    """Import the harness's scope parser. Returns None if it cannot be reached.
+
+    ~/.claude/hooks/_lib.py is a symlink into the dotfiles repo, so resolving
+    this file lands inside the checkout and `parents[2]` is its root. DOTFILES_DIR
+    wins when set; ~/.dotfiles is the last resort for an unusual layout.
+    """
+    roots = []
+    env = os.environ.get("DOTFILES_DIR")
+    if env:
+        roots.append(Path(env))
+    roots.append(Path(__file__).resolve().parents[2])
+    roots.append(Path.home() / ".dotfiles")
+
+    for root in roots:
+        d = root / "scripts" / "security"
+        if (d / "scope.py").is_file():
+            if str(d) not in sys.path:
+                sys.path.insert(0, str(d))
+            try:
+                import scope  # noqa: PLC0415  — deliberately lazy; see _scope()
+                return scope
+            except Exception:
+                return None
+    return None
 
 
-def _target_matches(target: str, entry: str) -> bool:
-    target = target.strip().lower()
-    entry = entry.strip().lower()
-    # CIDR
-    if "/" in entry:
+def _scope():
+    """The parsed Scope, or None. Every failure path yields None, and every
+    caller treats None as 'authorize nothing' — a hook that cannot read its
+    scope must not be the reason a scan proceeds.
+
+    Deliberately not memoized. The file is small, a hook invocation asks about
+    a handful of targets, and a cached verdict would outlive an operator's edit
+    to scope.txt. Only the module import is cached, by `sys.modules`.
+    """
+    mod = _scope_module()
+    if mod is None or not SCOPE_FILE.exists():
+        return None
+    try:
+        # BOTH layers. §5.7: effective scope is the durable file unioned with
+        # the engagement overlay, and a deny in EITHER wins. Reading only the
+        # global file inverted the claim that the hook is never more permissive
+        # than the gate: an overlay `!prod.lab.internal` was enforced by
+        # `claw sec` and ignored on the Bash path.
+        #
+        # Overlay *allows* being invisible would be fail-closed and harmless,
+        # but silently refusing a target the operator authorized for this
+        # engagement is its own failure — so read the whole thing.
+        overlay = None
         try:
-            net = ipaddress.ip_network(entry, strict=False)
-            return ipaddress.ip_address(target) in net
-        except ValueError:
-            return False
-    # Glob (e.g. *.lab.example.com)
-    if "*" in entry or "?" in entry:
-        return fnmatch.fnmatch(target, entry)
-    # Exact match (domain or IP or hostname)
-    return target == entry
+            import scope_edit  # noqa: PLC0415 — same lazy path as scope
+            candidate = scope_edit.overlay_path()
+            if candidate.is_file():
+                overlay = candidate
+        except Exception:
+            overlay = None
+        return mod.Scope.from_files(SCOPE_FILE, overlay)
+    except Exception:
+        # Malformed scope (ScopeParseError) or unreadable file. The old parser
+        # accepted junk silently; refusing to authorize is the safe reading.
+        return None
 
 
 def in_scope(target: str) -> bool:
+    """Name-level authorization, identical to the harness gate's name/deny half.
+
+    Address verification (§5.2 resolve-policy) is deliberately NOT attempted:
+    the hook runs before execution and has no resolved addresses. The harness
+    gate applies that extra check at invoke time, so it can only ever be
+    stricter than this — never more permissive.
+    """
     if not target:
         return False
-    return any(_target_matches(target, e) for e in load_scope())
+    sc = _scope()
+    if sc is None:
+        return False
+    if sc.denied(target, []):
+        return False
+    return sc.name_allows(target)
 
 
 # ─── Target extraction from common recon CLIs ───────────────────────────
