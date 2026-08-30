@@ -287,7 +287,13 @@ cmd_demo() {
     # stand in for the tool surface, so the gate, the audit chain and the taint
     # marking are all exercised for real against a documentation-range scope.
     local fx="$DOTFILES/tests/security/fixtures"
-    local eng="${1:-${TMPDIR:-/tmp}/claw-sec-demo}"
+    # $1 is the engagement dir ONLY when it is not a flag — it used to be taken
+    # unconditionally and then re-passed to run.py, so `demo --dry-run` became
+    # `mkdir --dry-run` and no flag could reach the runner at all.
+    local eng="${TMPDIR:-/tmp}/claw-sec-demo"
+    if [[ $# -gt 0 && "$1" != -* ]]; then
+        eng="$1"; shift
+    fi
     # Only ever reset a directory this command created. A demo must not be a
     # way to delete an arbitrary path someone passed by mistake.
     if [[ -e "$eng" ]]; then
