@@ -707,7 +707,10 @@ listed explicitly · empty scope file · scope with only names ⇒ policy `warn`
 policy `enforce` · `resolve-policy: off` ⇒ invasive still blocked.
 
 `bats` is not installed on `bd790i` — shell tests follow the existing `tests/*.test.sh` pattern;
-Python layers use `pytest`.
+Python layers use stdlib `unittest` (`claw sec test` → `python3 -m unittest
+discover -s tests/security`), so the suite runs on a box with no test
+dependencies installed. `pyyaml` and `jsonschema` are the only runtime
+third-party imports.
 
 ---
 
@@ -754,7 +757,10 @@ None of these are enforced by prompting.
 7. `phases.py` + `flows/webrecon.yaml`; `--dry-run` integration test; kill switch.
 8. `mcp_server.py`; register in `claude/mcp.json`; verify from Claude Code.
 9. `ollama_bridge.py` + `bin/pi`; model probe; register in `agents.toml`.
-10. `pre_tool_use.py` migration to shared `scope.py`.
+10. `pre_tool_use.py` migration to shared `scope.py`. **Done** — `_lib.in_scope`
+    now answers with `Scope.denied()` + `Scope.name_allows()`. It borrows the
+    name/deny half only; address verification stays in the harness gate, which
+    is therefore strictly stricter than the hook, never more permissive.
 11. Toolchain, profile surface, `claw validate` rows, `webrecon` harness skill.
 12. Regenerate integrity manifest.
 
@@ -792,7 +798,7 @@ Known-unmet prerequisites on `bd790i`, discovered 2026-08-23. None block build-o
 | 1 | Ollama 0.32.1 lacks the `qwen3.8` renderer — `/api/chat` returns `unknown renderer "qwen3.8"` | Live probe against the pulled model | Upgrade to `v0.32.15` (2026-08-19; release notes reference Qwen 3.8). **Restarts the daemon — operator confirmation required.** | Step 9 only |
 | 2 | Tier 0 chain not installed — only `nmap`, `curl`, `jq`, `yq` present | Live inventory | `security-toolchain.sh` extension, build-order step 11 | Live runs |
 | 3 | `command -v` yields false positives: Python `httpx` shadows the ProjectDiscovery binary; `gau`/`gf`/`notify` are shell aliases | Live inventory | `claw sec doctor` identity assertions (step 5) — this blocker is *why* §13 exists | Nothing; already designed around |
-| 4 | `bats` not installed | Prior session | Python layers use `pytest`; shell tests follow `tests/*.test.sh` | Nothing |
+| 4 | `bats` not installed | Prior session | Python layers use stdlib `unittest`; shell tests follow `tests/*.test.sh` | Nothing |
 
 Blocker 1 is the only one requiring a decision rather than implementation. Until it clears, the
 verified default model is `huihui_ai/qwen3-abliterated:30b`.
@@ -814,3 +820,9 @@ precision, not its default.
 
 **Do not** paper over this with a scope amendment; widening the allowlist to accommodate a parser
 defect weakens a control to fix a bug that isn't a scope problem.
+
+**Status: fixed.** `recon_hits()` now parses the command into pipeline/statement
+segments and matches only in command position, scanning a heredoc body only when
+the owning command is a shell. A tool invoked with nothing but `-h`/`-version` is
+not treated as recon. Covered by `tests/security/test_hook_matcher.py` and
+`test_hook_help_flags.py`.
