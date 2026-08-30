@@ -241,3 +241,73 @@ class TestDescribeLayers(EditCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReportsMatchReality(EditCase):
+    """`add` must never report success for authority it did not grant.
+
+    The docstring promises it "refuses rather than producing a file whose
+    meaning contradicts the request". Two paths defeated that. Neither widened
+    authority — deny still wins at authorize() — but both told the operator the
+    opposite of the truth, which for a security control is its own failure.
+    """
+
+    global_text = ("*.lab.internal\n"
+                   "!*.evil.lab.internal\n"
+                   "!denied.lab.internal\n"
+                   "10.0.0.0/8\n"
+                   "!10.1.2.3\n")
+
+    def test_a_denied_name_is_not_reported_as_already_present(self):
+        # _existing_entries stripped '!', so a deny read as an existing allow.
+        r = self.add("denied.lab.internal")
+        self.assertEqual(r.status, "denied")
+        self.assertFalse(r.ok)
+
+    def test_a_wildcard_matching_a_glob_deny_is_refused(self):
+        # The deny probe used the bare suffix, so a glob deny of the same
+        # pattern was missed and `add` reported success for a dead line.
+        r = self.add("*.evil.lab.internal")
+        self.assertEqual(r.status, "denied")
+
+    def test_a_denied_address_is_refused(self):
+        self.assertEqual(self.add("10.1.2.3").status, "denied")
+
+    def test_anything_reported_added_is_actually_authorized(self):
+        for entry in ["ok.lab.internal", "*.dyn.lab.internal", "203.0.113.0/24"]:
+            with self.subTest(entry=entry):
+                r = self.add(entry)
+                self.assertEqual(r.status, "added")
+                sc = self.effective()
+                if "/" in r.entry:
+                    self.assertIn(r.entry, {str(n) for n in sc.allow_addrs})
+                else:
+                    self.assertIn(r.entry, {n.lower() for n in sc.allow_names})
+
+
+class TestAtomicWrite(EditCase):
+    """A partial write widens scope, so the file must never be seen half-done."""
+
+    def test_no_temp_file_is_left_behind(self):
+        self.add("a.lab.internal")
+        leftovers = list(E.overlay_path().parent.glob("*.tmp.*"))
+        self.assertEqual(leftovers, [])
+
+    def test_a_truncated_cidr_would_have_widened_enormously(self):
+        # Not a test of add(), but of WHY it writes atomically: this is what a
+        # short write buys an attacker. 192.0.2.0/24 is 256 addresses; the same
+        # string truncated by one character is over a billion.
+        import ipaddress
+        self.assertEqual(ipaddress.ip_network("192.0.2.0/24").num_addresses, 256)
+        self.assertEqual(
+            ipaddress.ip_network("192.0.2.0/2", strict=False).num_addresses,
+            1073741824)
+
+    def test_the_file_parses_and_means_what_was_asked_after_each_add(self):
+        for entry in ["one.lab.internal", "192.0.2.0/24", "two.lab.internal"]:
+            self.add(entry)
+        sc = self.effective()
+        self.assertTrue(sc.name_allows("one.lab.internal"))
+        self.assertTrue(sc.name_allows("two.lab.internal"))
+        self.assertTrue(sc.addr_allows("192.0.2.7"))
+        self.assertFalse(sc.addr_allows("193.0.0.1"))   # /2 would have allowed this

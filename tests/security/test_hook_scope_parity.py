@@ -260,3 +260,40 @@ class TestMissingScopeFile(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTwoLayerParity(ScopeParityCase):
+    """§5.7: a deny in EITHER layer wins — including on the hook's path.
+
+    The hook read only the global file, so an overlay deny was enforced by
+    `claw sec` and ignored by pre_tool_use.py. That inverted §18.10's claim
+    that the harness is "strictly stricter than the hook, never more
+    permissive": with an overlay deny the hook was the permissive one.
+
+    The parity harness above only ever built single-layer scopes, which is why
+    it did not catch this.
+    """
+
+    scope_text = "*.lab.internal\n192.0.2.0/24\n"
+    overlay_text = "!prod.lab.internal\n!192.0.2.50\nextra.example.org\n"
+
+    def setUp(self):
+        super().setUp()
+        import scope_edit as E
+
+        overlay = E.overlay_path()
+        overlay.parent.mkdir(parents=True, exist_ok=True)
+        overlay.write_text(self.overlay_text)
+        self.scope = S.Scope.from_files(self.scope_file, overlay)
+
+    def test_an_overlay_deny_is_honoured_by_the_hook(self):
+        self.assertParity("prod.lab.internal", False)
+
+    def test_an_overlay_address_deny_is_honoured_by_the_hook(self):
+        self.assertParity("192.0.2.50", False)
+
+    def test_an_overlay_allow_is_visible_to_the_hook(self):
+        self.assertParity("extra.example.org", True)
+
+    def test_an_undenied_sibling_still_passes(self):
+        self.assertParity("web.lab.internal", True)

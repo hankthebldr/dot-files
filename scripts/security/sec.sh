@@ -231,7 +231,8 @@ PY
 
     # 2. Identity, not presence — a missing or shadowed binary is a finding.
     printf "${C_HEAD}2. toolchain${C_OFF}\n"
-    cmd_doctor || printf "  ${C_WARN}some tools failed identity — phases using them will report tool_missing${C_OFF}\n"
+    py "$SEC_DIR/doctor.py" \
+        || printf "  ${C_WARN}some tools failed identity — phases using them will report tool_missing${C_OFF}\n"
     printf "\n"
 
     # 3. The run itself, in its own engagement so a drill never mixes with real work.
@@ -243,6 +244,16 @@ PY
     command rm -rf "${eng:?}"
     mkdir -p "$eng"
     : > "$eng/.claw-sec-drill"
+
+    # Step 1 judged the target against the CURRENT engagement's overlay; the
+    # run below uses the drill directory. Without carrying the overlay across,
+    # `scope add X` then `drill X` passes step 1 and is denied at phase 3 —
+    # fail-closed, but it breaks the very workflow this command documents.
+    _drill_overlay="$(py -c 'import scope_edit as E; print(E.overlay_path())' 2>/dev/null || true)"
+    if [[ -n "$_drill_overlay" && -f "$_drill_overlay" ]]; then
+        cp "$_drill_overlay" "$eng/scope.local"
+        printf "  ${C_MUTED}carried the engagement overlay into the drill${C_OFF}\n"
+    fi
 
     printf "${C_HEAD}3. flow${C_OFF}\n"
     local rc=0

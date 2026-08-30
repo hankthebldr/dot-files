@@ -84,7 +84,24 @@ def _scope():
     if mod is None or not SCOPE_FILE.exists():
         return None
     try:
-        return mod.Scope.from_files(SCOPE_FILE)
+        # BOTH layers. §5.7: effective scope is the durable file unioned with
+        # the engagement overlay, and a deny in EITHER wins. Reading only the
+        # global file inverted the claim that the hook is never more permissive
+        # than the gate: an overlay `!prod.lab.internal` was enforced by
+        # `claw sec` and ignored on the Bash path.
+        #
+        # Overlay *allows* being invisible would be fail-closed and harmless,
+        # but silently refusing a target the operator authorized for this
+        # engagement is its own failure — so read the whole thing.
+        overlay = None
+        try:
+            import scope_edit  # noqa: PLC0415 — same lazy path as scope
+            candidate = scope_edit.overlay_path()
+            if candidate.is_file():
+                overlay = candidate
+        except Exception:
+            overlay = None
+        return mod.Scope.from_files(SCOPE_FILE, overlay)
     except Exception:
         # Malformed scope (ScopeParseError) or unreadable file. The old parser
         # accepted junk silently; refusing to authorize is the safe reading.

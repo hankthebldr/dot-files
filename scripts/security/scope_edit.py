@@ -119,8 +119,14 @@ def _existing_entries(path: Path) -> set[str]:
     out = set()
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.split("#", 1)[0].strip()
-        if line:
-            out.add(canonical(line.lstrip("!").strip()) if line.startswith("!") else canonical(line))
+        if not line:
+            continue
+        # Deny and allow are NOT the same entry. Collapsing them made
+        # `add_entry` report `already-present` for a name the file only
+        # *denies* — a success message for authority it had not granted.
+        if line.startswith("!"):
+            continue
+        out.add(canonical(line))
     return out
 
 
@@ -143,12 +149,19 @@ def add_entry(entry: str, *, to_global: bool = False, engagement=None,
     # A deny anywhere in the effective scope wins (§5.7), so adding an allow
     # for it is a no-op the operator would misread as authorization.
     effective = S.Scope.from_files(gpath, opath if opath.exists() else None)
-    probe = value[2:] if value.startswith("*.") else value
     if kind == "name":
-        if effective.denied(probe, []):
+        # A wildcard was probed by its bare suffix (`*.evil.lab` -> `evil.lab`),
+        # which a glob deny of the SAME pattern does not match — so adding a
+        # pattern the scope already denies wholesale reported `added` and wrote
+        # a line granting nothing. Check the literal entry too.
+        probe = value[2:] if value.startswith("*.") else value
+        denied = (effective.denied(probe, [])
+                  or value in {n.lower() for n in effective.deny_names})
+        if denied:
             return AddResult(value, layer, target, "denied",
                              "an explicit deny entry already covers it")
-    elif effective.addr_denies(probe.split("/")[0]):
+    elif effective.addr_denies(value.split("/")[0]) or \
+            value in {str(n) for n in effective.deny_addrs}:
         return AddResult(value, layer, target, "denied",
                          "an explicit deny entry already covers it")
 
@@ -156,19 +169,38 @@ def add_entry(entry: str, *, to_global: bool = False, engagement=None,
         return AddResult(value, layer, target, "already-present", str(target))
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    fresh = not target.exists()
-    with target.open("a", encoding="utf-8") as fh:
-        if fresh and layer == "overlay":
-            fh.write(_OVERLAY_HEADER)
-        elif not fresh:
-            existing = target.read_text(encoding="utf-8")
-            if existing and not existing.endswith("\n"):
-                fh.write("\n")
-        fh.write(value + "\n")
+    before = target.read_text(encoding="utf-8") if target.exists() else (
+        _OVERLAY_HEADER if layer == "overlay" else "")
+    if before and not before.endswith("\n"):
+        before += "\n"
+    after = before + value + "\n"
 
-    # Parse what we just wrote. A file `add` cannot read back is a file it must
-    # not have written — surface it now, not on the next gated invocation.
-    S.Scope.from_files(gpath, opath if opath.exists() else None)
+    # Write whole-file via temp + os.replace, never an append.
+    #
+    # A partial append is not merely a lost entry, it is a WIDER scope: a write
+    # of "192.0.2.0/24" truncated to "192.0.2.0/2" parses cleanly as
+    # 192.0.0.0/2 — 1,073,741,824 addresses authorized instead of 256. Names
+    # truncate toward narrower, addresses toward catastrophically wider, so the
+    # file must never be observable in a half-written state.
+    tmp = target.with_name(target.name + f".tmp.{os.getpid()}")
+    try:
+        with tmp.open("w", encoding="utf-8") as fh:
+            fh.write(after)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, target)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+    # Verify what landed AUTHORIZES what was asked, not merely that it parses.
+    # "It parses" is exactly what a truncated CIDR does.
+    check = S.Scope.from_files(gpath, opath if opath.exists() else None)
+    expected = {str(n) for n in check.allow_addrs} if kind == "cidr" \
+        else {n.lower() for n in check.allow_names}
+    if value not in expected:
+        return AddResult(value, layer, target, "denied",
+                         "the entry did not survive the write as itself — "
+                         "scope file left unchanged in meaning; inspect it")
     return AddResult(value, layer, target, "added", str(target))
 
 
