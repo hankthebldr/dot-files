@@ -13,10 +13,18 @@ run_validate() {
   HOME="$FAKE" DOTFILES_DIR="$REPO" run bash "$REPO/scripts/utils/validate-install.sh" --no-fetch
 }
 
+# The 1b guard is `command -v ghostty || -e ~/.config/ghostty`, so proving the
+# skip branch needs BOTH halves false. A faked HOME only handles the second —
+# the first leaked the host PATH, which passed on a CI container with no
+# ghostty and failed on any real workstation that has one (e.g. /snap/bin).
+run_validate_no_ghostty() {
+  HOME="$FAKE" DOTFILES_DIR="$REPO" PATH="$BATS_TEST_TMPDIR/emptybin:/usr/bin:/bin" \
+    run bash "$REPO/scripts/utils/validate-install.sh" --no-fetch
+}
+
 @test "ghostty chain: skipped entirely when not installed and not deployed" {
-  # Fake HOME has no ~/.config/ghostty; strip ghostty from PATH resolution by
-  # using the fake home (the container has no ghostty binary either).
-  run_validate
+  mkdir -p "$BATS_TEST_TMPDIR/emptybin"
+  run_validate_no_ghostty
   [[ "$output" != *"Ghostty chain"* ]]
 }
 
