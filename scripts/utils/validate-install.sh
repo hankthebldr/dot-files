@@ -236,9 +236,16 @@ if [[ -d "$DOTFILES_DIR/scripts/security" ]]; then
 
     # One scope grammar for the hook and the gate. A hook that cannot import
     # scope.py authorizes nothing, which is safe but silently disables recon.
-    if DOTFILES_DIR="$DOTFILES_DIR" python3 -c "
-import sys; sys.path.insert(0, '$DOTFILES_DIR/claude/hooks')
-import _lib; sys.exit(0 if _lib._scope_module() is not None else 1)" &>/dev/null; then
+    # The repo root goes in as argv, not interpolated into the source: the env
+    # prefix was only ever seen by the fork (SC2097) while the string expanded
+    # in this shell (SC2098), and a path containing a quote would have broken
+    # the program outright.
+    if python3 - "$DOTFILES_DIR" <<'PY' &>/dev/null; then
+import sys
+sys.path.insert(0, sys.argv[1] + "/claude/hooks")
+import _lib
+sys.exit(0 if _lib._scope_module() is not None else 1)
+PY
         ok "hook and gate share one scope parser"
     else
         warn "pre_tool_use hook cannot reach scope.py — it will authorize nothing"
