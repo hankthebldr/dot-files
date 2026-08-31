@@ -14,6 +14,14 @@
 # The engine streams unattended (claw_step) — never block on a mid-run prompt.
 assume_yes = true
 
+# ...nor on a POST-run one. `assume_yes` covers per-step confirmations only;
+# topgrade asks its own "Reboot?" question at the END of a run when a step
+# signals one is needed. Under claw_step (stdin=/dev/null, output piped, the
+# viewport repainting over the prompt) that question is invisible and blocks
+# forever — the observed `claw update` stall. Reboots are an operator
+# decision on a k3s box, never a side effect of patching.
+no_reboot = true
+
 # Disabled steps — every entry justified:
 #   containers — pulling/recreating container images mid-update is disruptive
 #                on the homelab; container lifecycle belongs to

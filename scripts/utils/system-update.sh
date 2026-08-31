@@ -71,6 +71,85 @@ finish() {
 }
 
 # ============================================
+# NON-INTERACTIVE CONTRACT  (applies to BOTH paths below)
+# ============================================
+# Every step runs under claw_step, which feeds the child /dev/null on stdin,
+# captures stdout+stderr through a pipe, and repaints its viewport with
+# cursor-up + erase. A package manager that opens a TTY dialog therefore
+# blocks forever behind a screen that has already scrubbed the prompt — no
+# output, no error, no end. That is the observed `claw update` stall, and it
+# has three sources; all three are closed declaratively here rather than
+# per-caller, because every previous per-caller fix was lost to a refactor.
+#
+#   needrestart    Ubuntu 22.04+ hooks it into apt. Its "Which services should
+#                  be restarted?" whiptail dialog reads the TTY MID-run.
+#   dpkg conffile  "A new version of /etc/... is available" on a locally
+#                  modified config file — same dialog, same deadlock.
+#   topgrade       its own end-of-run "Reboot?" question — suppressed
+#                  declaratively via no_reboot in config/topgrade.toml.
+#
+# NEEDRESTART_MODE=l (list, do not restart) is deliberate over =a (auto):
+# these boxes run k3s, and silently bouncing containerd/kubelet mid-patch is
+# a worse outcome than a service running old code until the operator reboots.
+# Override with NEEDRESTART_MODE=a for an unattended-security posture.
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE="${NEEDRESTART_MODE:-l}"
+export NEEDRESTART_SUSPEND=1              # older needrestart honors this only
+export APT_LISTCHANGES_FRONTEND=none
+export UCF_FORCE_CONFOLD=1                # keep the local conffile, never ask
+export GIT_TERMINAL_PROMPT=0              # a private remote must fail, not hang
+export HOMEBREW_NO_AUTO_UPDATE=1          # brew self-update belongs to the manifest
+
+# claw_deadline <cmd...> — hard wall-clock ceiling. Suppressing today's three
+# prompts does not prove a fourth cannot exist; this guarantees that whatever
+# blocks, the run still terminates and still writes its receipt. Mirrors the
+# gtimeout shim in repo-sync.sh (stock macOS ships no GNU timeout) rather than
+# inventing a second idiom.
+CLAW_UPDATE_TIMEOUT="${CLAW_UPDATE_TIMEOUT:-2700}"   # 45 min
+if command -v timeout &>/dev/null; then
+    claw_deadline() { timeout -k 30 "$CLAW_UPDATE_TIMEOUT" "$@"; }
+elif command -v gtimeout &>/dev/null; then
+    claw_deadline() { gtimeout -k 30 "$CLAW_UPDATE_TIMEOUT" "$@"; }
+else
+    claw_deadline() { "$@"; }
+fi
+
+# Sudo upfront: the first apt/dnf step used to stall mid-stream on a password
+# prompt — sudo reads /dev/tty, which claw_step's viewport repaints over, so
+# the run blocks invisibly exactly like the needrestart dialog did. This fix
+# originally lived in the sweep only; the topgrade branch calls finish() and
+# exits before ever reaching it, so the PRIMARY path shipped unprimed. It is
+# hoisted here and called by both.
+# Validate the ticket once before any step and keep it warm; the
+# keepalive is killed by the EXIT trap so it can never outlive the run.
+# Non-interactive runs (weekly timer) have no tty for a password: only a
+# cached/NOPASSWD ticket (`sudo -n`) counts, and without one SUDO_READY=0 —
+# the sudo-needing sections below are then skipped with a dim note instead of
+# every step dying on the missing tty and crit-alerting the timer weekly.
+SUDO_KEEPALIVE_PID=""
+SUDO_READY=1
+claw_sudo_cleanup() {
+    [[ -n "$SUDO_KEEPALIVE_PID" ]] && kill "$SUDO_KEEPALIVE_PID" 2>/dev/null
+    return 0
+}
+claw_sudo_prime() {
+    local m need=0
+    for m in apt-get dnf pacman snap; do
+        command -v "$m" &>/dev/null && { need=1; break; }
+    done
+    [[ $need -eq 1 && $DRY_RUN -eq 0 ]] || return 0
+    command -v sudo &>/dev/null || return 0
+    if [[ $INTERACTIVE -eq 0 ]]; then
+        sudo -n true 2>/dev/null || { SUDO_READY=0; return 0; }
+    else
+        sudo -v || return 0
+    fi
+    ( while true; do sleep 60; sudo -n true 2>/dev/null || exit; done ) >/dev/null 2>&1 &
+    SUDO_KEEPALIVE_PID=$!
+    trap 'claw_sudo_cleanup' EXIT
+}
+
+# ============================================
 # TOPGRADE — the one engine (declarative, streamed)
 # ============================================
 # One streamed step covers every ecosystem topgrade detects; the repo config
@@ -79,11 +158,13 @@ if command -v topgrade &>/dev/null; then
     tg_sub="topgrade engine — config/topgrade.toml"
     [[ $DRY_RUN -eq 1 ]] && tg_sub="Dry run — ${tg_sub}"
     claw_ui_header "🔄 SYSTEM UPDATE" "$tg_sub"
+    claw_sudo_prime                     # topgrade's `system` step shells out to sudo
     tg_args=(--config "$DOTFILES/config/topgrade.toml" -y)
     [[ $DRY_RUN -eq 1 ]] && tg_args+=(-n)   # topgrade prints its own plan
-    claw_step "Running topgrade across all ecosystems..." -- topgrade "${tg_args[@]}"
+    claw_step "Running topgrade across all ecosystems..." -- claw_deadline topgrade "${tg_args[@]}"
     _detail="engine=topgrade"
     [[ $DRY_RUN -eq 1 ]] && _detail="${_detail} dry_run=1"
+    [[ $SUDO_READY -eq 0 ]] && _detail="${_detail} sudo=skipped"
     finish "$_detail"
 fi
 
@@ -111,36 +192,6 @@ count_managers() {
     echo "$count"
 }
 
-# Sudo upfront: the first apt/dnf step used to stall mid-stream on a password
-# prompt. Validate the ticket once before any step and keep it warm; the
-# keepalive is killed by the EXIT trap so it can never outlive the run.
-# Non-interactive runs (weekly timer) have no tty for a password: only a
-# cached/NOPASSWD ticket (`sudo -n`) counts, and without one SUDO_READY=0 —
-# the sudo-needing sections below are then skipped with a dim note instead of
-# every step dying on the missing tty and crit-alerting the timer weekly.
-SUDO_KEEPALIVE_PID=""
-SUDO_READY=1
-sweep_sudo_cleanup() {
-    [[ -n "$SUDO_KEEPALIVE_PID" ]] && kill "$SUDO_KEEPALIVE_PID" 2>/dev/null
-    return 0
-}
-sweep_sudo_prime() {
-    local m need=0
-    for m in apt-get dnf pacman snap; do
-        command -v "$m" &>/dev/null && { need=1; break; }
-    done
-    [[ $need -eq 1 && $DRY_RUN -eq 0 ]] || return 0
-    command -v sudo &>/dev/null || return 0
-    if [[ $INTERACTIVE -eq 0 ]]; then
-        sudo -n true 2>/dev/null || { SUDO_READY=0; return 0; }
-    else
-        sudo -v || return 0
-    fi
-    ( while true; do sleep 60; sudo -n true 2>/dev/null || exit; done ) >/dev/null 2>&1 &
-    SUDO_KEEPALIVE_PID=$!
-    trap 'sweep_sudo_cleanup' EXIT
-}
-
 # skip_sudo <manager> — the dim no-ticket note (claw_ui_skip styling)
 skip_sudo() {
     printf '  %s%s %s — skipped, sudo needs a password and there is no tty (run: claw update --packages)%s\n' \
@@ -155,7 +206,7 @@ total=$(count_managers)
 subtitle="Updating ${total} package managers across all ecosystems"
 [[ $DRY_RUN -eq 1 ]] && subtitle="Dry run — planned steps for ${total} package managers"
 claw_ui_header "🔄 SYSTEM UPDATE" "$subtitle"
-sweep_sudo_prime
+claw_sudo_prime
 
 # ============================================
 # 0. SYSTEM PACKAGES (Linux only — apt / dnf / pacman)

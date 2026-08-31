@@ -167,3 +167,50 @@ stub_sweep_managers() {
   run shellcheck -x -S warning -e SC1090,SC1091,SC2034,SC2059,SC2015,SC2154 "$SU"
   [ "$status" -eq 0 ]
 }
+
+# ── Stall regression (2026-08-28) ─────────────────────────────────────────
+# `claw update` (and its `claw upgrade` alias) hung on "the restart
+# questions": needrestart's mid-run whiptail dialog and topgrade's post-run
+# "Reboot?" prompt. Both read the TTY; claw_step feeds children /dev/null,
+# pipes their output, and repaints over the prompt — so the run blocked
+# invisibly and forever, because nothing bounded it.
+
+@test "stall regression: topgrade.toml suppresses the post-run reboot prompt" {
+  grep -Eq '^no_reboot = true' "$DOTFILES/config/topgrade.toml"
+}
+
+@test "stall regression: engine exports the non-interactive prompt contract" {
+  cat > "$STUB/topgrade" <<'EOF'
+#!/usr/bin/env bash
+printf 'ENV[%s|%s|%s|%s]\n' "$DEBIAN_FRONTEND" "$NEEDRESTART_MODE" \
+  "$UCF_FORCE_CONFOLD" "$GIT_TERMINAL_PROMPT"
+EOF
+  chmod +x "$STUB/topgrade"
+  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ENV[noninteractive|l|1|0]"* ]]
+}
+
+@test "stall regression: a blocking step is killed by the deadline, not wedged" {
+  if ! command -v timeout &>/dev/null && ! command -v gtimeout &>/dev/null; then
+    skip "no GNU timeout/gtimeout — claw_deadline degrades to a no-op here"
+  fi
+  # stands in for a package manager that opens a TTY dialog and waits forever
+  printf '#!/usr/bin/env bash\nsleep 60\n' > "$STUB/topgrade"
+  chmod +x "$STUB/topgrade"
+  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" CLAW_UPDATE_TIMEOUT=2 \
+      bash "$SU" --non-interactive
+  [ "$status" -ne 0 ]                                    # deadline → failed run
+  [ "$(tail -n 1 "$RCPT" | cut -f4)" = "fail" ]          # ...and a fail receipt
+  [ "$(tail -n 1 "$RCPT" | cut -f3)" -lt 30 ]            # terminated fast, not hung
+}
+
+@test "stall regression: topgrade path primes sudo (was sweep-only, unreachable)" {
+  make_stub topgrade
+  make_stub sudo
+  make_stub apt-get           # makes claw_sudo_prime's `need` check fire
+  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  [ "$status" -eq 0 ]
+  grep -qF "sudo -n true" "$CALLS"                       # ticket validated...
+  grep -qF "topgrade --config" "$CALLS"                  # ...before topgrade ran
+}
