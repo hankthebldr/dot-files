@@ -4,7 +4,7 @@
 #
 # Routing map on this box:
 #   ollama   → host systemd daemon, always on        (:11434)
-#   swap     → llama-swap, hot-swaps vLLM w/ TTL VRAM unload (:8090)
+#   cpp      → llama-swap -> llama.cpp llama-server, TTL VRAM unload (:8090)
 #   vllm     → enclave-vllm-38u, host networking      (:8010)
 #
 # PORT NOTE (2026-08-30): vLLM moved :8000 → :8010. OpenHands Agent Canvas
@@ -54,21 +54,32 @@ model_list:
       model: ollama/nomic-embed-text:latest
       api_base: http://127.0.0.1:11434
 
-  # ── llama-swap front (auto-loads/unloads vLLM models on demand) ───────
-  # Wildcard pass-through: request "swap/<model>" and LiteLLM forwards
-  # "<model>" unchanged to llama-swap (:8090), which matches it against
-  # config/llama-swap/config.yaml and spins the backend up. Not running by
-  # default — start it with the binary at ~/.local/bin/llama-swap.
-  # DISABLED 2026-08-30: `model: "openai/*"` makes LiteLLM enumerate OpenAI's
-  # entire public catalog (~200 entries: dall-e, sora, gpt-5.x ...) into
-  # /v1/models. They all 404 against llama-swap and they drown the real local
-  # models in every client's picker. Re-enable ONLY with explicit per-model
-  # entries, and only once llama-swap is actually listening on :8090.
-  # - model_name: "swap/*"
-  #   litellm_params:
-  #     model: "openai/*"
-  #     api_base: http://127.0.0.1:8090/v1
-  #     api_key: none
+  # ── llama.cpp via llama-swap (:8090) — the third chassis ─────────────────
+  # Explicit per-model routes, NOT the old `swap/*` + `openai/*` wildcard: that
+  # made LiteLLM enumerate OpenAI's whole public catalog (~200 dall-e/sora/gpt
+  # entries) into /v1/models, where every one of them 404'd and buried the real
+  # local models in each client's picker.
+  #
+  # llama-swap hot-swaps these and frees VRAM after an idle TTL. cpp-small
+  # (610 MB) coexists with vLLM; the two 30B GGUFs need the card free — stop
+  # enclave-vllm first or they die on cudaMalloc. See config/llama-swap.
+  - model_name: cpp-small
+    litellm_params:
+      model: openai/cpp-small
+      api_base: http://127.0.0.1:8090/v1
+      api_key: none
+
+  - model_name: cpp-coder
+    litellm_params:
+      model: openai/cpp-coder
+      api_base: http://127.0.0.1:8090/v1
+      api_key: none
+
+  - model_name: cpp-abliterated
+    litellm_params:
+      model: openai/cpp-abliterated
+      api_base: http://127.0.0.1:8090/v1
+      api_key: none
 
 litellm_settings:
   drop_params: true          # tolerate params a local backend doesn't support
