@@ -4,36 +4,81 @@
 #
 # Routing map on this box:
 #   ollama   → host systemd daemon, always on        (:11434)
-#   swap     → llama-swap, hot-swaps vLLM w/ TTL VRAM unload (:8090)
-#   vllm     → a directly-launched vLLM container     (:8000)
+#   cpp      → llama-swap -> llama.cpp llama-server, TTL VRAM unload (:8090)
+#   vllm     → enclave-vllm-38u, host networking      (:8010)
+#
+# PORT NOTE (2026-08-30): vLLM moved :8000 → :8010. OpenHands Agent Canvas
+# HARDCODES localhost:8000 in its Electron main.mjs (loadURL / waitForUrl /
+# waitForAgentServer) and cannot be reconfigured, so :8000 is reserved for it.
+# Change vLLM's port via VLLM_PORT in projects/enclave-vllm/serve*.sh.
+#
+# GPU REALITY: the RTX PRO 4000 has 24 GB and vLLM takes ~22.3 GB at
+# --gpu-memory-utilization 0.96. While vLLM is up, Ollama has ~1.4 GB and
+# CANNOT load its models onto the card — ollama_chat routes below will fall
+# back to CPU and are effectively unusable until vLLM is stopped. They are
+# kept registered so `switch-model.sh` flips backends without editing this file.
 
 model_list:
-  # ── ollama (always-on, no VRAM juggling) ──────────────────────────────
-  - model_name: qwen-coder
+  # ── vLLM (enclave-vllm-38u) — the fast path while it holds the card ────
+  - model_name: vllm-qwen38
     litellm_params:
-      model: ollama_chat/qwen2.5-coder:7b
-      api_base: http://host.docker.internal:11434
-
-  - model_name: qwen-32b
-    litellm_params:
-      model: ollama_chat/qwen2.5:32b-instruct-q4_K_M
-      api_base: http://host.docker.internal:11434
-
-  # ── llama-swap front (auto-loads/unloads vLLM models on demand) ───────
-  # Wildcard pass-through: request "swap/Qwen/Qwen2.5-7B-Instruct" and LiteLLM
-  # forwards "Qwen/Qwen2.5-7B-Instruct" unchanged to llama-swap, which matches
-  # it against config/llama-swap/config.yaml and spins the backend up.
-  - model_name: "swap/*"
-    litellm_params:
-      model: "openai/*"
-      api_base: http://host.docker.internal:8090/v1
+      model: hosted_vllm/qwen3.8-27b-abliterated
+      api_base: http://127.0.0.1:8010/v1
       api_key: none
 
-  # ── direct vLLM (when you run vllm-serve.sh standalone) ───────────────
+  # Stable alias so clients don't rename when the served model changes.
   - model_name: vllm
     litellm_params:
-      model: openai/served-model
-      api_base: http://host.docker.internal:8000/v1
+      model: hosted_vllm/qwen3.8-27b-abliterated
+      api_base: http://127.0.0.1:8010/v1
+      api_key: none
+
+  # ── ollama (always-on daemon; GPU-starved while vLLM is up — see above) ─
+  - model_name: ollama-coder
+    litellm_params:
+      model: ollama_chat/qwen3-coder:30b
+      api_base: http://127.0.0.1:11434
+
+  - model_name: ollama-abliterated
+    litellm_params:
+      model: ollama_chat/huihui_ai/Qwen3.8-abliterated:27b
+      api_base: http://127.0.0.1:11434
+
+  - model_name: ollama-small
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:7b
+      api_base: http://127.0.0.1:11434
+
+  - model_name: ollama-embed
+    litellm_params:
+      model: ollama/nomic-embed-text:latest
+      api_base: http://127.0.0.1:11434
+
+  # ── llama.cpp via llama-swap (:8090) — the third chassis ─────────────────
+  # Explicit per-model routes, NOT the old `swap/*` + `openai/*` wildcard: that
+  # made LiteLLM enumerate OpenAI's whole public catalog (~200 dall-e/sora/gpt
+  # entries) into /v1/models, where every one of them 404'd and buried the real
+  # local models in each client's picker.
+  #
+  # llama-swap hot-swaps these and frees VRAM after an idle TTL. cpp-small
+  # (610 MB) coexists with vLLM; the two 30B GGUFs need the card free — stop
+  # enclave-vllm first or they die on cudaMalloc. See config/llama-swap.
+  - model_name: cpp-small
+    litellm_params:
+      model: openai/cpp-small
+      api_base: http://127.0.0.1:8090/v1
+      api_key: none
+
+  - model_name: cpp-coder
+    litellm_params:
+      model: openai/cpp-coder
+      api_base: http://127.0.0.1:8090/v1
+      api_key: none
+
+  - model_name: cpp-abliterated
+    litellm_params:
+      model: openai/cpp-abliterated
+      api_base: http://127.0.0.1:8090/v1
       api_key: none
 
 litellm_settings:

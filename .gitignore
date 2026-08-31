@@ -220,3 +220,9 @@ terminal/.config/ghostty/os-active.conf
 /.agents/
 /.claude/skills/
 /skills-lock.json
+
+# Engagement working directories (claw sec). They hold target names, scan
+# artifacts and the audit chain — client-identifying data that must never
+# reach the repo. The overlay path defaults to ./engagements/current when
+# CLAW_SEC_ENGAGEMENT is unset, so this can appear from a bare `claw sec` run.
+/engagements/

@@ -98,6 +98,21 @@ def _lint_type_rule(name: str, spec: dict) -> list[str]:
                     f"{name}: type rule (§6.2) — gated tool consumes {t!r}, which is not "
                     f"downstream of the gate. Legal inputs: {', '.join(GATED_INPUT_TYPES)}"
                 )
+    else:
+        # The converse, and the half that was missing. §6.2 says the input type
+        # decides gating — "the author neither opts into the gate nor can opt
+        # out". At runtime the check is `scope_class in GATED_CLASSES`, so
+        # relabelling a scanner `passive` disabled its gate entirely and lint
+        # said nothing. Consuming a target-bearing post-gate type now *forces*
+        # a gated class. `wordlist` is excluded: it names a file, not a host.
+        target_bearing = [t for t in consumes
+                          if t in GATED_INPUT_TYPES and t != "wordlist"]
+        if target_bearing:
+            out.append(
+                f"{name}: type rule (§6.2) — consumes {', '.join(sorted(target_bearing))} "
+                f"but declares scope_class {spec.get('scope_class')!r}. A tool reading "
+                f"post-gate targets must be gated; legal classes: {', '.join(GATED_CLASSES)}"
+            )
     for pname, p in (spec.get("params") or {}).items():
         if not isinstance(p, dict):
             continue

@@ -94,8 +94,8 @@ def read_targets(ctx: R.Engagement, artifact_type: str = "authorized_host"):
     """(host, addrs) pairs for a produced type. `authorized_host` reads the
     gate's own artifact and nothing else."""
     if artifact_type == "authorized_host":
-        return R.targets_from_artifact(ctx.root / "gate" / "authorized.jsonl")
-    return R.targets_from_artifact(ctx.root / "inputs" / f"{artifact_type}.jsonl")
+        return R.targets_from_artifact(ctx.root / "gate" / "authorized.jsonl")[0]
+    return R.targets_from_artifact(ctx.root / "inputs" / f"{artifact_type}.jsonl")[0]
 
 
 def _materialize(ctx: R.Engagement, artifact_type: str, produced: dict) -> Path:
@@ -248,7 +248,7 @@ def run(flow: dict, ctx: R.Engagement, seed, dry_run: bool = False,
 
         if phase.get("gate"):
             report.gate_iterations += 1
-            targets = R.targets_from_artifact(_materialize(ctx, "host", produced))
+            targets = R.targets_from_artifact(_materialize(ctx, "host", produced))[0]
             allowed, denied = gate_hosts(ctx, targets)
             report.authorized += len(allowed)
             report.denied += len(denied)
@@ -307,7 +307,7 @@ def _run_tool(ctx: R.Engagement, tool: str, pid: int, produced: dict,
             continue
         path = _materialize(ctx, pspec["of"], produced)
         params[pname] = str(path)
-        targets = [h for h, _ in R.targets_from_artifact(path)]
+        targets = [h for h, _ in R.targets_from_artifact(path)[0]]
 
     result = R.invoke(tool, params, ctx)
     if result.artifact:
