@@ -1,35 +1,61 @@
-# llama-swap — one OpenAI-compatible endpoint that hot-swaps vLLM models on
-# demand and frees VRAM after an idle TTL. The point on a 24 GB box: keep an
-# API up while juggling models without manual docker stop / VRAM thrash.
+# llama-swap — one OpenAI-compatible endpoint (:8090) that hot-swaps llama.cpp
+# models on demand and frees VRAM after an idle TTL. The point on a 24 GB box:
+# keep an API up while juggling models without manual start/stop VRAM thrash.
 #
-# Launch:  llama-swap --config ~/.dotfiles/config/llama-swap/config.yaml --listen 127.0.0.1:8090
-# Use:     curl http://localhost:8090/v1/chat/completions -d '{"model":"Qwen/Qwen2.5-7B-Instruct",...}'
-#          (or front it with LiteLLM's "swap/*" route — see config/litellm/config.yaml)
+# Launch: systemd --user unit `llama-swap.service` (claw ai-services up llama-swap)
+# Use:    curl http://localhost:8090/v1/chat/completions -d '{"model":"cpp-small",...}'
+#         or through LiteLLM's cpp-* routes — see config/litellm/config.yaml
 #
-# Each entry's `cmd` spawns the backend; llama-swap stops one model before
-# starting another (only one binds :8000 at a time), and kills it after `ttl`
-# idle seconds. `cmd` is a folded scalar (>) so it collapses to one line.
-# NOTE: HF cache path is hardcoded for this box; adjust if it moves. Match the
-# vllm/vllm-openai image tag to what `docker images` actually has.
+# REWRITTEN 2026-08-31. The previous config declared two `Qwen/Qwen2.5-*`
+# entries that ran `docker run vllm/vllm-openai` and published :8000 — models
+# that were never pulled, on a port vLLM now owns via :8010. Nothing here was
+# reachable. These entries run the LOCAL llama.cpp build against the GGUFs that
+# are actually on disk, which is what makes a real ".cpp" backend exist at all.
+#
+# VRAM BUDGET — the card is 24 GB and enclave-vllm takes ~22.3 GB of it:
+#   cpp-small (610 MB)  CAN run alongside vLLM in the ~1.4 GB left, but only at
+#                       ctx-size 4096. Measured 2026-08-31: 8192 wants a 896 MiB
+#                       KV cache and dies on cudaMalloc.
+#   cpp-coder / cpp-abliterated (18 GB each) CANNOT. Stop vLLM first:
+#       docker stop enclave-vllm-38u        # or: switch-model.sh <other>
+#   Starting a 30B while vLLM holds the card fails on CUDA OOM. llama-swap only
+#   swaps models it owns; it has no authority over the vLLM container.
+#
+# `cmd` is a folded scalar (>) so it collapses to one line. llama-swap stops one
+# model before starting another and kills it after `ttl` idle seconds.
 
 healthCheckTimeout: 300
 logLevel: info
 
 models:
-  "Qwen/Qwen2.5-7B-Instruct":
+  # ── coexists with vLLM (610 MB) — the always-available .cpp path ──────────
+  "cpp-small":
     cmd: >
-      docker run --rm --gpus all --name llamaswap-vllm
-      -v /home/henry/.cache/huggingface:/root/.cache/huggingface
-      -p 8010:8000 vllm/vllm-openai:latest
-      --model Qwen/Qwen2.5-7B-Instruct --port 8000 --max-model-len 8192
-    proxy: http://127.0.0.1:8010
+      /home/henry/Github/llama.cpp/build/bin/llama-server
+      --model /home/henry/models/qwen3-0.6b-gguf/Qwen3-0.6B-Q8_0.gguf
+      --host 127.0.0.1 --port 8091
+      --n-gpu-layers 99 --ctx-size 4096 --parallel 1
+      --jinja
+    proxy: http://127.0.0.1:8091
     ttl: 600
 
-  "Qwen/Qwen2.5-0.5B-Instruct":
+  # ── needs the card free (18 GB, MoE 30B-A3B) ──────────────────────────────
+  "cpp-coder":
     cmd: >
-      docker run --rm --gpus all --name llamaswap-vllm
-      -v /home/henry/.cache/huggingface:/root/.cache/huggingface
-      -p 8010:8000 vllm/vllm-openai:latest
-      --model Qwen/Qwen2.5-0.5B-Instruct --port 8000 --max-model-len 4096
-    proxy: http://127.0.0.1:8010
-    ttl: 300
+      /home/henry/Github/llama.cpp/build/bin/llama-server
+      --model /home/henry/models/qwen3-coder-gguf/qwen3-coder-30b-a3b-instruct-q4_k_m.gguf
+      --host 127.0.0.1 --port 8091
+      --n-gpu-layers 99 --ctx-size 32768 --parallel 1
+      --jinja
+    proxy: http://127.0.0.1:8091
+    ttl: 900
+
+  "cpp-abliterated":
+    cmd: >
+      /home/henry/Github/llama.cpp/build/bin/llama-server
+      --model /home/henry/models/qwen3-abliterated-gguf/Huihui-Qwen3-30B-A3B-Instruct-2507-abliterated.i1-Q4_K_M.gguf
+      --host 127.0.0.1 --port 8091
+      --n-gpu-layers 99 --ctx-size 32768 --parallel 1
+      --jinja
+    proxy: http://127.0.0.1:8091
+    ttl: 900
