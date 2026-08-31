@@ -147,6 +147,13 @@ aic_render_agent_canvas() {
         return 1
     fi
     [ "$_out" != "/dev/stdout" ] && mkdir -p "$(dirname "$_out")" 2>/dev/null
+    # One source of truth for the gateway key: config/litellm/.env (gitignored,
+    # 0600, and what docker compose itself reads). Only fall back to it when the
+    # var is not already exported, so a caller can still override per-invocation.
+    if [ -z "${LITELLM_MASTER_KEY:-}" ] && [ -r "$DOTFILES_DIR/config/litellm/.env" ]; then
+        LITELLM_MASTER_KEY=$(sed -n 's/^LITELLM_MASTER_KEY=//p' "$DOTFILES_DIR/config/litellm/.env" | head -1)
+        export LITELLM_MASTER_KEY
+    fi
     BASE="$AC_BASE" CUR="$AC_CONFIG" python3 - "$_out" <<'PY2'
 import json, os, sys
 out  = sys.argv[1]
