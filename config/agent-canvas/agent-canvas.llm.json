@@ -1,0 +1,65 @@
+{
+  "_claw_managed": true,
+  "_comment": [
+    "Portable OpenHands Agent Canvas LLM wiring — tracked in dot-files, merged",
+    "into ~/.openhands/settings.json (agent_settings.llm) by `claw ai config sync`.",
+    "",
+    "WHY A MERGE, NOT A FULL RENDER: settings.json is app-owned and carries 56",
+    "llm keys plus agent/conversation schema the app bumps on its own. We patch",
+    "only the routing keys below and preserve everything else, so an app upgrade",
+    "that adds fields does not get reverted.",
+    "",
+    "WRITE IT WHILE THE APP IS CLOSED. Agent Canvas holds .settings.lock and",
+    "rewrites settings.json on exit; syncing against a running app loses the edit.",
+    "",
+    "PORT CONTRACT: Agent Canvas HARDCODES localhost:8000 / 18000 / 18001 in its",
+    "Electron main.mjs (loadURL, waitForUrl, waitForAgentServer) and cannot be",
+    "reconfigured in the desktop build. vLLM was moved off :8000 to :8010 on",
+    "2026-08-30 to make room — see VLLM_PORT in projects/enclave-vllm/serve*.sh.",
+    "Never put anything back on :8000.",
+    "",
+    "GPU REALITY: only ONE model fits the 24 GB card. While enclave-vllm holds it",
+    "(~22.3 GB at utilization 0.96) Ollama has ~1.4 GB and cannot load onto the",
+    "GPU, so the ollama profiles crawl on CPU. Flip backends with",
+    "projects/enclave-vllm/switch-model.sh, not by editing this file.",
+    "",
+    "SELECT A PROFILE:  CLAW_CANVAS_PROFILE=direct-vllm claw ai config sync"
+  ],
+
+  "default_profile": "litellm-vllm",
+
+  "profiles": {
+    "litellm-vllm": {
+      "_note": "PRIMARY. Gateway :4000 -> enclave-vllm-38u :8010. qwen3.8-27b-abliterated, 77824 ctx, ~27 tok/s.",
+      "model": "openai/vllm",
+      "base_url": "http://localhost:4000/v1",
+      "api_key_env": "LITELLM_MASTER_KEY"
+    },
+    "litellm-ollama-coder": {
+      "_note": "Gateway :4000 -> ollama qwen3-coder:30b. CPU-bound while vLLM holds the card.",
+      "model": "openai/ollama-coder",
+      "base_url": "http://localhost:4000/v1",
+      "api_key_env": "LITELLM_MASTER_KEY"
+    },
+    "direct-vllm": {
+      "_note": "TROUBLESHOOTING. Bypasses LiteLLM entirely. If this works and litellm-vllm does not, the gateway is at fault, not the model.",
+      "model": "openai/qwen3.8-27b-abliterated",
+      "base_url": "http://localhost:8010/v1",
+      "api_key": "none"
+    },
+    "direct-ollama": {
+      "_note": "TROUBLESHOOTING. Bypasses LiteLLM. Only usable once vLLM is stopped and the card is free.",
+      "model": "openai/qwen3-coder:30b",
+      "base_url": "http://localhost:11434/v1",
+      "api_key": "ollama"
+    }
+  },
+
+  "common": {
+    "_note": "Applied to every profile. max_output_tokens is deliberately large: this checkpoint reasons before answering and a short budget returns an EMPTY message — measured 2026-08-25, see serve38u.sh.",
+    "max_output_tokens": 4000,
+    "drop_params": true,
+    "timeout": 300,
+    "temperature": 0.2
+  }
+}
