@@ -67,6 +67,19 @@ if [[ -d "$DOTFILES_DIR/.git" ]]; then
     fi
     dirty="$(git -C "$DOTFILES_DIR" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
     [[ "${dirty:-0}" -gt 0 ]] && note "$dirty uncommitted change(s) in the working tree"
+
+    # ~/.zshrc is a stow symlink INTO the repo, so every installer that does
+    # `echo >> ~/.zshrc` — uv, rustup, nvm, conda, gcloud — writes machine-local
+    # config straight into the tracked, portable dotfiles. uv did exactly that
+    # here. A generic "N uncommitted changes" note is where this hides, so name
+    # it: the fix is ~/.zshrc.local, which .zshrc already sources.
+    for tracked in shell/.zshrc shell/.p10k.zsh; do
+        if ! git -C "$DOTFILES_DIR" diff --quiet -- "$tracked" 2>/dev/null; then
+            added="$(git -C "$DOTFILES_DIR" diff --numstat -- "$tracked" 2>/dev/null | awk '{print $1}')"
+            warn "$tracked modified (${added:-?} line(s) added) — an installer may have appended to it"
+            fix "git -C \"\$DOTFILES_DIR\" diff -- $tracked   # then move machine-local lines to ~/.zshrc.local"
+        fi
+    done
 else
     bad "no git repo at $DOTFILES_DIR"
 fi

@@ -2,8 +2,8 @@
 #
 # Two layers, both opt-out via `progress off`:
 #
-#   1. STATIC TITLE (default): precmd sets a fixed tab title —
-#      [profile] user@host: cwd — that does NOT flicker with the running
+#   1. STATIC TITLE (default): precmd sets a fixed tab title, cwd FIRST —
+#      cwd · [profile] · user@host — that does NOT flicker with the running
 #      command. Opt in to a LIVE title (project/cwd + elapsed + truncated
 #      cmd, repainted every 1s past $CLAW_PROGRESS_THRESHOLD) with
 #      CLAW_PROGRESS_TITLE=1 or `progress title on`. Never touches stdout.
@@ -25,7 +25,7 @@
 : "${CLAW_PROGRESS_SKIP_RE:='^(vim|nvim|less|more|man|ssh|tmux|screen|htop|btop|top|hx|helix|fzf|gum|nano|emacs)\b'}"
 : "${CLAW_PROGRESS_ENABLED:=1}"
 # Live (flickering) title is OPT-IN. Default 0 → the tab title stays the static
-# [profile] user@host: cwd set on precmd, instead of repainting the running cmd.
+# "cwd · [profile] · user@host" set on precmd, instead of repainting the cmd.
 : "${CLAW_PROGRESS_TITLE:=0}"
 
 # progress.zsh is the SOLE title author. Ghostty's own title feature is already
@@ -83,9 +83,15 @@ __claw_session_tmux_sync() {
 }
 
 __claw_progress_reset_title() {
-  # Idle title: [label] user@host: cwd, via zsh prompt expansion (%n/%m/%~).
+  # Idle title: cwd first, then the session label, then user@host.
+  #
+  # The DIRECTORY LEADS on purpose. A GTK tab in Ghostty is narrow and
+  # ellipsizes the end, so the old "[label] user@host: cwd" order spent the
+  # visible width on a hostname you already know and truncated away the one
+  # thing a tab is for — telling you which directory this shell is in.
+  # user@host stays, last, because it earns its place only over SSH.
   __claw_session_resolve
-  print -Pn "\e]0;${REPLY:+[$REPLY] }%n@%m: %~\a"
+  print -Pn "\e]0;%~${REPLY:+  ·  [$REPLY]}  ·  %n@%m\a"
   __claw_session_tmux_sync "$REPLY"
 }
 
@@ -155,8 +161,10 @@ __claw_progress_updater() {
     local elapsed=$(( $(date +%s) - t0 ))
     local short="${cmd:0:60}"
     [[ ${#cmd} -gt 60 ]] && short="${short}…"
-    # [profile] project/subdir ⏳ 30s — command
-    __claw_progress_set_title "${lbl:+[$lbl] }${loc:+$loc }⏳ ${elapsed}s — ${short}"
+    # project/subdir ⏳ 30s — command · [profile]
+    # Location leads here too, for the same reason the idle title does:
+    # a truncated tab must still say where you are.
+    __claw_progress_set_title "${loc:+$loc }⏳ ${elapsed}s — ${short}${lbl:+  ·  [$lbl]}"
     sleep 1
   done
 }
