@@ -1,0 +1,90 @@
+# Local models, reachable from inside K3s.
+#
+# The models do NOT run in the cluster — they run on the bd790i host (the box
+# with the RTX PRO 4000). This file gives pods a stable in-cluster DNS name for
+# the LiteLLM gateway that fronts all three chassis, so workloads never hardcode
+# a node IP:
+#
+#     http://litellm.ai-serving.svc.cluster.local:4000/v1
+#
+# Behind that one endpoint (see config/litellm/config.yaml):
+#     vllm, vllm-qwen38                  -> enclave-vllm-38u   :8010
+#     cpp-small, cpp-coder, cpp-abliterated -> llama-swap/llama.cpp :8090
+#     ollama-coder, ollama-abliterated, ollama-small, ollama-embed -> ollama :11434
+#
+# A Service with no selector plus a hand-written EndpointSlice is the right
+# shape here: ExternalName would hand back a DNS name that pods still could not
+# resolve to the host, and it cannot carry a port. This form makes kube-proxy
+# DNAT straight to the host IP.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PREREQ — ufw on bd790i MUST allow the cluster in, or every pod gets a hang and
+# then a timeout with no error (verified 2026-08-31: a probe pod got http=000).
+# ufw is enabled on that host and drops this by default. Run ON bd790i:
+#
+#     sudo ufw allow from 10.42.0.0/16 to any port 4000 proto tcp \
+#          comment 'k3s pods -> LiteLLM gateway'
+#     sudo ufw allow from 192.168.1.0/24 to any port 4000 proto tcp \
+#          comment 'k3s nodes -> LiteLLM gateway'
+#
+# Pod traffic arrives either as a pod IP (10.42.x.x, flannel VXLAN) or SNAT'd to
+# the originating node IP depending on path, so BOTH rules are needed. Same trap
+# as the docker0 one documented in config/litellm/docker-compose.yml.
+#
+#   Apply:  kubectl apply -f config/k3s/serving/local-models-gateway.yaml
+#   Verify: kubectl -n ai-serving run probe --rm -i --restart=Never \
+#             --image=curlimages/curl:8.11.1 --command -- \
+#             curl -s -m 10 http://litellm.ai-serving.svc.cluster.local:4000/v1/models \
+#             -H "Authorization: Bearer $LITELLM_MASTER_KEY"
+#
+# AUTH: clients must send the LiteLLM master key as a Bearer token. It lives in
+# ~/.dotfiles/.env (gitignored). Publish it to the cluster as a Secret:
+#     kubectl -n ai-serving create secret generic litellm-key \
+#       --from-literal=key="$LITELLM_MASTER_KEY"
+# and mount it — never inline the key into this tracked file.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-serving
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm
+  namespace: ai-serving
+  labels:
+    app.kubernetes.io/name: litellm
+    app.kubernetes.io/part-of: local-models
+  annotations:
+    claw.local/backend: "bd790i host — LiteLLM gateway fronting vllm + llama.cpp + ollama"
+spec:
+  type: ClusterIP
+  # No selector: the endpoints below are managed by hand, not by a controller.
+  ports:
+    - name: http
+      port: 4000
+      targetPort: 4000
+      protocol: TCP
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: litellm-host
+  namespace: ai-serving
+  labels:
+    # This label is what binds the slice to the Service above. Without it the
+    # Service resolves but has no backends and every request hangs.
+    kubernetes.io/service-name: litellm
+addressType: IPv4
+ports:
+  - name: http
+    port: 4000
+    protocol: TCP
+endpoints:
+  # bd790i's LAN address. LiteLLM runs with host networking and binds
+  # 0.0.0.0:4000, so this is reachable from every node once ufw allows it.
+  - addresses:
+      - "192.168.1.104"
+    conditions:
+      ready: true
