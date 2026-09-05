@@ -109,7 +109,7 @@ stub_sweep_managers() {
 
 @test "sweep: sudo primed upfront, gem updates gems, no modcache wipe" {
   stub_sweep_managers
-  run env PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  run env CLAW_UPDATE_PTY=0 PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
   [ "$status" -eq 0 ]
   # ticket probed before any step; non-interactive uses -n (no tty to prompt on)
   [ "$(head -n 1 "$CALLS")" = "sudo -n true" ]
@@ -122,7 +122,7 @@ stub_sweep_managers() {
 @test "sweep non-interactive: no sudo ticket skips sudo sections, exit 0" {
   stub_sweep_managers
   make_stub sudo 1   # overwrite: `sudo -n true` fails — no cached ticket, no tty
-  run env PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  run env CLAW_UPDATE_PTY=0 PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
   [ "$status" -eq 0 ]
   ! grep -q 'apt-get' "$CALLS"            # not one sudo-needing step ran
   ! grep -q 'snap refresh' "$CALLS"
@@ -136,7 +136,7 @@ stub_sweep_managers() {
 @test "sweep: a failing step yields exit != 0 and a fail receipt with the tally" {
   stub_sweep_managers
   make_stub gem 2   # overwrite: gem step fails
-  run env PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  run env CLAW_UPDATE_PTY=0 PATH="$SWEEP_PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
   [ "$status" -ne 0 ]
   row="$(tail -n 1 "$RCPT")"
   [ "$(printf '%s\n' "$row" | cut -f4)" = "fail" ]
@@ -213,4 +213,35 @@ EOF
   [ "$status" -eq 0 ]
   grep -qF "sudo -n true" "$CALLS"                       # ticket validated...
   grep -qF "topgrade --config" "$CALLS"                  # ...before topgrade ran
+}
+
+# ── Live-output regression (2026-09-01) ───────────────────────────────────
+# Suppressing the prompts stopped the run BLOCKING but not being INVISIBLE.
+# claw_step pipes stdout, so `[ -t 1 ]` is false and Homebrew's downloader —
+# and the --progress-bar curls it spawns — print nothing. A legitimate
+# multi-GB `brew upgrade` then looks exactly like the hang we just fixed.
+
+@test "pty: the step's child sees a TTY, so progress-aware tools stay visible" {
+  printf '#!/usr/bin/env bash\n[ -t 1 ] && echo CHILD_TTY=yes || echo CHILD_TTY=no\n' \
+    > "$STUB/topgrade"
+  chmod +x "$STUB/topgrade"
+  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"CHILD_TTY=yes"* ]]
+}
+
+@test "pty: a non-zero exit survives the transport, never masked to 0" {
+  make_stub topgrade 7
+  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" bash "$SU" --non-interactive
+  [ "$status" -ne 0 ]
+  [ "$(tail -n 1 "$RCPT" | cut -f4)" = "fail" ]
+}
+
+@test "pty: CLAW_UPDATE_PTY=0 opts out but KEEPS the deadline" {
+  printf '#!/usr/bin/env bash\nsleep 60\n' > "$STUB/topgrade"
+  chmod +x "$STUB/topgrade"
+  run env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" \
+      CLAW_UPDATE_PTY=0 CLAW_UPDATE_TIMEOUT=2 bash "$SU" --non-interactive
+  [ "$status" -ne 0 ]
+  [ "$(tail -n 1 "$RCPT" | cut -f3)" -lt 30 ]
 }

@@ -114,6 +114,35 @@ else
     claw_deadline() { "$@"; }
 fi
 
+# claw_pty <cmd...> — run under a pseudo-terminal, on a deadline.
+#
+# Suppressing the prompts stopped the run BLOCKING; it did not make the run
+# VISIBLE. claw_step pipes a child's stdout, so `[ -t 1 ]` is false and every
+# progress-aware tool goes quiet: Homebrew's parallel downloader prints no
+# bars, and the curls it spawns carry --progress-bar, which writes only to a
+# TTY. A legitimate multi-GB `brew upgrade` (pytorch, gcc, rust, dotnet…)
+# therefore renders as a frozen screen for tens of minutes — indistinguishable
+# from the hang we just fixed, so the operator kills it, so it never completes.
+#
+# A pty makes isatty() true and the bars come back. \r-separated updates are
+# translated to newlines so claw_step's moving viewport shows the latest one
+# instead of blocking on a line that never ends. The deadline goes INSIDE
+# (timeout needs an executable; claw_pty is a shell function) and so still
+# bounds the child. Exit status is the child's, not tr's.
+# CLAW_UPDATE_PTY=0 opts out (CI, a broken pty, or isolating a transport bug).
+# The opt-out path still carries the deadline — never trade safety for output.
+if [[ "${CLAW_UPDATE_PTY:-1}" == "1" ]] && command -v python3 &>/dev/null; then
+    claw_pty() {
+        claw_deadline python3 -c '
+import os, pty, sys
+sys.exit(os.waitstatus_to_exitcode(pty.spawn(sys.argv[1:])))
+' "$@" | tr "\r" "\n"
+        return "${PIPESTATUS[0]}"
+    }
+else
+    claw_pty() { claw_deadline "$@"; }   # no pty: bounded, just not live
+fi
+
 # Sudo upfront: the first apt/dnf step used to stall mid-stream on a password
 # prompt — sudo reads /dev/tty, which claw_step's viewport repaints over, so
 # the run blocks invisibly exactly like the needrestart dialog did. This fix
@@ -161,7 +190,7 @@ if command -v topgrade &>/dev/null; then
     claw_sudo_prime                     # topgrade's `system` step shells out to sudo
     tg_args=(--config "$DOTFILES/config/topgrade.toml" -y)
     [[ $DRY_RUN -eq 1 ]] && tg_args+=(-n)   # topgrade prints its own plan
-    claw_step "Running topgrade across all ecosystems..." -- claw_deadline topgrade "${tg_args[@]}"
+    claw_step "Running topgrade across all ecosystems..." -- claw_pty topgrade "${tg_args[@]}"
     _detail="engine=topgrade"
     [[ $DRY_RUN -eq 1 ]] && _detail="${_detail} dry_run=1"
     [[ $SUDO_READY -eq 0 ]] && _detail="${_detail} sudo=skipped"
@@ -181,7 +210,7 @@ run_step() {
         printf '  %s%s %s — %s%s\n' "$(_c muted)" "$(_claw_glyph arrow)" "$1" "$2" "$(_creset)"
         return 0
     fi
-    claw_step "$1" -- bash -c "$2"
+    claw_step "$1" -- claw_pty bash -c "$2"
 }
 
 count_managers() {
