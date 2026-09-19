@@ -88,6 +88,9 @@ _claw() {
         profiles)
           _values 'action' lint paths
           ;;
+        doctor)
+          _values 'mode' repo ai all
+          ;;
         integrity|verify|check)
           _values 'action' generate verify audit
           ;;

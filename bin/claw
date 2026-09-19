@@ -187,6 +187,7 @@ cmd_help() {
   ${c_cyan}${c_bold}Workflows${c_reset}
     ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
     ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
+    ${c_white}claw doctor repo${c_reset}      ${c_dim}deployed-checkout guard: on master · upstream · not ahead · clean (exit 1 on ✗)${c_reset}
     ${c_white}claw situation${c_reset}        ${c_dim}fleet/system awareness snapshot (show|probe|tick|alerts|install)${c_reset}
     ${c_white}claw notify${c_reset}           ${c_dim}cross-platform desktop notification: "Title" "Body" · --crit · --after -- <cmd>${c_reset}
     ${c_white}claw restore-shell${c_reset}    ${c_dim}re-link ~/.zshrc, ~/.p10k.zsh, … to the repo (fix clobbered symlinks)${c_reset}
@@ -391,6 +392,61 @@ cmd_validate() {
     DOTFILES_DIR="$DOTFILES" exec bash "$DOTFILES/scripts/utils/validate-install.sh" "$@"
 }
 
+# ============================================
+# DOCTOR — REPO (the deployed-checkout guard)
+# ============================================
+# One long-lived branch (docs/BRANCHING.md): the deployed tree (~/.dotfiles)
+# stays on master with an upstream, clean and never ahead. `claw update`
+# phase 1 (repo-sync.sh) SKIPS the pull silently on no-upstream / diverged /
+# dirty — a checkout left on a feature branch simply stops receiving updates
+# (Sept 2026: four days). This surfaces that state. Read-only: never fetches
+# (repo-sync does), never mutates. Returns 1 on any ✗.
+doctor_repo() {
+    local want="${CLAW_REPO_BRANCH:-master}" fails=0 br up ahead behind dirty wts
+    printf "\n  ${c_purple}${c_bold}Repo${c_reset} ${c_dim}%s${c_reset}\n" "$DOTFILES"
+    if ! git -C "$DOTFILES" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        info "not a git checkout ${c_dim}(tarball install — claw update cannot pull)${c_reset}"
+        return 0
+    fi
+    br=$(git -C "$DOTFILES" symbolic-ref --short -q HEAD 2>/dev/null || true)
+    if [[ -z "$br" ]]; then
+        err "detached HEAD ${c_dim}— git -C $DOTFILES checkout $want${c_reset}"; fails=1
+    elif [[ "$br" != "$want" ]]; then
+        err "on branch ${c_white}$br${c_reset} ${c_dim}— the deployed tree stays on $want; work in a worktree: claw wt new <branch>${c_reset}"; fails=1
+    else
+        ok "branch ${c_white}$br${c_reset}"
+    fi
+    up=$(git -C "$DOTFILES" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null || true)
+    if [[ -z "$up" ]]; then
+        err "no upstream ${c_dim}— claw update skips the repo phase; fix: git -C $DOTFILES branch --set-upstream-to origin/$want${c_reset}"; fails=1
+    else
+        ahead=$(git -C "$DOTFILES" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)
+        behind=$(git -C "$DOTFILES" rev-list --count 'HEAD..@{u}' 2>/dev/null || echo 0)
+        if [[ "$ahead" -gt 0 && "$behind" -gt 0 ]]; then
+            err "diverged from $up ${c_dim}(ahead $ahead / behind $behind) — reconcile by hand, claw update never auto-merges${c_reset}"; fails=1
+        elif [[ "$ahead" -gt 0 ]]; then
+            err "ahead $ahead of $up ${c_dim}— unpushed commits on the deployed tree; move them to a branch (claw wt new)${c_reset}"; fails=1
+        elif [[ "$behind" -gt 0 ]]; then
+            info "behind $up by $behind ${c_dim}— claw update --repo${c_reset}"
+        else
+            ok "in sync with ${c_white}$up${c_reset}"
+        fi
+    fi
+    # Tracked-file drift minus the integrity manifest (regenerated on every
+    # pull) — the exact exclusion repo-sync.sh uses, so ✗ here ≡ "will skip".
+    dirty=$(git -C "$DOTFILES" status --porcelain -uno -- . ':(exclude)config/integrity/manifest.sha256' 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "${dirty:-0}" -gt 0 ]]; then
+        err "dirty tree ${c_dim}($dirty tracked file(s) modified) — claw update skips; commit on a branch or restore${c_reset}"; fails=1
+    else
+        ok "clean tree"
+    fi
+    wts=$(git -C "$DOTFILES" worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || true)
+    if [[ "${wts:-1}" -gt 1 ]]; then
+        info "$((wts-1)) worktree(s) ${c_dim}— claw wt ls${c_reset}"
+    fi
+    return "$fails"
+}
+
 cmd_doctor() {
     # `claw doctor ai` → focused AI-workstation readiness check.
     if [[ "${1:-}" == "ai" ]]; then
@@ -399,6 +455,12 @@ cmd_doctor() {
     # `claw doctor --full` / `claw doctor all` → full install validation.
     if [[ "${1:-}" == "--full" || "${1:-}" == "all" ]]; then
         DOTFILES_DIR="$DOTFILES" exec bash "$DOTFILES/scripts/utils/validate-install.sh" "${@:2}"
+    fi
+    # `claw doctor repo` → only the deployed-checkout guard; exit 1 on any ✗
+    # (scriptable: hooks, CI, a pre-flight before claw update).
+    if [[ "${1:-}" == "repo" ]]; then
+        doctor_repo || return 1
+        return 0
     fi
     printf "\n  ${c_purple}${c_bold}claw doctor${c_reset}  ${c_dim}— %s${c_reset}\n" "$(date '+%Y-%m-%d %H:%M:%S')"
     printf "  ${c_dim}─────────────────────────────────────${c_reset}\n"
@@ -415,6 +477,8 @@ cmd_doctor() {
     else
         info "updates:  ${c_dim}n/a${c_reset}"
     fi
+
+    doctor_repo || true
 
     printf "\n  ${c_purple}${c_bold}Core CLI${c_reset}\n"
     for tool in eza bat rg fd fzf zoxide atuin delta btop lazygit yazi starship gum glow tldr fastfetch; do
