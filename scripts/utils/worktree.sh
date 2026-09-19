@@ -14,6 +14,9 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+# Physical path: ~/.dotfiles is a symlink and git reports real paths, so
+# `ls` can print worktrees relative to the deployed tree.
+DOTFILES_DIR="$(cd "$DOTFILES_DIR" && pwd -P)"
 BASE="${CLAW_REPO_BRANCH:-master}"
 WT_ROOT="$DOTFILES_DIR/.claude/worktrees"
 if [[ -f "$DOTFILES_DIR/scripts/utils/logger.sh" ]]; then
