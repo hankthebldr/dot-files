@@ -93,6 +93,17 @@ fallback). `platform.zsh` `claw_notify` and `situation.sh`'s interrupt tier both
 route through it so crit alerts behave identically on macOS and Linux — never
 hand-roll an `osascript`/`notify-send` call in a new surface.
 
+Also: **one long-lived branch.** `master` is the only permanent branch and the
+only branch ever checked out in `~/.dotfiles` — the deployed tree that every
+machine's `claw update` fast-forwards. All work, agent sessions included, runs
+on a short-lived `feat/` `fix/` `docs/` `chore/` `claude/` branch inside a
+worktree under `.claude/worktrees/<slug>` (`claw wt new <branch>`), lands on
+master by PR merge commit, and GitHub deletes the branch on merge. Never
+`git checkout <branch>` in `~/.dotfiles` itself: it silently drops the upstream
+and `repo-sync.sh` skips every pull with `no-upstream` (four days of missed
+updates, Sept 2026). `claw doctor repo` is the guard (exit 1 off-master /
+no-upstream / ahead / dirty); the full contract is `docs/BRANCHING.md`.
+
 ### Shell Configuration Loading Order (.zshrc)
 
 Mirrors the numbered steps in `shell/.zshrc` (see its header comment):
