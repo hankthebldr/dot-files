@@ -14,6 +14,7 @@ claw homelab          homelab SSH topology
 claw toolkit          Open Claw workflow launcher
 claw skills           browse Claude skills
 claw harness <cmd>    custom agentic tooling: new <kind> <name> · list [--all|--fzf] · sync · deploy · path
+claw wt <cmd>         worktree-per-task: new <branch> · ls · rm <branch> [--force] · path <branch>
 claw ai-services <c>  manage local AI service stacks (litellm, llama-swap, …)
 claw gateway <c>      OpenShell sandbox / gateway manager
 claw load <profile>   source a profile in current shell + land in its start dir
@@ -342,6 +343,8 @@ draws the panel honors the toggle.
 | `claw toolkit`| `scripts/utils/toolkit.sh`                      |
 | `claw skills` | inline in `bin/claw` (FZF over `~/.claude/skills`) |
 | `claw output` | `scripts/utils/claw-output.sh`                  |
+| `claw wt`     | `scripts/utils/worktree.sh`                     |
+| `claw doctor repo` | inline in `bin/claw` (doctor_repo)          |
 | live progress panel | `scripts/utils/claw-progress.sh` (sourced by `pkg-manifest.sh`) |
 
 If a subcommand misbehaves, debug the underlying script directly — `claw`
