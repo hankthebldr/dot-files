@@ -89,6 +89,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - Dropped `<profile>-` alias prefixes across all profiles (-138 lines) (19dbf9b)
 
 ### Fixed
+- `claw update`: a step whose output consumer went away (Ctrl-C mid-step,
+  `bin/claw` gone) used to leave the tool and its pty relay alive and
+  deadlocked — zero CPU, frozen log, no receipt — until the 45-minute
+  deadline. CPython's `pty.spawn()` parks in `select([], [], [])` after its
+  first broken-pipe write and the child then blocks on the pty. The relay is
+  now `scripts/utils/claw-pty.py`: a dead consumer tears the child down
+  (TERM, then KILL), INT/TERM/HUP are forwarded to the child's process group,
+  and the child's exit status still comes through. Regression test in
+  `tests/update-engine.bats` (2026-09-18, `npm update -g`)
 - `claw-progress.sh` `_c()` now emits truecolor from `CLAW_RGB_*` (was printing
   raw hex from `CLAW_C_*` into escape sequences)
 - `claw-dashboard.py` no longer requires Python 3.12 (f-string quote reuse)

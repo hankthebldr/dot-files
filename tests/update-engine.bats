@@ -245,3 +245,44 @@ EOF
   [ "$status" -ne 0 ]
   [ "$(tail -n 1 "$RCPT" | cut -f3)" -lt 30 ]
 }
+
+# ── Orphan regression (2026-09-18) ────────────────────────────────────────
+# Ctrl-C during `npm update -g` killed bin/claw, the engine, tee and tr — but
+# not python+npm: `timeout` had put them in their own process group. Python's
+# pty.spawn then hit EPIPE on its first write, set stdout_avail=False, stopped
+# reading the master and parked in select([], [], []); npm blocked on its next
+# write to the pty. Zero CPU, frozen log, no receipt, until the 45-min deadline.
+# Contract: when the consumer of a step's output goes away, the wrapper tears
+# the child down — it never outlives the run.
+
+teardown() {
+  # never leave a test orphan behind, whichever way the assertion went
+  local f="$BATS_TEST_TMPDIR/orphan.pid"
+  [ -f "$f" ] && kill -9 "$(cat "$f")" 2>/dev/null || true
+}
+
+@test "pty: when the output consumer dies, the wrapper tears the child down (no orphan)" {
+  PIDF="$BATS_TEST_TMPDIR/orphan.pid"
+  cat > "$STUB/topgrade" <<STUB
+#!/usr/bin/env bash
+echo \$\$ > "$PIDF"
+echo STUB_STARTED
+i=0; while [ \$i -lt 50000 ]; do echo "line \$i"; i=\$((i+1)); done
+sleep 30
+STUB
+  chmod +x "$STUB/topgrade"
+  # The consumer quits as soon as the step's first line arrives — exactly what
+  # a Ctrl-C (or a dead bin/claw) does to the pipeline mid-step.
+  # NB: the engine's stderr is sent to /dev/null on purpose. bats `run` captures
+  # through a command substitution; an orphaned subshell holding that capture
+  # pipe would make `run` block until the deadline reaped it — and the test
+  # would pass for the wrong reason (it did, on 2026-09-18).
+  run timeout 20 env PATH="$STUB:$PATH" DOTFILES_DIR="$DOTFILES" CLAW_UPDATE_TIMEOUT=60 \
+      bash -c '"$0" --non-interactive 2>/dev/null </dev/null | while IFS= read -r l; do case "$l" in *STUB_STARTED*) exit 0;; esac; done' "$SU"
+  [ "$status" -ne 124 ]                         # the pipeline itself must not wedge
+  [ -f "$PIDF" ]
+  pid="$(cat "$PIDF")"
+  # grace: the child must be gone within a few seconds of the consumer leaving
+  for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+  ! kill -0 "$pid" 2>/dev/null
+}

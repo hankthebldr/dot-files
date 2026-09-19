@@ -131,12 +131,16 @@ fi
 # bounds the child. Exit status is the child's, not tr's.
 # CLAW_UPDATE_PTY=0 opts out (CI, a broken pty, or isolating a transport bug).
 # The opt-out path still carries the deadline — never trade safety for output.
-if [[ "${CLAW_UPDATE_PTY:-1}" == "1" ]] && command -v python3 &>/dev/null; then
+#
+# The relay is claw-pty.py, not pty.spawn(): when the consumer of a step's
+# output dies (Ctrl-C took the pipeline, bin/claw went away), pty.spawn parks
+# in select([]) after its first EPIPE and the child blocks on the pty — an
+# orphan pair that lives until the deadline (2026-09-18, npm update -g).
+# claw-pty tears the child down instead and forwards INT/TERM/HUP to it.
+CLAW_PTY_PY="$(dirname "${BASH_SOURCE[0]}")/claw-pty.py"
+if [[ "${CLAW_UPDATE_PTY:-1}" == "1" ]] && command -v python3 &>/dev/null && [[ -r "$CLAW_PTY_PY" ]]; then
     claw_pty() {
-        claw_deadline python3 -c '
-import os, pty, sys
-sys.exit(os.waitstatus_to_exitcode(pty.spawn(sys.argv[1:])))
-' "$@" | tr "\r" "\n"
+        claw_deadline python3 "$CLAW_PTY_PY" "$@" | tr "\r" "\n"
         return "${PIPESTATUS[0]}"
     }
 else
