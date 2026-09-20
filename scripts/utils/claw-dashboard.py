@@ -284,7 +284,7 @@ def ff_json(fixture=None):
     else:
         osr = mods.get("OS") or {}
         d["os"] = osr.get("prettyName") or osr.get("name") or ""
-        d["model"] = (mods.get("Host") or {}).get("name") or ""
+        d["model"] = _trim_model((mods.get("Host") or {}).get("name") or "")
         # F-09: the header name is the NODENAME, never hw.model — the grid read
         # "henry@Mac16,7" because ff-readout sourced it from the hardware id.
         try:
@@ -928,6 +928,21 @@ def render(rows, logo, title_text, term):
     print()
     frame(merged, title_text, content_w, margin)
 
+
+def _trim_model(m):
+    """Apple's Host.name is a marketing string: "MacBook Pro (16-inch, 2024,
+    Three Thunderbolt 5 ports)". The parenthetical is a spec sheet, not an
+    identity — keep the size, drop the rest, so the header keeps room for the
+    network field (audit F-09: the header may not crowd out live values)."""
+    m = (m or "").strip()
+    if not m:
+        return ""
+    head, _, tail = m.partition("(")
+    if not tail:
+        return m
+    size = re.search(r"\d+(?:[.,]\d+)?-inch", tail)
+    head = head.strip()
+    return f"{head} {size.group(0)}" if size else head
 
 # ── Modes ────────────────────────────────────────────────────────────────────
 def header_rows(d, narrow):

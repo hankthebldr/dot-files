@@ -412,3 +412,25 @@ PY
   [[ "$output" == *"attention"* ]]
   [[ "$output" == *"k3s 2/3 Ready"* ]]
 }
+
+# Apple's fastfetch Host.name is a marketing string ("MacBook Pro (16-inch,
+# 2024, Three Thunderbolt 5 ports)") that ate the header's network field.
+# Keep the model and the size, drop the parenthetical spec list.
+@test "dashboard header: Apple's verbose model is trimmed to name + size" {
+  run python3 - "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py" <<'PY'
+import sys, importlib.util as u
+spec = u.spec_from_file_location('d', sys.argv[1])
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+print(m._trim_model("MacBook Pro (16-inch, 2024, Three Thunderbolt 5 ports)"))
+print(m._trim_model("MacBook Air (13-inch, M2, 2022)"))
+print(m._trim_model("Mac16,7"))
+print(m._trim_model("BD790i (AMD Ryzen 9 7945HX)"))
+print(m._trim_model(""))
+PY
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "MacBook Pro 16-inch" ]
+  [ "${lines[1]}" = "MacBook Air 13-inch" ]
+  [ "${lines[2]}" = "Mac16,7" ]          # no parenthetical: unchanged
+  [ "${lines[3]}" = "BD790i" ]           # no size in the parenthetical: name only
+  [ "${#lines[@]}" -eq 4 ]               # empty input prints an empty line
+}

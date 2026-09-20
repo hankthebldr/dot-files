@@ -85,8 +85,12 @@ SH
   run env DOTFILES_DIR="$BATS_TEST_DIRNAME/.." USER=tester python3 "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py"
   [ "$status" -eq 0 ]
   [[ "$output" == *"OPEN CLAW"* ]]   # title in the frame
-  [[ "$output" == *"OS"* ]]          # readout present
+  [[ "$output" == *"tester@"* ]]     # header identity present
+  [[ "$output" == *"attention"* ]]   # the attention block is on the login card
   [[ "$output" == *"╭"* ]]           # framed
+  # The static OS/Kernel/Host/Locale cells moved to `claw specs` (audit F-09):
+  # 10 of the old 16 grid cells were facts about the machine that never change.
+  [[ "$output" != *"Locale"* ]]
 }
 
 # Regression for the WiFi-detection bug: macOS 14.4+ removed `airport` and made
