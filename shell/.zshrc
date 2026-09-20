@@ -14,6 +14,14 @@
 #   8. P10k theme config
 
 # ── 1. PATH + DOTFILES_DIR ──────────────────────────────
+# Ctrl-C during login must never abort the rc. Without this trap, an interrupt
+# landing anywhere in steps 2-8 (most likely during the step-3 dashboard render)
+# kills .zshrc mid-file and drops you into a shell with no aliases, no claw(),
+# no p10k — a wedged login that looks like a crash (audit F-01). ':' makes INT
+# a no-op for the duration of the rc; the LAST line restores the default so
+# interactive Ctrl-C keeps working normally.
+trap ':' INT
+
 # Must be FIRST so fastfetch, fzf, and all brew tools are found
 export DOTFILES_DIR="$HOME/.dotfiles"
 
@@ -54,9 +62,13 @@ export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 # ── 3. Welcome TUI (BEFORE p10k instant prompt) ─────────
 # P10k instant prompt suppresses all stdout during init.
 # The TUI must run BEFORE that, while we still own the terminal.
+# Interrupting the render is a legitimate "skip the pretty part" gesture, so it
+# reports and continues rather than aborting the rc (F-01/F-25).
+# TEMPORARY: a later item replaces this whole block with `claw_login`.
 if [[ -f "$DOTFILES_DIR/shell/welcome-tui.zsh" ]]; then
     source "$DOTFILES_DIR/shell/welcome-tui.zsh"
     claw_welcome_tui
+    (( $? == 130 )) && print -P '%F{yellow}  ↯ login render interrupted — shell is intact%f'
 fi
 
 # ── 4. Powerlevel10k ─────────────────────────────────────
@@ -268,3 +280,7 @@ unset _fzf_init
 [[ -d /Volumes/LacieDrive ]] && export OLLAMA_MODELS="/Volumes/LacieDrive/ollama-models"
 
 [[ -f "$HOME/.acme.sh/acme.sh.env" ]] && . "$HOME/.acme.sh/acme.sh.env"
+
+# ── Release the login INT guard (step 1) ────────────────
+# MUST stay last: from here on Ctrl-C is the user's again.
+trap - INT
