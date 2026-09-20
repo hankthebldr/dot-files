@@ -64,7 +64,7 @@ g() {  # g <field> → value (best-effort, fast, never errors)
             else cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null || uname -n; fi ;;
     kernel) uname -sr ;;
     uptime) local s now b
-            if is_mac; then b=$(sysctl -n kern.boottime 2>/dev/null | sed -E 's/.*sec = ([0-9]+).*/\1/'); now=$(date +%s); s=$(( now - ${b:-now} ))
+            if is_mac; then b=$(sysctl -n kern.boottime 2>/dev/null | sed -E 's/^\{ *sec *= *([0-9]+).*/\1/'); now=$(date +%s); s=$(( now - ${b:-now} ))
             else s=$(cut -d. -f1 /proc/uptime 2>/dev/null); fi
             s=${s:-0}; printf '%dd %dh %dm' $((s/86400)) $((s%86400/3600)) $((s%3600/60)) ;;
     load)   if is_mac; then sysctl -n vm.loadavg 2>/dev/null | awk '{printf "%s %s %s",$2,$3,$4}'
