@@ -9,7 +9,8 @@ PROFILE_GLYPH=""
 PROFILE_DESC="daily driver · zoxide · fzf · eza"
 
 # VISUAL IDENTITY
-PROFILE_THEME_DEFAULT="synthwave"
+# inherits the persisted claw theme (refined-dark until claw theme set) — put a slug back for a per-profile override
+PROFILE_THEME_DEFAULT=""
 PROFILE_TAG="the chill one — just wants a nice prompt and z to work"
 PROFILE_FLAIR="zoxide warm · starship lit · just enough fastfetch"
 
