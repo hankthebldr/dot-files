@@ -542,6 +542,37 @@ def _strip_cursor(text):
     return lines
 
 
+def _decolor(lines):
+    """NO_COLOR strips SGR from art too — a captured card must be escape-free."""
+    return [_ANSI.sub("", ln).rstrip() for ln in lines] if NOCOLOR else lines
+
+
+def profile_logo(key):
+    """The profile's art, SGR-first (audit F-23).
+
+    Two trees carry profile logos: config/.config/fastfetch/logo-<key>.txt (9
+    profiles) and shell/profiles/<key>/logo.txt (all 18). Take the first that
+    exists AND already carries colour; failing that, tint the first that exists
+    with the palette's blue; failing that, the builtin OS mark.
+    """
+    cands = [os.path.join(DOTS, "config", ".config", "fastfetch", f"logo-{key}.txt"),
+             os.path.join(DOTS, "shell", "profiles", key, "logo.txt")]
+    first = None
+    for p in cands:
+        try:
+            with open(p, encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except Exception:
+            continue
+        if "\033[" in text:
+            return _decolor(_strip_cursor(text))
+        if first is None:
+            first = text
+    if first is not None:
+        return [col(ln, C["blue"]) for ln in _strip_cursor(first)]
+    return builtin_logo()
+
+
 def builtin_logo():
     """The builtin OS mark. "--pipe false" keeps fastfetch's colour when stdout
     is not a tty (the login card is often captured)."""
@@ -554,9 +585,7 @@ def builtin_logo():
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=3).stdout
     except Exception:
         out = ""
-    lines = _strip_cursor(out) if out.strip() else []
-    if NOCOLOR:
-        lines = [_ANSI.sub("", ln).rstrip() for ln in lines]
+    lines = _decolor(_strip_cursor(out)) if out.strip() else []
     return lines or _fallback_mark()
 
 
@@ -944,6 +973,49 @@ def login_rows(d, term):
     return rows
 
 
+PROFILE_TOOL_CAP = 8
+
+
+def profile_rows(key, d, term):
+    """class · tag · key-tool presence · help pointer · Mem/Disk · attention.
+
+    Every PROFILE_* value arrives through the environment — `claw load` sources
+    the profile's meta.zsh and exports them before calling this, so nothing here
+    parses zsh.
+    """
+    narrow = term < 80
+    env = os.environ.get
+    klass = env("PROFILE_CLASS", "") or key.upper()
+    glyph = env("PROFILE_GLYPH", "")
+    tag = env("PROFILE_TAG", "")
+
+    head = (f"{col(glyph, C['purple'])} " if glyph else "") + col(klass, C["green"])
+    if tag:
+        head += col(" · ", C["muted"]) + col(tag, C["fg"])
+    rows = [head]
+
+    tools = (env("PROFILE_KEY_TOOLS", "") or "").split()[:PROFILE_TOOL_CAP]
+    if tools:
+        present = {t: bool(shutil.which(t)) for t in tools}
+        rows.append("  ".join(
+            (col("✓ ", C["green"]) + col(t, C["fg"])) if present[t]
+            else (col("✗ ", C["red"]) + col(t, C["muted"]))
+            for t in tools))
+        chain = env("PROFILE_TOOLCHAIN", "")
+        if chain and not all(present.values()):
+            name = chain[:-len("-toolchain.sh")] if chain.endswith("-toolchain.sh") else chain
+            rows.append(col("→ ", C["muted"]) + col(f"claw install {name}", C["amber"]))
+
+    rows.append(col(env("PROFILE_HELP_CMD", "") or f"{key}-help", C["fg"])
+                + col(" · reference", C["muted"]))
+
+    bars = bar_rows(d, width=8 if narrow else 12, fields=("mem", "disk"))
+    if bars:
+        rows += [""] + bars
+    rows += [rule("attention")] + attention_lines()
+    return rows
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="claw-dashboard",
                                  description="Open Claw login / profile card")
@@ -958,8 +1030,14 @@ def main(argv=None):
 
     term = shutil.get_terminal_size((100, 30)).columns
     d = ff_json(args.json_fixture)
-    render(login_rows(d, term), builtin_logo() if term >= 100 else [],
-           " OPEN CLAW ", term)
+    if args.profile:
+        key = args.profile
+        title = f" OPEN CLAW · {os.environ.get('PROFILE_CLASS') or key} "
+        render(profile_rows(key, d, term),
+               profile_logo(key) if term >= 100 else [], title, term)
+    else:
+        render(login_rows(d, term), builtin_logo() if term >= 100 else [],
+               " OPEN CLAW ", term)
     return 0
 
 

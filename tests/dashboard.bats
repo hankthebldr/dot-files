@@ -300,3 +300,115 @@ PY
   printf '%s\n' "$output" | command grep -qE '~ +brew'
   printf '%s\n' "$output" | command grep -qE 'i +dotfiles'
 }
+
+# ── T1-06c · --profile ───────────────────────────────────────────────────────
+
+# F-23: "one render path" held for 1 of 18 profiles. All 18 now render through
+# this engine, width-exact at every breakpoint, with no placeholder leaks.
+@test "dashboard --profile: all 18 profiles render at 80/100/120/200" {
+  n=0
+  for dir in "$BATS_TEST_DIRNAME"/../shell/profiles/*/; do
+    key=$(basename "$dir"); n=$((n + 1))
+    meta="$dir/meta.zsh"
+    unset PROFILE_CLASS PROFILE_TAG PROFILE_GLYPH PROFILE_HELP_CMD \
+          PROFILE_TOOLCHAIN PROFILE_KEY_TOOLS
+    if [ -f "$meta" ]; then
+      eval "$(command grep -E '^PROFILE_(CLASS|TAG|GLYPH|HELP_CMD|TOOLCHAIN|KEY_TOOLS)=' "$meta" | sed 's/[[:space:]]*#.*$//')"
+      export PROFILE_CLASS PROFILE_TAG PROFILE_GLYPH PROFILE_HELP_CMD \
+             PROFILE_TOOLCHAIN PROFILE_KEY_TOOLS
+    fi
+    for w in 80 100 120 200; do
+      run env NO_COLOR=1 COLUMNS="$w" python3 "$DASH" --profile "$key" --json-fixture "$FIX"
+      [ "$status" -eq 0 ] || { echo "$key @ $w rc=$status"; echo "$output"; false; }
+      [[ "$output" != *"n/a"* ]] || { echo "$key @ $w leaked n/a"; false; }
+      [[ "$output" != *"dumb"* ]] || { echo "$key @ $w leaked dumb"; false; }
+      widths=$(printf '%s\n' "$output" | python3 -c 'import sys,re
+a=re.compile("\x1b\\[[0-9;?]*[A-Za-z]")
+ws={len(a.sub("",l)) for l in sys.stdin.read().splitlines() if l.strip()}
+print(" ".join(str(x) for x in sorted(ws)))')
+      [ "$(printf '%s\n' "$widths" | wc -w | tr -d ' ')" -eq 1 ] \
+        || { echo "$key @ $w widths=$widths"; false; }
+      [ "$widths" -le "$w" ] || { echo "$key @ $w overflow=$widths"; false; }
+    done
+  done
+  [ "$n" -eq 18 ] || { echo "expected 18 profiles, saw $n"; false; }
+}
+
+# The title names the profile's class, and the card carries its tag, the key
+# tool presence line and the help-card pointer — all out of the environment.
+@test "dashboard --profile: title, class, tools and help pointer" {
+  run env NO_COLOR=1 COLUMNS=120 \
+      PROFILE_CLASS=NIGHTHACKER PROFILE_TAG="thinks your password is cute" \
+      PROFILE_HELP_CMD=sec-help PROFILE_TOOLCHAIN=security-toolchain.sh \
+      PROFILE_KEY_TOOLS="sh __claw_absent_tool__" \
+      python3 "$DASH" --profile security --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"OPEN CLAW · NIGHTHACKER"* ]]
+  [[ "$output" == *"thinks your password is cute"* ]]
+  [[ "$output" == *"✓ sh"* ]]
+  [[ "$output" == *"✗ __claw_absent_tool__"* ]]
+  [[ "$output" == *"claw install security"* ]]
+  [[ "$output" == *"sec-help"* ]]
+  # profile card shows Mem + Disk, never a Load or Swap row
+  [[ "$output" == *"Mem"* ]]
+  [[ "$output" == *"Disk"* ]]
+  [[ "$output" != *"Load"* ]]
+}
+
+# Logo resolution is SGR-first: the config-dir art wins when it carries colour,
+# even though shell/profiles/<key>/logo.txt also exists.
+@test "dashboard --profile: SGR-first logo resolver picks the coloured file" {
+  d="$BATS_TEST_TMPDIR/dots"
+  mkdir -p "$d/config/.config/fastfetch" "$d/shell/profiles/security"
+  printf '\033[38;2;1;2;3mSGRFILE\033[0m\n' > "$d/config/.config/fastfetch/logo-security.txt"
+  printf 'MONOFILE\n' > "$d/shell/profiles/security/logo.txt"
+  run env NO_COLOR=1 COLUMNS=120 DOTFILES_DIR="$d" \
+      python3 "$DASH" --profile security --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SGRFILE"* ]]
+  [[ "$output" != *"MONOFILE"* ]]
+
+  # and the other way round: coloured art under shell/profiles wins when the
+  # config-dir file is monochrome
+  printf 'MONOFILE\n' > "$d/config/.config/fastfetch/logo-security.txt"
+  printf '\033[38;2;4;5;6mPROFILESGR\033[0m\n' > "$d/shell/profiles/security/logo.txt"
+  run env NO_COLOR=1 COLUMNS=120 DOTFILES_DIR="$d" \
+      python3 "$DASH" --profile security --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROFILESGR"* ]]
+}
+
+# A profile whose only art is monochrome gets tinted with the palette's blue —
+# never a hardcoded hex.
+@test "dashboard --profile: monochrome-only logo is tinted with CLAW_C_BLUE" {
+  d="$BATS_TEST_TMPDIR/dots"
+  mkdir -p "$d/shell/profiles/cloud"
+  printf 'MONOCLOUD\n' > "$d/shell/profiles/cloud/logo.txt"
+  run env DOTFILES_DIR="$d" CLAW_C_BG=000000 CLAW_C_BLUE=0088ff \
+      python3 - "$DASH" <<'PY'
+import sys, importlib.util as u
+spec = u.spec_from_file_location('d', sys.argv[1])
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+m.NOCOLOR = False
+lines = m.profile_logo('cloud')
+want = m.rgb(*m.PAL['blue'])
+print("BLUE_FROM_ENV" if m.PAL['blue'] == (0, 136, 255) else "BLUE_BAD")
+print("TINTED" if any(want in l for l in lines) else "NOT_TINTED")
+print("HAS_ART" if any('MONOCLOUD' in l for l in lines) else "NO_ART")
+PY
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"BLUE_FROM_ENV"* ]]
+  [[ "$output" == *"TINTED"* ]]
+  [[ "$output" == *"HAS_ART"* ]]
+}
+
+@test "dashboard --profile: NO_COLOR output carries no escape sequences" {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/attention.json" "$XDG_CACHE_HOME/claw/"
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 PROFILE_CLASS=SKYSURFER \
+      python3 "$DASH" --profile cloud --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  printf '%s' "$output" | command grep -q $'\033' && { echo "escape codes leaked"; false; }
+  [[ "$output" == *"attention"* ]]
+  [[ "$output" == *"k3s 2/3 Ready"* ]]
+}
