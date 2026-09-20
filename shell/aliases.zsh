@@ -844,26 +844,9 @@ servstat() {
 # ============================================
 # ZSH COMPLETIONS
 # ============================================
-
-# Kubectl
-if command -v kubectl &> /dev/null; then
-    source <(kubectl completion zsh)
-fi
-
-# Docker
-if command -v docker &> /dev/null; then
-    source <(docker completion zsh 2>/dev/null) || true
-fi
-
-# Helm
-if command -v helm &> /dev/null; then
-    source <(helm completion zsh 2>/dev/null) || true
-fi
-
-# GitHub CLI
-if command -v gh &> /dev/null; then
-    source <(gh completion -s zsh 2>/dev/null) || true
-fi
+# kubectl / docker / helm / gh completions are generated and cached by the
+# oh-my-zsh plugins of the same names (.zshrc step 5). Regenerating them here
+# cost ~211 ms on EVERY interactive shell for nothing (audit 2026-09-20 F-22).
 
 # ============================================
 # EOF
