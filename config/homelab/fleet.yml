@@ -5,6 +5,10 @@
 fleet:
   name: HR-TRUST
   poll_seconds: 60
+  # Home LAN default gateway. The reachability fallback (nc/ping to the RFC1918
+  # hosts below) only runs when the current default route matches this; off-LAN
+  # the poller trusts tailscale alone. Omit to always probe (legacy behaviour).
+  lan_gateway: 192.168.1.1
 
 # k8s cluster context + the Traefik entrypoint used for Host-header service probes
 # (DNS-independent — works on-LAN or over a routed tailnet).

@@ -247,3 +247,42 @@ setup() {
   [ "$status" -eq 0 ]
   [ -f "$XDG_CACHE_HOME/claw/homelab.json" ]
 }
+
+# ── audit 2026-09-20 F-05: LAN fallback must not probe a stranger's network ──
+# Stub the network so the test is hermetic: no tailscale/kubectl/gh/curl; a
+# `route`/`ip` that reports a FOREIGN gateway; a `ping` that logs its calls.
+_lan_stubs() {
+  STUB="$BATS_TEST_TMPDIR/stub"; CALLS="$BATS_TEST_TMPDIR/calls"; mkdir -p "$STUB"; : > "$CALLS"
+  for t in tailscale kubectl gh curl nc; do printf '#!/usr/bin/env bash\nexit 1\n' > "$STUB/$t"; done
+  printf '#!/usr/bin/env bash\necho "   gateway: 10.99.99.1"\n' > "$STUB/route"
+  printf '#!/usr/bin/env bash\necho "default via 10.99.99.1 dev eth0"\n' > "$STUB/ip"
+  printf '#!/usr/bin/env bash\necho "ping $*" >> "%s"\nexit 1\n' "$CALLS" > "$STUB/ping"
+  chmod +x "$STUB"/*
+  export XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/config" XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
+  mkdir -p "$XDG_CONFIG_HOME/claw" "$XDG_CACHE_HOME/claw"
+  # one machine on TEST-NET (unroutable), no services, no cluster → only the
+  # reachability fallback can possibly fire
+  cat > "$XDG_CONFIG_HOME/claw/fleet.yml" <<'YML'
+fleet: { name: T, poll_seconds: 60, lan_gateway: 192.168.1.1 }
+cluster: { context: "", traefik_ip: "" }
+machines:
+  - { id: box, host: 192.0.2.1, user: t, ssh: false, role: worker, services: [] }
+services: {}
+YML
+}
+
+@test "situation homelab: off the home LAN the nc/ping fallback does NOT run" {
+  _lan_stubs
+  run env PATH="$STUB:$PATH" bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+  [ "$status" -eq 0 ]
+  [ ! -s "$CALLS" ]                                  # ping never dialled
+  run jq -r '.machines[0].state' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$output" = "down" ]
+}
+
+@test "situation homelab: CLAW_HOMELAB_LAN=1 forces the fallback (ping is reached)" {
+  _lan_stubs
+  run env PATH="$STUB:$PATH" CLAW_HOMELAB_LAN=1 bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+  [ "$status" -eq 0 ]
+  grep -q '^ping ' "$CALLS"
+}
