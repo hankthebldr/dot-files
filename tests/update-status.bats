@@ -290,3 +290,28 @@ EOF
   run shellcheck -x -S warning -e SC1090,SC1091,SC2034,SC2059,SC2015,SC2154 "$US"
   [ "$status" -eq 0 ]
 }
+
+# ── audit 2026-09-20 F-07: the glance was dead three times over ──────────────
+
+@test "read: brew/apt absent but repo probed clean renders 'current' (jq scope regression)" {
+  # `.` inside the `| [ … ] | if` chain is the ARRAY, so `.repo_behind` threw
+  # "Cannot index array with string" and the `|| echo n/a` masked it.
+  echo '{"ts":"x","brew":null,"apt":null,"repo_behind":0,"repo_ahead":0,"last_run":null}' > "$SNAP"
+  run_us read
+  [ "$status" -eq 0 ]
+  [ "$output" = "current" ]
+}
+
+@test "json shape: a FAILING brew probe records brew_err (never silently 'no brew')" {
+  stub_fail brew
+  run_us --force
+  [ "$status" -eq 0 ]
+  jq -e '.brew == null and (.brew_err | type) == "string" and (.brew_err | length) > 0' "$SNAP"
+}
+
+@test "read: a failed brew probe renders 'brew ✗ <reason>' instead of n/a" {
+  echo '{"ts":"x","brew":null,"brew_err":"xcode-license","apt":null,"repo_behind":0,"repo_ahead":0,"last_run":null}' > "$SNAP"
+  run_us read
+  [ "$status" -eq 0 ]
+  [ "$output" = "brew ✗ xcode-license" ]
+}
