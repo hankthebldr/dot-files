@@ -59,25 +59,20 @@ case $main_choice in
         echo ""
         echo "${c_green}── Git & Dev Ops ──${c_reset}"
         echo "  1. Lazygit (Interactive Git TUI)"
-        echo "  2. Quick Commit & Push (add all, msg, push)"
-        echo "  3. Interactive Rebase (last 5 commits)"
-        echo "  4. Clean/Nuke Node Modules & Reinstall"
-        echo "  5. Start Local Python HTTP Server (Port 8000)"
-        echo "  6. Interactive JSON Explorer (fx)"
-        read -p "  ${c_purple}▶${c_reset} Run workflow [1-6]: " sub
+        echo "  2. Interactive Rebase (last 5 commits)"
+        echo "  3. Clean/Nuke Node Modules & Reinstall"
+        echo "  4. Start Local Python HTTP Server (Port 8000)"
+        echo "  5. Interactive JSON Explorer (fx)"
+        read -p "  ${c_purple}▶${c_reset} Run workflow [1-5]: " sub
         case $sub in
             1) command -v lazygit &> /dev/null && lazygit || echo "${c_red}Lazygit not installed.${c_reset}" ;;
-            2)
-                read -p "  Commit message: " msg
-                git add . && git commit -m "$msg" && git push
-                ;;
-            3) git rebase -i HEAD~5 ;;
-            4)
+            2) git rebase -i HEAD~5 ;;
+            3)
                 echo "Cleaning..."
                 rm -rf node_modules package-lock.json yarn.lock && npm install
                 ;;
-            5) python3 -m http.server 8000 ;;
-            6)
+            4) python3 -m http.server 8000 ;;
+            5)
                 if command -v fx &> /dev/null; then
                     json=$(find . -maxdepth 3 -iname "*.json" 2>/dev/null | fzf --height 40% --reverse --prompt="Select JSON: ")
                     [[ -n "$json" ]] && fx "$json"
@@ -92,18 +87,16 @@ case $main_choice in
         echo ""
         echo "${c_green}── Docker Management ──${c_reset}"
         echo "  1. Lazydocker (Interactive UI)"
-        echo "  2. System Prune (Force clean unused containers/networks/images)"
-        echo "  3. Stop ALL Running Containers"
-        echo "  4. Remove ALL Containers"
-        echo "  5. View Docker Compose Logs (Tail)"
-        read -p "  ${c_purple}▶${c_reset} Run workflow [1-5]: " sub
+        echo "  2. Stop ALL Running Containers"
+        echo "  3. Remove ALL Containers"
+        echo "  4. View Docker Compose Logs (Tail)"
+        read -p "  ${c_purple}▶${c_reset} Run workflow [1-4]: " sub
         # shellcheck disable=SC2046
         case $sub in
             1) command -v lazydocker &> /dev/null && lazydocker || echo "${c_red}Lazydocker not installed.${c_reset}" ;;
-            2) docker system prune -af --volumes ;;
-            3) docker stop $(docker ps -q) 2>/dev/null || echo "No running containers." ;;
-            4) docker rm $(docker ps -aq) 2>/dev/null || echo "No containers found." ;;
-            5) docker-compose logs -f ;;
+            2) docker stop $(docker ps -q) 2>/dev/null || echo "No running containers." ;;
+            3) docker rm $(docker ps -aq) 2>/dev/null || echo "No containers found." ;;
+            4) docker-compose logs -f ;;
             *) echo "${c_red}Invalid choice.${c_reset}" ;;
         esac
         ;;
