@@ -1,28 +1,138 @@
 #!/usr/bin/env bats
 # claw-dashboard.py render tests. Run: bats tests/
+#
+# Every case feeds the pinned fastfetch fixture (tests/fixtures/fastfetch.json)
+# via --json-fixture: CI has no fastfetch, and a live probe would make the
+# assertions machine-dependent.
 
 setup() {
   export DOTFILES_DIR="$BATS_TEST_DIRNAME/.."
   export HOME="$BATS_TEST_TMPDIR"; mkdir -p "$HOME"
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
+  export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
+  export CLAW_NO_LOG=1
+  DASH="$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py"
+  FIX="$BATS_TEST_DIRNAME/fixtures/fastfetch.json"
 }
 
-# infra_lines() should render each cloud identity with its OWN provider glyph
-# (AWS=U+F270, GCP=U+F1A0, Azure=U+F17A), not a single shared cloud icon, and
-# without the old "aws:"/"gcp:"/"az:" text prefixes.
-@test "dashboard infra_lines: per-provider cloud icons (aws/gcp/azure)" {
-  run env NO_COLOR=1 python3 - "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py" <<'PY'
+# Visible width (ANSI stripped) of the widest output line.
+_maxw() {
+  python3 -c 'import sys,re
+a=re.compile("\x1b\\[[0-9;?]*[A-Za-z]")
+print(max((len(a.sub("",l)) for l in sys.stdin.read().splitlines()), default=0))'
+}
+
+# ── T1-06a · data path ───────────────────────────────────────────────────────
+
+# F-04: ff-readout parsed `kern.boottime` with a greedy regex and matched
+# `usec`, rendering "20708d". Uptime now comes from fastfetch's Uptime.uptime,
+# which is MILLISECONDS: 10178514 ms = 2 h 49 m.
+@test "dashboard --login: uptime comes from Uptime.uptime milliseconds" {
+  run env NO_COLOR=1 COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"up 2h49m"* ]]
+  [[ "$output" != *"20708d"* ]]
+}
+
+# F-09: the header read `henry@Mac16,7` because ff-readout set host from
+# `hw.model`. Host is now os.uname().nodename; the model is its own segment.
+@test "dashboard --login: header host is the nodename, not the hardware model" {
+  nodename=$(python3 -c 'import os;print(os.uname().nodename)')
+  run env NO_COLOR=1 COLUMNS=120 USER=tester python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"tester@${nodename}"* ]]
+  [[ "$output" != *"tester@Mac16,7"* ]]
+}
+
+# F-12: docker (115 ms) + tailscale (144 ms) + kubectl were probed live on every
+# render. The data path is now one fastfetch call plus cached JSON reads; the
+# stubs are ON PATH so `shutil.which` finds them — nothing must execute them.
+@test "dashboard --login: no docker/tailscale/kubectl process spawned" {
+  stub="$BATS_TEST_TMPDIR/stub"; mark="$BATS_TEST_TMPDIR/mark"
+  mkdir -p "$stub" "$mark"
+  for t in docker tailscale kubectl systemctl; do
+    printf '#!/bin/sh\ntouch "%s/%s"\nexit 0\n' "$mark" "$t" > "$stub/$t"
+    chmod +x "$stub/$t"
+  done
+  run env NO_COLOR=1 COLUMNS=120 PATH="$stub:/usr/bin:/bin" \
+      python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  for t in docker tailscale kubectl systemctl; do
+    [ ! -e "$mark/$t" ] || { echo "spawned: $t"; false; }
+  done
+}
+
+# The frame must be width-exact (every line the same visible width) and never
+# exceed the terminal, at each breakpoint: <80 single column, 80-99 body only,
+# >=100 logo + body.
+@test "dashboard --login: width-exact and clamped at 58/80/100/120/200" {
+  for w in 58 80 100 120 200; do
+    run env NO_COLOR=1 COLUMNS="$w" python3 "$DASH" --login --json-fixture "$FIX"
+    [ "$status" -eq 0 ]
+    widths=$(printf '%s\n' "$output" | python3 -c 'import sys,re
+a=re.compile("\x1b\\[[0-9;?]*[A-Za-z]")
+ws={len(a.sub("",l)) for l in sys.stdin.read().splitlines() if l.strip()}
+print(" ".join(str(x) for x in sorted(ws)))')
+    [ "$(printf '%s\n' "$widths" | wc -w | tr -d ' ')" -eq 1 ] || { echo "w=$w widths=$widths"; false; }
+    [ "$widths" -le "$w" ] || { echo "w=$w overflow=$widths"; false; }
+  done
+}
+
+# F-09: 10 of 16 grid cells were static laptop facts and four were duplicated
+# (Host, Up, Load, Mem). The grid is gone; those live in `claw specs`.
+@test "dashboard --login: static spec-sheet cells are gone, no duplicate Load" {
+  run env NO_COLOR=1 COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s\n' "$output" | command grep -c 'Load')" -eq 1 ]
+  [[ "$output" != *"Locale"* ]]
+  [[ "$output" != *"Kernel"* ]]
+  [[ "$output" != *"n/a"* ]]
+  [[ "$output" != *"dumb"* ]]
+}
+
+# segment_rows() is presence-driven: each row carries a show_if the caller
+# honours, so a bare machine renders a short card instead of empty cells.
+@test "dashboard segment_rows: presence-driven with show_if" {
+  run env NO_COLOR=1 python3 - "$DASH" "$FIX" <<'PY'
 import sys, importlib.util as u
 spec = u.spec_from_file_location('d', sys.argv[1])
 m = u.module_from_spec(spec); spec.loader.exec_module(m)
-# Neutralize the non-cloud probes so output is deterministic (no tailscale/tunnels).
-m.shutil.which = lambda *_: None
-m._tunnel_count = lambda: 0
+d = m.ff_json(sys.argv[2])
+rows = m.segment_rows(d)
+shown = {r[0]: r[3] for r in rows}
+print("KEYS=" + ",".join(r[0] for r in rows))
+print("MODEL_ON" if shown.get("model") else "MODEL_OFF")
+print("NET_ON" if shown.get("net") else "NET_OFF")
+print("BATT_ON" if shown.get("batt") else "BATT_OFF")
+print("SWAP_ON" if shown.get("swap") else "SWAP_OFF")
+d2 = dict(d, batt_pct=100, batt_status="Full")
+print("FULL_BATT_OFF" if not dict((r[0], r[3]) for r in m.segment_rows(d2))["batt"] else "FULL_BATT_ON")
+d3 = dict(d, swap_used=0)
+print("NOSWAP_OFF" if not dict((r[0], r[3]) for r in m.segment_rows(d3))["swap"] else "NOSWAP_ON")
+PY
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"MODEL_ON"* ]]
+  [[ "$output" == *"NET_ON"* ]]
+  [[ "$output" == *"BATT_ON"* ]]
+  [[ "$output" == *"SWAP_ON"* ]]
+  [[ "$output" == *"FULL_BATT_OFF"* ]]
+  [[ "$output" == *"NOSWAP_OFF"* ]]
+}
+
+# Cloud identity keeps its per-provider glyph (AWS U+F270, GCP U+F1A0,
+# Azure U+F17A) — now as segment rows, read from config files only.
+@test "dashboard segment_rows: per-provider cloud icons (aws/gcp/azure)" {
+  run env NO_COLOR=1 python3 - "$DASH" "$FIX" <<'PY'
+import sys, importlib.util as u
+spec = u.spec_from_file_location('d', sys.argv[1])
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
 m._aws_profile = lambda: '111111111111'
 m._gcp_project = lambda: 'my-gcp-proj'
 m._az_subscription = lambda: 'my-azure-sub'
-out = '\n'.join(m.infra_lines())
+d = m.ff_json(sys.argv[2])
+out = "\n".join(f"{g} {l} {v}" for g, l, v, on in m.segment_rows(d) if on)
 print(out)
-glyphs = tuple(chr(c) for c in (0xf270, 0xf1a0, 0xf17a))   # aws / gcp / azure
+glyphs = tuple(chr(c) for c in (0xf270, 0xf1a0, 0xf17a))
 print('GLYPHS_OK' if all(g in out for g in glyphs) else 'GLYPHS_MISSING')
 PY
   [ "$status" -eq 0 ]
@@ -33,16 +143,23 @@ PY
   [[ "$output" != *"aws:"* ]]
 }
 
+# The stdlib fallback keeps the card alive when fastfetch is missing (CI) or
+# fails: partial data, exit 0, uptime still sane.
+@test "dashboard: stdlib fallback when fastfetch is absent" {
+  stub="$BATS_TEST_TMPDIR/empty"; mkdir -p "$stub"
+  run env NO_COLOR=1 COLUMNS=100 PATH="$stub:/usr/bin:/bin" python3 "$DASH" --login
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"OPEN CLAW"* ]]
+  [[ "$output" != *"20708d"* ]]
+}
+
 # A new tab inherits the current window width (window-width applies to new
 # windows only), so the dashboard box must clamp to the live terminal instead of
 # overflowing/wrapping.
 @test "dashboard: box clamps to a narrow terminal — no overflow" {
-  run env COLUMNS=58 DOTFILES_DIR="$BATS_TEST_DIRNAME/.." python3 "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py"
+  run env COLUMNS=58 python3 "$DASH" --json-fixture "$FIX"
   [ "$status" -eq 0 ]
-  # measure VISIBLE width (strip ANSI) — a clipped line may carry a reset code
-  maxw=$(printf '%s\n' "$output" | python3 -c 'import sys,re
-a=re.compile("\x1b\\[[0-9;?]*[A-Za-z]")
-print(max((len(a.sub("",l)) for l in sys.stdin.read().splitlines()), default=0))')
+  maxw=$(printf '%s\n' "$output" | _maxw)
   [ "$maxw" -le 58 ]
 }
 
@@ -50,7 +167,7 @@ print(max((len(a.sub("",l)) for l in sys.stdin.read().splitlines()), default=0))
 # dot): docker U+F308, ollama U+F2DB, portainer U+F1B3, plus the github/server/
 # route glyphs on the head + machine rows.
 @test "dashboard homelab_lines: per-service implementation icons" {
-  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  mkdir -p "$XDG_CACHE_HOME/claw"
   python3 - "$XDG_CACHE_HOME/claw/homelab.json" <<'PY'
 import sys, json
 json.dump({"ts":"2099-01-01T00:00:00Z","fleet":"HR-TRUST",
@@ -61,7 +178,7 @@ json.dump({"ts":"2099-01-01T00:00:00Z","fleet":"HR-TRUST",
       ["tailscale","k3s","docker","gitea","ollama","portainer"]]}]},
   open(sys.argv[1],"w"))
 PY
-  run env NO_COLOR=1 python3 - "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py" <<'PY'
+  run env NO_COLOR=1 python3 - "$DASH" <<'PY'
 import sys, importlib.util as u
 spec=u.spec_from_file_location('d', sys.argv[1]); m=u.module_from_spec(spec); spec.loader.exec_module(m)
 out="\n".join(m.homelab_lines())
@@ -77,9 +194,9 @@ PY
 
 # Audit 2026-09-20 F-08: load is shown as TEXT (`Load  <load1>/<ncpu>`), never a
 # red bar — the old ("cpu","CPU") bar was load1/ncpu clamped at 100%. Colour
-# comes from the loaded palette: fg below 1.0, amber ≥1.0, red ≥2.0.
+# comes from the loaded palette: fg below 1.0, amber >=1.0, red >=2.0.
 @test "dashboard bar_rows: Load text row present, CPU bar absent, palette thresholds" {
-  run env NO_COLOR=1 python3 - "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py" <<'PY'
+  run env NO_COLOR=1 python3 - "$DASH" <<'PY'
 import sys, importlib.util as u
 spec = u.spec_from_file_location('d', sys.argv[1])
 m = u.module_from_spec(spec); spec.loader.exec_module(m)
@@ -89,7 +206,6 @@ print("\n".join(rows))
 print("NO_CPU_BAR" if not any("CPU " in r for r in rows) else "CPU_BAR_PRESENT")
 load = [r for r in rows if "Load" in r]
 print("LOAD_TEXT" if len(load) == 1 and "[" not in load[0] and "2.2/14" in load[0] else "LOAD_BAD")
-# threshold colours, from the palette dict (never literals)
 m.NOCOLOR = False
 def tone(ratio, load1):
     return [x for x in m.bar_rows(dict(base, load=f"{load1} 0 0", load_ratio=ratio, cpu_pct="0")) if "Load" in x][0]
@@ -107,8 +223,192 @@ PY
 }
 
 @test "dashboard render: no CPU bar row anywhere in the frame" {
-  run env NO_COLOR=1 COLUMNS=120 DOTFILES_DIR="$BATS_TEST_DIRNAME/.." python3 "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py"
+  run env NO_COLOR=1 COLUMNS=120 python3 "$DASH" --json-fixture "$FIX"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Load"* ]]
-  ! printf '%s\n' "$output" | grep -qE 'CPU +\['
+  ! printf '%s\n' "$output" | command grep -qE 'CPU +\['
+}
+
+# ── T1-06b · attention card ──────────────────────────────────────────────────
+
+# F-10: nothing at login read situation.json. The card now ends in an
+# `attention` rule followed by the evaluated items: tier dot, text, hint, age,
+# and `since HH:MM` when the item is older than the probe that last saw it.
+@test "dashboard attention_lines: rows from the attention fixture" {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/attention.json" "$XDG_CACHE_HOME/claw/"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/local.json" "$XDG_CACHE_HOME/claw/"
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"attention"* ]]
+  [[ "$output" == *"k3s 2/3 Ready"* ]]
+  [[ "$output" == *"since 03:12"* ]]
+  [[ "$output" == *"kubectl get nodes"* ]]
+  [[ "$output" == *"26 inbox"* ]]
+  [[ "$output" == *"5 claude sessions"* ]]
+  [[ "$output" == *"31/65 repos dirty"* ]]
+  [[ "$output" == *"checked "* ]]
+  # acked items are hidden from the card
+  [[ "$output" != *"acked item must not render"* ]]
+}
+
+@test "dashboard attention_lines: all-clear and no-state lines" {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no state yet"* ]]
+  [[ "$output" == *"claw situation probe"* ]]
+
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/attention.empty.json" \
+     "$XDG_CACHE_HOME/claw/attention.json"
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"all clear"* ]]
+  [[ "$output" == *"checked "* ]]
+  [[ "$output" != *"no state yet"* ]]
+}
+
+# More items than the card shows collapse into one `+N more` pointer.
+@test "dashboard attention_lines: caps at six items then points at claw doctor" {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  python3 - "$XDG_CACHE_HOME/claw/attention.json" <<'PY'
+import sys, json, time
+now = int(time.time())
+json.dump({"v": 1, "checked": {"situation": now},
+           "items": [{"id": f"i{n}", "tier": "warn", "text": f"item {n}",
+                      "hint": "", "since": now, "src_ts": now} for n in range(9)]},
+          open(sys.argv[1], "w"))
+PY
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"item 5"* ]]
+  [[ "$output" != *"item 6"* ]]
+  [[ "$output" == *"+3 more"* ]]
+  [[ "$output" == *"claw doctor"* ]]
+}
+
+# NO_COLOR must produce a card with no escape sequences at all, and tiers must
+# still be distinguishable — `!` crit, `~` warn, `i` info.
+@test "dashboard --login: NO_COLOR output carries no escape sequences" {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/attention.json" "$XDG_CACHE_HOME/claw/"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/local.json" "$XDG_CACHE_HOME/claw/"
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  printf '%s' "$output" | command grep -q $'\033' && { echo "escape codes leaked"; false; }
+  printf '%s\n' "$output" | command grep -qE '! +k3s 2/3 Ready'
+  printf '%s\n' "$output" | command grep -qE '~ +brew'
+  printf '%s\n' "$output" | command grep -qE 'i +dotfiles'
+}
+
+# ── T1-06c · --profile ───────────────────────────────────────────────────────
+
+# F-23: "one render path" held for 1 of 18 profiles. All 18 now render through
+# this engine, width-exact at every breakpoint, with no placeholder leaks.
+@test "dashboard --profile: all 18 profiles render at 80/100/120/200" {
+  n=0
+  for dir in "$BATS_TEST_DIRNAME"/../shell/profiles/*/; do
+    key=$(basename "$dir"); n=$((n + 1))
+    meta="$dir/meta.zsh"
+    unset PROFILE_CLASS PROFILE_TAG PROFILE_GLYPH PROFILE_HELP_CMD \
+          PROFILE_TOOLCHAIN PROFILE_KEY_TOOLS
+    if [ -f "$meta" ]; then
+      eval "$(command grep -E '^PROFILE_(CLASS|TAG|GLYPH|HELP_CMD|TOOLCHAIN|KEY_TOOLS)=' "$meta" | sed 's/[[:space:]]*#.*$//')"
+      export PROFILE_CLASS PROFILE_TAG PROFILE_GLYPH PROFILE_HELP_CMD \
+             PROFILE_TOOLCHAIN PROFILE_KEY_TOOLS
+    fi
+    for w in 80 100 120 200; do
+      run env NO_COLOR=1 COLUMNS="$w" python3 "$DASH" --profile "$key" --json-fixture "$FIX"
+      [ "$status" -eq 0 ] || { echo "$key @ $w rc=$status"; echo "$output"; false; }
+      [[ "$output" != *"n/a"* ]] || { echo "$key @ $w leaked n/a"; false; }
+      [[ "$output" != *"dumb"* ]] || { echo "$key @ $w leaked dumb"; false; }
+      widths=$(printf '%s\n' "$output" | python3 -c 'import sys,re
+a=re.compile("\x1b\\[[0-9;?]*[A-Za-z]")
+ws={len(a.sub("",l)) for l in sys.stdin.read().splitlines() if l.strip()}
+print(" ".join(str(x) for x in sorted(ws)))')
+      [ "$(printf '%s\n' "$widths" | wc -w | tr -d ' ')" -eq 1 ] \
+        || { echo "$key @ $w widths=$widths"; false; }
+      [ "$widths" -le "$w" ] || { echo "$key @ $w overflow=$widths"; false; }
+    done
+  done
+  [ "$n" -eq 18 ] || { echo "expected 18 profiles, saw $n"; false; }
+}
+
+# The title names the profile's class, and the card carries its tag, the key
+# tool presence line and the help-card pointer — all out of the environment.
+@test "dashboard --profile: title, class, tools and help pointer" {
+  run env NO_COLOR=1 COLUMNS=120 \
+      PROFILE_CLASS=NIGHTHACKER PROFILE_TAG="thinks your password is cute" \
+      PROFILE_HELP_CMD=sec-help PROFILE_TOOLCHAIN=security-toolchain.sh \
+      PROFILE_KEY_TOOLS="sh __claw_absent_tool__" \
+      python3 "$DASH" --profile security --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"OPEN CLAW · NIGHTHACKER"* ]]
+  [[ "$output" == *"thinks your password is cute"* ]]
+  [[ "$output" == *"✓ sh"* ]]
+  [[ "$output" == *"✗ __claw_absent_tool__"* ]]
+  [[ "$output" == *"claw install security"* ]]
+  [[ "$output" == *"sec-help"* ]]
+  # profile card shows Mem + Disk, never a Load or Swap row
+  [[ "$output" == *"Mem"* ]]
+  [[ "$output" == *"Disk"* ]]
+  [[ "$output" != *"Load"* ]]
+}
+
+# Logo resolution is SGR-first: the config-dir art wins when it carries colour,
+# even though shell/profiles/<key>/logo.txt also exists.
+@test "dashboard --profile: SGR-first logo resolver picks the coloured file" {
+  d="$BATS_TEST_TMPDIR/dots"
+  mkdir -p "$d/config/.config/fastfetch" "$d/shell/profiles/security"
+  printf '\033[38;2;1;2;3mSGRFILE\033[0m\n' > "$d/config/.config/fastfetch/logo-security.txt"
+  printf 'MONOFILE\n' > "$d/shell/profiles/security/logo.txt"
+  run env NO_COLOR=1 COLUMNS=120 DOTFILES_DIR="$d" \
+      python3 "$DASH" --profile security --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SGRFILE"* ]]
+  [[ "$output" != *"MONOFILE"* ]]
+
+  # and the other way round: coloured art under shell/profiles wins when the
+  # config-dir file is monochrome
+  printf 'MONOFILE\n' > "$d/config/.config/fastfetch/logo-security.txt"
+  printf '\033[38;2;4;5;6mPROFILESGR\033[0m\n' > "$d/shell/profiles/security/logo.txt"
+  run env NO_COLOR=1 COLUMNS=120 DOTFILES_DIR="$d" \
+      python3 "$DASH" --profile security --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROFILESGR"* ]]
+}
+
+# A profile whose only art is monochrome gets tinted with the palette's blue —
+# never a hardcoded hex.
+@test "dashboard --profile: monochrome-only logo is tinted with CLAW_C_BLUE" {
+  d="$BATS_TEST_TMPDIR/dots"
+  mkdir -p "$d/shell/profiles/cloud"
+  printf 'MONOCLOUD\n' > "$d/shell/profiles/cloud/logo.txt"
+  run env DOTFILES_DIR="$d" CLAW_C_BG=000000 CLAW_C_BLUE=0088ff \
+      python3 - "$DASH" <<'PY'
+import sys, importlib.util as u
+spec = u.spec_from_file_location('d', sys.argv[1])
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+m.NOCOLOR = False
+lines = m.profile_logo('cloud')
+want = m.rgb(*m.PAL['blue'])
+print("BLUE_FROM_ENV" if m.PAL['blue'] == (0, 136, 255) else "BLUE_BAD")
+print("TINTED" if any(want in l for l in lines) else "NOT_TINTED")
+print("HAS_ART" if any('MONOCLOUD' in l for l in lines) else "NO_ART")
+PY
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"BLUE_FROM_ENV"* ]]
+  [[ "$output" == *"TINTED"* ]]
+  [[ "$output" == *"HAS_ART"* ]]
+}
+
+@test "dashboard --profile: NO_COLOR output carries no escape sequences" {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/attention.json" "$XDG_CACHE_HOME/claw/"
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 PROFILE_CLASS=SKYSURFER \
+      python3 "$DASH" --profile cloud --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  printf '%s' "$output" | command grep -q $'\033' && { echo "escape codes leaked"; false; }
+  [[ "$output" == *"attention"* ]]
+  [[ "$output" == *"k3s 2/3 Ready"* ]]
 }

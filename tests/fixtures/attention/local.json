@@ -1,9 +1,9 @@
 {
   "ts": "2026-09-20T12:00:00Z",
   "things": { "today": 51, "inbox": 26 },
-  "handoff": { "title": "pty live output", "path": "/tmp/handoff.md", "age_s": 172800 },
-  "repos": { "dirty": 31, "total": 65, "sample": ["dot-files", "cortex-deck", "vault-os"] },
-  "worktrees": 4,
+  "handoff": { "title": "pty live output", "path": "~/.remember/remember.md", "age_s": 172800 },
+  "repos": { "dirty": 31, "total": 65, "sample": ["dot-files", "hr-vault-main-pa", "cortex-deck"] },
+  "worktrees": 3,
   "claude_sessions": 5,
-  "cwd_repo": null
+  "cwd_repo": { "branch": "claude/dotfiles-tui-audit-2c7549", "dirty": true }
 }
