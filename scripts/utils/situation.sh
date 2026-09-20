@@ -42,6 +42,15 @@ HOMELAB_SNAP="$CACHE_DIR/homelab.json"
 HOMELAB_FLEET="$DOTFILES/config/homelab/fleet.yml"
 [ -r "$CONFIG_DIR/fleet.yml" ] && HOMELAB_FLEET="$CONFIG_DIR/fleet.yml"   # machine-local override wins
 
+# IPv4 default gateway, or empty. macOS `route`, Linux `ip`; both silent on failure.
+_default_gateway() {
+    if [ "$(uname -s)" = Darwin ]; then
+        route -n get default 2>/dev/null | awk '/gateway:/{print $2; exit}'
+    else
+        ip -4 route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="via"){print $(i+1); exit}}'
+    fi
+}
+
 # Per-box overrides (defaults work whether this box IS the homelab or a remote cockpit).
 [ -f "$ENVF" ] && . "$ENVF"
 : "${OLLAMA_HOST:=127.0.0.1:11434}"
@@ -339,6 +348,19 @@ EOF
         fi
     fi
 
+    # LAN-fallback gate (audit 2026-09-20 F-05). The nc/ping fallback below dials
+    # the RFC1918 addresses in fleet.yml. Off the home LAN that means ~20 s of
+    # probing a stranger's network on every login kick. Fall back only when the
+    # default gateway matches fleet.lan_gateway; an undeclared lan_gateway keeps
+    # the legacy always-probe behaviour. CLAW_HOMELAB_LAN=1|0 forces either way.
+    local lan_gw cur_gw lan_ok=1
+    lan_gw="$(yq -r '.fleet.lan_gateway // ""' "$HOMELAB_FLEET" 2>/dev/null)"
+    if [ -n "$lan_gw" ]; then
+        cur_gw="$(_default_gateway)"
+        [ "$cur_gw" = "$lan_gw" ] || lan_ok=0
+    fi
+    case "${CLAW_HOMELAB_LAN:-}" in 1) lan_ok=1 ;; 0) lan_ok=0 ;; esac
+
     # Machines × services
     local machines_json="" mi=0 mcount
     mcount="$(yq -r '.machines | length' "$HOMELAB_FLEET" 2>/dev/null)"; : "${mcount:=0}"
@@ -361,7 +383,7 @@ EOF
                 '[(.Peer // {})[] | select(.DNSName|startswith($h+"."))][0] // {} | (.TailscaleIPs // [""])[0] // ""' 2>/dev/null)"
             [ "$online" = "true" ] && mstate="up"
         fi
-        if [ "$mstate" != "up" ] && [ -n "$host" ]; then
+        if [ "$lan_ok" = 1 ] && [ "$mstate" != "up" ] && [ -n "$host" ]; then
             if timeout 2 bash -c "exec 3<>/dev/tcp/${host}/22" 2>/dev/null \
                || timeout 2 bash -c "exec 3<>/dev/tcp/${host}/80" 2>/dev/null \
                || ping -c1 -W1 "$host" >/dev/null 2>&1; then
