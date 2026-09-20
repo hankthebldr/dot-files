@@ -1,0 +1,12 @@
+{
+  "ts": "2026-09-20T12:00:00Z",
+  "host": "test-box",
+  "tailscale": { "state": "Running", "peers_online": 4, "peers_total": 6 },
+  "ollama": { "up": true, "models": 7 },
+  "gpu": { "present": false, "util": null, "mem_used": null, "mem_total": null, "temp": null },
+  "disk_root_pct": 41,
+  "load": { "load1": 2.10, "ncpu": 14 },
+  "k3s": { "ready": 2, "total": 3 },
+  "updates": { "brew": null, "apt": null, "repo_behind": 3, "repo_ahead": 0, "last_run": 1789791223 },
+  "homelab_reachable": true
+}

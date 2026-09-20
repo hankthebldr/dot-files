@@ -1,0 +1,17 @@
+{
+  "ts": "2026-09-20T12:00:00Z",
+  "fleet": "HR-TRUST",
+  "cluster": { "context": "k3s-ms01", "ready": 2, "total": 3 },
+  "route": { "via": "direct", "path": "→ ms-01", "exit_node": null },
+  "identity": { "github": { "user": "tester", "state": "up" } },
+  "machines": [
+    { "id": "ms-01", "state": "up", "addr": "100.64.0.1", "latency_ms": null, "role": "control-plane",
+      "services": [
+        { "id": "k3s",    "state": "up",      "detail": "k3s-ms01 · 2/3 Ready", "group": "infra", "glyph": "k" },
+        { "id": "gitea",  "state": "down",    "detail": "http 503",             "group": "apps",  "glyph": "g" },
+        { "id": "harbor", "state": "planned", "detail": "not deployed",         "group": "apps",  "glyph": "h" }
+      ] },
+    { "id": "r630",   "state": "down",    "addr": "", "latency_ms": null, "role": "worker", "services": [] },
+    { "id": "bd790i", "state": "unknown", "addr": "", "latency_ms": null, "role": "worker", "services": [] }
+  ]
+}

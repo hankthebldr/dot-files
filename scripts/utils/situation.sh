@@ -17,7 +17,12 @@
 #   tick             roll snapshot, probe, diff vs previous, notify on transitions
 #   show [--json]    one-line glance (+ raw JSON with --json)
 #   alerts           recent fired alerts
-#   homelab          probe the HR-TRUST fleet -> ~/.cache/claw/homelab.json (atomic)
+#   homelab [--force]  probe the HR-TRUST fleet -> ~/.cache/claw/homelab.json
+#                    (300s throttle + mkdir single-flight lock; --force ignores both)
+#   local [--force]  probe SHELL-LOCAL slow state (Things, handoff, dirty repos,
+#                    worktrees, claude sessions) -> ~/.cache/claw/local.json (600s throttle)
+#   evaluate         the ONE attention rule set over situation/homelab/updates/local
+#                    -> attention.json + attention.tsv + attention.count (atomic)
 #   install          install + enable the systemd --user timer (runs `tick` ~60s)
 #   uninstall        disable + remove the timer
 #   review [--no-write]      summarize fired alerts + local-model tier-2 go/no-go
@@ -29,16 +34,27 @@
 #   OLLAMA_HOST=127.0.0.1:11434   HOMELAB_HOST=bd790i   DISK_WARN_PCT=90
 #   GPU_TEMP_WARN=85              KUBECONFIG_PATH=/etc/rancher/k3s/k3s.yaml
 #   UPDATES_NOTIFY=info           # repo-behind notify tier: info | off
+#   LOAD_WARN_X=2.0               # warn when load1/ncpu crosses this
+#   THINGS_SHOW=nonzero           # context-row policy for the renderers
+#   CLAW_TTL_SITUATION/_HOMELAB/_UPDATES/_LOCAL   # staleness TTLs (s); 2xTTL = stale
+#   CLAW_HOMELAB_THROTTLE=300  CLAW_LOCAL_THROTTLE=600  CLAW_LOCK_STALE=120
 set -u
 
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claw"
 SNAP="$CACHE_DIR/situation.json"
-PREV="$CACHE_DIR/situation.prev.json"
 ALERTS="$CACHE_DIR/situation.alerts.tsv"
 ENVF="$CONFIG_DIR/situation.env"
 DOTFILES="${DOTFILES_DIR:-$HOME/.dotfiles}"
 HOMELAB_SNAP="$CACHE_DIR/homelab.json"
+LOCAL_SNAP="$CACHE_DIR/local.json"
+UPDATES_SNAP="$CACHE_DIR/updates.json"
+ATTN_JSON="$CACHE_DIR/attention.json"
+ATTN_TSV="$CACHE_DIR/attention.tsv"
+ATTN_COUNT="$CACHE_DIR/attention.count"
+ATTN_PREV="$CACHE_DIR/attention.prev.json"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/claw"
+ACKS="$STATE_DIR/acks.tsv"
 HOMELAB_FLEET="$DOTFILES/config/homelab/fleet.yml"
 [ -r "$CONFIG_DIR/fleet.yml" ] && HOMELAB_FLEET="$CONFIG_DIR/fleet.yml"   # machine-local override wins
 
@@ -59,6 +75,18 @@ _default_gateway() {
 : "${GPU_TEMP_WARN:=85}"
 : "${KUBECONFIG_PATH:=${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}}"
 : "${UPDATES_NOTIFY:=info}"                            # repo-behind alerts: info|off
+: "${LOAD_WARN_X:=2.0}"                                # warn at load1/ncpu >= this
+: "${THINGS_SHOW:=nonzero}"                            # renderer policy for the context row
+# Staleness TTLs (seconds). A source older than 2xTTL is reported as ONE warn and
+# its items are dropped rather than rendered as current. Each TTL is the source's
+# own refresh cadence.
+: "${CLAW_TTL_HOMELAB:=300}"
+: "${CLAW_TTL_UPDATES:=21600}"
+: "${CLAW_TTL_LOCAL:=600}"
+: "${CLAW_HOMELAB_THROTTLE:=300}"                      # homelab re-poll floor
+: "${CLAW_LOCAL_THROTTLE:=600}"                        # local re-poll floor
+: "${CLAW_LOCK_STALE:=120}"                            # a lock older than this is a corpse
+: "${GH_IDENT_TTL:=21600}"                             # `gh api user` stamp lifetime
 
 mkdir -p "$CACHE_DIR" 2>/dev/null
 
@@ -76,6 +104,8 @@ file_age() {
 # else (jq's "null", an error, a corrupt cache) degrades to null, never breaks
 # the emitted document
 num_or_null() { case "${1:-}" in ''|*[!0-9]*) echo null ;; *) echo "$1" ;; esac; }
+# same, but for a decimal (load average) — '' / 'null' / junk all degrade to null
+dec_or_null() { case "${1:-}" in ''|*[!0-9.]*|.|*.*.*) echo null ;; *) echo "$1" ;; esac; }
 
 # GNU `timeout` is absent on stock macOS (brew coreutils ships only gtimeout).
 # Every probe below is wrapped in `timeout N`, so shim it: prefer gtimeout,
@@ -154,6 +184,13 @@ probe_json() {
 
     disk_pct="$(df -P / 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5);print $5+0}')"; : "${disk_pct:=0}"
 
+    # 1-minute load + core count — the two numbers the LOAD_WARN_X rule needs.
+    # BSD `uptime` says "load averages:", GNU says "load average:"; one sed covers both.
+    local load1 ncpu
+    load1="$(uptime 2>/dev/null | sed 's/.*load averages*:[[:space:]]*//' | awk -F'[, ]+' '{print $1}')"
+    ncpu="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo '')"
+    load1="$(dec_or_null "$load1")"; ncpu="$(num_or_null "$ncpu")"
+
     k_ready=null; k_total=null
     if have kubectl && [ -r "$KUBECONFIG_PATH" ]; then
         local nodes; nodes="$(KUBECONFIG="$KUBECONFIG_PATH" timeout 4 kubectl get nodes --no-headers 2>/dev/null)"
@@ -189,6 +226,7 @@ probe_json() {
   "ollama": { "up": $oll_up, "models": ${oll_models:-0} },
   "gpu": { "present": $gpu_present, "util": ${gpu_util:-null}, "mem_used": ${gpu_mem_u:-null}, "mem_total": ${gpu_mem_t:-null}, "temp": ${gpu_temp:-null} },
   "disk_root_pct": ${disk_pct:-0},
+  "load": { "load1": ${load1:-null}, "ncpu": ${ncpu:-null} },
   "k3s": { "ready": ${k_ready:-null}, "total": ${k_total:-null} },
   "updates": { "brew": ${up_brew:-null}, "apt": ${up_apt:-null}, "repo_behind": ${up_behind:-null}, "repo_ahead": ${up_ahead:-null}, "last_run": ${up_last:-null} },
   "homelab_reachable": ${hl_reach:-null}
@@ -450,63 +488,274 @@ cmd_probe() {
     if probe_json >"$tmp" 2>/dev/null; then mv -f "$tmp" "$SNAP"; else rm -f "$tmp"; return 1; fi
 }
 
-# ── Tick: probe, diff vs previous, fire interrupts on TRANSITIONS only ──────
+
+# ── Evaluate: the ONE attention rule set ───────────────────────────────────
+# Reads the four caches (any of them missing == null), applies the rule table
+# from the design spec ONCE, and lands the three files every renderer reads:
+#   attention.json   {v:1, checked:{…}, items:[{id,tier,text,hint,since,src_ts}]}
+#   attention.tsv    tier\tid\ttext\thint\tsince_epoch\tsrc_epoch  (crit→warn→info, since asc)
+#   attention.count  "<n> <worst_tier>"  — n counts crit+warn only; "0 ok" when clear
+# `since` survives across runs for an id that persists, so the strip can say how
+# long something has been broken. Acked ids (acks.tsv, until > now) are demoted to
+# info/hint=acked: kept in the json so `tick` still diffs them, dropped from the
+# tsv/count so the strip and the ⚑ segment stay quiet.
+# A source older than 2xTTL contributes ONE warn and NONE of its items — a stale
+# cache must never render as current truth.
+
+# mtime epoch of $1, or empty
+_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
+
+# echo a cache's JSON when it parses, else the literal null
+_cache_json() {
+    if [ -r "$1" ] && jq -e . "$1" >/dev/null 2>&1; then cat "$1"; else echo null; fi
+}
+_cache_mtime_json() {
+    local m; m="$(_mtime "$1" 2>/dev/null)"
+    if [ -r "$1" ] && [ -n "$m" ]; then echo "$m"; else echo null; fi
+}
+
+# live acks as a {id: until_epoch} object
+_acks_json() {
+    local body="" now; now="$(date +%s)"
+    if [ -r "$ACKS" ]; then
+        body="$(awk -F'\t' -v now="$now" \
+            'NF>=2 && $2+0>now { gsub(/"/,"",$1); printf "%s\"%s\":%d", (c++?",":""), $1, $2+0 }' \
+            "$ACKS" 2>/dev/null)"
+    fi
+    printf '{%s}' "$body"
+}
+
+# situation.json's TTL is the fleet's poll cadence, floored at 300s so a box
+# without the timer installed doesn't report itself stale between logins.
+_ttl_situation() {
+    if [ -n "${CLAW_TTL_SITUATION:-}" ]; then printf '%s' "$CLAW_TTL_SITUATION"; return 0; fi
+    local p=""
+    have yq && [ -r "$HOMELAB_FLEET" ] && p="$(yq -r '.fleet.poll_seconds // ""' "$HOMELAB_FLEET" 2>/dev/null)"
+    p="$(num_or_null "$p")"
+    if [ "$p" != null ] && [ "$p" -gt 300 ] 2>/dev/null; then printf '%s' "$p"; else printf '300'; fi
+}
+
+_ATTN_JQ='
+def ageword($s):
+  if   $s >= 86400 then ((($s/86400)|floor|tostring) + "d")
+  elif $s >= 3600  then ((($s/3600)|floor|tostring) + "h")
+  elif $s >= 60    then ((($s/60)|floor|tostring) + "m")
+  else (($s|floor|tostring) + "s") end;
+
+(($sit_ts != null) and (($now - $sit_ts) > (2 * $ttl_sit))) as $sit_stale
+| (($hl_ts  != null) and (($now - $hl_ts)  > (2 * $ttl_hl)))  as $hl_stale
+| (($upd_ts != null) and (($now - $upd_ts) > (2 * $ttl_upd))) as $upd_stale
+| (($loc_ts != null) and (($now - $loc_ts) > (2 * $ttl_loc))) as $loc_stale
+| (if ($sit == null) or $sit_stale then null else $sit end) as $S
+| (if ($hl  == null) or $hl_stale  then null else $hl  end) as $H
+| (if ($upd == null) or $upd_stale then null else $upd end) as $U
+| ((($prev.items // []) | map({key: .id, value: .since}) | from_entries)) as $was
+| ([
+    # crit — tailnet down ("unknown" means no tailscale on this box, not an outage)
+    (if ($S != null) and (($S.tailscale.state // "unknown") | (. != "Running" and . != "unknown"))
+     then {id:"tailscale", tier:"crit", text:"tailscale down", hint:"tailscale up", src_ts:$sit_ts}
+     else empty end),
+
+    # crit — k3s short of quorum. situation.json owns this when it has a reading;
+    # otherwise the fleet poll does (a laptop has no kubeconfig but does have homelab.json).
+    ((if ($S != null) and (($S.k3s.total // null) != null) and (($S.k3s.ready // null) != null)
+      then {r: $S.k3s.ready, t: $S.k3s.total, ctx: ($H.cluster.context // ""), src: $sit_ts}
+      elif ($H != null) and (($H.cluster.total // null) != null) and (($H.cluster.ready // null) != null)
+      then {r: $H.cluster.ready, t: $H.cluster.total, ctx: ($H.cluster.context // ""), src: $hl_ts}
+      else null end) as $k
+     | if ($k != null) and ($k.r < $k.t)
+       then {id:"k3s", tier:"crit",
+             text:("k3s " + ($k.r|tostring) + "/" + ($k.t|tostring) + " Ready"
+                   + (if ($k.ctx // "") == "" then "" else " · " + $k.ctx end)),
+             hint:"kubectl get nodes", src_ts:$k.src}
+       else empty end),
+
+    # crit — root filesystem / GPU thresholds
+    (if ($S != null) and (($S.disk_root_pct // 0) >= $disk_warn)
+     then {id:"disk", tier:"crit", text:("disk " + ($S.disk_root_pct|tostring) + "%"),
+           hint:"claw doctor", src_ts:$sit_ts}
+     else empty end),
+    (if ($S != null) and (($S.gpu.temp // null) != null) and ($S.gpu.temp >= $gpu_warn)
+     then {id:"gpu", tier:"crit", text:("gpu " + ($S.gpu.temp|tostring) + "°C"),
+           hint:"nvidia-smi", src_ts:$sit_ts}
+     else empty end),
+
+    # crit — a machine that answered "down". `unknown` (off-LAN, no tailnet peer)
+    # is NOT an outage and never becomes an item.
+    (if $H == null then empty else
+       ($H.machines // [])[] | select((.state // "") == "down")
+       | {id:("machine:" + .id), tier:"crit", text:(.id + " down"), hint:"", src_ts:$hl_ts}
+     end),
+
+    # warn — a service that is not up on a machine that IS up (planned != broken)
+    (if $H == null then empty else
+       ($H.machines // [])[] | select((.state // "") == "up") as $m
+       | ($m.services // [])[] | select((.state // "up") | (. != "up" and . != "planned"))
+       | {id:("svc:" + $m.id + ":" + .id), tier:"warn", text:(.id + " on " + $m.id),
+          hint:(.detail // ""), src_ts:$hl_ts}
+     end),
+
+    # warn — a package manager that could not be read at all
+    (if ($U != null) and (($U.brew_err // null) != null) and (($U.brew_err|tostring) != "")
+     then {id:"brew", tier:"warn", text:("brew ✗ " + ($U.brew_err|tostring)),
+           hint:(if ($U.brew_err|tostring) == "xcode-license"
+                 then "sudo xcodebuild -license" else "claw update --packages" end),
+           src_ts:$upd_ts}
+     else empty end),
+    (if ($U != null) and (($U.apt_err // null) != null) and (($U.apt_err|tostring) != "")
+     then {id:"apt", tier:"warn", text:("apt ✗ " + ($U.apt_err|tostring)),
+           hint:"claw update --packages", src_ts:$upd_ts}
+     else empty end),
+
+    # warn — sustained load
+    (if ($S != null) and (($S.load.load1 // null) != null) and (($S.load.ncpu // 0) > 0)
+        and ((($S.load.load1) / ($S.load.ncpu)) >= $load_warn)
+     then {id:"load", tier:"warn",
+           text:("load " + ($S.load.load1|tostring) + " on " + ($S.load.ncpu|tostring) + " cores"),
+           hint:"btop", src_ts:$sit_ts}
+     else empty end),
+
+    # warn — a stale source: one warn row, and none of its items
+    (if $sit_stale then {id:"stale:situation", tier:"warn",
+        text:("situation stale " + ageword($now - $sit_ts)),
+        hint:"claw situation probe", src_ts:$sit_ts} else empty end),
+    (if $hl_stale then {id:"stale:homelab", tier:"warn",
+        text:("homelab stale " + ageword($now - $hl_ts)),
+        hint:"claw situation homelab --force", src_ts:$hl_ts} else empty end),
+    (if $upd_stale then {id:"stale:updates", tier:"warn",
+        text:("updates stale " + ageword($now - $upd_ts)),
+        hint:"claw update", src_ts:$upd_ts} else empty end),
+    (if $loc_stale then {id:"stale:local", tier:"warn",
+        text:("local stale " + ageword($now - $loc_ts)),
+        hint:"claw situation local --force", src_ts:$loc_ts} else empty end),
+
+    # info — the repo fell behind, or packages are pending
+    (((if $U != null then ($U.repo_behind // 0)
+       elif $S != null then ($S.updates.repo_behind // 0) else 0 end) // 0) as $rb
+     | if (($rb|type) == "number") and ($rb > 0)
+       then {id:"repo", tier:"info", text:("dotfiles ↓" + ($rb|tostring)),
+             hint:"claw update", src_ts:($upd_ts // $sit_ts)}
+       else empty end),
+    ((if $U == null then 0 else (($U.brew // 0) + ($U.apt // 0)) end) as $pk
+     | if $pk > 0
+       then {id:"pkg", tier:"info", text:(($pk|tostring) + " pkg pending"),
+             hint:"claw update", src_ts:$upd_ts}
+       else empty end)
+  ]
+  | map(if ($acks[.id] // null) != null then (. + {tier:"info", hint:"acked"}) else . end)
+  | map(. + {since: ($was[.id] // $now)})
+  | sort_by((if .tier == "crit" then 0 elif .tier == "warn" then 1 else 2 end), .since)
+ ) as $items
+| { v: 1,
+    checked: { situation: $sit_ts, homelab: $hl_ts, updates: $upd_ts, local: $loc_ts },
+    items: $items }
+'
+
+cmd_evaluate() {
+    have jq || return 0
+    mkdir -p "$CACHE_DIR" 2>/dev/null
+
+    local now ttl_sit tmp
+    now="$(date +%s)"
+    ttl_sit="$(_ttl_situation)"
+    tmp="$(mktemp "${CACHE_DIR}/.att.XXXXXX")" || return 1
+
+    if ! jq -n \
+        --argjson now      "$now" \
+        --argjson sit      "$(_cache_json "$SNAP")" \
+        --argjson hl       "$(_cache_json "$HOMELAB_SNAP")" \
+        --argjson upd      "$(_cache_json "$UPDATES_SNAP")" \
+        --argjson loc      "$(_cache_json "$LOCAL_SNAP")" \
+        --argjson prev     "$(_cache_json "$ATTN_JSON")" \
+        --argjson acks     "$(_acks_json)" \
+        --argjson sit_ts   "$(_cache_mtime_json "$SNAP")" \
+        --argjson hl_ts    "$(_cache_mtime_json "$HOMELAB_SNAP")" \
+        --argjson upd_ts   "$(_cache_mtime_json "$UPDATES_SNAP")" \
+        --argjson loc_ts   "$(_cache_mtime_json "$LOCAL_SNAP")" \
+        --argjson ttl_sit  "$ttl_sit" \
+        --argjson ttl_hl   "$CLAW_TTL_HOMELAB" \
+        --argjson ttl_upd  "$CLAW_TTL_UPDATES" \
+        --argjson ttl_loc  "$CLAW_TTL_LOCAL" \
+        --argjson disk_warn "$DISK_WARN_PCT" \
+        --argjson gpu_warn  "$GPU_TEMP_WARN" \
+        --argjson load_warn "$LOAD_WARN_X" \
+        "$_ATTN_JQ" > "$tmp" 2>/dev/null; then
+        rm -f "$tmp"; return 1
+    fi
+    mv -f "$tmp" "$ATTN_JSON"
+
+    # tsv — the zsh-readable view the login strip reads with `read`; acked rows out
+    local ttmp; ttmp="$(mktemp "${CACHE_DIR}/.att.XXXXXX")" || return 1
+    jq -r '.items[] | select(.hint != "acked")
+           | [.tier, .id, .text, (.hint // ""), (.since|tostring), ((.src_ts // 0)|tostring)]
+           | @tsv' "$ATTN_JSON" > "$ttmp" 2>/dev/null || : > "$ttmp"
+    mv -f "$ttmp" "$ATTN_TSV"
+
+    # count — one line for the p10k segment, fork-free to read with $(<file)
+    local n worst ctmp
+    n="$(jq -r '[.items[] | select(.hint != "acked") | select(.tier == "crit" or .tier == "warn")] | length' "$ATTN_JSON" 2>/dev/null)"
+    : "${n:=0}"
+    worst="$(jq -r '[.items[] | select(.hint != "acked") | .tier]
+                    | if index("crit") then "crit" elif index("warn") then "warn" else "ok" end' \
+             "$ATTN_JSON" 2>/dev/null)"
+    : "${worst:=ok}"
+    [ "$n" = 0 ] && worst="ok"
+    ctmp="$(mktemp "${CACHE_DIR}/.att.XXXXXX")" || return 1
+    printf '%s %s\n' "$n" "$worst" > "$ctmp"
+    mv -f "$ctmp" "$ATTN_COUNT"
+    return 0
+}
+
+# ── Tick: probe, evaluate, fire interrupts on TRANSITIONS only ─────────────
+# The seven hand-rolled per-field transitions this used to carry are gone: the
+# rule table lives in cmd_evaluate, and tick is now a generic diff of the
+# evaluated item ids. Adding a rule means editing _ATTN_JQ and nothing else.
+#   appeared crit/warn (or the repo-behind info item) -> notify
+#   a crit that vanished entirely                     -> notify info "<id> back"
+# Acked ids stay in attention.json as info, so acking is silent in both directions.
 cmd_tick() {
-    [ -f "$SNAP" ] && cp -f "$SNAP" "$PREV"
+    if [ -f "$ATTN_JSON" ]; then cp -f "$ATTN_JSON" "$ATTN_PREV"
+    else printf '{"v":1,"items":[]}\n' > "$ATTN_PREV" 2>/dev/null || true; fi
+
     cmd_probe || return 1
-    cmd_homelab_poll || true     # keep homelab.json fresh on the same timer (best-effort)
-    have jq || return 0          # diff needs jq; degraded mode just refreshes the snapshot
-    [ -f "$PREV" ] || return 0   # first run — nothing to compare against
+    cmd_homelab_poll || true     # keep homelab.json fresh on the same timer (throttled)
+    cmd_evaluate || return 0
+    have jq || return 0          # diff needs jq; degraded mode just refreshes the caches
+    [ -f "$ATTN_JSON" ] && [ -f "$ATTN_PREV" ] || return 0
 
-    local p="$PREV" c="$SNAP"
+    local appeared cleared tier id text hint
+    appeared="$(jq -r --slurpfile p "$ATTN_PREV" '
+        (($p[0].items // []) | map(select(.tier == "crit" or .tier == "warn" or .id == "repo")) | map(.id)) as $was
+        | .items[]
+        | select(.tier == "crit" or .tier == "warn" or .id == "repo")
+        | . as $i | select(($was | index($i.id)) == null)
+        | [.tier, .id, .text, (.hint // "")] | @tsv' "$ATTN_JSON" 2>/dev/null)"
 
-    # Tailscale up/down
-    local pts cts; pts="$(gf "$p" '.tailscale.state')"; cts="$(gf "$c" '.tailscale.state')"
-    [ "$pts" = "Running" ] && [ "$cts" != "Running" ] && notify crit "Tailscale down" "BackendState: $cts"
-    [ "$pts" != "Running" ] && [ "$pts" != "unknown" ] && [ "$cts" = "Running" ] && notify info "Tailscale up" "tailnet connected"
+    while IFS="$(printf '\t')" read -r tier id text hint; do
+        [ -n "${id:-}" ] || continue
+        # UPDATES_NOTIFY still gates the repo-behind item, as it always did
+        [ "$id" = repo ] && [ "$UPDATES_NOTIFY" = off ] && continue
+        # The alert log is user-visible history, so ids that had a hand-rolled
+        # title before the generic diff keep it (tests/update-status.bats asserts
+        # the repo-behind wording). Everything else notifies as "<text>" / "<hint>".
+        case "$id" in repo) hint="${text} — run: ${hint:-claw update}"; text="Dotfiles behind" ;; esac
+        if [ "$tier" = crit ]; then notify crit "$text" "${hint:-}"
+        else                        notify info "$text" "${hint:-}"; fi
+    done <<EOF
+$appeared
+EOF
 
-    # Ollama daemon up -> down
-    local po co; po="$(gf "$p" '.ollama.up')"; co="$(gf "$c" '.ollama.up')"
-    [ "$po" = "true" ] && [ "$co" = "false" ] && notify crit "Ollama down" "daemon unreachable at ${OLLAMA_HOST}"
-    [ "$po" = "false" ] && [ "$co" = "true" ] && notify info "Ollama up" "daemon reachable"
+    cleared="$(jq -r --slurpfile c "$ATTN_JSON" '
+        (($c[0].items // []) | map(.id)) as $now
+        | (.items // [])[] | select(.tier == "crit")
+        | . as $i | select(($now | index($i.id)) == null) | [.id, .text] | @tsv' "$ATTN_PREV" 2>/dev/null)"
 
-    # K3s: transition into a NotReady state (ready < total, when previously whole)
-    local pkr pkt ckr ckt; pkr="$(gf "$p" '.k3s.ready')"; pkt="$(gf "$p" '.k3s.total')"
-    ckr="$(gf "$c" '.k3s.ready')"; ckt="$(gf "$c" '.k3s.total')"
-    if [ "$ckt" != "null" ] && [ "$ckr" != "null" ] && [ "$ckr" -lt "$ckt" ] 2>/dev/null; then
-        if [ "$pkr" = "null" ] || [ "$pkr" = "$pkt" ]; then
-            notify crit "K3s node NotReady" "${ckr}/${ckt} nodes Ready"
-        fi
-    fi
-
-    # Disk crossing the warn threshold (rising edge)
-    local pd cd; pd="$(gf "$p" '.disk_root_pct')"; cd="$(gf "$c" '.disk_root_pct')"
-    if [ "${cd:-0}" -ge "$DISK_WARN_PCT" ] 2>/dev/null && [ "${pd:-0}" -lt "$DISK_WARN_PCT" ] 2>/dev/null; then
-        notify crit "Disk ${cd}%" "root filesystem above ${DISK_WARN_PCT}%"
-    fi
-
-    # GPU temp crossing the warn threshold (rising edge)
-    local pgt cgt; pgt="$(gf "$p" '.gpu.temp')"; cgt="$(gf "$c" '.gpu.temp')"
-    if [ "$cgt" != "null" ] && [ "${cgt:-0}" -ge "$GPU_TEMP_WARN" ] 2>/dev/null && [ "${pgt:-0}" -lt "$GPU_TEMP_WARN" ] 2>/dev/null; then
-        notify crit "GPU ${cgt}°C" "above ${GPU_TEMP_WARN}°C"
-    fi
-
-    # Remote homelab reachability
-    local ph ch; ph="$(gf "$p" '.homelab_reachable')"; ch="$(gf "$c" '.homelab_reachable')"
-    [ "$ph" = "true" ] && [ "$ch" = "false" ] && notify crit "Homelab unreachable" "${HOMELAB_HOST} not responding"
-    [ "$ph" = "false" ] && [ "$ch" = "true" ] && notify info "Homelab back" "${HOMELAB_HOST} reachable"
-
-    # Dotfiles repo fell behind upstream — rising edge ONLY (0-or-null → N),
-    # so a machine that stays behind nags once, not every tick. Info tier,
-    # gated by UPDATES_NOTIFY in situation.env ('off' disables).
-    if [ "$UPDATES_NOTIFY" != "off" ]; then
-        local pub cub; pub="$(gf "$p" '.updates.repo_behind')"; cub="$(gf "$c" '.updates.repo_behind')"
-        if [ "$cub" != "null" ] && [ "${cub:-0}" -gt 0 ] 2>/dev/null; then
-            if [ "$pub" = "null" ] || [ "${pub:-0}" -eq 0 ] 2>/dev/null; then
-                notify info "Dotfiles behind" "repo ↓${cub} vs upstream — run: claw update"
-            fi
-        fi
-    fi
+    while IFS="$(printf '\t')" read -r id text; do
+        [ -n "${id:-}" ] || continue
+        notify info "$id back" "was: ${text:-$id}"
+    done <<EOF
+$cleared
+EOF
 
     return 0   # don't leak the last test's status — the systemd unit would show 'failed' on a clean run
 }
@@ -719,8 +968,9 @@ case "${1:-show}" in
     uninstall|disable) cmd_uninstall ;;
     review)           shift; cmd_review "$@" ;;
     schedule-review)  shift; cmd_schedule_review "$@" ;;
-    homelab|fleet)    cmd_homelab_poll ;;
+    homelab|fleet)    shift; cmd_homelab_poll "$@" ;;
+    evaluate|attention) cmd_evaluate ;;
     help|-h|--help)
         sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//' ;;
-    *) echo "usage: situation {probe|tick|show [--json]|alerts|homelab|install|uninstall}"; exit 1 ;;
+    *) echo "usage: situation {probe|tick|show [--json]|alerts|homelab [--force]|local [--force]|evaluate|install|uninstall}"; exit 1 ;;
 esac
