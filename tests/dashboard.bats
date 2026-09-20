@@ -74,3 +74,41 @@ PY
   [[ "$output" == *"ALL_ICONS_OK"* ]]
   [[ "$output" == *"bd790i"* ]]
 }
+
+# Audit 2026-09-20 F-08: load is shown as TEXT (`Load  <load1>/<ncpu>`), never a
+# red bar — the old ("cpu","CPU") bar was load1/ncpu clamped at 100%. Colour
+# comes from the loaded palette: fg below 1.0, amber ≥1.0, red ≥2.0.
+@test "dashboard bar_rows: Load text row present, CPU bar absent, palette thresholds" {
+  run env NO_COLOR=1 python3 - "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py" <<'PY'
+import sys, importlib.util as u
+spec = u.spec_from_file_location('d', sys.argv[1])
+m = u.module_from_spec(spec); spec.loader.exec_module(m)
+base = dict(cores="14", mem_pct="72", swap_pct="3", disk_pct="82", batt_pct="90")
+rows = m.bar_rows(dict(base, load="2.2 1.9 1.7", load_ratio="0.16", cpu_pct="16"))
+print("\n".join(rows))
+print("NO_CPU_BAR" if not any("CPU " in r for r in rows) else "CPU_BAR_PRESENT")
+load = [r for r in rows if "Load" in r]
+print("LOAD_TEXT" if len(load) == 1 and "[" not in load[0] and "2.2/14" in load[0] else "LOAD_BAD")
+# threshold colours, from the palette dict (never literals)
+m.NOCOLOR = False
+def tone(ratio, load1):
+    return [x for x in m.bar_rows(dict(base, load=f"{load1} 0 0", load_ratio=ratio, cpu_pct="0")) if "Load" in x][0]
+ok = m.C["fg"] in tone("0.50", "7.0") and m.C["amber"] not in tone("0.50", "7.0") and m.C["red"] not in tone("0.50", "7.0")
+ok = ok and m.C["amber"] in tone("1.00", "14.0") and m.C["red"] not in tone("1.00", "14.0")
+ok = ok and m.C["red"] in tone("2.00", "28.0")
+print("TONES_OK" if ok else "TONES_BAD")
+PY
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"NO_CPU_BAR"* ]]
+  [[ "$output" == *"LOAD_TEXT"* ]]
+  [[ "$output" == *"TONES_OK"* ]]
+  [[ "$output" == *"Mem "* ]]
+  [[ "$output" == *"Disk"* ]]
+}
+
+@test "dashboard render: no CPU bar row anywhere in the frame" {
+  run env NO_COLOR=1 COLUMNS=120 DOTFILES_DIR="$BATS_TEST_DIRNAME/.." python3 "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Load"* ]]
+  ! printf '%s\n' "$output" | grep -qE 'CPU +\['
+}
