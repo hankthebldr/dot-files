@@ -5,6 +5,8 @@
 PROFILE_NAME="default"
 PROFILE_CLASS="PIXEL-DRIFTER"
 PROFILE_TIER="1"
+PROFILE_GLYPH=""
+PROFILE_DESC="daily driver · zoxide · fzf · eza"
 
 # VISUAL IDENTITY
 PROFILE_THEME_DEFAULT="synthwave"

@@ -6,6 +6,8 @@ PROFILE_NAME="security"
 PROFILE_HELP_CMD="sec-help"   # help card is sec-help, not security-help
 PROFILE_CLASS="NIGHTHACKER"
 PROFILE_TIER="2"
+PROFILE_GLYPH=""
+PROFILE_DESC="pentest · OSINT · scope-gated harness"
 
 # VISUAL IDENTITY
 PROFILE_THEME_DEFAULT="matrix"

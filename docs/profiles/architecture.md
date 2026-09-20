@@ -39,6 +39,8 @@ Four lines. `${0:A:h}` resolves to the dispatcher's own directory regardless of 
 
 Pure bash variable assignments — no parser, no logic. Every field is required unless marked optional.
 
+The **line grammar is a contract**, not a style: [`registry.sh`](../../scripts/utils/registry.sh) parses these files with a single awk pass over `^PROFILE_([A-Z_]+)="([^"]*)"`, so every non-comment line must be exactly one field, double-quoted, with the value on the same line and at most a trailing `# comment`. `claw profiles lint` fails the tree on anything else.
+
 ```zsh
 # shell/profiles/cloud/meta.zsh
 
@@ -46,6 +48,8 @@ Pure bash variable assignments — no parser, no logic. Every field is required 
 PROFILE_NAME="cloud"                          # must match the dispatcher filename
 PROFILE_CLASS="SKYSURFER"                     # RPG-style class (consistent w/ onboarding _profile_class)
 PROFILE_TIER="2"                              # 1=general, 2=domain, 3=agent, 4=knowledge, 5=customer, 6=hardware
+PROFILE_GLYPH=""                             # one Nerd Font glyph, unique across all 18, no emoji/VS16
+PROFILE_DESC="AWS · GCP · Azure · terraform"  # ≤40 chars, never names a sibling profile
 
 # VISUAL IDENTITY
 PROFILE_THEME_DEFAULT="synthwave"             # synthwave | matrix | dosbbs | vhs
@@ -75,7 +79,9 @@ PROFILE_KEY_TOOLS="kubectl terraform aws gcloud az helm"   # space-separated, us
 |---|---|---|
 | `PROFILE_NAME` | Canonical identifier | dispatcher, claw load, welcome TUI |
 | `PROFILE_CLASS` | RPG-style class name | claw load ceremony, onboarding verdict |
-| `PROFILE_TIER` | Menu grouping (1-6) | welcome TUI menu generator |
+| `PROFILE_TIER` | Group: 1 core · 2 domain · 3 agent · 4 knowledge · 5 customer · 6 hardware | palette group (registry.sh) |
+| `PROFILE_GLYPH` | One Nerd Font glyph, unique across the tree | palette rows, help, dashboard header (registry.sh) |
+| `PROFILE_DESC` | ≤40-char what-this-is, never names a sibling | palette rows, completion, `claw help` (registry.sh) |
 | `PROFILE_THEME_DEFAULT` | Default cinematic theme | claw load splash, fastfetch palette |
 | `PROFILE_START_DIR` | Where the profile drops you | `_claw_profile_cd` (claw load, welcome TUI), `claw profiles paths` |
 | `PROFILE_TAG` | One-line description | menus, fastfetch subtitle, claw doctor |
@@ -230,7 +236,8 @@ The dispatcher's existence check (`[[ -f "${_PROFILE_DIR}/${OS_FAMILY}.zsh" ]]`)
 
 1. **Create the directory:** `mkdir -p shell/profiles/<name>`
 2. **Write `meta.zsh`:** all required fields, see schema above — including
-   `PROFILE_START_DIR` (`""` is a valid answer; lint requires the line)
+   `PROFILE_START_DIR` (`""` is a valid answer; lint requires the line),
+   a `PROFILE_GLYPH` no other profile uses, and a `PROFILE_DESC`
 3. **Write `common.zsh`:** shared aliases + `<name>-help` function
 4. **Write `mac.zsh` and/or `linux.zsh`:** OS-specific bits
 5. **Write the dispatcher:** copy the 4-line template, replace name
