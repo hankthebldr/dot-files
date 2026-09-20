@@ -108,3 +108,80 @@ login() {
   echo "$output"
   [ "$status" -eq 0 ]
 }
+
+# ============================================================================
+# F-22 — three oh-my-zsh plugins dropped from the login path.
+# istioctl and operator-sdk each run `<tool> completion zsh` in a subshell on
+# EVERY shell start; emoji sources a 314 KB definitions file. Measured on an
+# M4 mac (hyperfine, 25 runs): 227.8ms -> 161.9ms. CLAW_OMZ_EXTRA_PLUGINS is
+# the documented escape hatch for anyone who wants one of them back.
+# ============================================================================
+
+@test "zshrc: istioctl, operator-sdk and emoji are not in the plugins array" {
+  # Scoped to the array literal so the explanatory comment naming them
+  # (and the CLAW_OMZ_EXTRA_PLUGINS example) cannot mask a regression.
+  run awk '/^    plugins=\(/,/^    \)/' "$REPO/shell/.zshrc"
+  echo "$output"
+  [ -n "$output" ]
+  [[ "$output" != *istioctl* ]]
+  [[ "$output" != *operator-sdk* ]]
+  [[ "$output" != *emoji* ]]
+  # sanity: the array really was captured
+  [[ "$output" == *kubectl* ]]
+}
+
+@test "zshrc: CLAW_OMZ_EXTRA_PLUGINS is appended to plugins" {
+  run grep -n 'plugins+=("${CLAW_OMZ_EXTRA_PLUGINS\[@\]}")' "$REPO/shell/.zshrc"
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+# Hermetic: runs the real array+append snippet under `zsh -f` with a stub
+# oh-my-zsh, so no plugin is ever sourced and nothing outside tmp is touched.
+@test "zshrc: CLAW_OMZ_EXTRA_PLUGINS re-adds a dropped plugin" {
+  local snippet="$BATS_TEST_TMPDIR/plugins.zsh"
+  awk '/^    plugins=\(/,/CLAW_OMZ_EXTRA_PLUGINS\[@\]/' "$REPO/shell/.zshrc" > "$snippet"
+  [ -s "$snippet" ]
+
+  # unset -> array unchanged, and no empty element leaks in
+  run zsh -f -c "source '$snippet'; print -r -- \"n=\${#plugins[@]} has=\${plugins[(I)istioctl]}\""
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"has=0"* ]]
+  local before="$output"
+
+  # set -> the named plugins are appended, in order, at the end
+  run zsh -f -c "CLAW_OMZ_EXTRA_PLUGINS=(istioctl operator-sdk); source '$snippet'; print -r -- \"last2=\${plugins[-2,-1]} has=\${plugins[(I)istioctl]}\""
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"last2=istioctl operator-sdk"* ]]
+  [[ "$output" != *"has=0"* ]]
+  echo "unset-case was: $before"
+}
+
+# Never fails — a printed number, so a regression is visible in CI logs
+# without making the suite flaky on a loaded runner.
+@test "zshrc: perf smoke — interactive startup wall time (informational)" {
+  require_pty
+  command -v zsh >/dev/null 2>&1 || skip "zsh not available"
+  local dir="$BATS_TEST_TMPDIR/perf"
+  mkdir -p "$dir"
+  local -a omz=()
+  [ -f "$REAL_OMZ/oh-my-zsh.sh" ] && omz=(--omz "$REAL_OMZ")
+  python3 "$BATS_TEST_DIRNAME/fixtures/pty_login.py" --setup-only \
+      --repo "$REPO" --zdotdir "$dir" "${omz[@]}" > "$dir/env" || skip "harness setup failed"
+
+  local t0 t1
+  # zsh's EPOCHREALTIME avoids date(1)'s 1s granularity on BSD.
+  # One warmup first: the very first shell pays for a cold compinit dump,
+  # which would dominate (and mislead) the reported number.
+  ( set -a; . "$dir/env"; set +a; export CLAW_ACTIVE_PROFILE=default CLAW_NO_LOG=1
+    zsh -ic exit >/dev/null 2>&1 ) || true
+  t0=$(zsh -fc 'zmodload zsh/datetime; print $EPOCHREALTIME')
+  ( set -a; . "$dir/env"; set +a; export CLAW_ACTIVE_PROFILE=default CLAW_NO_LOG=1
+    for _ in 1 2 3; do zsh -ic exit >/dev/null 2>&1; done ) || true
+  t1=$(zsh -fc 'zmodload zsh/datetime; print $EPOCHREALTIME')
+
+  echo "# perf-smoke: 3x 'zsh -ic exit' = $(zsh -fc "printf '%.0f' \$(( ($t1 - $t0) * 1000 ))")ms total" >&3
+  true
+}

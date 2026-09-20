@@ -105,10 +105,16 @@ if [[ -d "$ZSH" ]]; then
         git gh github aliases sudo vi-mode copybuffer copypath copyfile cp
         colored-man-pages jsontools
         aws azure gcloud kubectl helm kubectx terraform vault ansible
-        docker docker-compose istioctl operator-sdk kind
+        docker docker-compose kind
         golang python node npm dotnet brew
-        colorize web-search emoji ssh ssh-agent
+        colorize web-search ssh ssh-agent
     )
+    # istioctl/operator-sdk/emoji dropped 2026-09 (F-22). Measured on an M4
+    # mac (hyperfine, 25 runs, `zsh -ic exit`): 227.8ms -> 161.9ms, ~66ms
+    # saved. Per plugin: operator-sdk ~33ms, istioctl ~19ms, emoji ~2ms --
+    # the first two shell out to `<tool> completion zsh` on EVERY shell start.
+    # CLAW_OMZ_EXTRA_PLUGINS=(istioctl) in ~/.zshenv re-adds
+    (( ${#CLAW_OMZ_EXTRA_PLUGINS[@]} )) && plugins+=("${CLAW_OMZ_EXTRA_PLUGINS[@]}")
     [[ "$OSTYPE" == "darwin"* ]] && plugins+=(macos vscode)
     [[ -f /etc/debian_version ]] && plugins+=(ubuntu debian)
 
