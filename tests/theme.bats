@@ -171,3 +171,165 @@ make_private_dots() {
 @test "exports.zsh: no longer sources theme.sh (.zshrc step 2c is the one load)" {
   ! grep -qE 'source[[:space:]].*theme\.sh|\.[[:space:]].*theme\.sh' "$REPO/shell/exports.zsh"
 }
+
+# --- (6) claw_theme_emit — the palette generator (F-13) -----------------------
+# theme.sh is the ONE source of colour, so every other surface must be able to
+# ask it for a ready-made artifact instead of re-deriving literals.
+
+@test "theme: emit p10k parses under zsh -n and carries the palette blue" {
+  run bash -c "source '$THEME'; CLAW_THEME=refined-dark CLAW_THEME_FORCE=1 claw_theme_load; claw_theme_emit p10k"
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" > "$BATS_TEST_TMPDIR/p10k.zsh"
+  zsh -n "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_DIR_BACKGROUND='#58a6ff'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_DIR_FOREGROUND='#0d1117'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_VCS_CLEAN_BACKGROUND='#3fb950'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_VCS_MODIFIED_BACKGROUND='#e3b341'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_VCS_CONFLICTED_BACKGROUND='#ff7b72'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_OS_ICON_BACKGROUND='#8b949e'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_KUBECONTEXT_BACKGROUND='#bc8cff'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_TERRAFORM_BACKGROUND='#bc8cff'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_AWS_BACKGROUND='#e3b341'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_GCLOUD_BACKGROUND='#39c5ff'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_STATUS_ERROR_BACKGROUND='#ff7b72'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_PROMPT_CHAR_OK_VIINS_FOREGROUND='#3fb950'" "$BATS_TEST_TMPDIR/p10k.zsh"
+  grep -q "POWERLEVEL9K_PROMPT_CHAR_ERROR_VIINS_FOREGROUND='#ff7b72'" "$BATS_TEST_TMPDIR/p10k.zsh"
+}
+
+@test "theme: emit p10k follows the active palette (synthwave ≠ refined-dark)" {
+  run bash -c "source '$THEME'; CLAW_THEME=synthwave CLAW_THEME_FORCE=1 claw_theme_load; claw_theme_emit p10k"
+  [ "$status" -eq 0 ]
+  blue="$(bash -c "source '$THEME'; CLAW_THEME=synthwave CLAW_THEME_FORCE=1 claw_theme_load; printf %s \"\$CLAW_C_BLUE\"")"
+  [[ "$output" == *"POWERLEVEL9K_DIR_BACKGROUND='#$blue'"* ]]
+  [[ "$output" != *"58a6ff"* ]]
+}
+
+@test "theme: emit tui defines c_* and the legacy aliases equal their twins" {
+  run bash -c "
+    source '$THEME'; CLAW_THEME=refined-dark CLAW_THEME_FORCE=1 claw_theme_load
+    eval \"\$(claw_theme_emit tui)\"
+    printf 'eq_cyan=%s\n' \"\$([ \"\$c_cyan\" = \"\$c_blue\" ] && echo yes || echo no)\"
+    printf 'eq_yellow=%s\n' \"\$([ \"\$c_yellow\" = \"\$c_amber\" ] && echo yes || echo no)\"
+    printf 'eq_orange=%s\n' \"\$([ \"\$c_orange\" = \"\$c_amber\" ] && echo yes || echo no)\"
+    printf 'eq_dim=%s\n' \"\$([ \"\$c_dim\" = \"\$c_muted\" ] && echo yes || echo no)\"
+    printf 'eq_white=%s\n' \"\$([ \"\$c_white\" = \"\$c_fg\" ] && echo yes || echo no)\"
+    printf 'blue=%s\n' \"\$c_blue\"
+    printf 'reset=%s\n' \"\$c_reset\"
+    printf 'bold=%s\n' \"\$c_bold\"
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"eq_cyan=yes"* ]]
+  [[ "$output" == *"eq_yellow=yes"* ]]
+  [[ "$output" == *"eq_orange=yes"* ]]
+  [[ "$output" == *"eq_dim=yes"* ]]
+  [[ "$output" == *"eq_white=yes"* ]]
+  [[ "$output" == *"blue="$'\e[38;2;88;166;255m'* ]]
+  [[ "$output" == *"reset="$'\e[0m'* ]]
+  [[ "$output" == *"bold="$'\e[1m'* ]]
+}
+
+@test "theme: emit fzf exports CLAW_FZF_COLOR = claw_theme_fzf" {
+  run bash -c "
+    source '$THEME'; CLAW_THEME=refined-dark CLAW_THEME_FORCE=1 claw_theme_load
+    want=\"\$(claw_theme_fzf)\"
+    eval \"\$(claw_theme_emit fzf)\"
+    [ \"\$CLAW_FZF_COLOR\" = \"\$want\" ] && echo match || echo \"mismatch: \$CLAW_FZF_COLOR\"
+    env | grep -q '^CLAW_FZF_COLOR=' && echo exported
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *match* ]]
+  [[ "$output" == *exported* ]]
+}
+
+# --- (7) emit osc — allow-listed terminals only --------------------------------
+
+@test "theme: emit osc is non-empty for ghostty with the tty force hook" {
+  run env -u SSH_CONNECTION -u SSH_TTY -u TMUX -u VTE_VERSION \
+    CLAW_THEME_OSC_FORCE_TTY=1 TERM_PROGRAM=ghostty \
+    bash -c "source '$THEME'; claw_theme_emit osc"
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+  [[ "$output" == *"]10;#c9d1d9"* ]]
+  [[ "$output" == *"]11;#0d1117"* ]]
+  [[ "$output" == *"]12;#58a6ff"* ]]
+}
+
+@test "theme: emit osc fires for every allow-listed TERM_PROGRAM and VTE" {
+  for tp in ghostty iTerm.app WezTerm kitty; do
+    run env -u SSH_CONNECTION -u SSH_TTY -u TMUX -u VTE_VERSION \
+      CLAW_THEME_OSC_FORCE_TTY=1 TERM_PROGRAM="$tp" \
+      bash -c "source '$THEME'; claw_theme_emit osc"
+    [ "$status" -eq 0 ]
+    [ -n "$output" ] || { echo "empty for $tp"; return 1; }
+  done
+  run env -u SSH_CONNECTION -u SSH_TTY -u TMUX -u TERM_PROGRAM \
+    CLAW_THEME_OSC_FORCE_TTY=1 VTE_VERSION=6003 \
+    bash -c "source '$THEME'; claw_theme_emit osc"
+  [ -n "$output" ]
+}
+
+@test "theme: emit osc is empty for Apple_Terminal, TMUX, SSH and CLAW_THEME_OSC=0" {
+  run env -u SSH_CONNECTION -u SSH_TTY -u TMUX -u VTE_VERSION \
+    CLAW_THEME_OSC_FORCE_TTY=1 TERM_PROGRAM=Apple_Terminal \
+    bash -c "source '$THEME'; claw_theme_emit osc"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+
+  run env -u SSH_CONNECTION -u SSH_TTY -u VTE_VERSION \
+    CLAW_THEME_OSC_FORCE_TTY=1 TERM_PROGRAM=ghostty TMUX=/tmp/tmux-501/default,1,0 \
+    bash -c "source '$THEME'; claw_theme_emit osc"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+
+  run env -u SSH_TTY -u TMUX -u VTE_VERSION \
+    CLAW_THEME_OSC_FORCE_TTY=1 TERM_PROGRAM=ghostty SSH_CONNECTION="10.0.0.1 1 10.0.0.2 22" \
+    bash -c "source '$THEME'; claw_theme_emit osc"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+
+  run env -u SSH_CONNECTION -u SSH_TTY -u TMUX -u VTE_VERSION \
+    CLAW_THEME_OSC_FORCE_TTY=1 TERM_PROGRAM=ghostty CLAW_THEME_OSC=0 \
+    bash -c "source '$THEME'; claw_theme_emit osc"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+}
+
+@test "theme: emit osc is empty without a tty and without the force hook" {
+  run env -u SSH_CONNECTION -u SSH_TTY -u TMUX -u VTE_VERSION -u CLAW_THEME_OSC_FORCE_TTY \
+    TERM_PROGRAM=ghostty bash -c "source '$THEME'; claw_theme_emit osc"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+}
+
+@test "theme: emit with an unknown target fails loudly" {
+  run bash -c "source '$THEME'; claw_theme_emit nope"
+  [ "$status" -ne 0 ]
+}
+
+# --- (8) claw_theme_depth ------------------------------------------------------
+
+depth_of() {  # depth_of <env assignments...>
+  env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR -u VTE_VERSION "$@" \
+    bash -c "source '$THEME'; claw_theme_depth; printf %s \"\$CLAW_COLOR_DEPTH\""
+}
+
+@test "theme: claw_theme_depth table (dumb/NO_COLOR/Apple/truecolor/allow-list/256/8)" {
+  [ "$(depth_of TERM=dumb)" = 0 ]
+  [ "$(depth_of TERM=xterm-256color NO_COLOR=1)" = 0 ]
+  [ "$(depth_of TERM=xterm-256color TERM_PROGRAM=Apple_Terminal COLORTERM=truecolor)" = 256 ]
+  [ "$(depth_of TERM=xterm-256color COLORTERM=truecolor)" = 24 ]
+  [ "$(depth_of TERM=xterm-256color TERM_PROGRAM=ghostty)" = 24 ]
+  [ "$(depth_of TERM=xterm-256color)" = 256 ]
+  [ "$(depth_of TERM=xterm)" = 8 ]
+}
+
+@test "theme: claw_theme_depth exports CLAW_COLOR_DEPTH to children" {
+  run env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR TERM=xterm-256color \
+    bash -c "source '$THEME'; claw_theme_depth; env | grep '^CLAW_COLOR_DEPTH='"
+  [ "$status" -eq 0 ]
+  [ "$output" = "CLAW_COLOR_DEPTH=256" ]
+}
+
+# --- (9) no raw ANSI literals left in theme.sh --------------------------------
+
+@test "theme: theme.sh carries no hardcoded 38;2 triplet outside a palette fallback" {
+  run bash -c "grep -n '38;2;[0-9]' '$THEME' | grep -v 'CLAW_RGB_' || true"
+  [ -z "$output" ]
+  run bash -c "grep -n '48;2;[0-9]' '$THEME' | grep -v 'CLAW_RGB_' || true"
+  [ -z "$output" ]
+}

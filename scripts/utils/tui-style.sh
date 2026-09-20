@@ -27,20 +27,27 @@
 # so a checkout without theme.sh still renders. Legacy names are misnamed hues
 # (c_cyan is BLUE, c_orange/c_yellow are AMBER, c_dim is MUTED, c_white is FG)
 # and stay so no call site changes; the twins carry the palette-key names.
-# T1 replaces this block with `eval "$(claw_theme_emit tui)"` — keep it compact.
+# theme.sh IS the generator now: `claw_theme_emit tui` renders exactly these
+# names from the active palette. The literal block survives only as the
+# fallback for a shell that inherited CLAW_RGB_* without the function (or a
+# checkout with no theme.sh at all).
 # ── begin palette block ──
 _ts_dots="${DOTFILES_DIR:-$HOME/.dotfiles}"
 [ -n "${CLAW_C_BG:-}" ] || { [ -r "$_ts_dots/scripts/utils/theme.sh" ] && . "$_ts_dots/scripts/utils/theme.sh" 2>/dev/null; }
-c_reset=$'\e[0m'
-c_bold=$'\e[1m'
-c_blue=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m'
-c_green=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
-c_purple=$'\e[38;2;'"${CLAW_RGB_PURPLE:-188;140;255}"$'m'
-c_amber=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
-c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
-c_muted=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
-c_fg=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
-c_cyan="$c_blue"; c_orange="$c_amber"; c_yellow="$c_amber"; c_dim="$c_muted"; c_white="$c_fg"
+if command -v claw_theme_emit >/dev/null 2>&1; then
+    eval "$(claw_theme_emit tui)"
+else
+    c_reset=$'\e[0m'
+    c_bold=$'\e[1m'
+    c_blue=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m'
+    c_green=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
+    c_purple=$'\e[38;2;'"${CLAW_RGB_PURPLE:-188;140;255}"$'m'
+    c_amber=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+    c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+    c_muted=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+    c_fg=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
+    c_cyan="$c_blue"; c_orange="$c_amber"; c_yellow="$c_amber"; c_dim="$c_muted"; c_white="$c_fg"
+fi
 unset _ts_dots
 # ── end palette block ──
 

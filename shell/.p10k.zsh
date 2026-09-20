@@ -21,6 +21,71 @@
   emulate -L zsh -o extended_glob
   unset -m 'POWERLEVEL9K_*'
 
+  # ── Palette: the ONE theme engine, or the pinned gruvbox fallback (F-13) ───
+  # theme.sh is sourced at .zshrc step 2c, so by the time this file loads the
+  # active palette is in the environment and `claw_theme_emit p10k` renders it
+  # as POWERLEVEL9K_* typesets. CLAW_P10K_THEMED=0 (or a checkout without
+  # theme.sh) falls back to the hand-tuned gruvbox ribbon this file shipped
+  # with, so the prompt is never colourless.
+  if [[ "${CLAW_P10K_THEMED:-1}" == 1 && -n "${CLAW_C_BG:-}" ]] && (( $+functions[claw_theme_emit] )); then
+    eval "$(claw_theme_emit p10k)"
+  else
+    # os_icon (grey block)
+    typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_OS_ICON_BACKGROUND='#a89984'
+    # dir (blue block)
+    typeset -g POWERLEVEL9K_DIR_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_DIR_BACKGROUND='#7daea3'
+    typeset -g POWERLEVEL9K_DIR_SHORTENED_FOREGROUND='#3c3836'
+    typeset -g POWERLEVEL9K_DIR_ANCHOR_FOREGROUND='#1d2021'
+    # vcs / git (green clean, yellow dirty)
+    typeset -g POWERLEVEL9K_VCS_CLEAN_BACKGROUND='#a9b665'
+    typeset -g POWERLEVEL9K_VCS_CLEAN_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_VCS_MODIFIED_BACKGROUND='#d8a657'
+    typeset -g POWERLEVEL9K_VCS_MODIFIED_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_VCS_UNTRACKED_BACKGROUND='#a9b665'
+    typeset -g POWERLEVEL9K_VCS_UNTRACKED_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_VCS_CONFLICTED_BACKGROUND='#ea6962'
+    typeset -g POWERLEVEL9K_VCS_CONFLICTED_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_VCS_LOADING_BACKGROUND='#665c54'
+    # status / exec time / jobs / direnv
+    typeset -g POWERLEVEL9K_STATUS_ERROR_BACKGROUND='#ea6962'
+    typeset -g POWERLEVEL9K_STATUS_ERROR_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_COMMAND_EXECUTION_TIME_BACKGROUND='#d8a657'
+    typeset -g POWERLEVEL9K_COMMAND_EXECUTION_TIME_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_BACKGROUND_JOBS_BACKGROUND='#a9b665'
+    typeset -g POWERLEVEL9K_BACKGROUND_JOBS_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_DIRENV_BACKGROUND='#d8a657'
+    typeset -g POWERLEVEL9K_DIRENV_FOREGROUND='#1d2021'
+    # language / env (blue/green blocks)
+    typeset -g POWERLEVEL9K_VIRTUALENV_BACKGROUND='#7daea3'
+    typeset -g POWERLEVEL9K_VIRTUALENV_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_PYENV_BACKGROUND='#7daea3'
+    typeset -g POWERLEVEL9K_PYENV_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_NODE_VERSION_BACKGROUND='#a9b665'
+    typeset -g POWERLEVEL9K_NODE_VERSION_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_NODENV_BACKGROUND='#a9b665'
+    typeset -g POWERLEVEL9K_NODENV_FOREGROUND='#1d2021'
+    # kubecontext / terraform / cloud (purple/orange blocks)
+    typeset -g POWERLEVEL9K_KUBECONTEXT_BACKGROUND='#d3869b'
+    typeset -g POWERLEVEL9K_KUBECONTEXT_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_TERRAFORM_BACKGROUND='#d3869b'
+    typeset -g POWERLEVEL9K_TERRAFORM_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_AWS_BACKGROUND='#e78a4e'
+    typeset -g POWERLEVEL9K_AWS_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_GCLOUD_BACKGROUND='#7daea3'
+    typeset -g POWERLEVEL9K_GCLOUD_FOREGROUND='#1d2021'
+    # context (user@host — SSH / root only)
+    typeset -g POWERLEVEL9K_CONTEXT_ROOT_BACKGROUND='#ea6962'
+    typeset -g POWERLEVEL9K_CONTEXT_ROOT_FOREGROUND='#1d2021'
+    typeset -g POWERLEVEL9K_CONTEXT_{REMOTE,REMOTE_SUDO}_BACKGROUND='#a89984'
+    typeset -g POWERLEVEL9K_CONTEXT_{REMOTE,REMOTE_SUDO}_FOREGROUND='#1d2021'
+    # prompt_char (line 2 — transparent, green ok / red error)
+    typeset -g POWERLEVEL9K_PROMPT_CHAR_BACKGROUND=
+    typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND='#a9b665'
+    typeset -g POWERLEVEL9K_PROMPT_CHAR_ERROR_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND='#ea6962'
+  fi
+
   # ── Layout: everything LEFT, two lines, right prompt empty (no gap fill) ────
   typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(
     os_icon                 # platform glyph
@@ -28,6 +93,7 @@
     vcs                     # git status
     command_execution_time  # long-running command duration
     status                  # exit code (errors only)
+    claw_attention          # ⚑N — items needing Henry (F-10)
     background_jobs         # backgrounded jobs
     direnv                  # direnv
     virtualenv pyenv        # python env (when active)
@@ -44,96 +110,44 @@
   # ── Powerline ribbon style ─────────────────────────────────────────────────
   typeset -g POWERLEVEL9K_MODE=nerdfont-complete
   typeset -g POWERLEVEL9K_ICON_PADDING=moderate
-  typeset -g POWERLEVEL9K_LEFT_SEGMENT_SEPARATOR=''   #
-  typeset -g POWERLEVEL9K_LEFT_SUBSEGMENT_SEPARATOR='' #
+  typeset -g POWERLEVEL9K_LEFT_SEGMENT_SEPARATOR=''   #
+  typeset -g POWERLEVEL9K_LEFT_SUBSEGMENT_SEPARATOR='' #
   typeset -g POWERLEVEL9K_LEFT_PROMPT_FIRST_SEGMENT_START_SYMBOL=''
-  typeset -g POWERLEVEL9K_LEFT_PROMPT_LAST_SEGMENT_END_SYMBOL=''
+  typeset -g POWERLEVEL9K_LEFT_PROMPT_LAST_SEGMENT_END_SYMBOL=''
   typeset -g POWERLEVEL9K_PROMPT_ADD_NEWLINE=true
   typeset -g POWERLEVEL9K_MULTILINE_FIRST_PROMPT_PREFIX=
   typeset -g POWERLEVEL9K_MULTILINE_NEWLINE_PROMPT_PREFIX=
   typeset -g POWERLEVEL9K_MULTILINE_LAST_PROMPT_PREFIX=
 
-  # ── os_icon (grey block) ────────────────────────────────────────────────────
-  typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND='#1d2021'
-  typeset -g POWERLEVEL9K_OS_ICON_BACKGROUND='#a89984'
-
-  # ── dir (blue block) ────────────────────────────────────────────────────────
-  typeset -g POWERLEVEL9K_DIR_FOREGROUND='#1d2021'
-  typeset -g POWERLEVEL9K_DIR_BACKGROUND='#7daea3'
+  # ── dir / vcs behaviour (colour-independent) ───────────────────────────────
   typeset -g POWERLEVEL9K_SHORTEN_STRATEGY=truncate_to_unique
-  typeset -g POWERLEVEL9K_DIR_SHORTENED_FOREGROUND='#3c3836'
-  typeset -g POWERLEVEL9K_DIR_ANCHOR_FOREGROUND='#1d2021'
   typeset -g POWERLEVEL9K_DIR_ANCHOR_BOLD=true
   typeset -g POWERLEVEL9K_DIR_MAX_LENGTH=60
   typeset -g POWERLEVEL9K_DIR_SHOW_WRITABLE=v3
-
-  # ── vcs / git (green clean, yellow dirty) ───────────────────────────────────
-  typeset -g POWERLEVEL9K_VCS_CLEAN_BACKGROUND='#a9b665'
-  typeset -g POWERLEVEL9K_VCS_CLEAN_FOREGROUND='#1d2021'
-  typeset -g POWERLEVEL9K_VCS_MODIFIED_BACKGROUND='#d8a657'
-  typeset -g POWERLEVEL9K_VCS_MODIFIED_FOREGROUND='#1d2021'
-  typeset -g POWERLEVEL9K_VCS_UNTRACKED_BACKGROUND='#a9b665'
-  typeset -g POWERLEVEL9K_VCS_UNTRACKED_FOREGROUND='#1d2021'
-  typeset -g POWERLEVEL9K_VCS_CONFLICTED_BACKGROUND='#ea6962'
-  typeset -g POWERLEVEL9K_VCS_CONFLICTED_FOREGROUND='#1d2021'
-  typeset -g POWERLEVEL9K_VCS_LOADING_BACKGROUND='#665c54'
   typeset -g POWERLEVEL9K_VCS_BRANCH_ICON=' '
   typeset -g POWERLEVEL9K_VCS_UNTRACKED_ICON='?'
 
-  # ── status / exec time / jobs / direnv ──────────────────────────────────────
+  # ── status / exec time thresholds ──────────────────────────────────────────
   typeset -g POWERLEVEL9K_STATUS_OK=false
   typeset -g POWERLEVEL9K_STATUS_ERROR=true
-  typeset -g POWERLEVEL9K_STATUS_ERROR_BACKGROUND='#ea6962'
-  typeset -g POWERLEVEL9K_STATUS_ERROR_FOREGROUND='#1d2021'
-  typeset -g POWERLEVEL9K_COMMAND_EXECUTION_TIME_BACKGROUND='#d8a657'
-  typeset -g POWERLEVEL9K_COMMAND_EXECUTION_TIME_FOREGROUND='#1d2021'
   typeset -g POWERLEVEL9K_COMMAND_EXECUTION_TIME_THRESHOLD=3
   typeset -g POWERLEVEL9K_COMMAND_EXECUTION_TIME_PRECISION=0
-  typeset -g POWERLEVEL9K_BACKGROUND_JOBS_BACKGROUND='#a9b665'
-  typeset -g POWERLEVEL9K_BACKGROUND_JOBS_FOREGROUND='#1d2021'
-  typeset -g POWERLEVEL9K_DIRENV_BACKGROUND='#d8a657'
-  typeset -g POWERLEVEL9K_DIRENV_FOREGROUND='#1d2021'
 
-  # ── language / env (blue/green blocks) ──────────────────────────────────────
-  typeset -g POWERLEVEL9K_VIRTUALENV_BACKGROUND='#7daea3'
-  typeset -g POWERLEVEL9K_VIRTUALENV_FOREGROUND='#1d2021'
+  # ── language / cloud / k8s visibility ──────────────────────────────────────
   typeset -g POWERLEVEL9K_VIRTUALENV_SHOW_PYTHON_VERSION=false
-  typeset -g POWERLEVEL9K_PYENV_BACKGROUND='#7daea3'
-  typeset -g POWERLEVEL9K_PYENV_FOREGROUND='#1d2021'
-  typeset -g POWERLEVEL9K_NODE_VERSION_BACKGROUND='#a9b665'
-  typeset -g POWERLEVEL9K_NODE_VERSION_FOREGROUND='#1d2021'
   typeset -g POWERLEVEL9K_NODE_VERSION_PROJECT_ONLY=true
-  typeset -g POWERLEVEL9K_NODENV_BACKGROUND='#a9b665'
-  typeset -g POWERLEVEL9K_NODENV_FOREGROUND='#1d2021'
-
-  # ── kubecontext / terraform / cloud (purple/orange blocks, on-command) ──────
-  typeset -g POWERLEVEL9K_KUBECONTEXT_BACKGROUND='#d3869b'
-  typeset -g POWERLEVEL9K_KUBECONTEXT_FOREGROUND='#1d2021'
   typeset -g POWERLEVEL9K_KUBECONTEXT_SHOW_ON_COMMAND='kubectl|helm|kubens|k9s|kubectx'
   typeset -g POWERLEVEL9K_KUBECONTEXT_DEFAULT_CONTENT_EXPANSION='${P9K_KUBECONTEXT_CLOUD_CLUSTER:-${P9K_KUBECONTEXT_NAME}}'
-  typeset -g POWERLEVEL9K_TERRAFORM_BACKGROUND='#d3869b'
-  typeset -g POWERLEVEL9K_TERRAFORM_FOREGROUND='#1d2021'
   typeset -g POWERLEVEL9K_TERRAFORM_SHOW_DEFAULT=false
-  typeset -g POWERLEVEL9K_AWS_BACKGROUND='#e78a4e'
-  typeset -g POWERLEVEL9K_AWS_FOREGROUND='#1d2021'
   typeset -g POWERLEVEL9K_AWS_SHOW_ON_COMMAND='aws|awless|terraform|pulumi|terragrunt'
-  typeset -g POWERLEVEL9K_GCLOUD_BACKGROUND='#7daea3'
-  typeset -g POWERLEVEL9K_GCLOUD_FOREGROUND='#1d2021'
   typeset -g POWERLEVEL9K_GCLOUD_SHOW_ON_COMMAND='gcloud|gsutil|gcs|bq'
 
   # ── context (user@host — SSH / root only) ───────────────────────────────────
-  typeset -g POWERLEVEL9K_CONTEXT_ROOT_BACKGROUND='#ea6962'
-  typeset -g POWERLEVEL9K_CONTEXT_ROOT_FOREGROUND='#1d2021'
-  typeset -g POWERLEVEL9K_CONTEXT_{REMOTE,REMOTE_SUDO}_BACKGROUND='#a89984'
-  typeset -g POWERLEVEL9K_CONTEXT_{REMOTE,REMOTE_SUDO}_FOREGROUND='#1d2021'
   typeset -g POWERLEVEL9K_CONTEXT_TEMPLATE='%n@%m'
   # Hide for the normal local user; show only for root / SSH.
   typeset -g POWERLEVEL9K_CONTEXT_{DEFAULT,SUDO}_{CONTENT,VISUAL_IDENTIFIER}_EXPANSION=
 
-  # ── prompt_char (line 2 — transparent, green ok / red error) ────────────────
-  typeset -g POWERLEVEL9K_PROMPT_CHAR_BACKGROUND=
-  typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND='#a9b665'
-  typeset -g POWERLEVEL9K_PROMPT_CHAR_ERROR_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND='#ea6962'
+  # ── prompt_char glyphs (line 2) ────────────────────────────────────────────
   typeset -g POWERLEVEL9K_PROMPT_CHAR_{OK,ERROR}_VIINS_CONTENT_EXPANSION='❯'
   typeset -g POWERLEVEL9K_PROMPT_CHAR_{OK,ERROR}_VICMD_CONTENT_EXPANSION='❮'
   typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_{VIVIS,VIOWR}_CONTENT_EXPANSION='V'
@@ -148,6 +162,31 @@
   typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=off
 
   (( ! $+functions[p10k] )) || p10k reload
+}
+
+# ── claw_attention: ⚑N, the one thing asking for Henry at a prompt (F-10) ─────
+# Reads $XDG_CACHE_HOME/claw/attention.count — one line, "<n> <worst_tier>"
+# (tier ∈ crit|warn|info|ok), written by situation.sh. This runs on EVERY
+# prompt, so it must fork nothing: zstat is a builtin, $(<file) is zsh's
+# no-fork read, and the file is only re-read when its mtime moves. Hidden at 0
+# and when the file is absent.
+prompt_claw_attention() {
+  zmodload -F zsh/stat b:zstat 2>/dev/null
+  local f="${XDG_CACHE_HOME:-$HOME/.cache}/claw/attention.count"
+  local -a m
+  zstat -A m +mtime "$f" 2>/dev/null || return
+  if (( m[1] != ${_claw_att_mtime:-0} )); then
+    typeset -g _claw_att_mtime=$m[1] _claw_att="$(<$f)"
+  fi
+  local n=${_claw_att%% *} t=${_claw_att##* }
+  [[ $n == <-> ]] && (( n > 0 )) || return
+  local c
+  case $t in
+    crit) c="${CLAW_C_RED:-ff7b72}" ;;
+    warn) c="${CLAW_C_AMBER:-e3b341}" ;;
+    *)    c="${CLAW_C_BLUE:-58a6ff}" ;;
+  esac
+  p10k segment -f "#$c" -t "⚑ $n"
 }
 
 typeset -g POWERLEVEL9K_CONFIG_FILE=${${(%):-%x}:a}
