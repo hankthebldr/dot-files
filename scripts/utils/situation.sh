@@ -67,13 +67,37 @@ _default_gateway() {
     fi
 }
 
+# Current wifi SSID, or empty. Both probes are guarded — a headless box, a wired
+# desktop and a CI runner all answer "" and simply fail the lan_ssid match.
+_current_ssid() {
+    if [ "$(uname -s)" = Darwin ]; then
+        have ipconfig && ipconfig getsummary en0 2>/dev/null | awk -F': ' '/ SSID/{print $2; exit}'
+    else
+        have iwgetid && iwgetid -r 2>/dev/null
+    fi
+    return 0
+}
+
+# Read a fleet.yml key that may be a scalar OR a list, one value per line.
+# `[x] | flatten | .[]` is the one form both yq dialects agree on.
+_fleet_list() {
+    have yq || return 0
+    yq -r "[${1}] | flatten | .[]" "$HOMELAB_FLEET" 2>/dev/null | grep -v '^null$' || true
+}
+
 # Per-box overrides (defaults work whether this box IS the homelab or a remote cockpit).
 [ -f "$ENVF" ] && . "$ENVF"
 : "${OLLAMA_HOST:=127.0.0.1:11434}"
 : "${HOMELAB_HOST:=}"                                  # remote host to ping; empty = skip
 : "${DISK_WARN_PCT:=90}"
 : "${GPU_TEMP_WARN:=85}"
-: "${KUBECONFIG_PATH:=${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}}"
+# k3s' own kubeconfig when this box IS the server, else the user's — a laptop
+# cockpit has ~/.kube/config and no /etc/rancher.
+if [ -z "${KUBECONFIG_PATH:-}" ]; then
+    if [ -n "${KUBECONFIG:-}" ]; then                       KUBECONFIG_PATH="$KUBECONFIG"
+    elif [ -r /etc/rancher/k3s/k3s.yaml ]; then             KUBECONFIG_PATH=/etc/rancher/k3s/k3s.yaml
+    else                                                    KUBECONFIG_PATH="$HOME/.kube/config"; fi
+fi
 : "${UPDATES_NOTIFY:=info}"                            # repo-behind alerts: info|off
 : "${LOAD_WARN_X:=2.0}"                                # warn at load1/ncpu >= this
 : "${THINGS_SHOW:=nonzero}"                            # renderer policy for the context row
@@ -296,7 +320,7 @@ _hl_probe_service() {
                 nodes="$(timeout 5 kubectl --context "$kctx" get nodes --no-headers 2>/dev/null)"
             fi
             if [ -z "$nodes" ] && [ "$ssh_ok" = "true" ]; then
-                nodes="$(timeout 5 ssh -o BatchMode=yes -o ConnectTimeout=3 \
+                nodes="$(timeout 5 ssh -n -o BatchMode=yes -o ConnectTimeout=3 \
                     "${user}@${host}" "kubectl get nodes --no-headers 2>/dev/null" 2>/dev/null)"
             fi
             if [ -n "$nodes" ]; then
@@ -308,7 +332,7 @@ _hl_probe_service() {
         ssh)
             local cmd; cmd="$(yq -r ".services.${svc}.cmd // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
             if [ "$ssh_ok" = "true" ] && [ -n "$cmd" ]; then
-                local out; out="$(timeout 5 ssh -o BatchMode=yes -o ConnectTimeout=3 \
+                local out; out="$(timeout 5 ssh -n -o BatchMode=yes -o ConnectTimeout=3 \
                     "${user}@${host}" "$cmd" 2>/dev/null | tr -d ' ')"
                 if [ -n "$out" ]; then state="up"; detail="${out} containers"; fi
             fi ;;
@@ -316,7 +340,7 @@ _hl_probe_service() {
             # tailscale BackendState — local if this box, else over ssh
             local bs=""
             if [ "$ssh_ok" = "true" ]; then
-                bs="$(timeout 5 ssh -o BatchMode=yes -o ConnectTimeout=3 "${user}@${host}" \
+                bs="$(timeout 5 ssh -n -o BatchMode=yes -o ConnectTimeout=3 "${user}@${host}" \
                     "tailscale status --json 2>/dev/null | jq -r '.BackendState' 2>/dev/null" 2>/dev/null)"
             elif have tailscale; then
                 bs="$(timeout 3 tailscale status --json 2>/dev/null | { have jq && jq -r '.BackendState' 2>/dev/null; })"
@@ -346,11 +370,19 @@ EOF
     fi
     fleet_name="$(yq -r '.fleet.name // "HR-TRUST"' "$HOMELAB_FLEET" 2>/dev/null)"
 
-    # Access-level identity: github login via gh
-    if have gh; then
+    # Access-level identity: github login via gh. Cached behind a stamp file —
+    # `gh api user` is a network round trip and the answer changes ~never.
+    local gh_stamp="$CACHE_DIR/.gh-user"
+    if [ -r "$gh_stamp" ] && [ "$(file_age "$gh_stamp")" -lt "$GH_IDENT_TTL" ]; then
+        gh_user="$(cat "$gh_stamp" 2>/dev/null)"
+        [ -n "$gh_user" ] && gh_state="up"
+    elif have gh; then
         local _gh_out
         _gh_out="$(timeout 4 gh api user --jq .login 2>/dev/null)" && gh_user="$_gh_out"
-        [ -n "$gh_user" ] && gh_state="up"
+        if [ -n "$gh_user" ]; then
+            gh_state="up"
+            printf '%s\n' "$gh_user" > "$gh_stamp" 2>/dev/null || true
+        fi
     fi
 
     # Tailscale status JSON, fetched ONCE — drives both the route and per-machine
@@ -361,7 +393,10 @@ EOF
     local tj=""; have tailscale && tj="$(timeout 3 tailscale status --json 2>/dev/null)"
 
     # Traffic route to the first machine: CurAddr present → direct; else Relay = DERP hop.
-    local first_host; first_host="$(yq -r '.machines[0].host // ""' "$HOMELAB_FLEET" 2>/dev/null)"
+    local first_host
+    first_host="$(yq -r '.machines[0].ts // ""' "$HOMELAB_FLEET" 2>/dev/null)"
+    [ -n "$first_host" ] && [ "$first_host" != null ] || \
+        first_host="$(yq -r '.machines[0].host // ""' "$HOMELAB_FLEET" 2>/dev/null)"
     if [ -n "$tj" ] && have jq && [ -n "$first_host" ]; then
         local cur relay
         cur="$(printf '%s' "$tj" | jq -r --arg h "$first_host" \
@@ -391,11 +426,27 @@ EOF
     # probing a stranger's network on every login kick. Fall back only when the
     # default gateway matches fleet.lan_gateway; an undeclared lan_gateway keeps
     # the legacy always-probe behaviour. CLAW_HOMELAB_LAN=1|0 forces either way.
-    local lan_gw cur_gw lan_ok=1
-    lan_gw="$(yq -r '.fleet.lan_gateway // ""' "$HOMELAB_FLEET" 2>/dev/null)"
-    if [ -n "$lan_gw" ]; then
+    # Both keys accept a scalar or a list; declaring either switches the gate on.
+    # A match on EITHER (this gateway, or this SSID) means we are home.
+    local lan_gws lan_ssids cur_gw cur_ssid g lan_ok=1
+    lan_gws="$(_fleet_list '.fleet.lan_gateway')"
+    lan_ssids="$(_fleet_list '.fleet.lan_ssid')"
+    if [ -n "$lan_gws" ] || [ -n "$lan_ssids" ]; then
+        lan_ok=0
         cur_gw="$(_default_gateway)"
-        [ "$cur_gw" = "$lan_gw" ] || lan_ok=0
+        if [ -n "$cur_gw" ]; then
+            for g in $lan_gws; do [ "$g" = "$cur_gw" ] && lan_ok=1; done
+        fi
+        if [ "$lan_ok" = 0 ] && [ -n "$lan_ssids" ]; then
+            cur_ssid="$(_current_ssid)"
+            if [ -n "$cur_ssid" ]; then
+                while IFS= read -r g; do
+                    [ -n "$g" ] && [ "$g" = "$cur_ssid" ] && lan_ok=1
+                done <<EOF
+$lan_ssids
+EOF
+            fi
+        fi
     fi
     case "${CLAW_HOMELAB_LAN:-}" in 1) lan_ok=1 ;; 0) lan_ok=0 ;; esac
 
@@ -403,31 +454,45 @@ EOF
     local machines_json="" mi=0 mcount
     mcount="$(yq -r '.machines | length' "$HOMELAB_FLEET" 2>/dev/null)"; : "${mcount:=0}"
     while [ "$mi" -lt "$mcount" ]; do
-        local id host user ssh_ok role mstate addr latency
+        local id host tsname user ssh_ok role mstate addr latency ts_match
         id="$(yq -r ".machines[$mi].id // \"node$mi\"" "$HOMELAB_FLEET" 2>/dev/null)"
         host="$(yq -r ".machines[$mi].host // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+        tsname="$(yq -r ".machines[$mi].ts // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
+        [ -n "$tsname" ] && [ "$tsname" != null ] || tsname="$host"
         user="$(yq -r ".machines[$mi].user // \"$USER\"" "$HOMELAB_FLEET" 2>/dev/null)"
         ssh_ok="$(yq -r ".machines[$mi].ssh // false" "$HOMELAB_FLEET" 2>/dev/null)"
         role="$(yq -r ".machines[$mi].role // \"\"" "$HOMELAB_FLEET" 2>/dev/null)"
-        mstate="down"; addr=""; latency="null"
+        mstate=""; addr=""; latency="null"; ts_match=0
 
-        # reachability: tailscale peer first, else nc/ping fallback (LAN-friendly).
+        # Reachability, in order of authority:
+        #   1. the tailnet peer row for machines[].ts (the MagicDNS short name;
+        #      falls back to .host for a fleet that predates the key) — a peer row
+        #      is a DEFINITIVE answer, online or not;
+        #   2. on the home LAN only, the /dev/tcp + ping fallback;
+        #   3. neither => "unknown". Off-LAN with no peer we simply do not know,
+        #      and rendering that as `down` cried wolf on every coffee-shop login.
         # latency stays null (status doesn't measure RTT; no render needs it).
-        if [ -n "$tj" ] && have jq && [ -n "$host" ]; then
-            local online
-            online="$(printf '%s' "$tj" | jq -r --arg h "$host" \
-                '[(.Peer // {})[] | select(.DNSName|startswith($h+"."))][0] // {} | .Online // false' 2>/dev/null)"
-            addr="$(printf '%s' "$tj" | jq -r --arg h "$host" \
-                '[(.Peer // {})[] | select(.DNSName|startswith($h+"."))][0] // {} | (.TailscaleIPs // [""])[0] // ""' 2>/dev/null)"
-            [ "$online" = "true" ] && mstate="up"
+        if [ -n "$tj" ] && have jq && [ -n "$tsname" ]; then
+            local peer
+            peer="$(printf '%s' "$tj" | jq -c --arg h "$tsname" \
+                '[(.Peer // {})[] | select(.DNSName|startswith($h+"."))][0] // null' 2>/dev/null)"
+            if [ -n "$peer" ] && [ "$peer" != null ]; then
+                ts_match=1
+                addr="$(printf '%s' "$peer" | jq -r '(.TailscaleIPs // [""])[0] // ""' 2>/dev/null)"
+                if [ "$(printf '%s' "$peer" | jq -r '.Online // false' 2>/dev/null)" = "true" ]
+                then mstate="up"; else mstate="down"; fi
+            fi
         fi
-        if [ "$lan_ok" = 1 ] && [ "$mstate" != "up" ] && [ -n "$host" ]; then
+        if [ "$mstate" != "up" ] && [ -n "$host" ] && [ "$lan_ok" = 1 ]; then
             if timeout 2 bash -c "exec 3<>/dev/tcp/${host}/22" 2>/dev/null \
                || timeout 2 bash -c "exec 3<>/dev/tcp/${host}/80" 2>/dev/null \
                || ping -c1 -W1 "$host" >/dev/null 2>&1; then
                 mstate="up"; : "${addr:=$host}"
+            else
+                mstate="down"
             fi
         fi
+        [ -n "$mstate" ] || { if [ "$ts_match" = 1 ]; then mstate="down"; else mstate="unknown"; fi; }
         : "${addr:=}"; : "${latency:=null}"
 
         # node Ready state from the cluster probe overrides reachability for k8s nodes
@@ -452,6 +517,8 @@ EOF
                || [ "$skind" = "kube" ] || [ "$skind" = "tcp" ]; then
                 line="$(_hl_probe_service "$host" "$user" "$ssh_ok" "$svc" "$cl_ip" "$cl_ctx")"
                 sstate="${line%%	*}"; sdetail="${line#*	}"
+            elif [ "$mstate" = "unknown" ]; then
+                sstate="down"; sdetail="host unknown"
             else
                 sstate="down"; sdetail="host down"
             fi
@@ -477,10 +544,39 @@ EOF
 EOF
 }
 
+# The fleet poll is the expensive one (ssh, curl, dig, kubectl across four
+# boxes), and every new tab kicks it. Two guards, both cheap:
+#   throttle — a snapshot younger than CLAW_HOMELAB_THROTTLE is good enough;
+#   lock     — `mkdir` is the portable atomic test-and-set, so ten tabs opening
+#              at once produce ONE probe. A lock older than CLAW_LOCK_STALE is a
+#              corpse from a killed poller and gets reclaimed.
+# Losing the race is not an error: the winner is writing the same snapshot.
 cmd_homelab_poll() {
-    local tmp; tmp="$(mktemp "${CACHE_DIR}/.hl.XXXXXX")" || return 1
-    if probe_homelab >"$tmp" 2>/dev/null; then mv -f "$tmp" "$HOMELAB_SNAP"; else rm -f "$tmp"; return 1; fi
-    return 0
+    local force=0
+    [ "${1:-}" = "--force" ] && force=1
+    if [ "$force" = 0 ] && [ -f "$HOMELAB_SNAP" ] \
+       && [ "$(file_age "$HOMELAB_SNAP")" -lt "$CLAW_HOMELAB_THROTTLE" ]; then
+        return 0
+    fi
+
+    local lock="$CACHE_DIR/.hl.lock"
+    if [ -d "$lock" ] && [ "$(file_age "$lock")" -gt "$CLAW_LOCK_STALE" ]; then
+        rmdir "$lock" 2>/dev/null || true
+    fi
+    mkdir "$lock" 2>/dev/null || return 0        # someone else owns the probe
+    trap 'rmdir "$lock" 2>/dev/null || true' EXIT
+
+    local rc=0 tmp
+    if tmp="$(mktemp "${CACHE_DIR}/.hl.XXXXXX")"; then
+        if probe_homelab >"$tmp" 2>/dev/null; then mv -f "$tmp" "$HOMELAB_SNAP"
+        else rm -f "$tmp"; rc=1; fi
+    else
+        rc=1
+    fi
+
+    rmdir "$lock" 2>/dev/null || true
+    trap - EXIT
+    return $rc
 }
 
 cmd_probe() {

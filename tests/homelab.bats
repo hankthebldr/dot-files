@@ -276,8 +276,64 @@ YML
   run env PATH="$STUB:$PATH" bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
   [ "$status" -eq 0 ]
   [ ! -s "$CALLS" ]                                  # ping never dialled
+  # ...and neither was /dev/tcp: both live in the one fallback block the
+  # unknown state short-circuits. (The block cannot be probed with a `bash`
+  # stub — situation.sh is itself run by the bash on PATH.)
   run jq -r '.machines[0].state' "$XDG_CACHE_HOME/claw/homelab.json"
-  [ "$output" = "down" ]
+  [ "$output" = "unknown" ]
+}
+
+@test "situation homelab: unknown is off-LAN-and-no-peer, never reported as down" {
+  _lan_stubs
+  run env PATH="$STUB:$PATH" bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+  [ "$status" -eq 0 ]
+  run jq -r '[.machines[] | select(.state=="down")] | length' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$output" = "0" ]
+}
+
+@test "situation homelab: lan_gateway as a LIST matches the current gateway" {
+  _lan_stubs
+  # the foreign gateway the stub reports is now one of the declared LAN gateways
+  cat > "$XDG_CONFIG_HOME/claw/fleet.yml" <<'YML'
+fleet: { name: T, poll_seconds: 60, lan_gateway: [192.168.1.1, 10.99.99.1] }
+cluster: { context: "", traefik_ip: "" }
+machines:
+  - { id: box, host: 192.0.2.1, user: t, ssh: false, role: worker, services: [] }
+services: {}
+YML
+  run env PATH="$STUB:$PATH" bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+  [ "$status" -eq 0 ]
+  grep -q '^ping ' "$CALLS"                          # on-LAN => the fallback runs
+  run jq -r '.machines[0].state' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$output" = "down" ]                             # probed and genuinely unreachable
+}
+
+@test "situation homelab: lan_ssid matches the current wifi network" {
+  _lan_stubs
+  printf '#!/usr/bin/env bash\necho "  SSID : HR-TRUST"\n' > "$STUB/ipconfig"
+  printf '#!/usr/bin/env bash\necho "HR-TRUST"\n' > "$STUB/iwgetid"
+  chmod +x "$STUB/ipconfig" "$STUB/iwgetid"
+  cat > "$XDG_CONFIG_HOME/claw/fleet.yml" <<'YML'
+fleet: { name: T, poll_seconds: 60, lan_gateway: [192.168.1.1], lan_ssid: [HR-TRUST] }
+cluster: { context: "", traefik_ip: "" }
+machines:
+  - { id: box, host: 192.0.2.1, user: t, ssh: false, role: worker, services: [] }
+services: {}
+YML
+  run env PATH="$STUB:$PATH" bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+  [ "$status" -eq 0 ]
+  grep -q '^ping ' "$CALLS"                          # SSID says we are home
+}
+
+@test "fleet.yml: lan_gateway is a list and every machine declares a ts name" {
+  f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
+  run yq -r '.fleet.lan_gateway | length' "$f"
+  [ "$status" -eq 0 ]; [ "$output" -ge 1 ]
+  run yq -r '[.machines[] | select(has("ts"))] | length' "$f"
+  [ "$status" -eq 0 ]; total="$output"
+  run yq -r '.machines | length' "$f"
+  [ "$output" = "$total" ]
+  run yq -r '.fleet.lan_ssid[0]' "$f"; [ "$output" = "HR-TRUST" ]
 }
 
 @test "situation homelab: CLAW_HOMELAB_LAN=1 forces the fallback (ping is reached)" {

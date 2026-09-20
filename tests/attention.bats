@@ -219,3 +219,56 @@ EOF
   [ ! -s "$CALLS" ]
 }
 
+# ── homelab throttle + single-flight lock ──────────────────────────────────
+
+_hl_stubs() {
+  printf '#!/usr/bin/env bash\necho "yq $*" >> "%s"\nexit 1\n' "$CALLS" > "$STUB/yq"
+  for t in tailscale kubectl gh curl ping; do printf '#!/usr/bin/env bash\nexit 1\n' > "$STUB/$t"; done
+  chmod +x "$STUB"/*
+  cat > "$XDG_CONFIG_HOME/claw/fleet.yml" <<'YML'
+fleet: { name: T, poll_seconds: 60 }
+cluster: { context: "", traefik_ip: "" }
+machines: []
+services: {}
+YML
+}
+
+@test "homelab: a second poll inside 300 s does not re-read the fleet file" {
+  _hl_stubs
+  run env PATH="$STUB:$PATH" bash "$SIT" homelab
+  [ "$status" -eq 0 ]; grep -q '^yq ' "$CALLS"
+  : > "$CALLS"
+  run env PATH="$STUB:$PATH" bash "$SIT" homelab
+  [ "$status" -eq 0 ]
+  [ ! -s "$CALLS" ]
+}
+
+@test "homelab: --force overrides the throttle" {
+  _hl_stubs
+  run env PATH="$STUB:$PATH" bash "$SIT" homelab
+  [ "$status" -eq 0 ]
+  : > "$CALLS"
+  run env PATH="$STUB:$PATH" bash "$SIT" homelab --force
+  [ "$status" -eq 0 ]
+  grep -q '^yq ' "$CALLS"
+}
+
+@test "homelab: a fresh lock directory makes the poll a silent no-op" {
+  _hl_stubs
+  mkdir -p "$CACHE/.hl.lock"
+  run env PATH="$STUB:$PATH" bash "$SIT" homelab
+  [ "$status" -eq 0 ]
+  [ ! -s "$CALLS" ]
+  [ ! -f "$CACHE/homelab.json" ]
+  [ -d "$CACHE/.hl.lock" ]            # someone else's lock is left alone
+}
+
+@test "homelab: a stale lock directory is reclaimed" {
+  _hl_stubs
+  mkdir -p "$CACHE/.hl.lock"
+  touch -t 202001010000 "$CACHE/.hl.lock"
+  run env PATH="$STUB:$PATH" bash "$SIT" homelab
+  [ "$status" -eq 0 ]
+  grep -q '^yq ' "$CALLS"
+  [ ! -d "$CACHE/.hl.lock" ]
+}
