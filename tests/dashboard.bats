@@ -228,3 +228,75 @@ PY
   [[ "$output" == *"Load"* ]]
   ! printf '%s\n' "$output" | command grep -qE 'CPU +\['
 }
+
+# ── T1-06b · attention card ──────────────────────────────────────────────────
+
+# F-10: nothing at login read situation.json. The card now ends in an
+# `attention` rule followed by the evaluated items: tier dot, text, hint, age,
+# and `since HH:MM` when the item is older than the probe that last saw it.
+@test "dashboard attention_lines: rows from the attention fixture" {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/attention.json" "$XDG_CACHE_HOME/claw/"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/local.json" "$XDG_CACHE_HOME/claw/"
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"attention"* ]]
+  [[ "$output" == *"k3s 2/3 Ready"* ]]
+  [[ "$output" == *"since 03:12"* ]]
+  [[ "$output" == *"kubectl get nodes"* ]]
+  [[ "$output" == *"26 inbox"* ]]
+  [[ "$output" == *"5 claude sessions"* ]]
+  [[ "$output" == *"31/65 repos dirty"* ]]
+  [[ "$output" == *"checked "* ]]
+  # acked items are hidden from the card
+  [[ "$output" != *"acked item must not render"* ]]
+}
+
+@test "dashboard attention_lines: all-clear and no-state lines" {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no state yet"* ]]
+  [[ "$output" == *"claw situation probe"* ]]
+
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/attention.empty.json" \
+     "$XDG_CACHE_HOME/claw/attention.json"
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"all clear"* ]]
+  [[ "$output" == *"checked "* ]]
+  [[ "$output" != *"no state yet"* ]]
+}
+
+# More items than the card shows collapse into one `+N more` pointer.
+@test "dashboard attention_lines: caps at six items then points at claw doctor" {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  python3 - "$XDG_CACHE_HOME/claw/attention.json" <<'PY'
+import sys, json, time
+now = int(time.time())
+json.dump({"v": 1, "checked": {"situation": now},
+           "items": [{"id": f"i{n}", "tier": "warn", "text": f"item {n}",
+                      "hint": "", "since": now, "src_ts": now} for n in range(9)]},
+          open(sys.argv[1], "w"))
+PY
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"item 5"* ]]
+  [[ "$output" != *"item 6"* ]]
+  [[ "$output" == *"+3 more"* ]]
+  [[ "$output" == *"claw doctor"* ]]
+}
+
+# NO_COLOR must produce a card with no escape sequences at all, and tiers must
+# still be distinguishable — `!` crit, `~` warn, `i` info.
+@test "dashboard --login: NO_COLOR output carries no escape sequences" {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/attention.json" "$XDG_CACHE_HOME/claw/"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/local.json" "$XDG_CACHE_HOME/claw/"
+  run env NO_COLOR=1 TZ=UTC COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  printf '%s' "$output" | command grep -q $'\033' && { echo "escape codes leaked"; false; }
+  printf '%s\n' "$output" | command grep -qE '! +k3s 2/3 Ready'
+  printf '%s\n' "$output" | command grep -qE '~ +brew'
+  printf '%s\n' "$output" | command grep -qE 'i +dotfiles'
+}

@@ -555,6 +555,8 @@ def builtin_logo():
     except Exception:
         out = ""
     lines = _strip_cursor(out) if out.strip() else []
+    if NOCOLOR:
+        lines = [_ANSI.sub("", ln).rstrip() for ln in lines]
     return lines or _fallback_mark()
 
 
@@ -704,6 +706,135 @@ def homelab_lines():
     return rows
 
 
+# ── Attention (audit F-10) ───────────────────────────────────────────────────
+# situation.sh evaluate writes attention.json; the render only reads it. Nothing
+# here probes, and nothing here writes.
+ATTENTION_MAX = 6
+TIER_TONE = {"crit": "red", "warn": "amber", "info": "blue"}
+TIER_MARK = {"crit": "!", "warn": "~", "info": "i"}
+
+
+def _epoch(v):
+    """Epoch seconds from a number or an ISO-8601 string; None when unusable."""
+    if isinstance(v, (int, float)):
+        return int(v)
+    if isinstance(v, str) and v.strip():
+        s = v.strip()
+        if s.isdigit():
+            return int(s)
+        try:
+            return int(datetime.datetime.strptime(
+                s, "%Y-%m-%dT%H:%M:%SZ").replace(
+                    tzinfo=datetime.timezone.utc).timestamp())
+        except Exception:
+            return None
+    return None
+
+
+def _age(epoch):
+    """'12s' / '4m' / '2h' / '3d' — the age of a cached fact, never a duration."""
+    e = _epoch(epoch)
+    if e is None:
+        return ""
+    import time
+    secs = max(0, int(time.time()) - e)
+    if secs < 60:
+        return f"{secs}s"
+    if secs < 3600:
+        return f"{secs // 60}m"
+    if secs < 86400:
+        return f"{secs // 3600}h"
+    return f"{secs // 86400}d"
+
+
+def _dot(tier):
+    """Tier marker. NO_COLOR keeps the tiers apart with `!` / `~` / `i`,
+    because a colourless bullet says nothing."""
+    if NOCOLOR:
+        return TIER_MARK.get(tier, "i")
+    return col("●", C[TIER_TONE.get(tier, "blue")])
+
+
+def _context_rows(checked_age):
+    """The operator context: Things, the last handoff, live claude sessions and
+    dirty repos, out of local.json — plus how old the newest probe is."""
+    loc = _cache_json("local.json") or {}
+    r1, r2 = [], []
+    things = loc.get("things") or {}
+    bits = []
+    if things.get("inbox"):
+        bits.append(f"{things['inbox']} inbox")
+    if things.get("today"):
+        bits.append(f"{things['today']} today")
+    if bits:
+        r1.append(col("Things ", C["muted"]) + col(" · ".join(bits), C["fg"]))
+    ho = loc.get("handoff") or {}
+    if ho.get("title") and (ho.get("age_s") or 0) < 7 * 86400:
+        age = _age(int(__import__("time").time()) - int(ho.get("age_s") or 0))
+        r1.append(col("handoff ", C["muted"])
+                  + col(f'"{_short(ho["title"], 28)}"', C["fg"])
+                  + col(f" {age}", C["muted"]))
+    if loc.get("claude_sessions"):
+        r2.append(col(f"{loc['claude_sessions']} claude sessions", C["fg"]))
+    repos = loc.get("repos") or {}
+    if repos.get("dirty"):
+        r2.append(col(f"{repos['dirty']}/{repos.get('total', '?')} repos dirty", C["fg"]))
+    if checked_age:
+        r2.append(col(f"checked {checked_age} ago", C["muted"]))
+    rows = []
+    if r1:
+        rows.append(col(" · ", C["muted"]).join(r1))
+    if r2:
+        rows.append(col(" · ", C["muted"]).join(r2))
+    return rows
+
+
+def attention_lines(max_items=ATTENTION_MAX):
+    """The card's attention block.
+
+    No attention.json at all -> `no state yet · claw situation probe`.
+    No items -> `✓ all clear · checked Nm ago`.
+    Otherwise one row per item (acked ones hidden), capped, then the context.
+    """
+    data = _cache_json("attention.json")
+    if data is None:
+        return [col("no state yet", C["muted"]) + col(" · ", C["muted"])
+                + col("claw situation probe", C["fg"])]
+    checked = [e for e in (_epoch(v) for v in (data.get("checked") or {}).values())
+               if e is not None]
+    checked_age = _age(max(checked)) if checked else ""
+    items = [i for i in (data.get("items") or [])
+             if isinstance(i, dict) and (i.get("hint") or "") != "acked"]
+
+    rows = []
+    for it in items[:max_items]:
+        src = _epoch(it.get("src_ts"))
+        since = _epoch(it.get("since"))
+        parts = [_dot(it.get("tier", "info")), col(str(it.get("text", "")), C["fg"])]
+        if it.get("hint"):
+            parts.append(col(str(it["hint"]), C["muted"]))
+        tail = []
+        if since is not None and src is not None and since != src:
+            tail.append("since " + datetime.datetime.fromtimestamp(since).strftime("%H:%M"))
+        age = _age(src)
+        if age:
+            tail.append(age)
+        if tail:
+            parts.append(col(" · ".join(tail), C["muted"]))
+        rows.append("  ".join(parts))
+    extra = len(items) - len(rows)
+    if extra > 0:
+        rows.append(col(f"+{extra} more", C["muted"]) + col(" · ", C["muted"])
+                    + col("claw doctor", C["fg"]))
+    if not items:
+        clear = col("✓ all clear", C["green"])
+        if checked_age:
+            clear += col(f" · checked {checked_age} ago", C["muted"])
+        rows.append(clear)
+        checked_age = ""      # already stated on the all-clear line
+    return rows + _context_rows(checked_age)
+
+
 # ── Frame (the ONE render primitive) ─────────────────────────────────────────
 RULE = "\x00rule\x00"          # sentinel row, expanded by frame() to a divider
 
@@ -735,15 +866,30 @@ def render(rows, logo, title_text, term):
     """Frame `rows` (optionally beside `logo`), centered and clamped to `term`."""
     if logo:
         lw = max((vis(l) for l in logo), default=0) + 3
-        pad_top = max(0, (len(rows) - len(logo)) // 2)
-        lpad_top = max(0, (len(logo) - len(rows)) // 2)
-        n = max(len(logo) + lpad_top, len(rows) + pad_top)
-        merged = []
-        for i in range(n):
-            li, bi = i - lpad_top, i - pad_top
-            lft = pad(logo[li] if 0 <= li < len(logo) else "", lw)
-            rgt = rows[bi] if 0 <= bi < len(rows) else ""
-            merged.append(rgt if rgt.startswith(RULE) else (lft + rgt).rstrip())
+        # Rule rows span the whole frame, so they take no logo line with them —
+        # only the ordinary rows pair up with the art, and the shorter of the
+        # two columns is centred against the other.
+        nb = sum(1 for r in rows if not r.startswith(RULE))
+        logo_off = max(0, (nb - len(logo)) // 2)
+        body_off = max(0, (len(logo) - nb) // 2)
+
+        def _logo_at(i):
+            j = i - logo_off
+            return logo[j] if 0 <= j < len(logo) else ""
+
+        merged, i = [], 0
+        while i < body_off:
+            merged.append(pad(_logo_at(i), lw).rstrip())
+            i += 1
+        for r in rows:
+            if r.startswith(RULE):
+                merged.append(r)
+                continue
+            merged.append((pad(_logo_at(i), lw) + r).rstrip())
+            i += 1
+        while 0 <= i - logo_off < len(logo):
+            merged.append(pad(_logo_at(i), lw).rstrip())
+            i += 1
     else:
         merged = list(rows)
 
@@ -778,7 +924,7 @@ def header_rows(d, narrow):
 
 
 def login_rows(d, term):
-    """header · segments · bars · homelab · palette dots."""
+    """header · segments · bars · `attention` rule · attention · homelab · dots."""
     narrow = term < 80
     wide = term >= 100
     rows = header_rows(d, narrow)
@@ -790,6 +936,7 @@ def login_rows(d, term):
     bars = bar_rows(d, width=8 if narrow else 12)
     if bars:
         rows += [""] + bars
+    rows += [rule("attention")] + attention_lines()
     hl = homelab_lines()
     if hl:
         rows += [""] + hl

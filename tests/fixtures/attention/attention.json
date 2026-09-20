@@ -1,0 +1,43 @@
+{
+  "v": 1,
+  "checked": {
+    "situation": 1789889880,
+    "homelab": 1789889400,
+    "updates": 1789889400,
+    "local": 1789889400
+  },
+  "items": [
+    {
+      "id": "k3s",
+      "tier": "crit",
+      "text": "k3s 2/3 Ready · ms-01",
+      "hint": "kubectl get nodes",
+      "since": 1789873920,
+      "src_ts": 1789889880
+    },
+    {
+      "id": "brew",
+      "tier": "warn",
+      "text": "brew ✗ xcode-license",
+      "hint": "sudo xcodebuild -license",
+      "since": 1789889400,
+      "src_ts": 1789889400
+    },
+    {
+      "id": "dotfiles-behind",
+      "tier": "info",
+      "text": "dotfiles ↓3",
+      "hint": "claw update",
+      "since": 1789889400,
+      "src_ts": 1789889400
+    },
+    {
+      "id": "ack-me",
+      "tier": "info",
+      "text": "acked item must not render",
+      "hint": "acked",
+      "since": 1789889400,
+      "src_ts": 1789889400
+    }
+  ]
+}

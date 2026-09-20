@@ -1,0 +1,9 @@
+{
+  "ts": 1789889400,
+  "things": { "today": 51, "inbox": 26 },
+  "handoff": { "title": "pty live output", "path": "~/.remember/remember.md", "age_s": 172800 },
+  "repos": { "dirty": 31, "total": 65, "sample": ["dot-files", "hr-vault-main-pa", "cortex-deck"] },
+  "worktrees": 3,
+  "claude_sessions": 5,
+  "cwd_repo": { "branch": "impl/t1-d", "dirty": true }
+}
