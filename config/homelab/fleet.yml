@@ -5,10 +5,14 @@
 fleet:
   name: HR-TRUST
   poll_seconds: 60
-  # Home LAN default gateway. The reachability fallback (nc/ping to the RFC1918
-  # hosts below) only runs when the current default route matches this; off-LAN
-  # the poller trusts tailscale alone. Omit to always probe (legacy behaviour).
-  lan_gateway: 192.168.1.1
+  # Home-LAN fingerprint. The reachability fallback (/dev/tcp + ping to the
+  # RFC1918 hosts below) only runs when the current default route matches one of
+  # lan_gateway OR the current wifi SSID matches one of lan_ssid; off-LAN the
+  # poller trusts tailscale alone and a box with no tailnet peer is reported
+  # `unknown`, never `down`. Both keys take a scalar or a list. Omit BOTH to
+  # always probe (legacy behaviour). CLAW_HOMELAB_LAN=1|0 forces either way.
+  lan_gateway: [192.168.1.1]
+  lan_ssid: [HR-TRUST]
 
 # k8s cluster context + the Traefik entrypoint used for Host-header service probes
 # (DNS-independent — works on-LAN or over a routed tailnet).
@@ -16,13 +20,17 @@ cluster:
   context: k3s-ms01
   traefik_ip: 192.168.1.110
 
+# host = the LAN address (used by the on-LAN fallback and by ssh)
+# ts   = the MagicDNS SHORT name, which is what the tailnet peer rows are keyed
+#        by. Without it the peer match compares an IP against a DNS name and
+#        every box off-LAN reads as unreachable.
 machines:
-  - { id: ms-01,  host: 192.168.1.110, user: henry, ssh: true,  role: control-plane,
+  - { id: ms-01,  host: 192.168.1.110, ts: ms-01,  user: henry, ssh: true,  role: control-plane,
       services: [k3s, gitea, n8n, portainer, enclave, grafana, harbor] }
-  - { id: r630,   host: 192.168.1.102, user: henry, ssh: true,  role: worker, services: [] }
-  - { id: bd790i, host: 192.168.1.104, user: henry, ssh: true,  role: worker,
+  - { id: r630,   host: 192.168.1.102, ts: r630,   user: henry, ssh: true,  role: worker, services: [] }
+  - { id: bd790i, host: 192.168.1.104, ts: bd790i, user: henry, ssh: true,  role: worker,
       services: [docker, ollama, tailscale] }
-  - { id: pihole, host: 192.168.1.101, user: henry, ssh: false, role: dns,
+  - { id: pihole, host: 192.168.1.101, ts: pihole, user: henry, ssh: false, role: dns,
       services: [pihole-dns] }
 
 services:

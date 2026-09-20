@@ -2,11 +2,16 @@
 # $XDG_CONFIG_HOME/claw/fleet.yml (machine-local, untracked) and edit.
 # Service kinds: native | ssh | http | tcp | kube | dns.
 # See docs/superpowers/specs/2026-06-29-homelab-lab-board-design.md
-fleet: { name: MY-LAB, poll_seconds: 60, lan_gateway: 192.168.1.1 }   # lan_gateway (optional): only nc/ping the hosts below when this is the default route
+# lan_gateway / lan_ssid (both optional, scalar or list): the on-LAN fallback
+# (/dev/tcp + ping) only runs when the default route or the current wifi SSID
+# matches. Off-LAN a machine with no tailnet peer is reported `unknown`.
+fleet: { name: MY-LAB, poll_seconds: 60, lan_gateway: [192.168.1.1], lan_ssid: [MY-WIFI] }
 cluster: { context: my-k3s, traefik_ip: 192.168.1.10 }
+# ts (optional): the MagicDNS SHORT name this box has on the tailnet. Set it —
+# the peer match is by name, and without it an off-LAN poll never matches.
 machines:
-  - { id: cp1, host: 192.168.1.10, user: me, ssh: true,  role: control-plane, services: [k3s, app1] }
-  - { id: dns, host: 192.168.1.2,  user: me, ssh: false, role: dns, services: [pihole-dns] }
+  - { id: cp1, host: 192.168.1.10, ts: cp1, user: me, ssh: true,  role: control-plane, services: [k3s, app1] }
+  - { id: dns, host: 192.168.1.2,  ts: dns, user: me, ssh: false, role: dns, services: [pihole-dns] }
 services:
   app1:       { kind: http, group: apps,  glyph: "",    host: app1.lab.local }
   k3s:        { kind: kube, group: infra, glyph: "󱃾",    context: my-k3s }
