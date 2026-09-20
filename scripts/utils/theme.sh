@@ -28,57 +28,92 @@ CLAW_THEME_DEFAULT="refined-dark"
 CLAW_THEME_GHOSTTY_ACTIVE="${DOTFILES_DIR:-$HOME/.dotfiles}/terminal/.config/ghostty/theme.conf"
 
 # Color keys present in every palette.theme (order = swatch/preview order).
+# Keep in sync with the static case in claw_theme_load (its key allow-list).
 CLAW_THEME_KEYS="bg bg_alt fg muted divider blue green purple amber red cyan"
 
 # Path to a theme's palette source. Falls back to the legacy flat layout
 # (config/themes/<slug>.theme) so a half-migrated checkout still loads.
-_claw_theme_file() {
+# _claw_theme_path sets $_claw_tf (no fork — the load path uses it);
+# _claw_theme_file prints it for the $(...) call sites in the CLI verbs.
+_claw_theme_path() {
     if [ -r "$CLAW_THEME_DIR/$1/palette.theme" ]; then
-        printf '%s/%s/palette.theme' "$CLAW_THEME_DIR" "$1"
+        _claw_tf="$CLAW_THEME_DIR/$1/palette.theme"
     else
-        printf '%s/%s.theme' "$CLAW_THEME_DIR" "$1"
+        _claw_tf="$CLAW_THEME_DIR/$1.theme"
     fi
 }
+_claw_theme_file() { _claw_theme_path "$1"; printf '%s' "$_claw_tf"; }
 
 # slug of the active theme. Precedence: CLAW_THEME env (session override, set
 # by profile loads) → state file (the user's persisted `claw theme set` pick)
 # → default. The env override lets a profile re-theme one session without
-# touching the persisted choice.
-claw_theme_current() {
-    if [ -n "${CLAW_THEME:-}" ] && [ -r "$(_claw_theme_file "$CLAW_THEME")" ]; then
-        printf '%s\n' "$CLAW_THEME"
-    elif [ -r "$CLAW_THEME_ACTIVE_FILE" ]; then
-        head -n1 "$CLAW_THEME_ACTIVE_FILE" 2>/dev/null
-    else
-        printf '%s\n' "$CLAW_THEME_DEFAULT"
+# touching the persisted choice. _claw_theme_resolve sets $_claw_slug without
+# forking; claw_theme_current is the printing wrapper (public name).
+_claw_theme_resolve() {
+    _claw_slug=""
+    if [ -n "${CLAW_THEME:-}" ]; then
+        _claw_theme_path "$CLAW_THEME"
+        [ -r "$_claw_tf" ] && _claw_slug="$CLAW_THEME"
     fi
+    if [ -z "$_claw_slug" ] && [ -r "$CLAW_THEME_ACTIVE_FILE" ]; then
+        IFS= read -r _claw_slug < "$CLAW_THEME_ACTIVE_FILE" || :
+        _claw_slug="${_claw_slug%$'\r'}"
+    fi
+    [ -n "$_claw_slug" ] || _claw_slug="$CLAW_THEME_DEFAULT"
+}
+claw_theme_current() {
+    _claw_theme_resolve
+    printf '%s\n' "$_claw_slug"
 }
 
-# "rrggbb" → "r;g;b" (decimal, for ANSI 24-bit + python).
+# "rrggbb" → "r;g;b" (decimal, for ANSI 24-bit + python). Substring expansion
+# is valid in bash and zsh (theme.sh is never run under dash — `16#` already
+# rules that out). _claw_hex2rgb_set fills $_claw_rgb without a fork.
+_claw_hex2rgb_set() {
+    _h="${1#\#}"
+    _claw_rgb="$(( 16#${_h:0:2} ));$(( 16#${_h:2:2} ));$(( 16#${_h:4:2} ))"
+}
 _claw_hex2rgb() {
     _h="${1#\#}"
-    printf '%d;%d;%d' "$(( 16#${_h%????} ))" "$(( 16#$(printf '%s' "$_h" | cut -c3-4) ))" "$(( 16#$(printf '%s' "$_h" | cut -c5-6) ))"
+    printf '%d;%d;%d' "$(( 16#${_h:0:2} ))" "$(( 16#${_h:2:2} ))" "$(( 16#${_h:4:2} ))"
 }
 
 # Parse the active .theme file into CLAW_C_* / CLAW_RGB_* exports.
+# Fork-free (audit F-11: this ran ~66 forks, 5× per login). Idempotent: when
+# the resolved slug is already exported with a palette, return without
+# touching the file — child processes that source theme.sh inherit the env
+# for free. CLAW_THEME_FORCE=1 (set by the slug-changing verbs) re-reads.
 claw_theme_load() {
-    _slug="$(claw_theme_current)"
-    _f="$(_claw_theme_file "$_slug")"
-    [ -r "$_f" ] || { _slug="$CLAW_THEME_DEFAULT"; _f="$(_claw_theme_file "$_slug")"; }
+    _claw_theme_resolve
+    _slug="$_claw_slug"
+    [ "${CLAW_THEME_SLUG:-}" = "$_slug" ] && [ -n "${CLAW_C_BG:-}" ] \
+        && [ "${CLAW_THEME_FORCE:-0}" != 1 ] && return 0
+    _claw_theme_path "$_slug"; _f="$_claw_tf"
+    [ -r "$_f" ] || { _slug="$CLAW_THEME_DEFAULT"; _claw_theme_path "$_slug"; _f="$_claw_tf"; }
     [ -r "$_f" ] || return 0
     export CLAW_THEME_SLUG="$_slug"
     while IFS='=' read -r _k _v; do
         case "$_k" in ''|\#*) continue ;; esac
         _v="${_v%$'\r'}"                        # strip trailing CR (CRLF files)
         case "$_k" in
-            name) export CLAW_THEME_NAME="$_v" ;;
-            slug) : ;;                            # slug comes from the filename
-            *)
-                _u="$(printf '%s' "$_k" | tr '[:lower:]' '[:upper:]')"
-                eval "export CLAW_C_$_u=\"$_v\""
-                eval "export CLAW_RGB_$_u=\"$(_claw_hex2rgb "$_v")\""
-                ;;
+            name) export CLAW_THEME_NAME="$_v"; continue ;;
+            slug) continue ;;                     # slug comes from the filename
         esac
+        # Static upper-casing doubles as the key allow-list (= CLAW_THEME_KEYS).
+        case "$_k" in
+            bg) _u=BG ;;         bg_alt) _u=BG_ALT ;;   fg) _u=FG ;;
+            muted) _u=MUTED ;;   divider) _u=DIVIDER ;; blue) _u=BLUE ;;
+            green) _u=GREEN ;;   purple) _u=PURPLE ;;   amber) _u=AMBER ;;
+            red) _u=RED ;;       cyan) _u=CYAN ;;
+            *) continue ;;
+        esac
+        _v="${_v#\#}"
+        case "$_v" in
+            [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) ;;
+            *) continue ;;                        # not a 6-digit hex — skip, never abort the load
+        esac
+        _claw_hex2rgb_set "$_v"
+        export "CLAW_C_$_u=$_v" "CLAW_RGB_$_u=$_claw_rgb"
     done < "$_f"
 }
 
@@ -142,7 +177,7 @@ claw_theme_set() {
     }
     mkdir -p "$CLAW_THEME_STATE_DIR" 2>/dev/null
     printf '%s\n' "$_t" > "$CLAW_THEME_ACTIVE_FILE"
-    claw_theme_load
+    CLAW_THEME_FORCE=1 claw_theme_load           # slug changed — bypass the idempotency guard
     claw_theme_apply_ghostty                     # point Ghostty at this theme's library
     # clin plugin: re-render its config so the note TUI tracks the new palette.
     if command -v clin >/dev/null 2>&1 && [ -r "${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/clin.sh" ]; then
@@ -252,13 +287,13 @@ claw_theme_apply_profile() {
     [ -r "$(_claw_theme_file "$_pt")" ] || return 0
     [ "$_pt" = "${CLAW_THEME_SLUG:-}" ] && return 0
     export CLAW_THEME="$_pt"
-    claw_theme_load
+    CLAW_THEME_FORCE=1 claw_theme_load
 }
 
 # Drop any session override and reload the persisted palette (used by claw off).
 claw_theme_reset_session() {
     unset CLAW_THEME
-    claw_theme_load
+    CLAW_THEME_FORCE=1 claw_theme_load
 }
 
 # Load the palette into the environment on every source.
@@ -276,7 +311,7 @@ if [ -n "${BASH_SOURCE:-}" ] && [ "${BASH_SOURCE}" = "${0}" ]; then
         build)          claw_theme_build ;;
         ghostty)        claw_theme_ghostty "$@" ;;
         apply)          claw_theme_apply_ghostty ;;
-        reload|load)    claw_theme_load ;;
+        reload|load)    CLAW_THEME_FORCE=1 claw_theme_load ;;
         *)              printf 'usage: theme.sh {list|current|set <slug>|preview [slug]|fzf|build|ghostty [slug|all]|apply|reload}\n' >&2; exit 1 ;;
     esac
 fi

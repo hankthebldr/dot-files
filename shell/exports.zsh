@@ -17,10 +17,13 @@ export DOTFILES_DIR="${0:A:h:h}"
 # XDG BASE DIRECTORIES
 # ============================================
 
-export XDG_CONFIG_HOME="$HOME/.config"
-export XDG_DATA_HOME="$HOME/.local/share"
-export XDG_CACHE_HOME="$HOME/.cache"
-export XDG_STATE_HOME="$HOME/.local/state"
+# Default-if-unset (`:=`), never force: a pre-set value (a test's scratch
+# redirect, a per-machine override) must win — audit 2026-09-20 F-16 traced
+# session.seq advancing from scratch-redirected shells to the old `export X=`.
+: "${XDG_CONFIG_HOME:=$HOME/.config}";      export XDG_CONFIG_HOME
+: "${XDG_DATA_HOME:=$HOME/.local/share}";   export XDG_DATA_HOME
+: "${XDG_CACHE_HOME:=$HOME/.cache}";        export XDG_CACHE_HOME
+: "${XDG_STATE_HOME:=$HOME/.local/state}";  export XDG_STATE_HOME
 
 # ============================================
 # ZSH HISTORY
@@ -47,9 +50,9 @@ setopt INC_APPEND_HISTORY     # Write to history file immediately, not when shel
 # TOOL CONFIGURATIONS
 # ============================================
 
-# Active Open Claw theme → CLAW_C_* / CLAW_RGB_* + the fzf --color string.
-# config/themes/<slug>/palette.theme is the single source of truth for every surface.
-[[ -r "$DOTFILES_DIR/scripts/utils/theme.sh" ]] && source "$DOTFILES_DIR/scripts/utils/theme.sh"
+# Active Open Claw theme (CLAW_C_* / CLAW_RGB_* / claw_theme_fzf) is loaded
+# ONCE, by .zshrc step 2c — not re-sourced here (audit F-11: 5 loads/login).
+# The fzf block below only consumes what that load exported.
 
 # eza/ls colors — soft "gruvbox-material" listing palette. eza's defaults paint
 # dirs dim-blue, archives bright-red, images/video bright-magenta, source bold-
