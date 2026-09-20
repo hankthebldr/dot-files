@@ -2,8 +2,18 @@
 # cheatsheet.sh — one-screen reference for the commands you'd otherwise only
 # find by reading source. claw cheatsheet (alias: claw cheat).
 set -uo pipefail
-r=$'\e[0m'; b=$'\e[1m'; B=$'\e[38;2;88;166;255m'; G=$'\e[38;2;63;185;80m'
-P=$'\e[38;2;188;140;255m'; O=$'\e[38;2;227;179;65m'; D=$'\e[38;2;139;148;158m'; W=$'\e[38;2;201;209;217m'
+# Colours come from the ONE theme engine (F-13): source theme.sh unless the
+# shell already exported a palette, then derive from CLAW_RGB_* with
+# refined-dark fallbacks. T1 swaps this for `claw_theme_emit tui`.
+# ── begin palette block ──
+_cs_dots="${DOTFILES_DIR:-$HOME/.dotfiles}"
+[ -n "${CLAW_C_BG:-}" ] || { [ -r "$_cs_dots/scripts/utils/theme.sh" ] && . "$_cs_dots/scripts/utils/theme.sh" 2>/dev/null; }
+r=$'\e[0m'; b=$'\e[1m'
+B=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m';   G=$'\e[38;2;'"${CLAW_RGB_GREEN:-63;185;80}"$'m'
+P=$'\e[38;2;'"${CLAW_RGB_PURPLE:-188;140;255}"$'m'; O=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+D=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m';  W=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
+unset _cs_dots
+# ── end palette block ──
 h(){ printf "\n  ${P}${b}%s${r}\n" "$1"; }
 c(){ printf "    ${G}%-26s${r}${D}%s${r}\n" "$1" "$2"; }
 
