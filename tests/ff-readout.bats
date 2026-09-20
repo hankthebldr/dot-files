@@ -39,3 +39,39 @@ STUB
   [ "$status" -eq 0 ]
   [[ "$output" == *"uptime=0d 2h 0m"* || "$output" == *"uptime=0d 2h 1m"* ]]
 }
+
+# Audit 2026-09-20 F-08: the "CPU" bar was load1/ncpu clamped at 100 (26.8/14
+# rendered a full red bar). cpu_pct stays as a key but is no longer clamped, and
+# `fields` also emits load_ratio (load1/ncpu, 2 decimals) so the dashboard can
+# show load as text with threshold colouring.
+@test "ff-readout load (Darwin): cpu_pct unclamped, load_ratio 2 decimals (28/14 → 200, 2.00)" {
+  [ "$(uname -s)" = Darwin ] || skip "macOS-only sysctl stub"
+  stub="$BATS_TEST_TMPDIR/stub"; mkdir -p "$stub"
+  cat > "$stub/sysctl" <<'STUB'
+#!/usr/bin/env bash
+if [ "$1" = -n ] && [ "$2" = vm.loadavg ]; then echo "{ 28.0 2.0 1.0 }"; exit 0; fi
+if [ "$1" = -n ] && [ "$2" = hw.ncpu ];    then echo "14"; exit 0; fi
+exec /usr/sbin/sysctl "$@"
+STUB
+  chmod +x "$stub/sysctl"
+  run env PATH="$stub:$PATH" bash "$FFR" fields
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | grep -qx 'cpu_pct=200'
+  printf '%s\n' "$output" | grep -qx 'load_ratio=2.00'
+}
+
+@test "ff-readout fields: emits load_ratio (cross-platform)" {
+  run bash "$FFR" fields
+  [ "$status" -eq 0 ]
+  n=$(printf '%s\n' "$output" | grep -c '^load_ratio=')
+  [ "$n" -eq 1 ]
+}
+
+# Audit F-12: `fields` printed mem_pct twice (g() memory_pressure branch AND the
+# pct() vm_stat path). One key, one value — from pct().
+@test "ff-readout fields: emits exactly one mem_pct= line" {
+  run bash "$FFR" fields
+  [ "$status" -eq 0 ]
+  n=$(printf '%s\n' "$output" | grep -c '^mem_pct=')
+  [ "$n" -eq 1 ]
+}

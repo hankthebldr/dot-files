@@ -3,8 +3,9 @@
 
 A framed, horizontally-centered dashboard: the CRISP system logo (Apple on
 macOS, distro on Linux — pulled straight from fastfetch, not a sparse ASCII
-placeholder) beside a dense two-column info grid and btop-style resource bars
-(CPU / Mem / Swap / Disk / Battery, green→amber→red gradient).
+placeholder) beside a dense two-column info grid, a text Load row
+(load1/ncpu — fg, amber ≥1.0, red ≥2.0; never a bar, audit F-08) and btop-style
+resource bars (Mem / Swap / Disk / Battery, green→amber→red gradient).
 
 Data + utilization percentages come from scripts/utils/ff-readout.sh `fields`
 (the same fast, cross-platform probe the shell readout uses). Colors follow the
@@ -157,10 +158,25 @@ def bar(p, width=12, invert=False):
                      ("█" if i < filled else "░"))
     return col("[", C["muted"]) + "".join(cells) + RST + col("]", C["muted"])
 
+def load_row(d):
+    """Load as TEXT, never a bar (audit F-08: load1/ncpu clamped at 100% drew a
+    full red 'CPU' bar at 26.8/14). `Load  <load1>/<ncpu>` in fg; the value turns
+    amber at ratio ≥1.0 and red at ≥2.0 — tones from the loaded palette."""
+    load1 = (d.get("load", "").split() or [""])[0]
+    ncpu = d.get("cores", "")
+    try: ratio = float(d.get("load_ratio", ""))
+    except Exception: ratio = None
+    tone = C["fg"]
+    if ratio is not None:
+        if ratio >= 2.0:   tone = C["red"]
+        elif ratio >= 1.0: tone = C["amber"]
+    val = f"{load1}/{ncpu}" if load1 and ncpu else "—"
+    return f"{col(G['load'],C['muted'])} {col('Load'.ljust(5),C['fg'])} {col(val, tone)}"
+
 def bar_rows(d):
-    SPEC = [("cpu","CPU",False), ("mem","Mem",False), ("swap","Swap",False),
+    SPEC = [("mem","Mem",False), ("swap","Swap",False),
             ("disk","Disk",False), ("batt","Batt",True)]   # batt: full = green
-    rows = []
+    rows = [load_row(d)]
     for f, label, inv in SPEC:
         raw = d.get(f+"_pct", "")
         try: p = int(raw)
