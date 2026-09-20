@@ -706,6 +706,108 @@ cmd_evaluate() {
     return 0
 }
 
+
+# ── Local: SHELL-LOCAL slow state (the context row) ────────────────────────
+# Things counts, the newest handoff note, dirty repos, worktrees and live
+# claude sessions. Every probe is independently guarded: a box without
+# sqlite3/git/pgrep, or without a Things DB, writes null for that key and
+# still lands a valid document. Throttled on the snapshot's own mtime so the
+# login kick is free to fire from every new tab.
+_local_json() {
+    local ts things_json handoff_json
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    # Things 3 — read-only over the group-container DB; immutable=1 so a live
+    # Things never sees a reader and a background job never trips its locking.
+    things_json=null
+    if have sqlite3; then
+        local tdb=""
+        tdb="$(ls -1d "$HOME/Library/Group Containers/JLMPQHK86H.com.culturedcode.ThingsMac/ThingsData-"*"/Things Database.thingsdatabase/main.sqlite" 2>/dev/null | head -1)"
+        if [ -n "$tdb" ] && [ -r "$tdb" ]; then
+            local t_today t_inbox
+            t_today="$(timeout 5 sqlite3 -readonly "file:${tdb}?immutable=1" \
+                'select count(*) from TMTask where status=0 and trashed=0 and start=1 and startDate is not null' 2>/dev/null)"
+            t_inbox="$(timeout 5 sqlite3 -readonly "file:${tdb}?immutable=1" \
+                'select count(*) from TMTask where status=0 and trashed=0 and start=0 and project is null and heading is null' 2>/dev/null)"
+            t_today="$(num_or_null "$t_today")"; t_inbox="$(num_or_null "$t_inbox")"
+            if [ "$t_today" != null ] || [ "$t_inbox" != null ]; then
+                things_json="{\"today\": ${t_today}, \"inbox\": ${t_inbox}}"
+            fi
+        fi
+    fi
+
+    # Newest handoff: the vault inbox first, the repo's remember note as the
+    # fallback for a box with no vault checked out.
+    handoff_json=null
+    local vault hf=""
+    # Same resolution order as shell/obsidian.zsh — one vault, one answer.
+    vault="${VAULT_PATH:-${OBSIDIAN_VAULT:-${OBSIDIAN_ROOT:-$HOME}/${OBSIDIAN_VAULT_NAME:-hr-vault-main-pa}}}"
+    hf="$(ls -1t "$vault/00-Inbox/"*handoff*.md "$vault/_wip/"*handoff*.md 2>/dev/null | head -1)"
+    if [ -z "$hf" ] && [ -r "$DOTFILES/.remember/remember.md" ]; then hf="$DOTFILES/.remember/remember.md"; fi
+    if [ -n "$hf" ] && [ -r "$hf" ]; then
+        local title age
+        title="$(grep -m1 '^# ' "$hf" 2>/dev/null | sed 's/^#[[:space:]]*//')"
+        [ -n "$title" ] || title="$(basename "$hf" .md)"
+        age="$(file_age "$hf")"
+        handoff_json="{\"title\": \"$(_hl_json_str "$title")\", \"path\": \"$(_hl_json_str "$hf")\", \"age_s\": ${age}}"
+    fi
+
+    # Dirty repos across the two checkout roots. Capped and timeout-bounded:
+    # a stalled network mount must not hold the login kick open.
+    local dirty=0 total=0 nsample=0 sample_json="" d st name
+    if have git; then
+        for d in "$HOME"/Github/*/ "$HOME"/Github/Github_desktop/*/; do
+            [ -e "$d/.git" ] || continue
+            [ "$total" -ge 120 ] && break
+            total=$((total+1))
+            st="$(timeout 20 git -C "$d" status --porcelain 2>/dev/null | head -1)"
+            if [ -n "$st" ]; then
+                dirty=$((dirty+1))
+                if [ "$nsample" -lt 3 ]; then
+                    name="$(basename "${d%/}")"
+                    [ -n "$sample_json" ] && sample_json="${sample_json},"
+                    sample_json="${sample_json}\"$(_hl_json_str "$name")\""
+                    nsample=$((nsample+1))
+                fi
+            fi
+        done
+    fi
+
+    local wt=null cs=null
+    if have git && [ -e "$DOTFILES/.git" ]; then
+        wt="$(num_or_null "$(git -C "$DOTFILES" worktree list 2>/dev/null | grep -c .)")"
+    fi
+    # BSD pgrep has no -c, so count the pids (and never let 0 matches look like an error)
+    if have pgrep; then
+        cs="$(num_or_null "$(pgrep -f 'claude( |$)' 2>/dev/null | grep -c . || true)")"
+    fi
+
+    cat <<EOF
+{
+  "ts": "$ts",
+  "things": ${things_json},
+  "handoff": ${handoff_json},
+  "repos": { "dirty": ${dirty}, "total": ${total}, "sample": [${sample_json}] },
+  "worktrees": ${wt},
+  "claude_sessions": ${cs},
+  "cwd_repo": null
+}
+EOF
+}
+
+cmd_local() {
+    local force=0
+    [ "${1:-}" = "--force" ] && force=1
+    if [ "$force" = 0 ] && [ -f "$LOCAL_SNAP" ] \
+       && [ "$(file_age "$LOCAL_SNAP")" -lt "$CLAW_LOCAL_THROTTLE" ]; then
+        return 0
+    fi
+    local tmp; tmp="$(mktemp "${CACHE_DIR}/.loc.XXXXXX")" || return 1
+    if _local_json >"$tmp" 2>/dev/null; then mv -f "$tmp" "$LOCAL_SNAP"; else rm -f "$tmp"; return 1; fi
+    cmd_evaluate || true
+    return 0
+}
+
 # ── Tick: probe, evaluate, fire interrupts on TRANSITIONS only ─────────────
 # The seven hand-rolled per-field transitions this used to carry are gone: the
 # rule table lives in cmd_evaluate, and tick is now a generic diff of the
@@ -969,6 +1071,7 @@ case "${1:-show}" in
     review)           shift; cmd_review "$@" ;;
     schedule-review)  shift; cmd_schedule_review "$@" ;;
     homelab|fleet)    shift; cmd_homelab_poll "$@" ;;
+    local)            shift; cmd_local "$@" ;;
     evaluate|attention) cmd_evaluate ;;
     help|-h|--help)
         sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//' ;;

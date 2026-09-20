@@ -168,3 +168,54 @@ tick() { run env PATH="$STUB:$PATH" DOTFILES_DIR="$FAKE_DOT" FAKE_DISK="$1" bash
   [ "$output" = "0" ]
 }
 
+# ── local ──────────────────────────────────────────────────────────────────
+
+_local_stubs() {
+  cat > "$STUB/git" <<EOF
+#!/usr/bin/env bash
+echo "git \$*" >> "$CALLS"
+case "\$*" in
+  *"status --porcelain"*) echo " M file" ;;
+  *"worktree list"*)      echo "/x abc [main]" ;;
+esac
+EOF
+  # BSD pgrep has no -c, so situation.sh counts pid LINES — the stub prints three
+  printf '#!/usr/bin/env bash\necho "pgrep $*" >> "%s"\nprintf "101\\n102\\n103\\n"\n' "$CALLS" > "$STUB/pgrep"
+  printf '#!/usr/bin/env bash\necho "sqlite3 $*" >> "%s"\necho 7\n' "$CALLS" > "$STUB/sqlite3"
+  chmod +x "$STUB"/*
+  mkdir -p "$HOME/Github/repo-a/.git" "$HOME/Github/repo-b/.git"
+}
+
+@test "local --force: writes local.json with the documented keys" {
+  need_jq; _local_stubs
+  run env PATH="$STUB:$PATH" bash "$SIT" local --force
+  [ "$status" -eq 0 ]
+  [ -f "$CACHE/local.json" ]
+  run jq -e 'has("ts") and has("things") and has("handoff") and has("repos")
+             and has("worktrees") and has("claude_sessions") and has("cwd_repo")' "$CACHE/local.json"
+  [ "$status" -eq 0 ]
+  run jq -r '.repos.total' "$CACHE/local.json"; [ "$output" = "2" ]
+  run jq -r '.repos.dirty' "$CACHE/local.json"; [ "$output" = "2" ]
+  run jq -r '.repos.sample | length' "$CACHE/local.json"; [ "$output" = "2" ]
+  run jq -r '.claude_sessions' "$CACHE/local.json"; [ "$output" = "3" ]
+  # evaluate ran on the back of it
+  [ -f "$CACHE/attention.json" ]
+}
+
+@test "local: a probe absent from the box degrades to null, never a failure" {
+  need_jq; _local_stubs; rm -f "$STUB/sqlite3"
+  run env PATH="$STUB:$PATH" bash "$SIT" local --force
+  [ "$status" -eq 0 ]
+  run jq -r '.things' "$CACHE/local.json"; [ "$output" = "null" ]
+}
+
+@test "local: a second call inside the throttle window does not re-probe" {
+  need_jq; _local_stubs
+  run env PATH="$STUB:$PATH" bash "$SIT" local --force
+  [ "$status" -eq 0 ]; grep -q '^git ' "$CALLS"
+  : > "$CALLS"
+  run env PATH="$STUB:$PATH" bash "$SIT" local
+  [ "$status" -eq 0 ]
+  [ ! -s "$CALLS" ]
+}
+
