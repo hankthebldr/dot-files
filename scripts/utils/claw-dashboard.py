@@ -28,8 +28,100 @@ DOTS = os.environ.get("DOTFILES_DIR", os.path.expanduser("~/.dotfiles"))
 CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME",
                                     os.path.expanduser("~/.cache")), "claw")
 
+# ── Colour depth (mirror of theme.sh's ONE quantiser) ───────────────────────
+# theme.sh is the generator (spine contract 2) and owns the rgb→xterm-256 /
+# rgb→ANSI-8 mapping; this is its byte-identical mirror, because the renderer
+# is a separate process and must not fork a shell per colour.
+# tests/theme.bats pins that both agree on a table of sample colours — change
+# one and you must change the other.
+#
+# Precedence (same as theme.sh): CLAW_COLOR_DEPTH=0|8|24|256 in the environment
+# is a DECLARATION, obeyed exactly. Otherwise probe, and a probed 256 keeps
+# emitting 24-bit unless CLAW_COLOR_DEPTH_STRICT=1 (see theme.sh for why).
+_CUBE = (0, 95, 135, 175, 215, 255)
+_CUBE_CUT = (48, 115, 155, 195, 235)
+_ANSI8 = ((0, 0, 0), (255, 0, 0), (0, 255, 0), (255, 255, 0),
+          (0, 0, 255), (255, 0, 255), (0, 255, 255), (255, 255, 255))
+
+
+def _cube_axis(v):
+    for i, cut in enumerate(_CUBE_CUT):
+        if v < cut:
+            return i
+    return 5
+
+
+def index256(r, g, b):
+    """Nearest xterm-256 index over the 6×6×6 cube and the 24-step grey ramp.
+    0-15 are skipped: those slots are whatever the user themed them to be."""
+    cx, cy, cz = _cube_axis(r), _cube_axis(g), _cube_axis(b)
+    vr, vg, vb = _CUBE[cx], _CUBE[cy], _CUBE[cz]
+    dc = (r - vr) ** 2 + (g - vg) ** 2 + (b - vb) ** 2
+    ga = (r + g + b) // 3
+    gi = 0 if ga < 8 else min(23, (ga - 8 + 5) // 10)
+    gv = 8 + 10 * gi
+    dg = (r - gv) ** 2 + (g - gv) ** 2 + (b - gv) ** 2
+    return 232 + gi if dg < dc else 16 + 36 * cx + 6 * cy + cz
+
+
+def index8(r, g, b):
+    """Nearest of the 8 ANSI base slots, against their saturated renderings."""
+    best, idx = None, 7
+    for i, (rr, gg, bb) in enumerate(_ANSI8):
+        d = (r - rr) ** 2 + (g - gg) ** 2 + (b - bb) ** 2
+        if best is None or d < best:
+            best, idx = d, i
+    return idx
+
+
+def _probe_depth():
+    term = os.environ.get("TERM", "")
+    if not term or term == "dumb" or os.environ.get("NO_COLOR"):
+        return 0
+    tp = os.environ.get("TERM_PROGRAM", "")
+    if tp == "Apple_Terminal":
+        return 256
+    if tp in ("ghostty", "iTerm.app", "WezTerm", "kitty"):
+        return 24
+    if os.environ.get("COLORTERM", "") in ("truecolor", "24bit"):
+        return 24
+    if "direct" in term:
+        return 24
+    if "256color" in term:
+        return 256
+    return 8
+
+
+def render_depth():
+    d = os.environ.get("CLAW_COLOR_DEPTH", "")
+    if d in ("0", "8", "24", "256"):
+        return int(d)
+    d = _probe_depth()
+    if d == 256 and os.environ.get("CLAW_COLOR_DEPTH_STRICT", "0") != "1":
+        return 24
+    return d
+
+
+DEPTH = render_depth()
+
+
+def sgr_body(r, g, b):
+    """The SGR parameter body at the active depth; '' at depth 0."""
+    if DEPTH == 0:
+        return ""
+    if DEPTH == 8:
+        return "3%d" % index8(r, g, b)
+    if DEPTH == 256:
+        return "38;5;%d" % index256(r, g, b)
+    return "38;2;%d;%d;%d" % (r, g, b)
+
+
 # ── Palette (active theme — single source of truth) ──────────────────────────
-def rgb(r, g, b): return f"\033[38;2;{r};{g};{b}m"
+def rgb(r, g, b):
+    body = sgr_body(r, g, b)
+    return f"\033[{body}m" if body else ""
+
+
 RST = "\033[0m"; BOLD = "\033[1m"
 
 _BASE = dict(blue=(88, 166, 255), green=(63, 185, 80), purple=(188, 140, 255),
@@ -101,7 +193,11 @@ def load_palette():
 
 PAL = load_palette()
 C = {k: rgb(*v) for k, v in PAL.items()}
-NOCOLOR = bool(os.environ.get("NO_COLOR")) or not sys.stdout.isatty()
+# CLAW_FORCE_COLOR=1 keeps colour on when stdout is a pipe. NO_COLOR and
+# depth 0 still win — it forces the tty question only, never the palette.
+NOCOLOR = (bool(os.environ.get("NO_COLOR")) or DEPTH == 0
+           or not (sys.stdout.isatty()
+                   or os.environ.get("CLAW_FORCE_COLOR", "") == "1"))
 def col(s, c): return s if NOCOLOR else f"{c}{s}{RST}"
 
 _ANSI = re.compile(r"\033\[[0-9;?]*[A-Za-z]")
@@ -112,8 +208,8 @@ def pad(s, w): return s + " " * max(0, w - vis(s))
 
 
 def _short(s, n):
-    s = "—" if s in (None, "") else str(s)
-    return s if len(s) <= n else s[:n - 1] + "…"
+    s = EMD if s in (None, "") else str(s)
+    return s if len(s) <= n else s[:n - 1] + ELL
 
 
 def _clip(s, w):
@@ -132,16 +228,81 @@ def _clip(s, w):
     return "".join(out) + ("" if NOCOLOR else RST)
 
 
+# ── Glyphs: Nerd Font, with an ASCII twin for every one (audit T2-03) ───
+# CLAW_GLYPHS=ascii|nerd|auto, resolved exactly as theme.sh's claw_theme_glyphs
+# does (env → ${XDG_CONFIG_HOME:-~/.config}/claw/glyphs → auto → TERM check).
+# Glyphs are load-bearing here — a font that is not a Nerd Font turns the whole
+# card into replacement boxes — so every one has a 1-cell ASCII twin and the
+# box / bar / bullet characters degrade with them. tests/dashboard.bats pins
+# that an ascii render carries no codepoint above U+007F.
+# An EMPTY TERM is deliberately absent: it means "nobody told us" (a cron job,
+# a CI step, a bats run), not "a console that cannot draw glyphs". The Linux
+# console always announces itself as TERM=linux.
+_ASCII_TERMS = ("linux", "dumb", "vt100", "vt102", "vt220", "ansi", "cons25",
+                "sun")
+
+
+def glyph_mode():
+    g = os.environ.get("CLAW_GLYPHS", "")
+    if g in ("ascii", "nerd"):
+        return g
+    if g != "auto":
+        cfg = os.path.join(os.environ.get(
+            "XDG_CONFIG_HOME", os.path.expanduser("~/.config")), "claw", "glyphs")
+        try:
+            with open(cfg, encoding="utf-8") as f:
+                v = f.readline().strip()
+            if v in ("ascii", "nerd"):
+                return v
+        except Exception:
+            pass
+    return "ascii" if os.environ.get("TERM", "") in _ASCII_TERMS else "nerd"
+
+
+GLYPHS = glyph_mode()
+ASCII = GLYPHS == "ascii"
+
+
+def _tw(nerd, ascii_):
+    """The nerd glyph or its ASCII twin, per the resolved mode."""
+    return ascii_ if ASCII else nerd
+
+
+MID = _tw("·", "-")            # separator dot
+SEP = f" {MID} "
+ELL = _tw("…", "~")            # truncation marker (1 cell either way)
+EMD = _tw("—", "-")            # the "no value" dash
+OK = _tw("✓", "+")
+NO = _tw("✗", "x")
+ARROW = _tw("→", ">")
+DOT = _tw("●", "*")
+BAR_F = _tw("█", "#")
+BAR_E = _tw("░", ".")
+BOX = dict(zip(("tl", "tr", "bl", "br", "h", "v", "ml", "mr"),
+               "++++-|++" if ASCII else "╭╮╰╯─│├┤"))
+
 # ── Nerd Font glyphs (Font Awesome — 1 cell in a *Mono Nerd Font) ────────────
 _OS_GLYPH = "" if platform.system() == "Darwin" else ""
-G = dict(os=_OS_GLYPH, machine="", kernel="", uptime="",
-         load="", shell="", term="", pkgs="",
-         locale="", cpu="", cores="", mem="\U000f035b",
-         swap="\U000f035b", disk="", ip="", wifi="",
-         batt="", clock="", user="", git="",
-         k8s="⎈", docker="", tailscale="", tunnel="",
-         cloud="", aws="", gcp="", azure="",
-         tool="", book="")
+_G_NERD = dict(os=_OS_GLYPH, machine="", kernel="", uptime="",
+               load="", shell="", term="", pkgs="",
+               locale="", cpu="", cores="", mem="\U000f035b",
+               swap="\U000f035b", disk="", ip="", wifi="",
+               batt="", clock="", user="", git="",
+               k8s="⎈", docker="", tailscale="", tunnel="",
+               cloud="", aws="", gcp="", azure="",
+               tool="", book="")
+
+# One printable, 1-cell ASCII twin per key — same column geometry, no PUA.
+_G_ASCII = dict(os="#", machine="@", kernel="K", uptime="U",
+                load="L", shell="$", term=">", pkgs="P",
+                locale="A", cpu="C", cores="#", mem="M",
+                swap="S", disk="D", ip="@", wifi="~",
+                batt="B", clock="T", user="u", git="g",
+                k8s="k", docker="d", tailscale="t", tunnel="|",
+                cloud="c", aws="a", gcp="G", azure="z",
+                tool="T", book="b")
+G = _G_ASCII if ASCII else _G_NERD
+
 
 
 # ── Data: ONE fastfetch JSON call, stdlib fallback ───────────────────────────
@@ -451,7 +612,7 @@ def _git_ctx():
     if not branch or branch == "HEAD":
         return ""
     dirty = _run(["git", "status", "--porcelain"], timeout=1)
-    return f"{_short(branch, 28)} {'●' if dirty else '✓'}"
+    return f"{_short(branch, 28)} {DOT if dirty else OK}"
 
 
 def _tailscale_seg():
@@ -527,7 +688,8 @@ def render_segments(rows, two_col=False, skip=()):
     out = []
     for i in range(half):
         r = right[i] if i < len(right) else ""
-        out.append((pad(left[i], lw) + (col("│ ", C["muted"]) + r if r else "")).rstrip())
+        out.append((pad(left[i], lw)
+                    + (col(BOX["v"] + " ", C["muted"]) + r if r else "")).rstrip())
     return out
 
 
@@ -542,9 +704,66 @@ def _strip_cursor(text):
     return lines
 
 
+_TRUECOLOR = re.compile(r"(?<![0-9])([34])8;2;(\d{1,3});(\d{1,3});(\d{1,3})")
+_IDX256 = re.compile(r"(?<![0-9])([34])8;5;(\d{1,3})")
+_BRIGHT = re.compile(r"(?<![0-9])(9[0-7]|10[0-7])(?![0-9])")
+# The 16 fixed slots, for going BACK from an index to a colour.
+_BASE16 = ((0, 0, 0), (205, 0, 0), (0, 205, 0), (205, 205, 0), (0, 0, 238),
+           (205, 0, 205), (0, 205, 205), (229, 229, 229), (127, 127, 127),
+           (255, 0, 0), (0, 255, 0), (255, 255, 0), (92, 92, 255),
+           (255, 0, 255), (0, 255, 255), (255, 255, 255))
+
+
+def rgb256(n):
+    """The RGB an xterm-256 index stands for (inverse of index256)."""
+    if n < 16:
+        return _BASE16[n]
+    if n < 232:
+        n -= 16
+        return (_CUBE[n // 36], _CUBE[(n // 6) % 6], _CUBE[n % 6])
+    return (8 + 10 * (n - 232),) * 3
+
+
+def _sgr_reduce(s):
+    """Rewrite imported SGR (profile logo files, fastfetch's builtin art) down
+    to the active depth. Without this the card honours CLAW_COLOR_DEPTH for
+    everything IT draws and then pastes somebody else's truecolor beside it.
+    At depth 8 the aixterm brights (90-107) and the 256 indices fold in too —
+    "base ANSI only" has to mean the whole frame, art included."""
+    if DEPTH == 24 or "\033[" not in s:
+        return s
+
+    def _true(m):
+        layer, r, g, b = m.group(1), *(min(255, int(x)) for x in m.groups()[1:])
+        if DEPTH == 0:
+            return "39" if layer == "3" else "49"
+        if DEPTH == 8:
+            return "%s%d" % (layer, index8(r, g, b))
+        return "%s8;5;%d" % (layer, index256(r, g, b))
+
+    out = _TRUECOLOR.sub(_true, s)
+    if DEPTH in (0, 8):
+        def _idx(m):
+            layer, n = m.group(1), min(255, int(m.group(2)))
+            if DEPTH == 0:
+                return "39" if layer == "3" else "49"
+            return "%s%d" % (layer, index8(*rgb256(n)))
+        out = _IDX256.sub(_idx, out)
+
+        def _br(m):
+            n = int(m.group(1))
+            return str(n - 60)
+        out = _BRIGHT.sub(_br, out)
+    return out
+
+
 def _decolor(lines):
-    """NO_COLOR strips SGR from art too — a captured card must be escape-free."""
-    return [_ANSI.sub("", ln).rstrip() for ln in lines] if NOCOLOR else lines
+    """NO_COLOR strips SGR from art too — a captured card must be escape-free.
+    Otherwise the art is quantised to the active colour depth like everything
+    else, and to ASCII when CLAW_GLYPHS=ascii."""
+    if NOCOLOR:
+        return [_ANSI.sub("", ln).rstrip() for ln in lines]
+    return [_sgr_reduce(ln).rstrip() for ln in lines]
 
 
 def profile_logo(key):
@@ -555,6 +774,8 @@ def profile_logo(key):
     exists AND already carries colour; failing that, tint the first that exists
     with the palette's blue; failing that, the builtin OS mark.
     """
+    if ASCII:
+        return _fallback_mark()
     cands = [os.path.join(DOTS, "config", ".config", "fastfetch", f"logo-{key}.txt"),
              os.path.join(DOTS, "shell", "profiles", key, "logo.txt")]
     first = None
@@ -576,7 +797,7 @@ def profile_logo(key):
 def builtin_logo():
     """The builtin OS mark. "--pipe false" keeps fastfetch's colour when stdout
     is not a tty (the login card is often captured)."""
-    if not shutil.which("fastfetch"):
+    if ASCII or not shutil.which("fastfetch"):
         return _fallback_mark()
     cmd = ["fastfetch", "--logo-type", "builtin", "--pipe", "false", "-s", " "]
     if platform.system() == "Darwin":
@@ -611,12 +832,12 @@ def bar(p, width=12, invert=False):
     except Exception: p = 0
     filled = round(p / 100 * width)
     if NOCOLOR:
-        return "[" + "█" * filled + "░" * (width - filled) + "]"
+        return "[" + BAR_F * filled + BAR_E * (width - filled) + "]"
     cells = []
     for i in range(width):
         t = i / (width - 1) if width > 1 else 0
         cells.append((_gyr(t, invert) if i < filled else C["muted"]) +
-                     ("█" if i < filled else "░"))
+                     (BAR_F if i < filled else BAR_E))
     return col("[", C["muted"]) + "".join(cells) + RST + col("]", C["muted"])
 
 
@@ -632,7 +853,7 @@ def load_row(d):
     if ratio is not None:
         if ratio >= 2.0:   tone = C["red"]
         elif ratio >= 1.0: tone = C["amber"]
-    val = f"{load1}/{ncpu}" if load1 and ncpu else "—"
+    val = f"{load1}/{ncpu}" if load1 and ncpu else EMD
     return f"{col(G['load'],C['muted'])} {col('Load'.ljust(5),C['fg'])} {col(val, tone)}"
 
 
@@ -657,7 +878,7 @@ def bar_rows(d, width=12, fields=None):
 
 
 def palette_dots():
-    dots = "".join(col("●", C[k]) for k in ("blue", "green", "purple", "amber",
+    dots = "".join(col(DOT, C[k]) for k in ("blue", "green", "purple", "amber",
                                             "red", "cyan", "muted", "fg"))
     return "  " + dots
 
@@ -696,6 +917,10 @@ SERVICE_GLYPHS = {
     "vaultwarden": "", "home-assistant": "", "homeassistant": "",
     "_default": "",   # nf-fa-server
 }
+if ASCII:
+    # The service id prints right beside its icon, so one generic 1-cell twin
+    # loses nothing an ASCII-only terminal could have shown anyway.
+    SERVICE_GLYPHS = {k: "*" for k in SERVICE_GLYPHS}
 
 
 def homelab_lines():
@@ -706,9 +931,9 @@ def homelab_lines():
     if not data or not isinstance(data.get("machines"), list) or not data["machines"]:
         return []
     suffix, stale = _age_suffix(data.get("ts", ""))
-    dot_up = col("●", C["amber"] if stale else C["green"])
-    dot_down = col("●", C["red"])
-    dot_deg = col("●", C["amber"])
+    dot_up = col(DOT, C["amber"] if stale else C["green"])
+    dot_down = col(DOT, C["red"])
+    dot_deg = col(DOT, C["amber"])
 
     def dot(state):
         return dot_down if state == "down" else (dot_deg if state == "degraded" else dot_up)
@@ -717,14 +942,14 @@ def homelab_lines():
     head = []
     gh = (data.get("identity") or {}).get("github") or {}
     if gh.get("user"):
-        head.append(f"{col(chr(0xF09B), C['purple'])} {col(_short(gh['user'], 18), C['fg'])} {dot(gh.get('state'))}")
+        head.append(f"{col(_tw(chr(0xF09B), 'g'), C['purple'])} {col(_short(gh['user'], 18), C['fg'])} {dot(gh.get('state'))}")
     route = data.get("route") or {}
     if route.get("path"):
-        head.append(f"{col(chr(0xF0E8), C['green'])} {col(_short(route['path'], 28), C['fg'])}")
+        head.append(f"{col(_tw(chr(0xF0E8), '>'), C['green'])} {col(_short(route['path'], 28), C['fg'])}")
     if head:
         rows.append("   ".join(head))
     for m in data["machines"]:
-        segs = [f"{col(chr(0xF233), C['blue'])} {col(_short(m.get('id', '?'), 12), C['fg'])} {dot(m.get('state'))}"]
+        segs = [f"{col(_tw(chr(0xF233), '#'), C['blue'])} {col(_short(m.get('id', '?'), 12), C['fg'])} {dot(m.get('state'))}"]
         for s in (m.get("services") or []):
             sid = s.get('id', '?')
             sg = SERVICE_GLYPHS.get(sid.lower(), SERVICE_GLYPHS["_default"])
@@ -781,7 +1006,9 @@ def _dot(tier):
     because a colourless bullet says nothing."""
     if NOCOLOR:
         return TIER_MARK.get(tier, "i")
-    return col("●", C[TIER_TONE.get(tier, "blue")])
+    if ASCII:
+        return col(TIER_MARK.get(tier, "i"), C[TIER_TONE.get(tier, "blue")])
+    return col(DOT, C[TIER_TONE.get(tier, "blue")])
 
 
 def _context_rows(checked_age):
@@ -796,7 +1023,7 @@ def _context_rows(checked_age):
     if things.get("today"):
         bits.append(f"{things['today']} today")
     if bits:
-        r1.append(col("Things ", C["muted"]) + col(" · ".join(bits), C["fg"]))
+        r1.append(col("Things ", C["muted"]) + col(SEP.join(bits), C["fg"]))
     ho = loc.get("handoff") or {}
     if ho.get("title") and (ho.get("age_s") or 0) < 7 * 86400:
         age = _age(int(__import__("time").time()) - int(ho.get("age_s") or 0))
@@ -812,9 +1039,9 @@ def _context_rows(checked_age):
         r2.append(col(f"checked {checked_age} ago", C["muted"]))
     rows = []
     if r1:
-        rows.append(col(" · ", C["muted"]).join(r1))
+        rows.append(col(SEP, C["muted"]).join(r1))
     if r2:
-        rows.append(col(" · ", C["muted"]).join(r2))
+        rows.append(col(SEP, C["muted"]).join(r2))
     return rows
 
 
@@ -827,7 +1054,7 @@ def attention_lines(max_items=ATTENTION_MAX):
     """
     data = _cache_json("attention.json")
     if data is None:
-        return [col("no state yet", C["muted"]) + col(" · ", C["muted"])
+        return [col("no state yet", C["muted"]) + col(SEP, C["muted"])
                 + col("claw situation probe", C["fg"])]
     checked = [e for e in (_epoch(v) for v in (data.get("checked") or {}).values())
                if e is not None]
@@ -849,16 +1076,16 @@ def attention_lines(max_items=ATTENTION_MAX):
         if age:
             tail.append(age)
         if tail:
-            parts.append(col(" · ".join(tail), C["muted"]))
+            parts.append(col(SEP.join(tail), C["muted"]))
         rows.append("  ".join(parts))
     extra = len(items) - len(rows)
     if extra > 0:
-        rows.append(col(f"+{extra} more", C["muted"]) + col(" · ", C["muted"])
+        rows.append(col(f"+{extra} more", C["muted"]) + col(SEP, C["muted"])
                     + col("claw doctor", C["fg"]))
     if not items:
-        clear = col("✓ all clear", C["green"])
+        clear = col(f"{OK} all clear", C["green"])
         if checked_age:
-            clear += col(f" · checked {checked_age} ago", C["muted"])
+            clear += col(f"{SEP}checked {checked_age} ago", C["muted"])
         rows.append(clear)
         checked_age = ""      # already stated on the all-clear line
     return rows + _context_rows(checked_age)
@@ -874,21 +1101,57 @@ def rule(label):
     return RULE + label
 
 
-def frame(lines, title_text, content_w, margin):
-    """Print one framed, centered box. All boxes in a run share content_w."""
+def frame(lines, title_text, content_w, margin, border="muted", tone="green"):
+    """Print one framed, centered box. All boxes in a run share content_w.
+
+    `border` / `tone` are palette keys, so the SAME primitive draws the login
+    card (muted rule, green title) and the bash surfaces' section header
+    (purple rule, blue title) — audit T2-02 counted six box implementations,
+    two of them ragged; this is the one that ends that."""
+    bc, tc = C[border], C[tone]
     inner = content_w + 2
-    title = _clip(col(title_text, C["green"]), max(0, inner - 1))
+    title = _clip(col(title_text, tc), max(0, inner - 1))
     dash = max(0, inner - 1 - vis(title))
-    bar_ch = col("│", C["muted"])
-    print(margin + col("╭─", C["muted"]) + title + col("─" * dash + "╮", C["muted"]))
+    bar_ch = col(BOX["v"], bc)
+    print(margin + col(BOX["tl"] + BOX["h"], bc) + title
+          + col(BOX["h"] * dash + BOX["tr"], bc))
     for m in lines:
         if m.startswith(RULE):
             lbl = _clip(col(f" {m[len(RULE):]} ", C["muted"]), max(0, inner - 1))
             d2 = max(0, inner - 1 - vis(lbl))
-            print(margin + col("├─", C["muted"]) + lbl + col("─" * d2 + "┤", C["muted"]))
+            print(margin + col(BOX["ml"] + BOX["h"], bc) + lbl
+                  + col(BOX["h"] * d2 + BOX["mr"], bc))
             continue
         print(margin + bar_ch + " " + pad(_clip(m, content_w), content_w) + " " + bar_ch)
-    print(margin + col("╰" + "─" * inner + "╯", C["muted"]))
+    print(margin + col(BOX["bl"] + BOX["h"] * inner + BOX["br"], bc))
+
+
+# ── --card: the frame as a service for the shell surfaces (audit T2-02) ──────
+CARD_MIN_W = 54          # tui_header's historical inner width
+CARD_MARGIN = "  "
+
+
+def card_rows(text):
+    """Body lines from a blob of stdin: tabs expanded, trailing blanks dropped,
+    the caller's own colour left intact (and quantised to the active depth)."""
+    rows = [_sgr_reduce(ln.rstrip("\r").expandtabs(4)) for ln in text.split("\n")]
+    while rows and not _ANSI.sub("", rows[-1]).strip():
+        rows.pop()
+    while rows and not _ANSI.sub("", rows[0]).strip():
+        rows.pop(0)
+    return [_ANSI.sub("", r) for r in rows] if NOCOLOR else rows
+
+
+def render_card(title_text, rows, term, border="purple", tone="blue"):
+    """One card at the live width: at least CARD_MIN_W, grown to the content,
+    never wider than the terminal allows. Width-exact at every breakpoint."""
+    title = f" {title_text.strip()} " if title_text.strip() else " "
+    natural = max([vis(r) for r in rows] + [vis(title) + 2])
+    content_w = max(CARD_MIN_W, natural)
+    content_w = min(content_w, max(20, term - (len(CARD_MARGIN) * 2 + 4)))
+    print()
+    frame(rows, BOLD + title if not NOCOLOR else title,
+          content_w, CARD_MARGIN, border, tone)
 
 
 def render(rows, logo, title_text, term):
@@ -950,7 +1213,7 @@ def header_rows(d, narrow):
     and the network drop to segment rows instead of wrapping."""
     user = os.environ.get("USER", "") or os.environ.get("LOGNAME", "")
     host = d.get("host", "") or platform.node()
-    sep = col(" · ", C["muted"])
+    sep = col(SEP, C["muted"])
     first = [col(f"{user}@{host}", C["green"])]
     if not narrow:
         if d.get("model"):
@@ -967,20 +1230,47 @@ def header_rows(d, narrow):
             f"{col(G['clock'], C['muted'])} " + sep.join(second)]
 
 
+WIDE_2COL = 100        # logo + two segment columns
+WIDE_3COL = 140        # …and attention moves beside the grid instead of under
+
+
+def _side_by_side(left, right, gap=3):
+    """Zip two blocks into one, divided by the frame's own vertical rule."""
+    lw = max((vis(l) for l in left), default=0) + gap
+    out = []
+    for i in range(max(len(left), len(right))):
+        l = left[i] if i < len(left) else ""
+        r = right[i] if i < len(right) else ""
+        out.append((pad(l, lw)
+                    + (col(BOX["v"] + " ", C["muted"]) + r if r else "")).rstrip())
+    return out
+
+
 def login_rows(d, term):
-    """header · segments · bars · `attention` rule · attention · homelab · dots."""
+    """header · segments · bars · `attention` rule · attention · homelab · dots.
+
+    Three breakpoints: <80 one column and no logo · >=100 logo + two segment
+    columns · >=140 the attention block sits beside the grid instead of under
+    it, because at that width the card was a tall ribbon of whitespace."""
     narrow = term < 80
-    wide = term >= 100
+    wide = term >= WIDE_2COL
+    widest = term >= WIDE_3COL
     rows = header_rows(d, narrow)
     # the header already carries model + net at >=80 cols; don't repeat them
     skip = () if narrow else ("model", "net")
     segs = render_segments(segment_rows(d), two_col=wide, skip=skip)
-    if segs:
-        rows += [""] + segs
     bars = bar_rows(d, width=8 if narrow else 12)
-    if bars:
-        rows += [""] + bars
-    rows += [rule("attention")] + attention_lines()
+    att = attention_lines()
+    if widest:
+        left = list(segs) + ([""] + bars if bars and segs else bars)
+        right = [col("attention", C["muted"])] + att
+        rows += [""] + _side_by_side(left, right)
+    else:
+        if segs:
+            rows += [""] + segs
+        if bars:
+            rows += [""] + bars
+        rows += [rule("attention")] + att
     hl = homelab_lines()
     if hl:
         rows += [""] + hl
@@ -1006,23 +1296,24 @@ def profile_rows(key, d, term):
 
     head = (f"{col(glyph, C['purple'])} " if glyph else "") + col(klass, C["green"])
     if tag:
-        head += col(" · ", C["muted"]) + col(tag, C["fg"])
+        head += col(SEP, C["muted"]) + col(tag, C["fg"])
     rows = [head]
 
     tools = (env("PROFILE_KEY_TOOLS", "") or "").split()[:PROFILE_TOOL_CAP]
     if tools:
         present = {t: bool(shutil.which(t)) for t in tools}
         rows.append("  ".join(
-            (col("✓ ", C["green"]) + col(t, C["fg"])) if present[t]
-            else (col("✗ ", C["red"]) + col(t, C["muted"]))
+            (col(OK + " ", C["green"]) + col(t, C["fg"])) if present[t]
+            else (col(NO + " ", C["red"]) + col(t, C["muted"]))
             for t in tools))
         chain = env("PROFILE_TOOLCHAIN", "")
         if chain and not all(present.values()):
             name = chain[:-len("-toolchain.sh")] if chain.endswith("-toolchain.sh") else chain
-            rows.append(col("→ ", C["muted"]) + col(f"claw install {name}", C["amber"]))
+            rows.append(col(ARROW + " ", C["muted"])
+                        + col(f"claw install {name}", C["amber"]))
 
     rows.append(col(env("PROFILE_HELP_CMD", "") or f"{key}-help", C["fg"])
-                + col(" · reference", C["muted"]))
+                + col(f"{SEP}reference", C["muted"]))
 
     bars = bar_rows(d, width=8 if narrow else 12, fields=("mem", "disk"))
     if bars:
@@ -1041,13 +1332,25 @@ def main(argv=None):
                     help="deprecated alias of --login")
     ap.add_argument("--json-fixture", dest="json_fixture", metavar="PATH",
                     help="read the fastfetch payload from PATH instead of probing")
+    ap.add_argument("--card", metavar="TITLE",
+                    help="frame the lines on stdin as one card titled TITLE")
+    ap.add_argument("--border", default="purple", metavar="KEY",
+                    help="--card: palette key for the border (default purple)")
+    ap.add_argument("--title-tone", dest="title_tone", default="blue",
+                    metavar="KEY", help="--card: palette key for the title")
     args = ap.parse_args(argv)
 
     term = shutil.get_terminal_size((100, 30)).columns
+    if args.card is not None:
+        # The shared card primitive: no probe, no cache read, no fastfetch.
+        render_card(args.card, card_rows(sys.stdin.read()), term,
+                    args.border if args.border in C else "purple",
+                    args.title_tone if args.title_tone in C else "blue")
+        return 0
     d = ff_json(args.json_fixture)
     if args.profile:
         key = args.profile
-        title = f" OPEN CLAW · {os.environ.get('PROFILE_CLASS') or key} "
+        title = f" OPEN CLAW {MID} {os.environ.get('PROFILE_CLASS') or key} "
         render(profile_rows(key, d, term),
                profile_logo(key) if term >= 100 else [], title, term)
     else:

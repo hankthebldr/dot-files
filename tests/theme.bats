@@ -21,6 +21,10 @@ setup() {
   export XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/config"
   export CLAW_NO_LOG=1
   export DOTFILES_DIR="$REPO"
+  # Deterministic terminal facts: the emitters are depth-aware as of T2-03, so
+  # a bats run must not inherit the ambient TERM (empty in some agents/CI).
+  export TERM=xterm-256color
+  unset CLAW_COLOR_DEPTH CLAW_COLOR_DEPTH_STRICT CLAW_GLYPHS
   mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME/claw" "$XDG_CONFIG_HOME"
   unset CLAW_THEME CLAW_THEME_SLUG CLAW_C_BG CLAW_RGB_BLUE CLAW_THEME_FORCE
 }
@@ -304,7 +308,8 @@ make_private_dots() {
 # --- (8) claw_theme_depth ------------------------------------------------------
 
 depth_of() {  # depth_of <env assignments...>
-  env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR -u VTE_VERSION "$@" \
+  env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR -u VTE_VERSION \
+      -u CLAW_COLOR_DEPTH -u CLAW_COLOR_DEPTH_STRICT "$@" \
     bash -c "source '$THEME'; claw_theme_depth; printf %s \"\$CLAW_COLOR_DEPTH\""
 }
 
@@ -332,4 +337,155 @@ depth_of() {  # depth_of <env assignments...>
   [ -z "$output" ]
   run bash -c "grep -n '48;2;[0-9]' '$THEME' | grep -v 'CLAW_RGB_' || true"
   [ -z "$output" ]
+}
+
+# --- (10) T2-03 · the ONE quantiser ------------------------------------------
+# theme.sh owns rgb→xterm-256 / rgb→ANSI-8 (spine contract 2) and the Python
+# renderer mirrors it. These pin the precedence, the emitted forms, and that
+# the two implementations never drift apart.
+
+DASH_PY() { printf '%s' "$REPO/scripts/utils/claw-dashboard.py"; }
+
+# render_depth_of <env assignments...> → the depth surfaces actually emit at
+render_depth_of() {
+  env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR -u VTE_VERSION \
+      -u CLAW_COLOR_DEPTH -u CLAW_COLOR_DEPTH_STRICT "$@" \
+    bash -c "source '$THEME'; claw_theme_render_depth; printf %s \"\$_claw_rdepth\""
+}
+
+@test "theme: render depth — a declared CLAW_COLOR_DEPTH is obeyed, a probed 256 is not" {
+  # declared wins, exactly
+  [ "$(render_depth_of TERM=xterm CLAW_COLOR_DEPTH=256)" = 256 ]
+  [ "$(render_depth_of TERM=xterm-256color CLAW_COLOR_DEPTH=24)" = 24 ]
+  [ "$(render_depth_of TERM=xterm-256color CLAW_COLOR_DEPTH=0)" = 0 ]
+  # probed 256 keeps emitting truecolor unless asked to be strict
+  [ "$(render_depth_of TERM=xterm-256color)" = 24 ]
+  [ "$(render_depth_of TERM=xterm-256color TERM_PROGRAM=Apple_Terminal)" = 24 ]
+  [ "$(render_depth_of TERM=xterm-256color CLAW_COLOR_DEPTH_STRICT=1)" = 256 ]
+  # 8 and 0 always degrade — there a wrong code really does render wrong
+  [ "$(render_depth_of TERM=xterm)" = 8 ]
+  [ "$(render_depth_of TERM=dumb)" = 0 ]
+  # calling it twice must not promote its own probe into a declaration
+  run env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR -u CLAW_COLOR_DEPTH \
+      TERM=xterm-256color bash -c \
+      "source '$THEME'; claw_theme_render_depth; claw_theme_render_depth; printf %s \"\$_claw_rdepth\""
+  [ "$output" = 24 ]
+}
+
+@test "theme: emit tui degrades — 8 uses base ANSI, 256 the cube, 0 is plain" {
+  run env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR CLAW_COLOR_DEPTH=8 TERM=xterm \
+      bash "$THEME" emit tui
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"c_blue=\$'\e[36m'"* ]]
+  [[ "$output" == *"c_green=\$'\e[32m'"* ]]
+  [[ "$output" == *"c_red=\$'\e[31m'"* ]]
+  [[ "$output" != *"38;2;"* ]]
+  [[ "$output" != *"38;5;"* ]]
+
+  run env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR CLAW_COLOR_DEPTH=256 TERM=xterm-256color \
+      bash "$THEME" emit tui
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"c_blue=\$'\e[38;5;75m'"* ]]
+  [[ "$output" != *"38;2;"* ]]
+
+  run env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR CLAW_COLOR_DEPTH=0 TERM=dumb \
+      bash "$THEME" emit tui
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"c_blue=''"* ]]
+  [[ "$output" == *"c_reset=''"* ]]
+  [[ "$output" != *$'\e['* ]]
+
+  # the default (probed, non-strict) path is unchanged: 24-bit
+  run env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR -u CLAW_COLOR_DEPTH \
+      TERM=xterm-256color bash "$THEME" emit tui
+  [[ "$output" == *"c_blue=\$'\e[38;2;"* ]]
+}
+
+@test "theme: emit tui legacy aliases still track their twins at depth 8" {
+  run env -u COLORTERM -u TERM_PROGRAM -u NO_COLOR CLAW_COLOR_DEPTH=8 TERM=xterm bash -c \
+    "eval \"\$(bash '$THEME' emit tui)\"
+     [ \"\$c_cyan\" = \"\$c_blue\" ] && [ \"\$c_orange\" = \"\$c_amber\" ] &&
+     [ \"\$c_dim\" = \"\$c_muted\" ] && [ \"\$c_white\" = \"\$c_fg\" ] && echo twins-ok"
+  [ "$status" -eq 0 ]
+  [ "$output" = twins-ok ]
+}
+
+@test "theme: theme.sh and claw-dashboard.py quantise identically" {
+  # A table that exercises the cube, the grey ramp and the 8-colour reduction.
+  samples="88;166;255 63;185;80 188;140;255 227;179;65 255;123;114 139;148;158 \
+201;209;217 13;17;23 48;54;61 0;0;0 255;255;255 128;128;128 1;2;3 254;1;1 \
+57;197;255 100;0;100"
+  sh_out=""
+  for c in $samples; do
+    r="${c%%;*}"; rest="${c#*;}"; g="${rest%%;*}"; b="${rest#*;}"
+    i256="$(bash -c "source '$THEME'; claw_theme_index256 $r $g $b; printf %s \"\$_claw_idx\"")"
+    i8="$(bash -c "source '$THEME'; claw_theme_index8 $r $g $b; printf %s \"\$_claw_idx\"")"
+    sh_out="$sh_out$c=$i256/$i8 "
+  done
+  py_out="$(DASH="$(DASH_PY)" SAMPLES="$samples" python3 -c '
+import importlib.util, os
+spec = importlib.util.spec_from_file_location("d", os.environ["DASH"])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+out = []
+for c in os.environ["SAMPLES"].split():
+    r, g, b = (int(x) for x in c.split(";"))
+    out.append("%s=%d/%d" % (c, m.index256(r, g, b), m.index8(r, g, b)))
+print(" ".join(out) + " ")')"
+  [ "$sh_out" = "$py_out" ] || { echo "sh: $sh_out"; echo "py: $py_out"; false; }
+}
+
+# --- (11) T2-03 · CLAW_GLYPHS -------------------------------------------------
+
+glyphs_of() {  # glyphs_of <env assignments...>
+  env -u CLAW_GLYPHS "$@" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" \
+    bash -c "source '$THEME'; claw_theme_glyphs; printf %s \"\$CLAW_GLYPHS\""
+}
+
+@test "theme: claw_theme_glyphs precedence (env → file → TERM → nerd)" {
+  rm -f "$XDG_CONFIG_HOME/claw/glyphs"
+  mkdir -p "$XDG_CONFIG_HOME/claw"
+  [ "$(glyphs_of TERM=xterm-256color)" = nerd ]
+  [ "$(glyphs_of TERM=linux)" = ascii ]
+  [ "$(glyphs_of TERM=dumb)" = ascii ]
+  printf 'ascii\n' > "$XDG_CONFIG_HOME/claw/glyphs"
+  [ "$(glyphs_of TERM=xterm-256color)" = ascii ]
+  # an explicit env value beats the file, and `auto` re-detects past it
+  [ "$(glyphs_of TERM=xterm-256color CLAW_GLYPHS=nerd)" = nerd ]
+  [ "$(glyphs_of TERM=xterm-256color CLAW_GLYPHS=auto)" = nerd ]
+  [ "$(glyphs_of TERM=linux CLAW_GLYPHS=auto)" = ascii ]
+  # a junk file value is ignored, not obeyed
+  printf 'wingdings\n' > "$XDG_CONFIG_HOME/claw/glyphs"
+  [ "$(glyphs_of TERM=xterm-256color)" = nerd ]
+  rm -f "$XDG_CONFIG_HOME/claw/glyphs"
+}
+
+@test "theme: theme.sh and claw-dashboard.py resolve the glyph mode identically" {
+  mkdir -p "$XDG_CONFIG_HOME/claw"
+  printf 'ascii\n' > "$XDG_CONFIG_HOME/claw/glyphs"
+  for e in "TERM=xterm-256color" "TERM=linux" "TERM=xterm-256color CLAW_GLYPHS=nerd" \
+           "TERM=xterm-256color CLAW_GLYPHS=auto"; do
+    sh_v="$(glyphs_of $e)"
+    py_v="$(env -u CLAW_GLYPHS $e XDG_CONFIG_HOME="$XDG_CONFIG_HOME" python3 -c '
+import importlib.util, os
+spec = importlib.util.spec_from_file_location("d", os.environ["DASH"])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(m.glyph_mode())' DASH="$(DASH_PY)" 2>/dev/null || env -u CLAW_GLYPHS $e \
+      XDG_CONFIG_HOME="$XDG_CONFIG_HOME" DASH="$(DASH_PY)" python3 -c '
+import importlib.util, os
+spec = importlib.util.spec_from_file_location("d", os.environ["DASH"])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(m.glyph_mode())')"
+    [ "$sh_v" = "$py_v" ] || { echo "$e: sh=$sh_v py=$py_v"; false; }
+  done
+  rm -f "$XDG_CONFIG_HOME/claw/glyphs"
+}
+
+# --- (12) T1-03 follow-up (requested by impl/t1-m, tests/theme.bats is ours) --
+
+@test "theme: apply_profile is a no-op when PROFILE_THEME_DEFAULT is empty" {
+  printf 'synthwave\n' > "$XDG_STATE_HOME/claw/theme"
+  run bash -c "source '$THEME'; PROFILE_THEME_DEFAULT='' claw_theme_apply_profile
+               printf '%s|%s' \"\${CLAW_THEME:-unset}\" \"\$CLAW_THEME_SLUG\""
+  [ "$status" -eq 0 ]
+  [ "$output" = "unset|synthwave" ]
 }

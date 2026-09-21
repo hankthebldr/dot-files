@@ -14,7 +14,8 @@
 #   - tui_section "Title"          → purple bold heading + dim divider
 #   - tui_run_step "title" "cmd"   → gum spin if available, else styled echo+run
 #   - tui_skip "name"              → dim "○ name — not installed"
-#   - tui_header "title" "subtitle" → purple rounded box header
+#   - tui_header "title" "subtitle" → purple rounded box header (drawn by
+#     claw-dashboard.py --card when python3 is available; printf fallback else)
 #   - tui_footer "✓ message"       → green check + timestamp
 #   - tui_pause                    → "press any key" if INTERACTIVE=1
 
@@ -69,9 +70,23 @@ source "$(dirname "${BASH_SOURCE[0]}")/claw-progress.sh" 2>/dev/null || true
 # ============================================
 
 # tui_header "TITLE" "subtitle"
+# ONE box (audit T2-02): claw-dashboard.py's frame()/vis()/_clip() is the only
+# width-exact, ANSI-safe, NO_COLOR-aware box in the repo, and `--card` exposes
+# it. The printf box below survives as the fallback for a host with no python3
+# (or a checkout without the renderer) — it is the ragged one, so it goes last.
+_tui_card() {   # $1 = title, $2 = subtitle (may be empty) → rc 0 when rendered
+    local _d="${DOTFILES_DIR:-$HOME/.dotfiles}"
+    local _dash="$_d/scripts/utils/claw-dashboard.py"
+    command -v python3 >/dev/null 2>&1 || return 1
+    [ -r "$_dash" ] || return 1
+    printf '%s' "${2:-}" | CLAW_FORCE_COLOR=1 DOTFILES_DIR="$_d" \
+        python3 "$_dash" --card "$1" --border purple --title-tone blue
+}
+
 tui_header() {
     local title="$1"
     local subtitle="${2:-}"
+    _tui_card "$title" "$subtitle" && return 0
     echo ""
     echo "  ${c_purple}╭──────────────────────────────────────────────────────╮${c_reset}"
     printf "  ${c_purple}│${c_reset}  ${c_cyan}${c_bold}%s${c_reset}" "$title"
