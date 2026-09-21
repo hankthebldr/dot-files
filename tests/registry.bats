@@ -314,3 +314,98 @@ EOF
   echo "hardcoded profile lists: $hits"
   [ -z "$hits" ]
 }
+
+# T2-05: the grep above only matched ONE word order, which is why three copies
+# in onboarding.sh (a different order) survived it for weeks. This one is
+# order-independent: tokenise every line and count DISTINCT registry profile
+# ids on it. Eight or more on a single line is a destination list, whatever
+# order it is written in. registry.sh and legacy/ are the only legal homes.
+@test "strict: no line outside registry.sh names 8+ profile ids, in any order" {
+  [ "${CLAW_REGISTRY_STRICT:-1}" = 1 ] || skip "strict mode disabled via CLAW_REGISTRY_STRICT=0"
+  # one space-separated line: BSD awk rejects a newline inside a -v value.
+  ids="$(bash "$REG" ids profiles | tr '\n' ' ')"
+  [ -n "$ids" ]
+  hits="$(find "$REPO/shell" "$REPO/bin" "$REPO/scripts" -type f \
+            ! -path '*/legacy/*' ! -name 'registry.sh' -print0 2>/dev/null \
+          | xargs -0 awk -v ids="$ids" '
+              BEGIN { n = split(ids, a, " ")
+                      for (i = 1; i <= n; i++) if (a[i] != "") want[a[i]] = 1 }
+              # Two exemptions, both content-anchored so they survive line drift:
+              # a prose comment is not a dispatcher, and `claw install` lists
+              # TOOLCHAIN domains (nextgen, ai-workstation, ai-skills…) which
+              # are a different taxonomy the registry does not own.
+              /^[ \t]*#/ { next }
+              /claw install/ { next }
+              {
+                split("", seen); c = 0
+                m = split($0, w, /[^A-Za-z0-9_]+/)
+                for (i = 1; i <= m; i++)
+                  if ((w[i] in want) && !(w[i] in seen)) { seen[w[i]] = 1; c++ }
+                if (c >= 8) printf "%s:%d: %d profile ids on one line\n", FILENAME, FNR, c
+              }' || true)"
+  echo "$hits"
+  [ -z "$hits" ]
+}
+
+# --------------------------------------------------------------- onboarding --
+# T2-05: onboarding.sh scored the quiz against a hand-written list of all 18
+# profiles in THREE places and carried its own class + description tables.
+# All four now come from the registry, so a 19th profile needs no edit here.
+
+@test "onboarding.sh takes its profile list from the registry, not a literal" {
+  run grep -c 'registry.sh' "$REPO/scripts/utils/onboarding.sh"
+  [ "$status" -eq 0 ]
+  [ "$output" -ge 1 ]
+  run grep -nE 'for p in (cloud|default|ai|local) ' "$REPO/scripts/utils/onboarding.sh"
+  [ "$status" -ne 0 ]
+}
+
+@test "onboarding.sh: class + impact come from the registry for every profile" {
+  # Source-free probe: re-run the file's own accessors through a tiny driver
+  # so the quiz is never entered. `help` is a no-op subcommand.
+  run env DOTFILES_DIR="$REPO" bash -c '
+    set -e
+    eval "$(sed -n "/^_load_registry/,/^}/p" "$1")"
+    REPO_ROOT="'"$REPO"'"
+    REGISTRY="$REPO_ROOT/scripts/utils/registry.sh"
+    declare -a _CLAW_PROFILE_IDS=()
+    declare -A _CLAW_PROFILE_CLASS=()
+    declare -A _CLAW_PROFILE_DESC=()
+    _load_registry
+    printf "%s\n" "${#_CLAW_PROFILE_IDS[@]}"
+    printf "%s\n" "${_CLAW_PROFILE_CLASS[security]}"
+    printf "%s\n" "${_CLAW_PROFILE_CLASS[blackwell]}"
+    printf "%s\n" "${_CLAW_PROFILE_DESC[vault]}"
+  ' _ "$REPO/scripts/utils/onboarding.sh"
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | sed -n 1p)" = 18 ]
+  [ "$(echo "$output" | sed -n 2p)" = NIGHTHACKER ]
+  [ "$(echo "$output" | sed -n 3p)" = PHOSPHOR-GHOST ]
+  [ "$(echo "$output" | sed -n 4p)" = "Obsidian vault root" ]
+}
+
+@test "onboarding.sh: the flow still runs end to end on piped input" {
+  stub="$BATS_TEST_TMPDIR/stub"; mkdir -p "$stub"
+  # gum, if installed, would try to own the tty for the install prompt.
+  printf '#!/bin/sh\nexit 1\n' > "$stub/gum"; chmod +x "$stub/gum"
+  export XDG_DATA_HOME="$BATS_TEST_TMPDIR/data"
+  # Every read takes its default: 1 theme + 1 press-enter + 6 quiz answers +
+  # 1 install answer (empty = skip, so no toolchain ever runs). A file, not a
+  # herestring: $(printf ...) eats the trailing newlines.
+  yes '' | head -20 > "$BATS_TEST_TMPDIR/keys"
+  # TERM matters — `clear` fails without it and set -e takes the script down.
+  run env PATH="$stub:$PATH" DOTFILES_DIR="$REPO" CLAW_NO_ANIM=1 TERM=xterm \
+      bash "$REPO/scripts/utils/onboarding.sh" start < "$BATS_TEST_TMPDIR/keys"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"YOU ARE THE"* ]]
+  [[ "$output" == *"SCOREBOARD"* ]]
+  [ -s "$XDG_DATA_HOME/claw/onboarding.tsv" ]
+}
+
+@test "cheatsheet.sh: the profile count is derived, not a literal 18" {
+  run grep -n '18 available' "$REPO/scripts/utils/cheatsheet.sh"
+  [ "$status" -ne 0 ]
+  run env DOTFILES_DIR="$REPO" NO_COLOR=1 bash "$REPO/scripts/utils/cheatsheet.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"18 available"* ]]
+}
