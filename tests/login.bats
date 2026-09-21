@@ -374,3 +374,245 @@ source '$REPO/shell/claw-login.zsh' || exit 9"
   echo "$output"
   [[ "$output" == *"p=UNSET"* ]]
 }
+
+# ============================================================================
+# T1-07b — the render hook: strip, daily card, background kicks, OSC, one row.
+#
+# Everything here runs from the FIRST precmd, after the rc is complete
+# (F-01), and only for the modes that have a human looking at them (F-02).
+# ============================================================================
+
+# Fake DOTFILES_DIR whose four login-time children are markers, plus a `python3`
+# on PATH that records the card render instead of doing one.
+render_env() {
+  STUBD="$BATS_TEST_TMPDIR/dot"
+  mkdir -p "$STUBD/scripts/utils" "$BATS_TEST_TMPDIR/bin" "$XDG_CACHE_HOME/claw"
+  local s
+  for s in situation.sh update-status.sh tool-updater.sh; do
+    cat > "$STUBD/scripts/utils/$s" <<EOS
+#!/usr/bin/env bash
+printf '%s %s\n' "\$(basename "\$0")" "\$*" >> "$BATS_TEST_TMPDIR/probes.log"
+exit 0
+EOS
+    chmod +x "$STUBD/scripts/utils/$s"
+  done
+  : > "$STUBD/scripts/utils/claw-dashboard.py"
+  cat > "$BATS_TEST_TMPDIR/bin/python3" <<EOS
+#!/usr/bin/env bash
+printf 'python3 %s\n' "\$*" >> "$BATS_TEST_TMPDIR/dash.log"
+echo "__CARD__"
+exit 0
+EOS
+  chmod +x "$BATS_TEST_TMPDIR/bin/python3"
+  export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+  ZL_RENDER="export DOTFILES_DIR='$STUBD'"
+}
+
+att() {
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/attention.tsv" "$XDG_CACHE_HOME/claw/attention.tsv"
+}
+
+@test "strip: two items render two lines, an empty file renders nothing" {
+  zl_pre
+  att
+  zl '_claw_attention_strip'
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "${#lines[@]}" -eq 2 ]
+  [[ "$output" == *"tailscale down"* ]]
+  [[ "$output" == *"tailscale up"* ]]
+  [[ "$output" == *"gitea on ms-01"* ]]
+  # since ≠ src_ts on the second row -> the clock is spelled out
+  [[ "$output" == *"since "* ]]
+
+  : > "$XDG_CACHE_HOME/claw/attention.tsv"
+  zl '_claw_attention_strip; print -n END'
+  [ "$output" = "END" ]
+
+  rm -f "$XDG_CACHE_HOME/claw/attention.tsv"
+  zl '_claw_attention_strip; print -n END'
+  [ "$output" = "END" ]
+}
+
+@test "strip: caps at three lines and says how many it hid" {
+  zl_pre
+  att
+  local f="$XDG_CACHE_HOME/claw/attention.tsv"
+  printf 'warn\tbrew\tbrew ✗ locked\tclaw update --packages\t%s\t%s\n' "$(date +%s)" "$(date +%s)" >> "$f"
+  printf 'warn\tload\tload 9.1 on 8 cores\tbtop\t%s\t%s\n' "$(date +%s)" "$(date +%s)" >> "$f"
+  zl '_claw_attention_strip'
+  echo "$output"
+  [ "${#lines[@]}" -eq 4 ]
+  [[ "$output" == *"+1 more · claw dash"* ]]
+}
+
+@test "strip: an info item with no next action is not worth a login line" {
+  zl_pre
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  local now; now="$(date +%s)"
+  printf 'info\tquiet\tnothing to do here\t\t%s\t%s\n' "$now" "$now" \
+      > "$XDG_CACHE_HOME/claw/attention.tsv"
+  printf 'info\trepo\tdotfiles ↓3\tclaw update\t%s\t%s\n' "$now" "$now" \
+      >> "$XDG_CACHE_HOME/claw/attention.tsv"
+  zl '_claw_attention_strip'
+  echo "$output"
+  [ "${#lines[@]}" -eq 1 ]
+  [[ "$output" == *"dotfiles"* ]]
+  [[ "$output" != *"nothing to do here"* ]]
+  # items counts every row, strip counts what was printed
+  zl '_claw_attention_strip >/dev/null; print "items=$_CLAW_STRIP_ITEMS strip=$_CLAW_STRIP_LINES"'
+  echo "$output"
+  [ "$output" = "items=2 strip=1" ]
+}
+
+@test "strip: NO_COLOR swaps the dot for a tier mark and emits no escapes" {
+  zl_pre
+  att
+  zl 'NO_COLOR=1 _claw_attention_strip'
+  echo "$output"
+  [ "${#lines[@]}" -eq 2 ]
+  [[ "$output" == *"! tailscale down"* ]]
+  [[ "$output" == *"~ gitea on ms-01"* ]]
+  run bash -c "printf '%s' \"\$1\" | command grep -c \$'\\033'" _ "$output"
+  [ "$output" = "0" ]
+}
+
+@test "strip: ages read as Ns / Nm / Nh / Nd" {
+  zl_pre
+  mkdir -p "$XDG_CACHE_HOME/claw"
+  local now; now="$(date +%s)"
+  local f="$XDG_CACHE_HOME/claw/attention.tsv"
+  printf 'crit\ta\tseconds ago\tfix\t%s\t%s\n' "$(( now - 12 ))"    "$(( now - 12 ))"    >  "$f"
+  printf 'crit\tb\tminutes ago\tfix\t%s\t%s\n' "$(( now - 240 ))"   "$(( now - 240 ))"   >> "$f"
+  printf 'crit\tc\thours ago\tfix\t%s\t%s\n'   "$(( now - 7200 ))"  "$(( now - 7200 ))"  >> "$f"
+  zl 'NO_COLOR=1 _claw_attention_strip'
+  echo "$output"
+  [[ "$output" == *"(12s)"* ]]
+  [[ "$output" == *"(4m)"* ]]
+  [[ "$output" == *"(2h)"* ]]
+}
+
+@test "render: the hook disarms itself and hands back a clean INT trap" {
+  zl_pre; render_env
+  zl "$ZL_RENDER
+      _CLAW_LOGIN_MODE=ide
+      autoload -Uz add-zsh-hook; add-zsh-hook precmd _claw_login_render
+      add-zsh-hook zshexit _claw_login_abort
+      trap ':' INT
+      _claw_login_render
+      print \"precmd=\$(( \${precmd_functions[(I)_claw_login_render]:-0} ))\"
+      print \"zshexit=\$(( \${zshexit_functions[(I)_claw_login_abort]:-0} ))\"
+      print \"inttrap=\$(trap | command grep -c INT)\""
+  echo "$output"
+  [[ "$output" == *"precmd=0"* ]]
+  [[ "$output" == *"zshexit=0"* ]]
+  [[ "$output" == *"inttrap=0"* ]]
+}
+
+@test "render: CLAW_LOGIN_RENDER=0 prints nothing and probes nothing" {
+  zl_pre; render_env; att
+  zl "$ZL_RENDER
+      _CLAW_LOGIN_MODE=human CLAW_LOGIN_RENDER=0 _claw_login_render
+      print -n END"
+  echo "$output"
+  [ "$output" = "END" ]
+  [ ! -f "$BATS_TEST_TMPDIR/probes.log" ]
+  [ ! -f "$BATS_TEST_TMPDIR/dash.log" ]
+}
+
+@test "render: the daily card runs once a day" {
+  zl_pre; render_env; att
+  local stamp="$XDG_CACHE_HOME/claw/card.stamp"
+
+  # yesterday -> rendered
+  date -v-1d +%Y%m%d > "$stamp" 2>/dev/null || date -d yesterday +%Y%m%d > "$stamp"
+  zl "$ZL_RENDER
+      _CLAW_LOGIN_MODE=human TERM_PROGRAM=Apple_Terminal _claw_login_render"
+  echo "$output"
+  [[ "$output" == *"__CARD__"* ]]
+  [ "$(wc -l < "$BATS_TEST_TMPDIR/dash.log")" -eq 1 ]
+  grep -q -- '--login' "$BATS_TEST_TMPDIR/dash.log"
+  [ "$(cat "$stamp")" = "$(date +%Y%m%d)" ]
+
+  # same day -> not rendered again
+  zl "$ZL_RENDER
+      _CLAW_LOGIN_MODE=human TERM_PROGRAM=Apple_Terminal _claw_login_render"
+  echo "$output"
+  [[ "$output" != *"__CARD__"* ]]
+  [ "$(wc -l < "$BATS_TEST_TMPDIR/dash.log")" -eq 1 ]
+
+  # never / always
+  zl "$ZL_RENDER
+      _CLAW_LOGIN_MODE=human CLAW_LOGIN_CARD=always TERM_PROGRAM=Apple_Terminal _claw_login_render"
+  [[ "$output" == *"__CARD__"* ]]
+  rm -f "$stamp"
+  zl "$ZL_RENDER
+      _CLAW_LOGIN_MODE=human CLAW_LOGIN_CARD=never TERM_PROGRAM=Apple_Terminal _claw_login_render"
+  [[ "$output" != *"__CARD__"* ]]
+}
+
+@test "render: four tabs opened at once render the card once" {
+  zl_pre; render_env; att
+  local stamp="$XDG_CACHE_HOME/claw/card.stamp"
+  date -v-1d +%Y%m%d > "$stamp" 2>/dev/null || date -d yesterday +%Y%m%d > "$stamp"
+  local snippet="$ZL_PRE
+$ZL_RENDER
+_CLAW_LOGIN_MODE=human TERM_PROGRAM=Apple_Terminal _claw_login_render"
+  local i
+  for i in 1 2 3 4; do zsh -f -c "$snippet" >/dev/null 2>&1 & done
+  wait || true
+  echo "dash.log: $(cat "$BATS_TEST_TMPDIR/dash.log" 2>/dev/null)"
+  [ "$(wc -l < "$BATS_TEST_TMPDIR/dash.log")" -eq 1 ]
+}
+
+@test "render: background kicks fire for human and ssh, never for ide or unknown" {
+  zl_pre; render_env; att
+  local m
+  for m in human ssh; do
+    rm -f "$BATS_TEST_TMPDIR/probes.log"
+    zl "$ZL_RENDER
+        _CLAW_LOGIN_MODE=$m CLAW_LOGIN_CARD=never _claw_login_render
+        # the kicks are disowned; give them a moment to land
+        while [[ ! -s \"$BATS_TEST_TMPDIR/probes.log\" ]]; do sleep 0.05; done
+        sleep 0.3"
+    echo "$m: $(cat "$BATS_TEST_TMPDIR/probes.log")"
+    grep -q 'situation.sh homelab' "$BATS_TEST_TMPDIR/probes.log"
+    grep -q 'situation.sh local' "$BATS_TEST_TMPDIR/probes.log"
+    grep -q 'update-status.sh --refresh' "$BATS_TEST_TMPDIR/probes.log"
+    grep -q 'tool-updater.sh' "$BATS_TEST_TMPDIR/probes.log"
+  done
+  for m in ide unknown; do
+    rm -f "$BATS_TEST_TMPDIR/probes.log"
+    zl "$ZL_RENDER
+        _CLAW_LOGIN_MODE=$m _claw_login_render
+        sleep 0.3"
+    [ ! -f "$BATS_TEST_TMPDIR/probes.log" ]
+  done
+}
+
+@test "render: one telemetry row carrying the whole login payload" {
+  zl_pre; render_env; att
+  zl "$ZL_RENDER
+      unset CLAW_NO_LOG
+      export CLAW_ACTIVE_PROFILE=cortex
+      zmodload zsh/datetime
+      _CLAW_LOGIN_T0=\$EPOCHREALTIME
+      _CLAW_LOGIN_MODE=human CLAW_LOGIN_CARD=never TERM_PROGRAM=Apple_Terminal _claw_login_render
+      sleep 0.3" >/dev/null
+  local log="$XDG_CACHE_HOME/claw/usage.tsv"
+  [ -f "$log" ]
+  echo "$(cat "$log")"
+  run grep -c 'tui:login:human:cortex' "$log"
+  [ "$output" = "1" ]
+  local row; row="$(grep 'tui:login:human:cortex' "$log")"
+  [[ "$row" == *"term=Apple_Terminal"* ]]
+  [[ "$row" == *"actor=human"* ]]
+  [[ "$row" == *"shell=0"* ]]
+  [[ "$row" == *"ms="* ]]
+  [[ "$row" == *"items=2"* ]]
+  [[ "$row" == *"strip=2"* ]]
+  [[ "$row" == *"card=0"* ]]
+  # 5 columns: the 4-column readers (bin/claw stats) still parse it
+  [ "$(awk -F'\t' '/tui:login:human:cortex/ {print NF}' "$log")" = "5" ]
+}

@@ -29,6 +29,8 @@
 #   CLAW_LOGIN_FORCE_TTY 1 bypasses the interactive/tty guards (test hook)
 #   CLAW_NO_LOG          1 suppresses every telemetry row
 
+autoload -Uz add-zsh-hook
+
 # ── telemetry ────────────────────────────────────────────────────────────────
 # One append-only TSV row: ISO-ts \t event \t argc \t profile [\t k=v;k=v].
 # The 4-column readers (bin/claw stats) still parse it. Fork-free: zsh/datetime
@@ -202,10 +204,190 @@ claw_login() {
 
 _claw_login_abort() { _claw_tlog tui:abort:init }
 
-# ── the render (body lands in T1-07b) ────────────────────────────────────────
+# ── the attention strip ──────────────────────────────────────────────────────
+# Reads the one attention file situation.sh writes (tier, id, text, hint,
+# since_epoch, src_epoch — already sorted crit→warn→info, acked rows already
+# dropped) and prints at most three lines. Silent when everything is clear: a
+# login that says nothing is a login that says "nothing is wrong".
+# Sets _CLAW_STRIP_ITEMS (rows in the file) and _CLAW_STRIP_LINES (lines
+# printed, including the overflow line) for the telemetry row.
+_claw_attention_strip() {
+    emulate -L zsh
+    typeset -g _CLAW_STRIP_LINES=0 _CLAW_STRIP_ITEMS=0
+    local f="${XDG_CACHE_HOME:-$HOME/.cache}/claw/attention.tsv"
+    [[ -s "$f" ]] || return 0
+    zmodload -i zsh/datetime 2>/dev/null
+
+    local rst=$'\e[0m'
+    local c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+    local c_amb=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+    local c_blue=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m'
+    local c_fg=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
+    local c_mut=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+    local plain=0
+    [[ -n "${NO_COLOR:-}" ]] && plain=1
+
+    local -a out row
+    local tier id text hint since src mark tone age hhmm line
+    local rows=0 want=0 shown=0 delta
+    # NOT `IFS=$'\t' read -r a b c ...`: tab is IFS whitespace, so read would
+    # collapse the two tabs around an empty hint and shift every later column.
+    # Splitting the raw line keeps the empty fields where they belong.
+    while IFS= read -r line; do
+        row=("${(@ps:\t:)line}")
+        tier="${row[1]}" id="${row[2]}" text="${row[3]}"
+        hint="${row[4]}" since="${row[5]}" src="${row[6]}"
+        [[ -z "$tier" ]] && continue
+        (( rows++ ))
+        # An info item with no next action is noise on a login line; it still
+        # shows on the card, which has room to explain itself.
+        [[ "$tier" == info && -z "$hint" ]] && continue
+        (( want++ ))
+        (( shown >= 3 )) && continue
+        case "$tier" in
+            crit) mark='!'; tone="$c_red" ;;
+            warn) mark='~'; tone="$c_amb" ;;
+            *)    mark='i'; tone="$c_blue" ;;
+        esac
+        age=""
+        if [[ "$src" == <-> ]]; then
+            delta=$(( EPOCHSECONDS - src ))
+            (( delta < 0 )) && delta=0
+            if   (( delta < 60 ));    then age="${delta}s"
+            elif (( delta < 3600 ));  then age="$(( delta / 60 ))m"
+            elif (( delta < 86400 )); then age="$(( delta / 3600 ))h"
+            else                           age="$(( delta / 86400 ))d"
+            fi
+            # `since` is when the item first appeared, `src` when the cache it
+            # came from was last written — they differ once a probe re-confirms
+            # something that has been broken for a while.
+            if [[ "$since" == <-> && "$since" != "$src" ]] && \
+               strftime -s hhmm '%H:%M' "$since" 2>/dev/null; then
+                age="$age · since $hhmm"
+            fi
+        fi
+        if (( plain )); then
+            line="  $mark $text"
+            [[ -n "$hint" ]] && line="$line  $hint"
+            [[ -n "$age"  ]] && line="$line  ($age)"
+        else
+            line="  ${tone}●${rst} ${c_fg}${text}${rst}"
+            [[ -n "$hint" ]] && line="$line  ${c_mut}${hint}${rst}"
+            [[ -n "$age"  ]] && line="$line  ${c_mut}(${age})${rst}"
+        fi
+        out+=("$line")
+        (( shown++ ))
+    done < "$f"
+
+    _CLAW_STRIP_ITEMS=$rows
+    (( ${#out} )) || return 0
+    print -rl -- "${out[@]}"
+    _CLAW_STRIP_LINES=${#out}
+    if (( want > shown )); then
+        if (( plain )); then
+            print -r -- "  +$(( want - shown )) more · claw dash"
+        else
+            print -r -- "  ${c_mut}+$(( want - shown )) more · claw dash${rst}"
+        fi
+        (( _CLAW_STRIP_LINES++ ))
+    fi
+    return 0
+}
+
+# The card itself. Separate so the daily gate can call it from inside the
+# block that holds the stamp lock without repeating the invocation.
+_claw_login_card() {
+    DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}" \
+        python3 "${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/claw-dashboard.py" --login
+}
+
+# ── the render ───────────────────────────────────────────────────────────────
+# Runs from the FIRST precmd, so aliases, claw(), completion and p10k already
+# exist. An interrupt here costs you the render and nothing else (F-01).
 _claw_login_render() {
+    # FIRST, unconditionally: this hook can never fire twice.
     add-zsh-hook -d precmd _claw_login_render
     add-zsh-hook -d zshexit _claw_login_abort
+    # Belt for the braces in .zshrc's last line: whatever happened during the
+    # rc, Ctrl-C belongs to the user from here on.
     trap - INT
+    [[ "${CLAW_LOGIN_RENDER:-1}" == 0 ]] && return 0
+
+    emulate -L zsh
+    setopt localtraps
+    # `return` aborts the function, so the log call lives INSIDE the trap
+    # string — as a following statement it would never run.
+    trap '_claw_tlog tui:abort:render; return 130' INT
+
+    [[ -n "${DOTFILES_DIR:-}" ]] || typeset -g DOTFILES_DIR="$HOME/.dotfiles"
+    local mode="${_CLAW_LOGIN_MODE:-unknown}"
+    local cache="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
+
+    _claw_attention_strip
+
+    # ── daily card ──────────────────────────────────────────────────────────
+    # One card per day per machine, not per tab.
+    #
+    # The day is CLAIMED by writing the stamp before the render, not after:
+    # ten tabs opened together otherwise all read yesterday during the ~120 ms
+    # the card takes to draw and all draw it. Claiming first shrinks that
+    # window to two syscalls. `zsystem flock` closes it completely where the
+    # module exists — and the whole check-claim sequence stays inside the block
+    # that took the lock, because zsh drops a `flock -f` descriptor when the
+    # enclosing compound command finishes.
+    local card=0 want="${CLAW_LOGIN_CARD:-daily}" today="" stamp="$cache/card.stamp"
+    if [[ "$mode" == human && "$want" != never ]]; then
+        zmodload -i zsh/datetime 2>/dev/null
+        strftime -s today '%Y%m%d' $EPOCHSECONDS 2>/dev/null
+        if [[ "$want" == always ]]; then
+            card=1
+        elif [[ -n "$today" ]]; then
+            [[ -d "$cache" ]] || mkdir -p "$cache" 2>/dev/null
+            [[ -e "$stamp" ]] || : >| "$stamp" 2>/dev/null
+            zmodload -F zsh/system b:zsystem 2>/dev/null
+            local fd="" prev=""
+            if (( $+builtins[zsystem] )) && zsystem flock -t 1 -f fd "$stamp" 2>/dev/null; then
+                read -r prev < "$stamp" 2>/dev/null
+                if [[ "$prev" != "$today" ]]; then
+                    print -r -- "$today" >| "$stamp" 2>/dev/null && card=1
+                fi
+                exec {fd}>&-
+            else
+                read -r prev < "$stamp" 2>/dev/null
+                if [[ "$prev" != "$today" ]]; then
+                    print -r -- "$today" >| "$stamp" 2>/dev/null && card=1
+                fi
+            fi
+        fi
+    fi
+    (( card )) && { _claw_login_card || card=0 }
+
+    # ── background kicks ────────────────────────────────────────────────────
+    # Only where a person will see the result (F-02). All four are throttled
+    # and single-flighted by their own scripts; `&!` disowns so no job-control
+    # notice bleeds over the card.
+    if [[ "$mode" == human || "$mode" == ssh ]]; then
+        nice -n 10 bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab &>/dev/null &!
+        nice -n 10 bash "$DOTFILES_DIR/scripts/utils/situation.sh" local &>/dev/null &!
+        "$DOTFILES_DIR/scripts/utils/update-status.sh" --refresh &>/dev/null &!
+        "$DOTFILES_DIR/scripts/utils/tool-updater.sh" &>/dev/null &!
+    fi
+
+    # Terminal chrome follows the palette — the emitter's own gate makes this a
+    # no-op on SSH, under tmux, and on terminals that do not answer OSC.
+    if [[ "$mode" == human ]] && (( $+functions[claw_theme_emit] )); then
+        claw_theme_emit osc
+    fi
+
+    local actor ms=0
+    _claw_actor
+    actor="$REPLY"
+    if [[ -n "${_CLAW_LOGIN_T0:-}" && -n "${EPOCHREALTIME:-}" ]]; then
+        ms=$(( (EPOCHREALTIME - _CLAW_LOGIN_T0) * 1000 ))
+        ms="${ms%%.*}"
+        [[ "$ms" == <-> ]] || ms=0
+    fi
+    _claw_tlog "tui:login:$mode:${CLAW_ACTIVE_PROFILE:-none}" \
+        "term=${TERM_PROGRAM:-$TERM};actor=$actor;shell=${CLAW_SESSION_SEQ:-0};ms=$ms;items=${_CLAW_STRIP_ITEMS:-0};strip=${_CLAW_STRIP_LINES:-0};card=$card"
     return 0
 }
