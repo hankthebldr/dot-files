@@ -269,7 +269,9 @@ claw_palette() {
     fi
 
     _claw_tlog "palette:pick:$kind:$id" "src=$src;q=${query//;/,}"
-    _claw_frecency_bump "$id"
+    # The bump belongs to the outcome, not to the palette: _claw_load_profile
+    # bumps a profile (so `claw load <p>` counts too) and _claw_action bumps a
+    # verb. Bumping here as well would double-count every palette pick.
     _claw_apply_outcome "${(U)kind}"$'\t'"$id"
 }
 

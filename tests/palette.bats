@@ -176,15 +176,24 @@ zf() { run env DOTFILES_DIR="$FIX" zsh -fic "source '$FIX/shell/claw-fn.zsh'; $1
   grep -q $'\tprofile\t' "$FZF_STDIN"
 }
 
-@test "a pick bumps frecency.tsv" {
+@test "a profile pick bumps frecency.tsv exactly once" {
+  stub_python3
   export FZF_OUT='\n\ndefault\tprofile\t default\tdaily driver\tcore\n'
-  zi '_claw_load_profile() { : }; CLAW_NOW=1700000000 claw_palette'
+  zi 'CLAW_NOW=1700000000 claw_palette'
   [ -f "$XDG_STATE_HOME/claw/frecency.tsv" ]
   grep -q $'^default\t1\t1700000000$' "$XDG_STATE_HOME/claw/frecency.tsv"
   # a second pick increments in place, it does not append a duplicate row
-  zi '_claw_load_profile() { : }; CLAW_NOW=1700000900 claw_palette'
+  zi 'CLAW_NOW=1700000900 claw_palette'
   [ "$(wc -l < "$XDG_STATE_HOME/claw/frecency.tsv")" -eq 1 ]
   grep -q $'^default\t2\t1700000900$' "$XDG_STATE_HOME/claw/frecency.tsv"
+}
+
+@test "an action pick bumps frecency once, not twice — the outcome owns the bump" {
+  mkfix
+  export FZF_OUT='\n\nplain\taction\tP Plain\tno flags\ttools\n'
+  zf 'CLAW_NOW=1700000000 claw_palette'
+  [ "$(cat "$MARKER")" = "PLAIN" ]
+  grep -q $'^plain\t1\t1700000000$' "$XDG_STATE_HOME/claw/frecency.tsv"
 }
 
 @test "^G is bound to the palette widget in emacs, viins and vicmd" {
