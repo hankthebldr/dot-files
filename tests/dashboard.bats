@@ -611,3 +611,21 @@ print(len(set(ls)), max(ls))')"
   [ "$1" -eq 1 ]
   [ "$2" -le 150 ]
 }
+
+# CLAW_GLYPHS=ascii promises a card a non-Nerd-Font terminal can render. The
+# glyph map delivered that, but attention texts and the fleet route arrive as
+# DATA from situation.sh carrying typographic Unicode (·, →, ↓, …), so the card
+# still emitted codepoints above U+007F. Data has to be folded too.
+@test "dashboard: CLAW_GLYPHS=ascii leaves no non-ASCII, including in cached data" {
+  export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
+  now=$(date +%s)
+  printf '{"v":1,"checked":{"situation":%s},"items":[{"id":"k3s","tier":"crit","text":"k3s 2/3 Ready · k3s-ms01","hint":"kubectl get nodes","since":%s,"src_ts":%s}]}\n' \
+    "$now" "$now" "$now" > "$XDG_CACHE_HOME/claw/attention.json"
+  printf '{"ts":"2099-01-01T00:00:00Z","fleet":"T","route":{"via":"direct","path":"→ ms-01","exit_node":null},"machines":[]}\n' \
+    > "$XDG_CACHE_HOME/claw/homelab.json"
+  run env CLAW_GLYPHS=ascii CLAW_FORCE_COLOR=1 COLUMNS=100 \
+      DOTFILES_DIR="$BATS_TEST_DIRNAME/.." python3 "$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py" --login
+  [ "$status" -eq 0 ]
+  n=$(printf '%s' "$output" | python3 -c 'import sys; print(sum(1 for c in sys.stdin.read() if ord(c)>127))')
+  [ "$n" -eq 0 ]
+}

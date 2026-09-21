@@ -263,6 +263,26 @@ GLYPHS = glyph_mode()
 ASCII = GLYPHS == "ascii"
 
 
+# Typographic characters that arrive as DATA (attention texts and hints, fleet
+# route paths) rather than from the glyph table above. ascii mode promises a
+# card that a terminal with no Nerd Font can render; folding the glyphs but not
+# the data leaves stray codepoints behind, so cached text passes through here.
+_FOLD = {
+    "\u00b7": "-", "\u2192": "->", "\u2190": "<-", "\u2191": "^", "\u2193": "v",
+    "\u2713": "+", "\u2714": "+", "\u2717": "x", "\u2718": "x", "\u2026": "...",
+    "\u2014": "-", "\u2013": "-", "\u00d7": "x", "\u2265": ">=", "\u2264": "<=",
+    "\u25cf": "*", "\u25cb": "o", "\u2691": "!", "\u2726": "*", "\u00b0": "deg",
+}
+
+
+def fold(s):
+    """ASCII-fold data text; a no-op unless CLAW_GLYPHS resolves to ascii."""
+    if not ASCII or not s:
+        return s
+    s = "".join(_FOLD.get(c, c) for c in s)
+    return "".join(c if ord(c) < 128 else "?" for c in s)
+
+
 def _tw(nerd, ascii_):
     """The nerd glyph or its ASCII twin, per the resolved mode."""
     return ascii_ if ASCII else nerd
@@ -945,7 +965,7 @@ def homelab_lines():
         head.append(f"{col(_tw(chr(0xF09B), 'g'), C['purple'])} {col(_short(gh['user'], 18), C['fg'])} {dot(gh.get('state'))}")
     route = data.get("route") or {}
     if route.get("path"):
-        head.append(f"{col(_tw(chr(0xF0E8), '>'), C['green'])} {col(_short(route['path'], 28), C['fg'])}")
+        head.append(f"{col(_tw(chr(0xF0E8), '>'), C['green'])} {col(fold(_short(route['path'], 28)), C['fg'])}")
     if head:
         rows.append("   ".join(head))
     for m in data["machines"]:
@@ -1066,9 +1086,9 @@ def attention_lines(max_items=ATTENTION_MAX):
     for it in items[:max_items]:
         src = _epoch(it.get("src_ts"))
         since = _epoch(it.get("since"))
-        parts = [_dot(it.get("tier", "info")), col(str(it.get("text", "")), C["fg"])]
+        parts = [_dot(it.get("tier", "info")), col(fold(str(it.get("text", ""))), C["fg"])]
         if it.get("hint"):
-            parts.append(col(str(it["hint"]), C["muted"]))
+            parts.append(col(fold(str(it["hint"])), C["muted"]))
         tail = []
         if since is not None and src is not None and since != src:
             tail.append("since " + datetime.datetime.fromtimestamp(since).strftime("%H:%M"))
