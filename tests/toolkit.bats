@@ -65,9 +65,15 @@ _toolkit_menu_table() {
   done <<< "$table"
 }
 
-@test "welcome-tui.zsh TK_AUTO_START still points at the AI category (8)" {
-  cd "$REPO"
-  grep -q 'TK_AUTO_START="8"' shell/welcome-tui.zsh
+# The welcome TUI was the only caller that pre-seeded TK_AUTO_START (with "8");
+# it retired to legacy/ with the menu (T1-10), so the old cross-file assertion
+# had nothing left to assert. The env-var contract in toolkit.sh survives for
+# any future caller, so pin THAT instead: the hook reads TK_AUTO_START, unsets
+# it so a sub-menu loop can't re-fire it, and category 8 is still the AI arm.
+@test "toolkit.sh TK_AUTO_START hook still bypasses the prompt for category 8" {
+  grep -q 'if \[\[ -n "\$TK_AUTO_START" \]\]' "$TOOLKIT"
+  grep -q 'main_choice="\$TK_AUTO_START"' "$TOOLKIT"
+  grep -q 'unset TK_AUTO_START' "$TOOLKIT"
   grep -qE '^    8\)$' "$TOOLKIT"
   grep -q 'Agentic & AI Solutions' "$TOOLKIT"
 }

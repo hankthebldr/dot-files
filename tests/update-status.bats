@@ -262,7 +262,7 @@ EOF
   [[ "$output" == *"repo:↓2"* ]]
 }
 
-# ── readers: ff-readout + welcome-TUI kick ───────────────────────────────────
+# ── readers: ff-readout + login kick ─────────────────────────────────────────
 
 @test "ff-readout fields: emits the updates= line from the cache" {
   echo '{"ts":"x","brew":5,"apt":4,"repo_behind":2,"repo_ahead":0,"last_run":null}' > "$SNAP"
@@ -277,9 +277,9 @@ EOF
   echo "$output" | grep -qx 'updates='
 }
 
-@test "welcome TUI: third background kick refreshes update-status" {
-  grep -qF 'update-status.sh" --refresh &>/dev/null &!' "$DOTFILES/shell/welcome-tui.zsh"
-  run zsh -n "$DOTFILES/shell/welcome-tui.zsh"
+@test "login render: third background kick refreshes update-status" {
+  grep -qF 'update-status.sh" --refresh &>/dev/null &!' "$DOTFILES/shell/claw-login.zsh"
+  run zsh -n "$DOTFILES/shell/claw-login.zsh"
   [ "$status" -eq 0 ]
 }
 
