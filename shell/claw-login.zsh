@@ -235,14 +235,48 @@ _claw_attention_strip() {
     [[ -s "$f" ]] || return 0
     zmodload -i zsh/datetime 2>/dev/null
 
+    # Colour through the ONE quantiser (T2-03): theme.sh's _claw_sgr_body sets
+    # a variable instead of printing, so honouring CLAW_COLOR_DEPTH here costs
+    # zero forks on the login path. Without theme.sh in scope (a shell that
+    # inherited CLAW_RGB_* but never sourced it) the 24-bit literals stand.
     local rst=$'\e[0m'
-    local c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
-    local c_amb=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
-    local c_blue=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m'
-    local c_fg=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
-    local c_mut=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+    local c_red c_amb c_blue c_fg c_mut
+    # Depth is resolved ONCE, not once per hue: truecolor (the overwhelming
+    # case) then takes the literal fast path and costs exactly what it did
+    # before T2-03. Only a 256/8/0 terminal pays for the quantiser.
+    local _rd=24
+    (( ${+functions[claw_theme_render_depth]} )) && {
+        claw_theme_render_depth; _rd="$_claw_rdepth"
+    }
+    if [[ "$_rd" != 24 ]] && (( ${+functions[_claw_sgr_body]} )); then
+        local -a _clr; local _hue
+        for _hue in "${CLAW_RGB_RED:-255;123;114}" "${CLAW_RGB_AMBER:-227;179;65}" \
+                    "${CLAW_RGB_BLUE:-88;166;255}" "${CLAW_RGB_FG:-201;209;217}" \
+                    "${CLAW_RGB_MUTED:-139;148;158}"; do
+            _claw_sgr_body "$_hue"
+            if [[ -n "$_claw_sgr_out" ]]; then _clr+=($'\e['"$_claw_sgr_out"$'m')
+            else _clr+=(""); fi
+        done
+        c_red="$_clr[1]" c_amb="$_clr[2]" c_blue="$_clr[3]" c_fg="$_clr[4]" c_mut="$_clr[5]"
+        [[ -z "$c_fg" ]] && rst=""
+    else
+        c_red=$'\e[38;2;'"${CLAW_RGB_RED:-255;123;114}"$'m'
+        c_amb=$'\e[38;2;'"${CLAW_RGB_AMBER:-227;179;65}"$'m'
+        c_blue=$'\e[38;2;'"${CLAW_RGB_BLUE:-88;166;255}"$'m'
+        c_fg=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
+        c_mut=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
+    fi
     local plain=0
-    [[ -n "${NO_COLOR:-}" ]] && plain=1
+    [[ -n "${NO_COLOR:-}" || -z "$c_fg" ]] && plain=1
+    # CLAW_GLYPHS=ascii swaps the bullet for the same `!`/`~`/`i` mark the
+    # NO_COLOR path already uses — coloured, but free of any Nerd Font.
+    local bullet='●'
+    local _gm="${CLAW_GLYPHS:-}"
+    if [[ "$_gm" != ascii && "$_gm" != nerd ]] && (( ${+functions[claw_theme_glyphs]} )); then
+        claw_theme_glyphs; _gm="$CLAW_GLYPHS"
+    fi
+    local mid='·'
+    [[ "$_gm" == ascii ]] && { bullet=""; mid='-' }
 
     local -a out row
     local tier id text hint since src mark tone age hhmm line
@@ -280,7 +314,7 @@ _claw_attention_strip() {
             # something that has been broken for a while.
             if [[ "$since" == <-> && "$since" != "$src" ]] && \
                strftime -s hhmm '%H:%M' "$since" 2>/dev/null; then
-                age="$age · since $hhmm"
+                age="$age $mid since $hhmm"
             fi
         fi
         if (( plain )); then
@@ -288,7 +322,7 @@ _claw_attention_strip() {
             [[ -n "$hint" ]] && line="$line  $hint"
             [[ -n "$age"  ]] && line="$line  ($age)"
         else
-            line="  ${tone}●${rst} ${c_fg}${text}${rst}"
+            line="  ${tone}${bullet:-$mark}${rst} ${c_fg}${text}${rst}"
             [[ -n "$hint" ]] && line="$line  ${c_mut}${hint}${rst}"
             [[ -n "$age"  ]] && line="$line  ${c_mut}(${age})${rst}"
         fi
@@ -302,9 +336,9 @@ _claw_attention_strip() {
     _CLAW_STRIP_LINES=${#out}
     if (( want > shown )); then
         if (( plain )); then
-            print -r -- "  +$(( want - shown )) more · claw dash"
+            print -r -- "  +$(( want - shown )) more $mid claw dash"
         else
-            print -r -- "  ${c_mut}+$(( want - shown )) more · claw dash${rst}"
+            print -r -- "  ${c_mut}+$(( want - shown )) more $mid claw dash${rst}"
         fi
         (( _CLAW_STRIP_LINES++ ))
     fi
