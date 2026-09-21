@@ -75,7 +75,7 @@ EOF
 # Run zsh INTERACTIVELY (-i) with no rc files, source claw-fn.zsh, then \$1.
 # Interactive matters: the render, _claw_profile_cd and the ^G bindkey are all
 # gated on it, exactly as in a real shell.
-zi() { run zsh -fic "source '$REPO/shell/claw-palette.zsh'; $1"; }
+zi() { run zsh -fic "source '$REPO/shell/claw-fn.zsh'; $1"; }
 
 # A throwaway DOTFILES_DIR with a scripted registry — for flag-vocabulary and
 # failure cases the real registry has no row for.
@@ -110,7 +110,7 @@ EOF
   printf 'PROFILE_NAME="ghostly"\nfalse\n' > "$FIX/shell/profiles/ghostly.zsh"
 }
 
-zf() { run env DOTFILES_DIR="$FIX" zsh -fic "source '$FIX/shell/claw-palette.zsh'; $1"; }
+zf() { run env DOTFILES_DIR="$FIX" zsh -fic "source '$FIX/shell/claw-fn.zsh'; $1"; }
 
 # ============================================================== T1-08a ========
 
@@ -268,4 +268,106 @@ zf() { run env DOTFILES_DIR="$FIX" zsh -fic "source '$FIX/shell/claw-palette.zsh
       | head -1 | cut -f2)"
     [ "$top" != "profile" ] || { echo "query '$q' preselects a profile"; return 1; }
   done
+}
+
+# ============================================================== T1-08b ========
+
+@test "claw load with no profile lists the registry's profiles, not a hardcoded copy" {
+  zi 'claw load'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"blackwell"* ]]
+  [[ "$output" == *"tunnels"* ]]
+  run grep -n 'default local claude cloud devops security' "$REPO/shell/claw-fn.zsh"
+  [ "$status" -ne 0 ]
+}
+
+@test "claw load <unknown> returns 1 and leaves CLAW_ACTIVE_PROFILE unset" {
+  zi 'claw load ghost; print "rc=$?"; print "p=[${CLAW_ACTIVE_PROFILE-unset}]"'
+  [[ "$output" == *"rc=1"* ]]
+  [[ "$output" == *"p=[unset]"* ]]
+}
+
+@test "F-20: a profile whose source fails is rolled back, not left half-applied" {
+  mkfix
+  zf 'claw load ghostly; print "rc=$?"; print "p=[${CLAW_ACTIVE_PROFILE-unset}]"'
+  [[ "$output" == *"rc=1"* ]]
+  [[ "$output" == *"p=[unset]"* ]]
+}
+
+@test "F-20: claw load security loads the helper-guarded aliases, all 20" {
+  stub_python3
+  zi 'claw load security >/dev/null 2>&1
+      n=0
+      for a in nrecon nharvest amasse subf sqli listen hash0 hydraq fuzz gobust; do
+        (( ${+aliases[$a]} + ${+functions[$a]} )) && (( n++ ))
+      done
+      print "guarded=$n"'
+  [[ "$output" == *"guarded=10"* ]]
+}
+
+@test "F-20: claw load security does not leak 'command not found: _claw_guard'" {
+  stub_python3
+  zi 'claw load security'
+  [[ "$output" != *"_claw_guard"* ]]
+}
+
+@test "the profile frame gets the PROFILE_* env and the --profile argv" {
+  stub_python3
+  zi 'claw load security'
+  grep -q -- '--profile security' "$DASH_LOG"
+  grep -q '^CLASS:NIGHTHACKER$' "$DASH_LOG"
+  grep -q '^HELP:sec-help$' "$DASH_LOG"
+  grep -q "^DOT:$REPO\$" "$DASH_LOG"
+}
+
+@test "CLAW_PROFILE_ART=fastfetch takes the fastfetch branch instead of the frame" {
+  stub_python3; stub_fastfetch
+  export CLAW_PROFILE_ART=fastfetch
+  zi 'claw load security'
+  [ ! -f "$DASH_LOG" ]
+  grep -q 'config-security.jsonc' "$FF_LOG"
+}
+
+@test "claw load bumps frecency and logs a load row with its source" {
+  unset CLAW_NO_LOG
+  stub_python3
+  zi 'CLAW_NOW=1700000000 claw load security'
+  grep -q $'^security\t1\t1700000000$' "$XDG_STATE_HOME/claw/frecency.tsv"
+  grep -q $'\tload\t' "$XDG_CACHE_HOME/claw/usage.tsv"
+  grep -q 'src=cmd' "$XDG_CACHE_HOME/claw/usage.tsv"
+}
+
+@test "bare claw opens the palette in this shell" {
+  export FZF_OUT='\n\n\n' FZF_RC=130
+  zi 'claw'
+  [ -f "$FZF_ARGV" ]
+  grep -qx -- "--prompt=claw ▸ " "$FZF_ARGV"
+}
+
+@test "claw menu opens the palette too" {
+  export FZF_OUT='\n\n\n' FZF_RC=130
+  zi 'claw menu'
+  [ -f "$FZF_ARGV" ]
+}
+
+@test "claw dash renders the login card" {
+  stub_python3
+  zi 'claw dash'
+  grep -q -- '--login' "$DASH_LOG"
+}
+
+@test "claw theme set recolours the prompt live" {
+  zi 'source "$DOTFILES_DIR/scripts/utils/theme.sh"
+      p10k() { print "p10k $*" }
+      claw theme set tokyo-night
+      print "DIR=$POWERLEVEL9K_DIR_BACKGROUND"'
+  [[ "$output" == *"p10k reload"* ]]
+  [[ "$output" == *"DIR=#"* ]]
+  [ "$(cat "$XDG_STATE_HOME/claw/theme")" = "tokyo-night" ]
+}
+
+@test "claw theme with any other verb still passes through to the binary" {
+  zi 'claw theme list'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"tokyo-night"* ]]
 }
