@@ -7,6 +7,22 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- Branching contract (`docs/BRANCHING.md`): `master` is the only long-lived
+  branch and the only branch ever checked out in `~/.dotfiles`; all work runs on
+  a short-lived `feat/ fix/ docs/ chore/ claude/` branch in a worktree under
+  `.claude/worktrees/` and lands by PR merge commit. GitHub now deletes the
+  branch on merge; ruleset `protect-master` blocks force-push and deletion
+- `claw doctor repo` — the deployed-checkout guard: ✗ (exit 1) when
+  `~/.dotfiles` is off `master`, has no upstream, is ahead of it, or has tracked
+  edits — each a state in which `claw update` phase 1 silently skips the pull.
+  Rendered inline as the Repo section of `claw doctor`; `CLAW_REPO_BRANCH`
+  overrides the expected branch
+- `claw wt {new|ls|rm|path} <branch>` — worktree-per-task: `new` fetches
+  `origin/master` and branches from it into `.claude/worktrees/<slug>` (no
+  tracking, the deployed tree never moves), `ls` shows ahead/behind and dirty
+  state per worktree, `rm` refuses dirty or unmerged work without `--force`,
+  `path` prints the directory for `cd "$(claw wt path <branch>)"`. The
+  branch-name policy is one pure function, `_wt_valid_branch`
 - Per-profile start directories — a profile is a *place*, not just a toolset:
   every `meta.zsh` declares `PROFILE_START_DIR` and ONE applier
   (`_claw_profile_cd`, `shell/profile-helpers.zsh`) lands you there from every

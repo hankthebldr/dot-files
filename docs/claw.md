@@ -5,6 +5,7 @@ The single command that surfaces every workflow in this dotfiles repo.
 ```
 claw                  open the welcome menu (FZF)
 claw doctor           system + active-profile health
+claw doctor repo      deployed-checkout guard (on master · upstream · not ahead · clean); exit 1 on ✗
 claw update           phased update: repo sync → packages (topgrade-first)
 claw tools            interactive curated CLI tool refresh
 claw tun              SSH tunnel manager
@@ -13,6 +14,7 @@ claw homelab          homelab SSH topology
 claw toolkit          Open Claw workflow launcher
 claw skills           browse Claude skills
 claw harness <cmd>    custom agentic tooling: new <kind> <name> · list [--all|--fzf] · sync · deploy · path
+claw wt <cmd>         worktree-per-task: new <branch> · ls · rm <branch> [--force] · path <branch>
 claw ai-services <c>  manage local AI service stacks (litellm, llama-swap, …)
 claw gateway <c>      OpenShell sandbox / gateway manager
 claw load <profile>   source a profile in current shell + land in its start dir
@@ -341,6 +343,8 @@ draws the panel honors the toggle.
 | `claw toolkit`| `scripts/utils/toolkit.sh`                      |
 | `claw skills` | inline in `bin/claw` (FZF over `~/.claude/skills`) |
 | `claw output` | `scripts/utils/claw-output.sh`                  |
+| `claw wt`     | `scripts/utils/worktree.sh`                     |
+| `claw doctor repo` | inline in `bin/claw` (doctor_repo)          |
 | live progress panel | `scripts/utils/claw-progress.sh` (sourced by `pkg-manifest.sh`) |
 
 If a subcommand misbehaves, debug the underlying script directly — `claw`
@@ -431,6 +435,12 @@ Requires `chafa` and `librsvg` (`brew install chafa librsvg`).
 - **A profile moved my shell** — that's `PROFILE_START_DIR`. `cd -` goes back,
   `claw profiles paths` shows the whole table, `CLAW_PROFILE_CD=0` disables it,
   and `CLAW_PROFILE_CD=home` limits it to shells that start in `$HOME`.
+- **`claw update` prints `no-upstream` / `dirty-tree` / `diverged` and skips the
+  repo phase** — the deployed tree (`~/.dotfiles`) was checked out onto a branch,
+  or has local commits. That is by design (phase 1 is fast-forward only, never
+  auto-merges). `claw doctor repo` names the exact condition and the fix; the
+  contract is `docs/BRANCHING.md`: `~/.dotfiles` stays on `master`, all work
+  happens in a worktree (`claw wt new <branch>`).
 - **`agents.toml` not auto-found?** — set `XDG_CONFIG_HOME` if you keep
   it elsewhere; defaults to `~/.config/claw/agents.toml`.
 

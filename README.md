@@ -36,6 +36,7 @@ After install, open a new shell and try `claw help`.
 
 - **[User Guide](docs/claw.md)** — single-page reference for the `claw` command (profile loading, agents, doctor)
 - **[Architecture](docs/ARCHITECTURE.md)** — system topology and module map (auto-generated)
+- **[Branching](docs/BRANCHING.md)** — one long-lived branch, worktree-per-task (`claw wt`), how work lands
 - **[Aliases](docs/ALIASES.md)** — full alias reference (auto-generated)
 - **[Changelog](CHANGELOG.md)** — release notes
 
@@ -590,6 +591,7 @@ Tested on stock macOS bash 3.2 and zsh 5.9. The `bin/claw` dispatcher is bash-po
 
 - [`docs/claw.md`](docs/claw.md) — full claw command reference
 - [`CLAUDE.md`](CLAUDE.md) — repo conventions for AI-assisted development
+- [`docs/BRANCHING.md`](docs/BRANCHING.md) — branch + worktree contract (`claw wt`, `claw doctor repo`)
 - [`docs/superpowers/specs/`](docs/superpowers/specs/) — design specs for major refactors
 
 ---

@@ -13,6 +13,7 @@ _claw() {
     'menu:interactive menu'
     'help:show help'
     'doctor:environment health check'
+    'wt:worktree-per-task (new · ls · rm · path)'
     'validate:full install validation'
     'stats:usage statistics'
     'update:phased update — repo sync then packages'
@@ -87,6 +88,18 @@ _claw() {
           ;;
         profiles)
           _values 'action' lint paths
+          ;;
+        doctor)
+          _values 'mode' repo ai all
+          ;;
+        wt|worktree)
+          if (( CURRENT == 2 )); then
+            _values 'action' new ls rm path
+          elif [[ $words[2] == (rm|path|remove|dir) ]]; then
+            local -a wtb
+            wtb=(${(f)"$(git -C $dotfiles worktree list --porcelain 2>/dev/null | awk '/^branch /{sub("refs/heads/","",$2); print $2}')"})
+            _values 'worktree branch' $wtb
+          fi
           ;;
         integrity|verify|check)
           _values 'action' generate verify audit
