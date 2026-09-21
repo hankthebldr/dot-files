@@ -620,10 +620,106 @@ cmd_dash() {
     DOTFILES_DIR="$DOTFILES" exec python3 "$DOTFILES/scripts/utils/claw-dashboard.py" --login "$@"
 }
 
+# `claw card <title>` — the ONE box primitive as a CLI verb: stdin becomes the
+# body, claw-dashboard.py's frame() draws it width-exact. Shell surfaces call
+# this instead of hand-rolling a sixth printf box (audit T2-02).
+cmd_card() {
+    [ -r "$DOTFILES/scripts/utils/claw-dashboard.py" ] || { err "claw-dashboard.py not found under $DOTFILES"; return 1; }
+    local title="${1:-}"; [ $# -gt 0 ] && shift
+    DOTFILES_DIR="$DOTFILES" exec python3 "$DOTFILES/scripts/utils/claw-dashboard.py" \
+        --card "$title" "$@"
+}
+
+# `claw glyphs [ascii|nerd|auto|--clear]` — the per-machine glyph mode. One
+# line, one file, the same ${XDG_CONFIG_HOME}/claw/glyphs theme.sh reads. This
+# is what `claw doctor` points at when the terminal font cannot draw glyphs.
+cmd_glyphs() {
+    local gfile="$CLAW_CONFIG_DIR/glyphs"
+    case "${1:-}" in
+        "")
+            local now
+            now="$(DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" glyphs 2>/dev/null || true)"
+            info "glyphs: ${c_white}${now:-unknown}${c_reset}${c_dim} (CLAW_GLYPHS=${CLAW_GLYPHS:-auto}$([ -r "$gfile" ] && printf ', pinned in %s' "$gfile"))${c_reset}"
+            ;;
+        --clear|clear)
+            rm -f "$gfile" 2>/dev/null
+            ok "glyph pin cleared ${c_dim}(back to auto)${c_reset}"
+            ;;
+        ascii|nerd|auto)
+            mkdir -p "$CLAW_CONFIG_DIR" 2>/dev/null
+            printf '%s\n' "$1" > "$gfile" || { err "cannot write $gfile"; return 1; }
+            ok "glyphs: ${c_white}$1${c_reset} ${c_dim}($gfile)${c_reset}"
+            ;;
+        -h|--help)
+            info "usage: claw glyphs [ascii|nerd|auto|--clear]"
+            ;;
+        *)
+            err "unknown glyph mode: $1"
+            info "usage: claw glyphs [ascii|nerd|auto|--clear]"
+            return 2
+            ;;
+    esac
+}
+
 cmd_validate() {
     # Full top-to-bottom install validation (symlinks → shell → CLI → GPU → AI →
     # desktop → peripherals → K3s → integrity) with update detection + fix hints.
     DOTFILES_DIR="$DOTFILES" exec bash "$DOTFILES/scripts/utils/validate-install.sh" "$@"
+}
+
+# The macOS Terminal profile's font. Terminal.app stores it as an
+# NSKeyedArchiver blob inside its preferences, so `defaults read` names the
+# profile and plistlib unpacks the face. Returns "<profile>\t<font>\t<size>".
+_claw_mac_term_font() {
+    [[ "$(uname -s)" == "Darwin" ]] || return 1
+    command -v python3 &>/dev/null || return 1
+    local prof
+    prof="$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null)" || return 1
+    [[ -n "$prof" ]] || return 1
+    CLAW_TERM_PROFILE="$prof" python3 - <<'PYEOF' 2>/dev/null
+import os, plistlib
+prof = os.environ.get("CLAW_TERM_PROFILE", "")
+path = os.path.expanduser("~/Library/Preferences/com.apple.Terminal.plist")
+try:
+    with open(path, "rb") as fh:
+        prefs = plistlib.load(fh)
+    blob = prefs["Window Settings"][prof]["Font"]
+    obj = plistlib.loads(bytes(blob))
+except Exception:
+    raise SystemExit(1)
+name, size = "", ""
+for o in obj.get("$objects", []):
+    if isinstance(o, dict) and "NSSize" in o and not size:
+        size = o["NSSize"]
+    if isinstance(o, str) and not name and not o.startswith("$") \
+            and o not in ("NSFont", "NSObject", "root", "null"):
+        name = o
+if not name:
+    raise SystemExit(1)
+print("%s\t%s\t%s" % (prof, name, size))
+PYEOF
+}
+
+# One line saying whether the terminal font can draw the glyphs, and exactly
+# what to do when it cannot. Never fatal, never on the login path.
+_claw_term_font_check() {
+    local row prof font size
+    row="$(_claw_mac_term_font)" || {
+        if [[ "$(uname -s)" == "Darwin" ]]; then
+            printf "  ${c_dim}·${c_reset} Terminal font${c_dim} — not readable (non-Terminal.app, or no saved profile)${c_reset}\n"
+        else
+            printf "  ${c_dim}·${c_reset} terminal font${c_dim} — not introspectable on this platform; check it in your terminal's settings${c_reset}\n"
+        fi
+        return 0
+    }
+    prof="${row%%$'\t'*}"; row="${row#*$'\t'}"
+    font="${row%%$'\t'*}"; size="${row#*$'\t'}"
+    if printf '%s' "$font" | grep -qiE 'nerd|-nf|nfm|nfp|meslolg'; then
+        ok "Terminal profile ${c_white}${prof}${c_reset}${c_dim} · ${font} ${size%.*} — Nerd Font${c_reset}"
+    else
+        err "Terminal profile ${c_white}${prof}${c_reset}${c_dim} · ${font} ${size%.*} — NOT a Nerd Font${c_reset}"
+        info "fix: Terminal ▸ Settings ▸ Profiles ▸ ${prof} ▸ Text ▸ Font → MesloLGS NF${c_dim} (or run: claw glyphs ascii)${c_reset}"
+    fi
 }
 
 cmd_doctor() {
@@ -675,7 +771,23 @@ cmd_doctor() {
         printf "  ${c_dim}·${c_reset} attention.count${c_dim} — absent (claw situation evaluate)${c_reset}\n"
     fi
 
-    printf "\n  ${c_purple}${c_bold}Core CLI${c_reset}\n"
+    # Fonts + glyphs (audit T2-03). Glyphs are load-bearing on every surface
+    # and the terminal never reports its own font, so this is where a user
+    # learns that the boxes on screen are a missing Nerd Font, not a bug.
+    printf "\n  ${c_purple}${c_bold}Fonts / glyphs${c_reset}\n"
+    local _gm="" _cd=""
+    if [[ -r "$DOTFILES/scripts/utils/theme.sh" ]]; then
+        _gm="$(DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" glyphs 2>/dev/null || true)"
+        _cd="$(DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/theme.sh" render-depth 2>/dev/null || true)"
+    fi
+    info "glyphs:   ${c_white}${_gm:-unknown}${c_reset}${c_dim} (CLAW_GLYPHS=${CLAW_GLYPHS:-auto})  ·  colour depth ${_cd:-?}${c_reset}"
+    if [[ "$_gm" == nerd ]]; then
+        printf "  ${c_dim}·${c_reset} glyph test: ${c_white}\uf015 \uf0c2 \uf21b \uf1b3 \uf135 \uf120${c_reset}  ${c_dim}— boxes or blanks here mean the font is not a Nerd Font${c_reset}\n"
+    else
+        printf "  ${c_dim}·${c_reset} glyph test: ${c_dim}skipped — ASCII mode, no Nerd Font needed${c_reset}\n"
+    fi
+    _claw_term_font_check
+
     for tool in eza bat rg fd fzf zoxide atuin delta btop lazygit yazi starship gum glow tldr fastfetch; do
         if command -v "$tool" &>/dev/null; then
             ok "$tool"
@@ -1395,6 +1507,8 @@ case "${1:-menu}" in
     pin)            shift; cmd_pin "$@" ;;
     ack)            shift; cmd_ack "$@" ;;
     dash)           shift; cmd_dash "$@" ;;
+    card)           shift; cmd_card "$@" ;;
+    glyphs)         shift; cmd_glyphs "$@" ;;
     update|upgrade) shift; cmd_update "$@" ;;
     tools)          shift; cmd_tools "$@" ;;
     tun|tunnel)     shift; cmd_tun "$@" ;;

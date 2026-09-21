@@ -78,3 +78,5 @@ notify	notify-send	system	-	Notify	desktop notification	command claw notify	hidd
 pin	-	system	-	Pin	pin the login profile	command claw pin	hidden
 ack	-	system	-	Ack	silence an attention item	command claw ack	hidden
 registry	-	system	-	Registry	rows | palette | check	command claw registry	hidden
+card	-	system	-	Card	frame stdin as one box	command claw card	hidden
+glyphs	-	system	-	Glyphs	nerd or ascii glyph mode	command claw glyphs	hidden
