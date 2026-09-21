@@ -25,7 +25,13 @@ c "claw selfupdate install" "weekly auto-update (topgrade) timer"
 c "claw doctor / validate" "system + profile health · install check"
 c "claw install <domain>" "nextgen|cloud|security|devops|ai|… toolchains"
 h "Profiles"
-c "claw load <profile> / off" "source/unset a profile (18 available)"
+# Profile count from the ONE registry (spine contract 5) — never a literal.
+_cs_dots="${DOTFILES_DIR:-$HOME/.dotfiles}"
+_cs_np="$(DOTFILES_DIR="$_cs_dots" bash "$_cs_dots/scripts/utils/registry.sh" ids profiles \
+          2>/dev/null | grep -c . || true)"
+[ "${_cs_np:-0}" -gt 0 ] 2>/dev/null || _cs_np="?"
+c "claw load <profile> / off" "source/unset a profile ($_cs_np available)"
+unset _cs_dots _cs_np
 c "claw onboard" "arcade wizard → picks your profile"
 h "Agents & AI"
 c "claw claude|gemini|hermes" "launch a registered agent (one .env)"

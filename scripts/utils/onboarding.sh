@@ -3,9 +3,8 @@
 # OPEN CLAW — Gamified 80s Onboarding TUI
 # ============================================
 # A retro arcade-style character-creation flow that asks the user a few
-# personality questions, scores their answers against the 8 workflow
-# profiles (cloud / security / devops / ai / research / cortex / claude /
-# local), and offers to install + activate the winning profile.
+# personality questions, scores their answers against every workflow profile
+# the registry knows about, and offers to install + activate the winner.
 #
 # Visual aesthetic: hot pink / neon cyan / synthwave purple, chunky ASCII
 # banners, 80s arcade vocabulary ("INSERT COIN", "PRESS START", "CHOOSE
@@ -37,6 +36,65 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 STATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/claw"
 STATE_FILE="$STATE_DIR/onboarding.tsv"
+
+# ============================================
+# REGISTRY  (spine contract 5 — ONE source of the profile list)
+# ============================================
+# The quiz used to carry the 18 profile names three times over, plus its own
+# class and blurb tables. All four are derived now: scripts/utils/registry.sh
+# is the single source of truth (ids in tier,name order; PROFILE_CLASS via the
+# row's `class=` flag; PROFILE_DESC as the row's desc), so a 19th profile
+# needs no edit in this file.
+#
+# The registry is bash+awk and costs ~20 ms. This flow is interactive, so that
+# is free — but it is called ONCE and cached in the three globals below. Never
+# call it from inside a loop.
+REGISTRY="$REPO_ROOT/scripts/utils/registry.sh"
+declare -a _CLAW_PROFILE_IDS=()
+declare -A _CLAW_PROFILE_CLASS=()
+declare -A _CLAW_PROFILE_DESC=()
+
+_load_registry() {
+    if (( ${#_CLAW_PROFILE_IDS[@]} > 0 )); then
+        return 0
+    fi
+    local id class desc
+    # One awk pass over `rows`: emit "<id> <class> <desc…>". class is a single
+    # token (RPG class names never contain a space) so a plain `read` splits
+    # correctly and desc keeps the rest of the line.
+    while read -r id class desc; do
+        if [[ -z "$id" ]]; then
+            continue
+        fi
+        _CLAW_PROFILE_IDS+=("$id")
+        if [[ "$class" == "-" ]]; then
+            class=""
+        fi
+        _CLAW_PROFILE_CLASS[$id]="$class"
+        _CLAW_PROFILE_DESC[$id]="$desc"
+    done < <(DOTFILES_DIR="$REPO_ROOT" bash "$REGISTRY" rows 2>/dev/null | awk -F'\t' '
+        $1 == "profile" {
+            c = "-"
+            n = split($9, f, ";")
+            for (i = 1; i <= n; i++) if (f[i] ~ /^class=/) c = substr(f[i], 7)
+            if (c == "") c = "-"
+            print $2, c, $7
+        }')
+
+    # Fallback for a broken/partial checkout: derive the ids from the profile
+    # directories so the tally still works. Class and blurb then degrade to
+    # their generic forms — deliberately NOT to a second hardcoded table.
+    if (( ${#_CLAW_PROFILE_IDS[@]} == 0 )); then
+        local d
+        for d in "$REPO_ROOT"/shell/profiles/*/; do
+            if [[ -d "$d" ]]; then
+                id="$(basename "$d")"
+                _CLAW_PROFILE_IDS+=("$id")
+            fi
+        done
+    fi
+    return 0
+}
 
 # ============================================
 # CINEMATIC PRIMITIVES (palette, themes, animations)
@@ -402,36 +460,18 @@ _horizon() {
 # PROFILE METADATA
 # ============================================
 # Each profile gets a class name (RPG-style), a one-liner roast, and an
-# install hook (the toolchain script under scripts/install). The class
-# names are deliberately tongue-in-cheek.
+# install hook (the toolchain script under scripts/install). The class names
+# are deliberately tongue-in-cheek and live in each profile's meta.zsh as
+# PROFILE_CLASS — read here through the registry, never re-listed.
+# The roast below (_profile_flair) is hand-written copy and stays here.
 _profile_class() {
-    case "$1" in
-        # Tier 1: general
-        default)    echo "PIXEL-DRIFTER" ;;
-        local)      echo "GARAGE-HACKER" ;;
-        # Tier 2: domain
-        cloud)      echo "SKYSURFER" ;;
-        devops)     echo "WRENCH-MAGE" ;;
-        security)   echo "NIGHTHACKER" ;;
-        cortex)     echo "GHOST-IN-THE-XSIAM" ;;
-        ai)         echo "NEUROMANCER" ;;
-        research)   echo "DATA-DJ" ;;
-        # Tier 3: agent/IDE
-        claude)     echo "PROMPT-RIDER" ;;
-        # Tier 4: knowledge & ideation (NEW)
-        vault)      echo "KNOWLEDGE-KEEPER" ;;
-        brainstorm) echo "SPARK-CATCHER" ;;
-        pmo)        echo "SCRIBE-OPERATOR" ;;
-        # Tier 5: customer-facing & visual (NEW)
-        deck)       echo "DECK-SMITH" ;;
-        design)     echo "FRAME-SMITH" ;;
-        demo)       echo "SHOW-RUNNER" ;;
-        # Tier 6: hardware & ops (NEW)
-        homelab)    echo "RACK-WIZARD" ;;
-        blackwell)  echo "PHOSPHOR-GHOST" ;;
-        tunnels)    echo "PORT-RUNNER" ;;
-        *)          echo "UNKNOWN-WANDERER" ;;
-    esac
+    _load_registry
+    local c="${_CLAW_PROFILE_CLASS[$1]:-}"
+    if [[ -n "$c" ]]; then
+        printf '%s\n' "$c"
+    else
+        printf '%s\n' "UNKNOWN-WANDERER"
+    fi
 }
 _profile_flair() {
     case "$1" in
@@ -471,26 +511,18 @@ _profile_flair() {
 #   OPTS=("label::profile1 profile2 weight" ...)
 #   weight is omitted → 1; if present, it adds N to the named profiles.
 declare -A SCORES
-for p in cloud security devops ai research cortex claude local default vault brainstorm pmo deck design demo homelab blackwell tunnels; do
+_load_registry
+for p in "${_CLAW_PROFILE_IDS[@]}"; do
     SCORES[$p]=0
 done
 
-# One-line impact description per profile. Used by _ask to show the user
-# what their pick actually does to their shell, instead of a silent score
-# tally. Keys match the profile slugs in shell/profiles/*.zsh.
+# One-line impact description per profile. Used by _ask to show the user what
+# their pick actually does to their shell, instead of a silent score tally.
+# Comes straight from the registry's desc column (i.e. each profile's
+# PROFILE_DESC), so all 18 are covered and none can drift.
 _impact_for() {
-    case "$1" in
-        default)  echo "modern CLI replacements (eza/bat/rg/fd/zoxide), neutral prompt" ;;
-        cloud)    echo "kubectl + terraform + aws-cli aliases, k8s/aws context in prompt" ;;
-        security) echo "nmap/burp/wireshark aliases, target-IP prompt, recon helpers" ;;
-        devops)   echo "kubectl/helm/docker shortcuts, k8s context in fastfetch, ansible" ;;
-        ai)       echo "ollama + llama.cpp + lm-studio shortcuts, GPU env, model registry" ;;
-        research) echo "jupyter, arxiv lookups, paper indexing, notebook helpers" ;;
-        cortex)   echo "XSIAM/XSOAR aliases, playbook + datalake query helpers" ;;
-        claude)   echo "claude-code env, MCP server registry, skill manager wired in" ;;
-        local)    echo "minimalist shell, tmux + vim + makefile, no cloud chatter" ;;
-        *)        echo "" ;;
-    esac
+    _load_registry
+    printf '%s\n' "${_CLAW_PROFILE_DESC[$1]:-}"
 }
 
 _ask() {
@@ -644,8 +676,11 @@ _run_quiz() {
 _winner() {
     local best="default"
     local best_score=-1
-    # zsh-vs-bash safe iteration: list keys explicitly.
-    for p in cloud security devops ai research cortex claude local default vault brainstorm pmo deck design demo homelab blackwell tunnels; do
+    # Iterate in registry order (tier, then name) and keep the FIRST maximum,
+    # so an exact tie resolves to the lower tier — and an all-zero tally to
+    # `default`, which is what best="default" above always intended.
+    _load_registry
+    for p in "${_CLAW_PROFILE_IDS[@]}"; do
         local s=${SCORES[$p]:-0}
         if (( s > best_score )); then
             best_score=$s
@@ -664,7 +699,7 @@ _show_scoreboard() {
     # Sort desc by score, then animate each bar in turn. Each row's fill is
     # animated by _anim_score_bar — so the audience sees the leader pull away.
     {
-        for p in cloud security devops ai research cortex claude local default vault brainstorm pmo deck design demo homelab blackwell tunnels; do
+        for p in "${_CLAW_PROFILE_IDS[@]}"; do
             printf "%s\t%d\n" "$p" "${SCORES[$p]:-0}"
         done
     } | sort -k2 -nr | while IFS=$'\t' read -r p s; do
