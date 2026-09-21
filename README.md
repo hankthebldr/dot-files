@@ -60,14 +60,17 @@ Step 8b ensures the `claw` dispatcher is executable and verifies it runs before 
 
 ## The `claw` Command
 
-One entry point. All workflows. `bin/claw` is a ~1000-line bash dispatcher on PATH (set inline in `shell/.zshrc` step 1, before the welcome TUI); `shell/claw-fn.zsh` intercepts `claw load`/`claw off` so they mutate the parent shell (the bash binary alone can't).
+One entry point. All workflows. `bin/claw` is a ~1000-line bash dispatcher on PATH (set inline in `shell/.zshrc` step 1, before the login decides anything); `shell/claw-fn.zsh` intercepts `claw load`/`claw off` so they mutate the parent shell (the bash binary alone can't).
 
 ```
 # Core
-claw                  open the welcome menu (FZF picker)
+claw                  open the palette (one flat FZF list of every destination; also ^G)
 claw help             list every subcommand
 claw doctor           system + active-profile health
-claw load <profile>   source a profile in current shell   (claw off to clear)
+claw <profile>        source a profile in current shell   (claw off to clear)
+claw load <profile>   the same thing, spelled out
+claw pin <profile>    make it the login default          (claw pin --clear to unset)
+claw dash             redraw the framed login card
                       — also lands you in that profile's start dir (cd - to go back)
 claw <agent>          launch a registered agent (claude · gemini · hermes · opencode · openwork · …)
 
@@ -156,7 +159,7 @@ Each profile is a **directory**, not a single file: a thin 5-line dispatcher `sh
 
 ### Start directories
 
-A profile is a *place* as much as a toolset, so each one declares where it drops you — `PROFILE_START_DIR` in its `meta.zsh`, applied by the single applier in `shell/profile-helpers.zsh` that `claw load`, the fzf welcome TUI and the Rust TUI all call. Pick **Knowledge & Ideation ▸ Vault** and you land in the Obsidian vault itself; `devops` lands in your infra tree; `default` never moves you.
+A profile is a *place* as much as a toolset, so each one declares where it drops you — `PROFILE_START_DIR` in its `meta.zsh`, applied by the single applier in `shell/profile-helpers.zsh` that `claw load`, the palette and the Rust TUI all call. Pick **Vault** in the palette and you land in the Obsidian vault itself; `devops` lands in your infra tree; `default` never moves you.
 
 | Spec | Lands you in |
 |---|---|
@@ -179,12 +182,13 @@ Machine-specific paths go in `~/.config/claw/start-dirs.conf` (untracked, like `
 ### Activating
 
 ```bash
-# From the welcome menu — pick a profile row
-# OR
-claw load cloud         # sources cloud profile in current shell + renders dashboard
+claw cloud              # sources cloud profile in current shell + renders dashboard
+claw load cloud         # the same thing, spelled out
 claw off                # clears active profile
+claw                    # or pick it from the palette (also ^G)
+claw pin cloud          # make it the login default for new shells
 
-# Per-shell override (no menu needed)
+# Per-shell override (no palette needed)
 export CLAW_ACTIVE_PROFILE=cortex && exec zsh
 ```
 
@@ -250,7 +254,7 @@ Precedence: `CLAW_THEME` env (set by profile loads) → persisted `claw theme se
 
 ## Native Rust TUI (`claw-tui`)
 
-An optional ratatui welcome screen at `tui/claw-tui/` — a truecolor logo, a two-column categorized profile/action picker, and a native readout — reading the same theme state as the shell (`src/theme.rs`). It emits an outcome contract (`ACTION`/`EXEC`/`PROFILE`/`NONE`) that the zsh side applies, so selecting a profile mutates the parent shell. Opt in with `CLAW_TUI=1`; the fzf welcome-TUI remains the default.
+An optional ratatui welcome screen at `tui/claw-tui/` — a truecolor logo, a two-column categorized profile/action picker, and a native readout — reading the same theme state as the shell (`src/theme.rs`). It emits an outcome contract (`ACTION`/`EXEC`/`PROFILE`/`NONE`) that the zsh side applies, so selecting a profile mutates the parent shell. Opt in with `CLAW_TUI=1`; the fzf palette remains the default.
 
 ---
 
@@ -496,7 +500,8 @@ Long-running single-process ops (`claw pkg install`/`track`/`scan`) render an in
 │   ├── obsidian.zsh · clin.zsh   # Vault routing + note TUI (theme/vault-synced)
 │   ├── claw-fn.zsh               # zsh fn for claw load/off (parent shell) — sole claw()
 │   ├── profile-helpers.zsh       # Generic tool-check + install-hint helpers
-│   ├── welcome-tui.zsh           # Interactive fzf login dashboard
+│   ├── claw-login.zsh            # Login: decide (pure zsh) then render from precmd
+│   ├── claw-palette.zsh          # On-demand fzf palette (bare `claw` · `claw menu` · ^G)
 │   └── profiles/                 # 18 workflow profiles (directory-per-profile)
 ├── tui/claw-tui/                 # Native Rust ratatui welcome screen (opt-in)
 ├── vim/config/nvim/              # Neovim config (lazy.nvim)
@@ -527,9 +532,10 @@ Long-running single-process ops (`claw pkg install`/`track`/`scan`) render an in
 
 ```bash
 # Single entry point
-claw                  # open menu
+claw                  # open the palette (also ^G)
 claw doctor           # health check
-claw load cloud       # context-switch in current shell
+claw cloud            # context-switch in current shell
+claw pin cloud        # ...and make it the login default
 
 # Profile-scoped help
 default-help          # daily driver cheatsheet

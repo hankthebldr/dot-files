@@ -3,7 +3,7 @@
 The single command that surfaces every workflow in this dotfiles repo.
 
 ```
-claw                  open the welcome menu (FZF)
+claw                  open the palette — one flat FZF list of every destination (also ^G)
 claw doctor           system + active-profile health
 claw update           phased update: repo sync → packages (topgrade-first)
 claw tools            interactive curated CLI tool refresh
@@ -15,7 +15,10 @@ claw skills           browse Claude skills
 claw harness <cmd>    custom agentic tooling: new <kind> <name> · list [--all|--fzf] · sync · deploy · path
 claw ai-services <c>  manage local AI service stacks (litellm, llama-swap, …)
 claw gateway <c>      OpenShell sandbox / gateway manager
-claw load <profile>   source a profile in current shell + land in its start dir
+claw <profile>        source a profile in current shell + land in its start dir
+claw load <profile>   the same thing, spelled out
+claw pin <profile>    make it the login default (--clear to unset)
+claw dash             redraw the framed login card
 claw off              unset active profile
 claw profiles paths   where each profile drops you (declared → resolved here)
 claw profiles lint    mechanically validate every profile contract
@@ -34,8 +37,9 @@ claw help             this list
 
 ## Profiles
 
-18 profiles ship in `shell/profiles/` (8 core + 10 specialized). Pick one
-from the welcome menu on shell login, or load on demand with `claw load <name>`:
+18 profiles ship in `shell/profiles/` (8 core + 10 specialized). Load one by
+name with `claw <name>`, pick it from the palette (bare `claw` or `^G`), or
+`claw pin <name>` to make it what every new shell starts in:
 
 | Profile  | What it's for                           | Logo brand        |
 |----------|-----------------------------------------|-------------------|
@@ -62,11 +66,14 @@ for the surviving aliases.
 
 ### Activating a profile
 
-- **From the welcome menu** — pick the profile row; `welcome-tui.zsh`
-  sources it for that shell.
-- **Manually** — `claw load cloud` prints the exact command you need
-  to run in your *current* shell (claw itself runs in a subshell and
-  can't mutate your interactive shell directly).
+- **By name** — `claw cloud` (shorthand for `claw load cloud`) sources it
+  in your *current* shell. `shell/claw-fn.zsh` intercepts it for exactly this
+  reason: the `bin/claw` bash binary runs in a subshell and can't mutate your
+  interactive shell directly.
+- **From the palette** — bare `claw`, `claw menu` or `^G` opens one flat
+  frecency-ranked fzf list of every profile and action; pick the profile row.
+- **By default, every login** — `claw pin cloud` makes it the profile new
+  shells start in (`claw pin --clear` unsets it).
 - **Auto-launch agents** — see Agents below.
 
 ### Start directories
@@ -160,8 +167,8 @@ description.
 
 ### Why a registry instead of bespoke menu entries
 
-Every new agent used to need a new welcome-TUI row + case branch +
-documentation. Now: edit one TOML file. The `claw <name>` dispatcher
+Every new agent used to need a new menu row + case branch + documentation.
+Now: edit one TOML file. The `claw <name>` dispatcher
 resolves the entry, optionally renders the matching profile's fastfetch
 dashboard, then `exec`s the binary. Replacement-shell handoff — no
 nested-shell weirdness.
@@ -260,7 +267,7 @@ upgradable, repo ahead/behind, last run) into `~/.cache/claw/updates.json`
 null, never 0), consumed by `claw doctor`, `situation`, and the fastfetch
 dashboards (`updates` field via `ff-readout.sh`).
 
-The login kick in `welcome-tui.zsh` is now dual-purpose: the silent
+The login kick in `shell/claw-login.zsh` is dual-purpose: the silent
 background variant of `tool-updater.sh` refreshes due fast-lane tools, and
 `update-status.sh --refresh` keeps the pending-counts cache fresh for the
 dashboards. Both run detached on shell init — you'll never notice them. The
@@ -331,7 +338,8 @@ draws the panel honors the toggle.
 
 | Subcommand    | Implementation                                  |
 |---------------|-------------------------------------------------|
-| `claw`        | `shell/welcome-tui.zsh` (sourced via subshell)  |
+| `claw`        | `claw_palette` (`shell/claw-palette.zsh`; also `claw menu` / `^G`) |
+| login render  | `claw_login` (`shell/claw-login.zsh`) → `scripts/utils/claw-dashboard.py` |
 | `claw doctor` | inline in `bin/claw` (cmd_doctor)               |
 | `claw update` | `scripts/utils/repo-sync.sh` → `scripts/utils/system-update.sh` |
 | `claw tools`  | `scripts/utils/tool-updater.sh --interactive`   |

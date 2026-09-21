@@ -143,7 +143,7 @@ setup() {
 # The login no longer renders a fleet block of its own: homelab trouble reaches
 # the shell as an attention row that situation.sh wrote, and _claw_attention_strip
 # (shell/claw-login.zsh) is the surface that prints it. These two replace the
-# retired welcome-tui _claw_homelab_block pair (audit F-03 / T1-10).
+# retired login-menu _claw_homelab_block pair (audit F-03 / T1-10).
 
 @test "attention strip: a crit homelab row reaches the login strip" {
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"

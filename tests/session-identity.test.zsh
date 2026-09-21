@@ -90,8 +90,8 @@ test_title_bytes() {
 }
 
 test_welcome_group_capture() {
-  # claw_login is the ONE writer of CLAW_ACTIVE_GROUP since welcome-tui.zsh
-  # was retired to legacy/ (T1-10); the title resolver reads it.
+  # claw_login is the ONE writer of CLAW_ACTIVE_GROUP since the old login
+  # menu was retired to legacy/ (T1-10); the title resolver reads it.
   local wt="$_THIS/../shell/claw-login.zsh"
   zsh -n "$wt" || { print -r -- "  ✗ claw-login.zsh syntax error"; (( _fail++ )); return; }
   assert_contains "claw-login exports CLAW_ACTIVE_GROUP" "$(<"$wt")" "export CLAW_ACTIVE_GROUP="
