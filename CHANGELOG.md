@@ -6,6 +6,49 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed — the login is a landing, not a gate (2026-09-20 TUI redesign)
+
+A soup-to-nuts audit of the login experience (`docs/audits/2026-09-20-tui-design-audit.md`,
+25 evidence-backed findings) against four months of the repo's own telemetry, then
+the redesign it justified (`docs/superpowers/specs/2026-09-20-tui-redesign-design.md`).
+
+**The shape.** `.zshrc` now only *decides* — resolve profile, theme and actor, export,
+register a one-shot `precmd` hook — in pure zsh with zero forks and zero output.
+Everything that renders, probes or reads the tty runs from that hook once the shell is
+complete. The two-level fzf picker is retired to `legacy/`; choice moved to one flat,
+frecency-ranked palette (`claw`, `claw menu`, `^G`) over a single registry.
+
+- **No question at login.** 154 of 169 recorded picks were `default` (91%), 40% of them
+  dismissed inside 2 s. Login now loads the pinned profile (`claw pin <p>`) with no
+  interaction and prints an attention strip only when something is not OK.
+- **Nothing renders for machines.** An actor model (`human`/`ssh`/`unknown` render;
+  `agent`/`ide`/`nested` do not) ends the 85% of logins that were Claude Code Desktop
+  and IDE panels rendering a dashboard nobody was looking at.
+- **Ctrl-C can no longer cripple the shell.** An rc-scoped `INT` guard plus the
+  after-the-shell render means an interrupt costs at most the card, never the aliases,
+  `claw()` or the prompt.
+- **Typed-ahead runs.** Text typed before the prompt is a command again, not a menu pick.
+- **One registry.** `config/claw/actions.tsv` + 18 `meta.zsh` files (now carrying
+  `PROFILE_GLYPH`/`PROFILE_DESC`) generate the palette, `claw help`, completion and
+  `claw tui-stats`; `registry.sh check` runs inside `claw profiles lint`.
+- **One render path.** `claw-dashboard.py --login|--profile|--card` frames all 18
+  profiles, the login card and any shell surface; `claw card` exposes it.
+- **One attention surface.** `situation.sh evaluate` turns four caches into ranked items
+  with age, `since` carry-over and `claw ack`; the strip, the card, the p10k `⚑` segment
+  and the notifier all read it.
+- **Colour and glyphs degrade.** `CLAW_COLOR_DEPTH` (24/256/8/0) and `CLAW_GLYPHS`
+  (`nerd`/`ascii`/`auto`) are honoured everywhere, so a 256-colour terminal or a reverted
+  font still renders correctly.
+
+**Measured** (this M4 host): login to prompt ~2.1 s → ~140 ms · login card 640 → 120 ms ·
+theme engine 97 → <1 ms · shell start 228 → 162 ms · reaching a domain profile 7+
+keystrokes across 2 screens → 3 letters on 1. Suite 261 → 509 tests.
+
+**Fixed along the way.** Uptime read 20708 days (a greedy `kern.boottime` parse).
+`situation.sh` was tracked non-executable, so the homelab fleet cache had never once been
+written on this Mac. The pending-updates glance was dead three ways and hid a broken
+Homebrew. The CPU bar was load/ncpu clamped to 100% and sat red under normal use.
+
 ### Added
 - Per-profile start directories — a profile is a *place*, not just a toolset:
   every `meta.zsh` declares `PROFILE_START_DIR` and ONE applier
