@@ -12,6 +12,9 @@
 #   theme.sh list | current | set <slug> | preview [slug] | fzf | reload
 #   theme.sh emit <p10k|tui|fzf|osc>   — ready-made palette artifacts
 #   theme.sh depth                     — CLAW_COLOR_DEPTH probe
+#   theme.sh render-depth              — the depth surfaces emit at
+#   theme.sh glyphs                    — CLAW_GLYPHS (nerd|ascii)
+#   theme.sh sgr <r;g;b>               — one SGR at the render depth
 #
 # Each theme is a LIBRARY under config/themes/<slug>/ :
 #   palette.theme   key=hex source of truth (committed)
@@ -350,13 +353,26 @@ _claw_emit_p10k() {
     done
 }
 
-# One `name=$'\e[38;2;r;g;bm'` assignment for the bash TUI helpers.
+# One `name=$'\e[<body>m'` assignment for the bash TUI helpers. The body comes
+# from the ONE quantiser, so a depth-8 terminal gets `\e[34m`, a strict 256 one
+# `\e[38;5;75m`, and depth 0 gets an empty string (plain text, no escapes).
 _claw_tui_var() {      # $1 = var name, $2 = "r;g;b"
-    printf "%s=\$'\\\\e[38;2;%sm'\n" "$1" "$2"
+    _claw_sgr_body "$2"
+    if [ -z "$_claw_sgr_out" ]; then
+        printf "%s=''\n" "$1"
+    else
+        printf "%s=\$'\\\\e[%sm'\n" "$1" "$_claw_sgr_out"
+    fi
 }
 _claw_emit_tui() {
-    printf "c_reset=\$'\\\\e[0m'\n"
-    printf "c_bold=\$'\\\\e[1m'\n"
+    claw_theme_render_depth
+    if [ "$_claw_rdepth" = 0 ]; then
+        printf "c_reset=''\n"
+        printf "c_bold=''\n"
+    else
+        printf "c_reset=\$'\\\\e[0m'\n"
+        printf "c_bold=\$'\\\\e[1m'\n"
+    fi
     _claw_tui_var c_blue   "${CLAW_RGB_BLUE:-88;166;255}"
     _claw_tui_var c_green  "${CLAW_RGB_GREEN:-63;185;80}"
     _claw_tui_var c_purple "${CLAW_RGB_PURPLE:-188;140;255}"
@@ -399,32 +415,220 @@ claw_theme_emit() {
     esac
 }
 
-# Probe what the terminal can actually render and export CLAW_COLOR_DEPTH
-# (24 = true colour · 256 · 8 · 0 = no colour). Apple_Terminal claims nothing
-# and renders 256 only, so it is pinned regardless of what COLORTERM says.
-claw_theme_depth() {
-    _d=8
-    case "${TERM:-}" in ''|dumb) _d=0 ;; esac
-    [ -z "${NO_COLOR:-}" ] || _d=0
-    if [ "$_d" != 0 ]; then
+# ============================================================================
+# COLOUR DEPTH — the ONE hex→index quantiser (audit T2-03)
+# ============================================================================
+# Every surface used to emit 24-bit `\e[38;2;r;g;bm` unconditionally, so a
+# terminal that only has 256 (or 8) colours either approximated silently or
+# rendered the wrong hue. theme.sh is the generator (spine contract 2), so the
+# rgb→xterm-256 and rgb→ANSI-8 mapping lives HERE and nowhere else. The Python
+# renderer carries a byte-identical mirror (claw-dashboard.py `_sgr_body`);
+# tests/theme.bats pins that the two agree on a table of sample colours.
+#
+# PRECEDENCE, and why a probed 256 still renders 24-bit:
+#   CLAW_COLOR_DEPTH set to 0|8|24|256 in the environment is a DECLARATION and
+#   is obeyed exactly. Anything else is a PROBE (claw_theme_depth), and a
+#   probed 256 keeps emitting 24-bit unless CLAW_COLOR_DEPTH_STRICT=1 — every
+#   terminal that reports "256" through TERM=*256color* in practice either
+#   renders truecolor or approximates it silently, and downgrading a palette
+#   nobody asked to downgrade is the worse failure. Depth 8 and 0 always
+#   degrade: there the wrong code really does render the wrong colour.
+
+# xterm 6×6×6 cube axis value for level 0..5.
+_claw_cube_level() {
+    case "$1" in
+        0) _cl=0 ;; 1) _cl=95 ;; 2) _cl=135 ;;
+        3) _cl=175 ;; 4) _cl=215 ;; *) _cl=255 ;;
+    esac
+}
+
+# Nearest cube level for one 0-255 channel (thresholds are the midpoints).
+_claw_cube_axis() {
+    if   [ "$1" -lt 48 ];  then _ca=0
+    elif [ "$1" -lt 115 ]; then _ca=1
+    elif [ "$1" -lt 155 ]; then _ca=2
+    elif [ "$1" -lt 195 ]; then _ca=3
+    elif [ "$1" -lt 235 ]; then _ca=4
+    else                        _ca=5
+    fi
+}
+
+# claw_theme_index256 <r> <g> <b> → $_claw_idx, the nearest xterm-256 index.
+# Candidates are the 6×6×6 cube (16-231) and the 24-step grey ramp (232-255);
+# 0-15 are skipped on purpose — those eight/sixteen slots are whatever the
+# user themed them to be, so quantising INTO them would fight the palette.
+claw_theme_index256() {
+    _q_r=$1 _q_g=$2 _q_b=$3
+    _claw_cube_axis "$_q_r"; _cx=$_ca; _claw_cube_level "$_cx"; _vr=$_cl
+    _claw_cube_axis "$_q_g"; _cy=$_ca; _claw_cube_level "$_cy"; _vg=$_cl
+    _claw_cube_axis "$_q_b"; _cz=$_ca; _claw_cube_level "$_cz"; _vb=$_cl
+    _dc=$(( (_q_r - _vr) * (_q_r - _vr) + (_q_g - _vg) * (_q_g - _vg) \
+          + (_q_b - _vb) * (_q_b - _vb) ))
+    _ga=$(( (_q_r + _q_g + _q_b) / 3 ))
+    if [ "$_ga" -lt 8 ]; then _gi=0; else _gi=$(( (_ga - 8 + 5) / 10 )); fi
+    if [ "$_gi" -gt 23 ]; then _gi=23; fi
+    _gv=$(( 8 + 10 * _gi ))
+    _dg=$(( (_q_r - _gv) * (_q_r - _gv) + (_q_g - _gv) * (_q_g - _gv) \
+          + (_q_b - _gv) * (_q_b - _gv) ))
+    if [ "$_dg" -lt "$_dc" ]; then
+        _claw_idx=$(( 232 + _gi ))
+    else
+        _claw_idx=$(( 16 + 36 * _cx + 6 * _cy + _cz ))
+    fi
+}
+
+# Reference RGB for the eight ANSI base slots, in the SATURATED (bright)
+# rendering every modern terminal ships. The dim 205-based xterm defaults put
+# every light palette hue nearer to white than to its own hue (#ff7b72 "red"
+# quantised to WHITE against them, measured) — these agree with the standard
+# rgb→ansi16 reduction instead.
+# (unrolled below rather than iterated over a string: zsh does not word-split
+# an unquoted parameter, so a "0,0,0 255,0,0 ..." list silently arrives as one
+# word there and the arithmetic blows up. theme.sh is sourced by BOTH shells.)
+
+# _claw_a8 <idx> <r> <g> <b> — keep the nearest candidate so far.
+_claw_a8() {
+    _a8d=$(( (_q_r - $2) * (_q_r - $2) + (_q_g - $3) * (_q_g - $3) \
+           + (_q_b - $4) * (_q_b - $4) ))
+    if [ "$_a8best" -lt 0 ] || [ "$_a8d" -lt "$_a8best" ]; then
+        _a8best=$_a8d; _claw_idx=$1
+    fi
+}
+
+# claw_theme_index8 <r> <g> <b> → $_claw_idx, nearest of the 8 base colours.
+claw_theme_index8() {
+    _q_r=$1 _q_g=$2 _q_b=$3
+    _claw_idx=7; _a8best=-1
+    _claw_a8 0   0   0   0
+    _claw_a8 1 255   0   0
+    _claw_a8 2   0 255   0
+    _claw_a8 3 255 255   0
+    _claw_a8 4   0   0 255
+    _claw_a8 5 255   0 255
+    _claw_a8 6   0 255 255
+    _claw_a8 7 255 255 255
+}
+
+# The probe, factored out of claw_theme_depth so the render-depth resolver can
+# ask without publishing (exporting) an answer.
+_claw_probe_depth() {
+    _pd=8
+    case "${TERM:-}" in ''|dumb) _pd=0 ;; esac
+    [ -z "${NO_COLOR:-}" ] || _pd=0
+    if [ "$_pd" != 0 ]; then
         case "${TERM_PROGRAM:-}" in
-            Apple_Terminal)                  _d=256 ;;
-            ghostty|iTerm.app|WezTerm|kitty) _d=24 ;;
+            Apple_Terminal)                  _pd=256 ;;
+            ghostty|iTerm.app|WezTerm|kitty) _pd=24 ;;
             *)
                 case "${COLORTERM:-}" in
-                    truecolor|24bit) _d=24 ;;
+                    truecolor|24bit) _pd=24 ;;
                     *)
                         case "${TERM:-}" in
-                            *direct*)   _d=24 ;;
-                            *256color*) _d=256 ;;
-                            *)          _d=8 ;;
+                            *direct*)   _pd=24 ;;
+                            *256color*) _pd=256 ;;
+                            *)          _pd=8 ;;
                         esac
                         ;;
                 esac
                 ;;
         esac
     fi
-    export CLAW_COLOR_DEPTH="$_d"
+}
+
+# claw_theme_render_depth → $_claw_rdepth (0|8|24|256): the depth surfaces
+# actually EMIT at. See the precedence note above. Never exports, so calling
+# it twice cannot promote its own probe into a declaration.
+claw_theme_render_depth() {
+    case "${CLAW_COLOR_DEPTH:-}" in
+        0|8|24|256) _claw_rdepth="$CLAW_COLOR_DEPTH"; return 0 ;;
+    esac
+    _claw_probe_depth
+    _claw_rdepth="$_pd"
+    if [ "$_claw_rdepth" = 256 ] && [ "${CLAW_COLOR_DEPTH_STRICT:-0}" != 1 ]; then
+        _claw_rdepth=24
+    fi
+}
+
+# _claw_sgr_body "<r;g;b>" → $_claw_sgr_out, the SGR PARAMETER body for the
+# active render depth ("38;2;r;g;b" | "38;5;N" | "3X" | "" at depth 0). The
+# body, not the whole escape, so callers can splice it into either a raw
+# string or a `$'\e[...m'` literal without re-deriving anything.
+_claw_sgr_body() {
+    _claw_in="${1:-}"
+    _claw_r="${_claw_in%%;*}"; _claw_t="${_claw_in#*;}"
+    _claw_g="${_claw_t%%;*}"; _claw_b="${_claw_t#*;}"
+    case "$_claw_r" in ''|*[!0-9]*) _claw_r=0 ;; esac
+    case "$_claw_g" in ''|*[!0-9]*) _claw_g=0 ;; esac
+    case "$_claw_b" in ''|*[!0-9]*) _claw_b=0 ;; esac
+    if [ "$_claw_r" -gt 255 ]; then _claw_r=255; fi
+    if [ "$_claw_g" -gt 255 ]; then _claw_g=255; fi
+    if [ "$_claw_b" -gt 255 ]; then _claw_b=255; fi
+    claw_theme_render_depth
+    case "$_claw_rdepth" in
+        0)   _claw_sgr_out="" ;;
+        8)   claw_theme_index8 "$_claw_r" "$_claw_g" "$_claw_b"
+             _claw_sgr_out="3$_claw_idx" ;;
+        256) claw_theme_index256 "$_claw_r" "$_claw_g" "$_claw_b"
+             _claw_sgr_out="38;5;$_claw_idx" ;;
+        *)   _claw_sgr_out="38;2;$_claw_r;$_claw_g;$_claw_b" ;;
+    esac
+}
+
+# claw_theme_sgr "<r;g;b>" — the full escape (empty at depth 0). Printing
+# wrapper for scripts; the fork-free callers use _claw_sgr_body directly.
+claw_theme_sgr() {
+    _claw_sgr_body "$1"
+    [ -n "$_claw_sgr_out" ] || return 0
+    printf '\033[%sm' "$_claw_sgr_out"
+}
+
+# ============================================================================
+# GLYPHS — CLAW_GLYPHS=ascii|nerd|auto  (audit T2-03)
+# ============================================================================
+# Nerd Font glyphs are load-bearing in the dashboard, the login strip and the
+# profile cards, and they had no fallback: when the terminal font resets to a
+# non-Nerd face (Apple Terminal does this on a profile reset) the whole screen
+# becomes replacement boxes. One switch, resolved here, consumed everywhere.
+#
+# PRECEDENCE: $CLAW_GLYPHS (ascii|nerd win outright; auto re-detects)
+#   → ${XDG_CONFIG_HOME:-~/.config}/claw/glyphs (one line: ascii|nerd|auto)
+#   → auto.
+# AUTO checks the ONE thing an environment can actually prove: a TERM that
+# cannot possibly be carrying a Nerd Font (the Linux/BSD console, dumb, vt100,
+# ansi) → ascii. Everything else → nerd. The font itself is invisible from
+# inside the terminal, so `claw doctor` reads it out of the macOS Terminal
+# profile and tells you what to change — auto never guesses at it.
+claw_theme_glyphs() {
+    _gm="${CLAW_GLYPHS:-}"
+    case "$_gm" in
+        ascii|nerd) export CLAW_GLYPHS="$_gm"; return 0 ;;
+    esac
+    if [ "$_gm" != auto ]; then
+        _gf="${XDG_CONFIG_HOME:-$HOME/.config}/claw/glyphs"
+        if [ -r "$_gf" ]; then
+            _gv=""
+            read -r _gv < "$_gf" 2>/dev/null || _gv=""
+            case "$_gv" in
+                ascii|nerd) export CLAW_GLYPHS="$_gv"; return 0 ;;
+            esac
+        fi
+    fi
+    # An EMPTY TERM is deliberately NOT ascii: it means "nobody told us" (cron,
+    # CI, a bats run), not "a console that cannot draw glyphs" — the Linux
+    # console always announces itself as TERM=linux.
+    case "${TERM:-}" in
+        linux|dumb|vt100|vt102|vt220|ansi|cons25|sun) _gm=ascii ;;
+        *) _gm=nerd ;;
+    esac
+    export CLAW_GLYPHS="$_gm"
+}
+
+# Probe what the terminal can actually render and export CLAW_COLOR_DEPTH
+# (24 = true colour · 256 · 8 · 0 = no colour). Apple_Terminal claims nothing
+# and renders 256 only, so it is pinned regardless of what COLORTERM says.
+claw_theme_depth() {
+    _claw_probe_depth
+    export CLAW_COLOR_DEPTH="$_pd"
 }
 
 # Load the palette into the environment on every source.
@@ -441,10 +645,13 @@ if [ -n "${BASH_SOURCE:-}" ] && [ "${BASH_SOURCE}" = "${0}" ]; then
         fzf)            claw_theme_fzf; printf '\n' ;;
         emit)           claw_theme_emit "$@" ;;
         depth)          claw_theme_depth; printf '%s\n' "$CLAW_COLOR_DEPTH" ;;
+        render-depth)   claw_theme_render_depth; printf '%s\n' "$_claw_rdepth" ;;
+        sgr)            claw_theme_sgr "${1:-}"; printf '\n' ;;
+        glyphs)         claw_theme_glyphs; printf '%s\n' "$CLAW_GLYPHS" ;;
         build)          claw_theme_build ;;
         ghostty)        claw_theme_ghostty "$@" ;;
         apply)          claw_theme_apply_ghostty ;;
         reload|load)    CLAW_THEME_FORCE=1 claw_theme_load ;;
-        *)              printf 'usage: theme.sh {list|current|set <slug>|preview [slug]|fzf|emit <p10k|tui|fzf|osc>|depth|build|ghostty [slug|all]|apply|reload}\n' >&2; exit 1 ;;
+        *)              printf 'usage: theme.sh {list|current|set <slug>|preview [slug]|fzf|emit <p10k|tui|fzf|osc>|depth|render-depth|glyphs|sgr <r;g;b>|build|ghostty [slug|all]|apply|reload}\n' >&2; exit 1 ;;
     esac
 fi
