@@ -140,19 +140,25 @@ setup() {
   [[ "$output" == *"ollama"* ]]
 }
 
-@test "welcome-tui _claw_homelab_block: prints fleet summary from cache" {
+# The login no longer renders a fleet block of its own: homelab trouble reaches
+# the shell as an attention row that situation.sh wrote, and _claw_attention_strip
+# (shell/claw-login.zsh) is the surface that prints it. These two replace the
+# retired login-menu _claw_homelab_block pair (audit F-03 / T1-10).
+
+@test "attention strip: a crit homelab row reaches the login strip" {
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
-  cp "$BATS_TEST_DIRNAME/fixtures/homelab.up.json" "$XDG_CACHE_HOME/claw/homelab.json"
-  run zsh -c "source '$BATS_TEST_DIRNAME/../shell/welcome-tui.zsh'; _claw_homelab_block"
+  # 6 columns: tier, id, text, hint, since_epoch, src_epoch.
+  printf 'crit\tbd790i\tbd790i down\tclaw homelab\t%s\t%s\n' "$(date +%s)" "$(date +%s)" \
+    > "$XDG_CACHE_HOME/claw/attention.tsv"
+  run env NO_COLOR=1 zsh -c "source '$BATS_TEST_DIRNAME/../shell/claw-login.zsh'; _claw_attention_strip"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"HR-TRUST"* ]]
   [[ "$output" == *"bd790i"* ]]
-  [[ "$output" == *"2/2 up"* ]]   # proves the jq/read field-split works, not just a substring
+  [[ "$output" == *"claw homelab"* ]]   # the hint survives the tab split, not just a substring
 }
 
-@test "welcome-tui _claw_homelab_block: silent when cache absent" {
+@test "attention strip: silent when attention.tsv is absent" {
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/none"
-  run zsh -c "source '$BATS_TEST_DIRNAME/../shell/welcome-tui.zsh'; _claw_homelab_block"
+  run env NO_COLOR=1 zsh -c "source '$BATS_TEST_DIRNAME/../shell/claw-login.zsh'; _claw_attention_strip"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }

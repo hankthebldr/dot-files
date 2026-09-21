@@ -307,8 +307,8 @@ EOF
 
 # -------------------------------------------------------------- strict ------
 
-@test "no surviving hardcoded 18-profile list (CLAW_REGISTRY_STRICT=1)" {
-  [ "${CLAW_REGISTRY_STRICT:-0}" = 1 ] || skip "strict mode off until T1-10 flips it on"
+@test "no surviving hardcoded 18-profile list (strict; CLAW_REGISTRY_STRICT=0 opts out)" {
+  [ "${CLAW_REGISTRY_STRICT:-1}" = 1 ] || skip "strict mode disabled via CLAW_REGISTRY_STRICT=0"
   hits="$(grep -rlE 'default[ |]+local[ |]+claude' "$REPO/shell" "$REPO/bin" "$REPO/scripts" \
             2>/dev/null | grep -v 'scripts/utils/registry.sh' | grep -v '/legacy/' || true)"
   echo "hardcoded profile lists: $hits"
