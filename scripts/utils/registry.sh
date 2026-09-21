@@ -27,11 +27,11 @@ CLAW_BIN="$DOTFILES/bin/claw"
 FRECENCY="${XDG_STATE_HOME:-$HOME/.local/state}/claw/frecency.tsv"
 TAB=$'\t'
 
-# Dispatch arms the design spec (2026-09-20-tui-redesign-design.md, Components)
-# commits bin/claw to growing in T1-09. Their rows exist here first so the
-# palette and completion can be generated ahead of the arms; drop this list
-# once `claw registry|pin|ack|dash` are real case arms.
-PENDING_ARMS="registry pin ack dash"
+# Dispatch arms that exist in actions.tsv before bin/claw grows them. Empty
+# since T1-09 landed `claw registry|pin|ack|dash`, which makes `check` a real
+# guard again: any `run` calling a claw subcommand that is not a dispatch arm
+# is now a violation, not a pending row.
+PENDING_ARMS=""
 
 usage() {
     cat >&2 <<'USAGE'

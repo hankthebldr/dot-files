@@ -30,6 +30,13 @@ c_dim=$'\e[38;2;'"${CLAW_RGB_MUTED:-139;148;158}"$'m'
 c_white=$'\e[38;2;'"${CLAW_RGB_FG:-201;209;217}"$'m'
 c_bold=$'\e[1m'
 
+# NO_COLOR (https://no-color.org) — registry.sh help already honours it, so
+# `claw help` was half-plain and half-SGR. One switch for the whole surface.
+if [ -n "${NO_COLOR:-}" ]; then
+    c_reset=""; c_cyan=""; c_green=""; c_purple=""; c_orange=""
+    c_red=""; c_dim=""; c_white=""; c_bold=""
+fi
+
 err()  { printf "  ${c_red}✗${c_reset} %s\n" "$*" >&2; }
 info() { printf "  ${c_cyan}●${c_reset} %s\n" "$*"; }
 ok()   { printf "  ${c_green}✓${c_reset} %s\n" "$*"; }
@@ -37,17 +44,30 @@ ok()   { printf "  ${c_green}✓${c_reset} %s\n" "$*"; }
 # ============================================
 # USAGE LOGGER
 # ============================================
-# Append-only TSV: ISO timestamp \t subcommand \t arg-count \t profile
+# Append-only TSV, 5 columns (audit F-16):
+#   ISO timestamp \t event \t arg-count \t profile \t term=…;actor=…
+# The 5th column is what the old instrument was missing: without an actor tag
+# `claw tui-stats` could not tell Henry's own logins from the agent loops that
+# are 2/3 of the CLI volume, so every rate it printed was wrong. The 4-column
+# readers (cmd_stats, situation) still parse — the column is additive.
+# `claw load <p>` logs as `load:<p>` because the TARGET, not the profile that
+# was active at dispatch time, is the datum autoload accuracy needs.
 # Disable with CLAW_NO_LOG=1. Errors are swallowed — must never block dispatch.
 log_usage() {
     [[ "$CLAW_NO_LOG" = "1" ]] && return 0
     {
         mkdir -p "$CLAW_CACHE_DIR" 2>/dev/null
-        printf '%s\t%s\t%s\t%s\n' \
+        local _ev _actor
+        _ev="${1:-menu}"
+        _actor=human
+        if [[ -n "${CLAUDECODE:-}${CLAUDE_CODE_ENTRYPOINT:-}" ]]; then _actor=agent; fi
+        if [[ "$_ev" == "load" && -n "${3:-}" ]]; then _ev="load:$3"; fi
+        printf '%s\t%s\t%s\t%s\t%s\n' \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            "${1:-menu}" \
+            "$_ev" \
             "$(( $# > 0 ? $# - 1 : 0 ))" \
             "${CLAW_ACTIVE_PROFILE:-none}" \
+            "term=${TERM_PROGRAM:-$TERM};actor=$_actor" \
             >> "$CLAW_USAGE_LOG"
     } 2>/dev/null || true
 }
@@ -180,86 +200,65 @@ agent_list_sections() {
 # SUBCOMMANDS
 # ============================================
 
-cmd_help() {
-    cat <<EOF
-  ${c_purple}${c_bold}claw${c_reset} — ${c_dim}Open Claw dispatcher${c_reset}
-
-  ${c_cyan}${c_bold}Workflows${c_reset}
-    ${c_white}claw${c_reset}                  ${c_dim}open the welcome menu (FZF)${c_reset}
-    ${c_white}claw doctor${c_reset}           ${c_dim}system + active-profile health${c_reset}
-    ${c_white}claw situation${c_reset}        ${c_dim}fleet/system awareness snapshot (show|probe|tick|alerts|install)${c_reset}
-    ${c_white}claw notify${c_reset}           ${c_dim}cross-platform desktop notification: "Title" "Body" · --crit · --after -- <cmd>${c_reset}
-    ${c_white}claw restore-shell${c_reset}    ${c_dim}re-link ~/.zshrc, ~/.p10k.zsh, … to the repo (fix clobbered symlinks)${c_reset}
-    ${c_white}claw lock-shell${c_reset}       ${c_dim}make ~/.zshrc & ~/.p10k.zsh immutable so p10k configure can't clobber them${c_reset}
-    ${c_white}claw unlock-shell${c_reset}     ${c_dim}lift the immutable lock (before re-stow / running the wizard)${c_reset}
-    ${c_white}claw storage${c_reset}          ${c_dim}storage usage analysis + offload candidates (storage-doctor)${c_reset}
-    ${c_white}claw specs${c_reset}            ${c_dim}copy-pasteable system specs (--plain·--json·--copy · alias: sysinfo)${c_reset}
-    ${c_white}claw validate${c_reset}         ${c_dim}full top-to-bottom install check + update/missing detection${c_reset}
-    ${c_white}claw stats${c_reset}            ${c_dim}your claw usage breakdown${c_reset}
-    ${c_white}claw tui-stats${c_reset}        ${c_dim}welcome-TUI fire/pick breakdown${c_reset}
-    ${c_white}claw update${c_reset}           ${c_dim}phased update: repo-sync → packages; ${c_white}--repo${c_dim}/${c_white}--packages${c_dim} one phase, ${c_white}--dry-run${c_dim}, ${c_white}--last${c_dim} receipts, ${c_white}--tools${c_dim} curated refresh, ${c_white}--schedule${c_dim} weekly timer · alias: ${c_white}claw upgrade${c_reset}
-    ${c_white}claw output${c_reset}           ${c_dim}display settings: mode auto|rich|plain · frame viewfinder|none · banner on|off${c_reset}
-    ${c_white}progress {on|off|status}${c_reset} ${c_dim}live progress panel master switch for long pkg ops (shell fn · CLAW_PROGRESS_ENABLED)${c_reset}
-
-  ${c_green}${c_bold}TUIs${c_reset}
-    ${c_white}claw tun${c_reset}              ${c_dim}SSH tunnel manager${c_reset}
-    ${c_white}claw mcp${c_reset}              ${c_dim}MCP server manager${c_reset}
-    ${c_white}claw homelab${c_reset}          ${c_dim}homelab SSH topology${c_reset}
-    ${c_white}claw toolkit${c_reset}          ${c_dim}Open Claw workflow launcher${c_reset}
-    ${c_white}claw ai-services${c_reset}      ${c_dim}self-hosted AI/web stacks: open-webui|dify|ragflow|langfuse|portainer${c_reset}
-    ${c_white}claw docker${c_reset}           ${c_dim}grouped overview of all containers (lzd=tui, cto=metrics)${c_reset}
-    ${c_white}claw skills${c_reset}           ${c_dim}browse Claude skills${c_reset}
-    ${c_white}claw obsidian${c_reset}         ${c_dim}vault helpers (profile-aware)${c_reset}
-    ${c_white}claw onboard${c_reset}          ${c_dim}80s arcade onboarding · picks your profile${c_reset}
-    ${c_white}claw gamble${c_reset}           ${c_dim}THE CLAW MACHINE 🎰 honest slot machine · odds|wallet|ethics${c_reset}
-    ${c_white}claw integrity${c_reset}        ${c_dim}tamper-check + install verification${c_reset}
-
-  ${c_orange}${c_bold}Profiles${c_reset}
-    ${c_white}claw load <profile>${c_reset}   ${c_dim}source a profile in current shell (lands you in its start dir)${c_reset}
-    ${c_white}claw off${c_reset}              ${c_dim}unset active profile${c_reset}
-    ${c_white}claw profiles paths${c_reset}   ${c_dim}where each profile drops you (PROFILE_START_DIR → resolved)${c_reset}
-    ${c_white}claw profiles lint${c_reset}    ${c_dim}mechanically validate every profile contract${c_reset}
-
-  ${c_purple}${c_bold}Agents${c_reset}
-    ${c_white}claw <agent>${c_reset}          ${c_dim}launch a registered agent (claude, hermes, …)${c_reset}
-    ${c_white}claw agent list${c_reset}       ${c_dim}list registered agents${c_reset}
-    ${c_white}claw agent add${c_reset}        ${c_dim}claw agent add <name> <command> [profile]${c_reset}
-    ${c_white}claw agent doctor${c_reset}     ${c_dim}per-agent binary + key + config health${c_reset}
-    ${c_white}claw mcp-sync${c_reset}          ${c_dim}render one MCP registry → Claude Code/Gemini/Desktop${c_reset}
-    ${c_white}claw ai <cmd>${c_reset}          ${c_dim}local stack: serve|models|pull|chat|web|doctor${c_reset}
-
-  ${c_green}${c_bold}AI Workstation${c_reset}
-    ${c_white}claw gpu [--test --taint]${c_reset}  ${c_dim}K3s GPU node enablement (run on the server)${c_reset}
-    ${c_white}claw gateway <cmd>${c_reset}         ${c_dim}OpenShell gateway: check|register|status|sandbox${c_reset}
-
-  ${c_red}${c_bold}Install${c_reset}
-    ${c_white}claw install <toolchain>${c_reset}  ${c_dim}opt-in toolchain installer (cloud/security/…)${c_reset}
-    ${c_white}claw provision${c_reset}            ${c_dim}fresh box → fully configured in one pass (--dry-run --minimal)${c_reset}
-    ${c_white}claw pkg {list|scan|track|add|install|update}${c_reset} ${c_dim}self-aware tool registry (live panel on install/track/scan)${c_reset}
-    ${c_white}claw uninstall${c_reset}            ${c_dim}reverse bootstrap (soft scope · --dry-run --yes)${c_reset}
-    ${c_white}claw claude-sync snapshot${c_reset} ${c_dim}capture Mac Claude state → manifests${c_reset}
-    ${c_white}claw claude-sync sync${c_reset}     ${c_dim}replay manifests on this machine (BD790i etc.)${c_reset}
-    ${c_white}claw claude-sync status${c_reset}   ${c_dim}diff live state vs manifests · (alias: csync)${c_reset}
-
-  ${c_purple}${c_bold}Knowledge & Secrets${c_reset}
-    ${c_white}claw harness <cmd>${c_reset}      ${c_dim}custom agentic skills: list|new <name>|deploy|path${c_reset}
-    ${c_white}claw handoff "topic"${c_reset}   ${c_dim}session note → Obsidian 00-Inbox (backlinked)${c_reset}
-    ${c_white}claw docs-sync${c_reset}         ${c_dim}sync repo docs → Obsidian vault${c_reset}
-    ${c_white}claw capture-tasks${c_reset}     ${c_dim}vault '@things' lines → Things 3 tasks${c_reset}
-    ${c_white}claw secret <cmd>${c_reset}      ${c_dim}init|env|encrypt|decrypt|doctor (age+sops)${c_reset}
-    ${c_white}claw selfupdate install${c_reset} ${c_dim}schedule weekly auto-update${c_reset}
-    ${c_white}claw cheatsheet${c_reset}        ${c_dim}one-screen command reference${c_reset}
-    ${c_white}claw theme [set <name>]${c_reset} ${c_dim}switch color palette (refined-dark · catppuccin · tokyo-night · …)${c_reset}
-
-  ${c_dim}Config: ${AGENTS_TOML}${c_reset}
-EOF
+# Portable file age in seconds (BSD stat -f / GNU stat -c). Empty when the
+# file is absent — callers render that as "absent", never as 0s.
+_file_age() {
+    local m
+    m="$(stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null)" || return 0
+    [ -n "$m" ] || return 0
+    printf '%s' "$(( $(date +%s) - m ))"
 }
 
+_fmt_age() {
+    local s="${1:-0}"
+    if   [ "$s" -lt 60 ];    then printf '%ss' "$s"
+    elif [ "$s" -lt 3600 ];  then printf '%sm' "$(( s / 60 ))"
+    elif [ "$s" -lt 86400 ]; then printf '%sh' "$(( s / 3600 ))"
+    else                          printf '%sd' "$(( s / 86400 ))"
+    fi
+}
+
+# ONE registry front door for every generated surface in this file (help,
+# tui-stats classification, the `registry` arm). Returns 1 when the emitter is
+# absent so callers can fall back instead of printing nothing.
+_registry() {
+    [ -r "$DOTFILES/scripts/utils/registry.sh" ] || return 1
+    DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/registry.sh" "$@"
+}
+
+# Audit F-15: help (45 entries), completion (39) and the menu (~12) were three
+# hand-maintained copies of a 48-arm dispatcher, and they disagreed — `harness`,
+# Henry's most-used verb, was in none of them. The Profiles section and the
+# per-verb lines now come from `registry.sh help`, which reads the same
+# meta.zsh + actions.tsv the palette and completion do. Only the frame and the
+# two things the registry does not own (agents, the bare-profile shorthand)
+# are written here.
+_help_fallback() {
+    printf "  ${c_dim}registry unavailable (%s) — core doors:${c_reset}\n" \
+        "$DOTFILES/scripts/utils/registry.sh"
+    printf "    ${c_white}claw doctor${c_reset}    ${c_dim}system + attention detail${c_reset}\n"
+    printf "    ${c_white}claw update${c_reset}    ${c_dim}repo sync then packages${c_reset}\n"
+    printf "    ${c_white}claw load <p>${c_reset}  ${c_dim}source a profile in this shell${c_reset}\n"
+}
+
+cmd_help() {
+    printf "\n  ${c_purple}${c_bold}claw${c_reset} — ${c_dim}Open Claw dispatcher${c_reset}\n"
+    _registry help || _help_fallback
+    printf "\n  ${c_purple}${c_bold} shorthand${c_reset}\n"
+    printf "   ${c_white}claw <profile>${c_reset}  ${c_dim}bare profile name = claw load <profile>${c_reset}\n"
+    printf "   ${c_white}claw <agent>${c_reset}    ${c_dim}launch a registered agent (claude, hermes, …)${c_reset}\n"
+    printf "   ${c_white}claw${c_reset}            ${c_dim}open the palette in zsh (also ^G)${c_reset}\n"
+    printf "\n  ${c_dim}Config: %s${c_reset}\n\n" "$AGENTS_TOML"
+}
+
+# Audit F-18: this spawned `zsh -i -c` which INHERITED CLAW_ACTIVE_PROFILE, so
+# welcome-tui's own guard returned immediately and `claw menu` was a silent
+# no-op from inside any loaded profile — exactly when you reach for it. The
+# palette is an in-shell surface (it has to be: picking a profile must mutate
+# THIS shell), so the bash dispatcher's only honest job is to say where it is.
 cmd_menu() {
-    # Source the welcome TUI in a child zsh so the FZF menu can drive everything
-    # exactly as it does on shell login.
-    zsh -i -c 'source "$DOTFILES_DIR/shell/welcome-tui.zsh" && claw_welcome_tui' 2>/dev/null || \
-        err "welcome-tui failed — try: source \$DOTFILES_DIR/shell/welcome-tui.zsh && claw_welcome_tui"
+    info "the palette runs in-shell: type  ${c_white}claw${c_reset}  (or press ${c_white}^G${c_reset}) in zsh"
+    return 0
 }
 
 cmd_stats() {
@@ -284,105 +283,341 @@ cmd_stats() {
     printf "\n  ${c_dim}log: %s${c_reset}\n\n" "$CLAW_USAGE_LOG"
 }
 
+# Audit F-16 — this is the instrument that told Henry the wrong thing.
+#
+# The old version reported "13% no-ops" against a true 85% dark rate because
+# (a) it divided by `tui:fire` rows only, which were written AFTER a pick, so
+# every abandoned login was invisible; (b) it bucketed picks with two hardcoded
+# regexes that filed `vault` and `homelab` under "tools" although both are
+# profiles; and (c) it mixed Henry's logins with the agent loop that is 2/3 of
+# the row volume. The rewrite windows the log, splits by actor, classifies
+# picks from the registry, and computes the two rates the old one structurally
+# could not: abandonment and autoload accuracy.
+#
+#   claw tui-stats [--days N] [--actor human|agent|all]
+#
+# Legacy 4-column `tui:fire` / `tui:pick:<id>` / `tui:esc_to_default` rows are
+# still counted — they are most of the existing log — and land in the `unknown`
+# actor bucket, which is reported explicitly rather than silently folded in.
 cmd_tui_stats() {
+    local days=30 actor=human
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --days)    days="${2:-}"; shift 2 ;;
+            --days=*)  days="${1#*=}"; shift ;;
+            --actor)   actor="${2:-}"; shift 2 ;;
+            --actor=*) actor="${1#*=}"; shift ;;
+            -h|--help)
+                printf "  ${c_white}claw tui-stats${c_reset} ${c_dim}[--days N] [--actor human|agent|all]${c_reset}\n"
+                return 0 ;;
+            *) err "unknown flag: $1 ${c_dim}(claw tui-stats --help)${c_reset}"; return 2 ;;
+        esac
+    done
+    case "$actor" in
+        human|agent|all) ;;
+        *) err "--actor must be human, agent or all (got '${actor}')"; return 2 ;;
+    esac
+    case "$days" in
+        ''|*[!0-9]*) err "--days must be a positive integer (got '${days}')"; return 2 ;;
+    esac
+    [ "$days" -gt 0 ] || { err "--days must be a positive integer (got '${days}')"; return 2; }
+
     if [[ ! -s "$CLAW_USAGE_LOG" ]]; then
         info "no usage logged yet ${c_dim}($CLAW_USAGE_LOG)${c_reset}"
         info "open a few fresh shells, then re-run claw tui-stats"
         return 0
     fi
 
-    # Pull TUI events only. Schema: timestamp \t event \t arg_count \t profile
-    local tui_rows fires esc_fallbacks skip_picks
-    tui_rows=$(awk -F'\t' '$2 ~ /^tui:/' "$CLAW_USAGE_LOG")
-    if [[ -z "$tui_rows" ]]; then
-        info "TUI has not fired yet since instrumentation landed"
-        info "log a few logins, then re-run claw tui-stats"
-        return 0
-    fi
+    # The registry is the classifier: kind (profile|action) and group per id,
+    # aliases included. Absent registry → every pick reads `unclassified`,
+    # which is honest, rather than a regex that guesses.
+    local reg; reg="$(mktemp "${TMPDIR:-/tmp}/claw-reg.XXXXXX")"
+    _registry rows > "$reg" 2>/dev/null || : > "$reg"
 
-    fires=$(echo "$tui_rows" | awk -F'\t' '$2 == "tui:fire"' | wc -l | tr -d ' ')
-    esc_fallbacks=$(echo "$tui_rows" | awk -F'\t' '$2 == "tui:esc_to_default"' | wc -l | tr -d ' ')
-    skip_picks=$(echo "$tui_rows" | awk -F'\t' '$2 == "tui:pick:skip"' | wc -l | tr -d ' ')
+    awk -F'\t' \
+        -v reg="$reg" \
+        -v now="${CLAW_NOW:-$(date +%s)}" \
+        -v days="$days" -v actor="$actor" -v logf="$CLAW_USAGE_LOG" \
+        -v c0="$c_reset" -v cb="$c_bold" -v cp="$c_purple" -v cg="$c_green" \
+        -v co="$c_orange" -v cr="$c_red" -v cd="$c_dim" -v cw="$c_white" \
+        -v ck="$c_cyan" '
+    # ---- ISO-8601 UTC -> epoch. No mktime(): BSD awk has none. Hinnant
+    #      days-from-civil, integer arithmetic only, portable to mawk.
+    function iso2epoch(s,   y,m,d,hh,mm,ss,era,yoe,doy,doe,dfc) {
+        y = substr(s,1,4)+0; m = substr(s,6,2)+0; d = substr(s,9,2)+0
+        hh = substr(s,12,2)+0; mm = substr(s,15,2)+0; ss = substr(s,18,2)+0
+        if (y < 1970 || m < 1 || m > 12) return -1
+        if (m <= 2) y = y - 1
+        if (y >= 0) era = int(y/400); else era = int((y-399)/400)
+        yoe = y - era*400
+        if (m > 2) doy = int((153*(m-3)+2)/5) + d - 1
+        else       doy = int((153*(m+9)+2)/5) + d - 1
+        doe = yoe*365 + int(yoe/4) - int(yoe/100) + doy
+        dfc = era*146097 + doe - 719468
+        return dfc*86400 + hh*3600 + mm*60 + ss
+    }
+    # ---- one k=v;k=v payload value
+    function payval(p, k,   n,i,a,at) {
+        if (p == "") return ""
+        n = split(p, a, ";")
+        for (i = 1; i <= n; i++) {
+            at = index(a[i], "=")
+            if (at > 0 && substr(a[i], 1, at-1) == k) return substr(a[i], at+1)
+        }
+        return ""
+    }
+    function pct(a, b) { if (b <= 0) return 0; return int(a*100/b + 0.5) }
+    # ---- top-N without asort(): repeated max, ties broken by key so two awks
+    #      on the same input print the same table.
+    function topn(arr, n, withkind,   i,k,best,bk,used,kd) {
+        for (i = 0; i < n; i++) {
+            best = -1; bk = ""
+            for (k in arr) {
+                if (k in used) continue
+                if (arr[k] > best || (arr[k] == best && k < bk)) { best = arr[k]; bk = k }
+            }
+            if (bk == "") return
+            used[bk] = 1
+            if (withkind) {
+                kd = "unclassified"
+                if (bk in kind) kd = kind[bk]
+                printf "    %s%4d%s  %s%-16s%s %s%s%s\n", cg, arr[bk], c0, cw, bk, c0, cd, kd, c0
+            } else {
+                printf "    %s%4d%s  %s%s%s\n", cg, arr[bk], c0, cd, bk, c0
+            }
+        }
+    }
+    BEGIN { cutoff = now - days*86400 }
 
-    local default_picks profile_picks tool_picks
-    # Explicit picks (excluding ESC fallback, skip, separator).
-    # Profile list = superset of shell/profiles/*.zsh (15 today). The TUI menu
-    # currently exposes only ~8 of these explicitly, but widening the regex
-    # means new profiles get counted correctly the moment the menu catches up
-    # — no silent miscategorisation. NB: `vault` lives in the tool bucket
-    # because the TUI's `vault` key routes to the Obsidian opener, not the
-    # vault profile. If/when that changes, move vault → profile bucket.
-    default_picks=$(echo "$tui_rows" | awk -F'\t' '$2 == "tui:pick:default"' | wc -l | tr -d ' ')
-    profile_picks=$(echo "$tui_rows" | awk -F'\t' \
-        '$2 ~ /^tui:pick:(security|cloud|devops|ai|research|cortex|claude|local|brainstorm|deck|demo|design|pmo)$/' \
-        | wc -l | tr -d ' ')
-    tool_picks=$(echo "$tui_rows" | awk -F'\t' \
-        '$2 ~ /^tui:pick:(homelab|tunnel|ai_tools|mcp|agents|vault|onboard|gamble|integrity|tmux|yazi|update|doc|top)$/' \
-        | wc -l | tr -d ' ')
+    # ---- pass 1: the registry (kind + group per id and per alias)
+    FILENAME == reg {
+        kind[$2] = $1
+        if ($3 != "-" && $3 != "") {
+            n = split($3, al, "|")
+            for (i = 1; i <= n; i++) if (!(al[i] in kind)) kind[al[i]] = $1
+        }
+        next
+    }
 
-    local since
-    since=$(echo "$tui_rows" | head -1 | cut -f1)
+    # ---- pass 2: the usage log
+    {
+        total++
+        e = iso2epoch($1)
+        if (e < 0 || e < cutoff) next
+        inwin++
+        pay = ""
+        if (NF >= 5) pay = $5
+        act = payval(pay, "actor")
+        if (act == "") act = "unknown"
+        b = "unknown"
+        if (act == "agent") b = "agent"
+        else if (act == "human" || act == "ide" || act == "ssh") b = "human"
+        if (b == "unknown") unattr++
+        show = 0
+        if (actor == "all" || actor == b) show = 1
+        human = (b == "human")
 
-    printf "\n  ${c_purple}${c_bold}claw tui-stats${c_reset}  ${c_dim}— %s TUI fires since %s${c_reset}\n" "$fires" "$since"
-    printf "  ${c_dim}─────────────────────────────────────${c_reset}\n\n"
+        ev = $2
+        if (ev ~ /^tui:login:/) {
+            x = substr(ev, 11); ci = index(x, ":")
+            if (ci > 0) { mode = substr(x, 1, ci-1); lp = substr(x, ci+1) }
+            else        { mode = x; lp = $4 }
+            if (show) { logins[mode " -> " lp]++; nlogins++; d_nl++; dl_t[d_nl] = e; dl_p[d_nl] = lp }
+            if (human) h_logins++
+        }
+        else if (ev == "tui:fire") {
+            # pre-instrumentation login row: no mode, no actor
+            if (show) { logins["legacy -> (untagged)"]++; nlogins++ }
+        }
+        else if (ev ~ /^tui:abort:/) {
+            ph = substr(ev, 11)
+            if (show) { aborts[ph]++; naborts++ }
+            if (human) h_aborts++
+        }
+        else if (ev == "tui:palette:open" || ev == "tui:open") {
+            if (show) opens++
+            if (human) h_opens++
+        }
+        else if (ev ~ /^tui:palette:pick/ || ev ~ /^tui:pick:/) {
+            id = ""
+            if (ev ~ /^tui:palette:pick:/) id = substr(ev, 18)
+            else if (ev ~ /^tui:pick:/)    id = substr(ev, 10)
+            if (id == "") id = payval(pay, "id")
+            if (id == "") id = "(unknown)"
+            if (show) { picks[id]++; npicks++ }
+            if (human) h_picks++
+        }
+        else if (ev == "tui:palette:esc" || ev == "tui:esc_to_default") {
+            q = payval(pay, "q")
+            if (show) { esc++; if (q != "") { noq[q]++; nnoq++ } }
+            if (human) h_esc++
+        }
+        else if (ev ~ /^load:/) {
+            if (show) { d_nd++; dd_t[d_nd] = e; dd_p[d_nd] = substr(ev, 6); verbs["load"]++; nverbs++ }
+        }
+        else if (ev !~ /^tui:/) {
+            if (show) { verbs[ev]++; nverbs++ }
+        }
+    }
 
-    printf "  ${c_cyan}${c_bold}Outcomes${c_reset}\n"
-    printf "    ${c_green}%4d${c_reset}  ${c_dim}explicit non-default profile${c_reset}\n" "$profile_picks"
-    printf "    ${c_green}%4d${c_reset}  ${c_dim}tool / system entry${c_reset}\n" "$tool_picks"
-    printf "    ${c_orange}%4d${c_reset}  ${c_dim}explicit default pick${c_reset}\n" "$default_picks"
-    printf "    ${c_orange}%4d${c_reset}  ${c_dim}ESC fallback to default${c_reset}\n" "$esc_fallbacks"
-    printf "    ${c_red}%4d${c_reset}  ${c_dim}skip to bare shell${c_reset}\n" "$skip_picks"
+    END {
+        printf "\n  %s%sclaw tui-stats%s  %s— last %d days · actor %s · %d of %d rows in window%s\n",
+               cp, cb, c0, cd, days, actor, inwin, total, c0
+        printf "  %s---------------------------------------------------------%s\n\n", cd, c0
 
-    printf "\n  ${c_cyan}${c_bold}Per-key breakdown${c_reset}\n"
-    echo "$tui_rows" | awk -F'\t' '$2 ~ /^tui:pick:/' | cut -f2 | sed 's/^tui:pick://' \
-        | sort | uniq -c | sort -rn | \
-        awk -v p=$'\e[38;2;188;140;255m' -v d=$'\e[38;2;139;148;158m' -v r=$'\e[0m' \
-            '{ printf "    %s%4d%s  %s%s%s\n", p, $1, r, d, $2, r }'
+        printf "  %s%sLogins by mode -> profile%s\n", ck, cb, c0
+        if (nlogins == 0) printf "    %s(none in window)%s\n", cd, c0
+        else topn(logins, 12, 0)
 
-    # ─────────────────────────────────────────────
-    # VERDICT — your call, Henry. 5-10 lines.
-    # The question: does the TUI deserve to exist as a forced login prompt?
-    # Inputs available above as shell vars: fires, profile_picks, tool_picks,
-    # default_picks, esc_fallbacks, skip_picks.
-    #
-    # Define what "earns its keep" means to YOU and print a recommendation.
-    # Example threshold ideas (pick one or combine):
-    #   - if (profile_picks + tool_picks) / fires < 0.20 → "KILL: 80%+ no-op"
-    #   - if profile_picks per week < 2 → "KILL: rarely used as profile switcher"
-    #   - if tool_picks > profile_picks × 3 → "REFRAME: it's a tool launcher, not a profile picker"
-    # ─────────────────────────────────────────────
-    tui_verdict "$fires" "$profile_picks" "$tool_picks" "$default_picks" "$esc_fallbacks" "$skip_picks"
+        # Abandonment: the rate the old instrument could not see at all,
+        # because it only counted fires that had already produced an outcome.
+        printf "\n  %s%sAbort rate%s  %s(tui:abort:* over %s logins)%s\n", ck, cb, c0, cd, actor, c0
+        if (nlogins == 0) printf "    %sno logins in window%s\n", cd, c0
+        else {
+            printf "    %s%d/%d%s  %s%d%%%s", co, naborts, nlogins, c0, co, pct(naborts, nlogins), c0
+            sep = "   "
+            for (k in aborts) { printf "%s%s%s %d%s", sep, cd, k, aborts[k], c0; sep = " · " }
+            printf "\n"
+            if (naborts == 0) printf "    %sinit = shell exited before its first prompt · render = Ctrl-C during the strip%s\n", cd, c0
+        }
 
-    printf "\n  ${c_dim}log: %s${c_reset}\n\n" "$CLAW_USAGE_LOG"
+        printf "\n  %s%sPalette%s\n", ck, cb, c0
+        printf "    %sopens%s %d   %spicks%s %d   %sesc%s %d", cd, c0, opens+0, cd, c0, npicks+0, cd, c0, esc+0
+        if (nlogins > 0) printf "   %s· %d opens per 100 %s logins%s", cd, pct(opens, nlogins), actor, c0
+        if (opens > 0)    printf "   %s· %d%% pick rate%s", cd, pct(npicks, opens), c0
+        printf "\n"
+
+        # Autoload accuracy: a human login whose profile the user overrode with
+        # `claw load <other>` inside 300 s is the autoloader guessing wrong.
+        printf "\n  %s%sAutoload accuracy%s  %s(login not corrected by claw load <other> within 300s)%s\n", ck, cb, c0, cd, c0
+        if (d_nl == 0) printf "    %sno %s logins in window%s\n", cd, actor, c0
+        else {
+            corrected = 0
+            for (i = 1; i <= d_nl; i++) {
+                for (j = 1; j <= d_nd; j++) {
+                    if (dd_t[j] >= dl_t[i] && dd_t[j] - dl_t[i] <= 300 && dd_p[j] != dl_p[i]) {
+                        corrected++; break
+                    }
+                }
+            }
+            printf "    %s%d/%d%s  %s%d%%%s   %s%d corrected%s\n",
+                   cg, d_nl - corrected, d_nl, c0, cg, pct(d_nl - corrected, d_nl), c0,
+                   cd, corrected, c0
+        }
+
+        printf "\n  %s%sTop picks%s  %s(kind from the registry, not a regex)%s\n", ck, cb, c0, cd, c0
+        if (npicks == 0) printf "    %s(none in window)%s\n", cd, c0
+        else topn(picks, 10, 1)
+
+        printf "\n  %s%sNo-pick queries%s  %s(typed, then ESC)%s\n", ck, cb, c0, cd, c0
+        if (nnoq == 0) printf "    %s(none in window)%s\n", cd, c0
+        else topn(noq, 8, 0)
+
+        printf "\n  %s%sTop verbs%s  %s(CLI dispatch rows)%s\n", ck, cb, c0, cd, c0
+        if (nverbs == 0) printf "    %s(none in window)%s\n", cd, c0
+        else topn(verbs, 10, 0)
+
+        if (unattr > 0)
+            printf "\n  %sunattributed: %d rows in window predate the actor column%s\n", cd, unattr, c0
+
+        # ---- Verdict. HUMAN rows only, always, whatever --actor displayed.
+        printf "\n  %s%sVerdict%s  %s(human rows only)%s\n", co, cb, c0, cd, c0
+        if (h_logins < 30)
+            printf "    %s● insufficient data%s  %s%d human logins in window, need 30%s\n", cd, c0, cd, h_logins, c0
+        else if (h_opens == 0)
+            printf "    %s● DARK%s     %sthe palette was never opened in %d human logins — it is opt-in and earns nothing yet%s\n", cr, c0, cd, h_logins, c0
+        else if (pct(h_opens, h_logins) < 20)
+            printf "    %s● OPT-IN%s   %sopened on %d%% of logins — correct for an on-demand surface, wrong for a forced one%s\n", co, c0, cd, pct(h_opens, h_logins), c0
+        else if (h_opens > 0 && pct(h_picks, h_opens) < 40)
+            printf "    %s● REFRAME%s  %sopened %d times, picked %d — the list is not answering the query%s\n", co, c0, cd, h_opens, h_picks, c0
+        else
+            printf "    %s● KEEP%s     %s%d%% of opens end in a pick%s\n", cg, c0, cd, pct(h_picks, h_opens), c0
+        if (h_logins > 0 && pct(h_aborts, h_logins) > 10)
+            printf "    %s-> %d%% of human logins aborted before a prompt — look at the render, not the palette%s\n", cd, pct(h_aborts, h_logins), c0
+
+        printf "\n  %slog: %s%s\n\n", cd, logf, c0
+    }
+    ' "$reg" "$CLAW_USAGE_LOG"
+
+    rm -f "$reg"
 }
 
-# Default verdict — opinionated thresholds. Tune to taste.
-#   KILL    if <20% of fires resulted in real work (profile switch or tool launch)
-#   REFRAME if it's mostly a tool launcher (tool >= 3× profile picks)
-#   REFRAME if useful work happens 20-50% of fires
-#   KEEP    if ≥50% useful
-# A 'skip to shell' rate >10% is flagged as a secondary signal.
-tui_verdict() {
-    local fires=$1 profile=$2 tool=$3 def=$4 esc=$5 skip=$6
-    if (( fires < 30 )); then
-        printf "\n  ${c_orange}${c_bold}Verdict${c_reset}  ${c_dim}— insufficient data (need ≥30 fires, have %s)${c_reset}\n" "$fires"
-        return
+# ============================================
+# REGISTRY-BACKED ARMS  (audit F-15 / F-18)
+# ============================================
+# The four arms the registry already had rows for. Adding them here is what
+# lets scripts/utils/registry.sh drop PENDING_ARMS and go back to being a real
+# guard against a typo'd `run` snippet.
+
+# `claw registry <cmd>` — the emitter, reachable without knowing its path.
+cmd_registry() {
+    [ -r "$DOTFILES/scripts/utils/registry.sh" ] || { err "registry.sh not found under $DOTFILES"; return 1; }
+    DOTFILES_DIR="$DOTFILES" exec bash "$DOTFILES/scripts/utils/registry.sh" "$@"
+}
+
+# `claw pin [<profile>|--clear]` — the per-machine login profile claw_login
+# already reads. One line, one file, no schema.
+cmd_pin() {
+    local pinfile="$CLAW_CONFIG_DIR/login-profile"
+    case "${1:-}" in
+        "")
+            if [ -r "$pinfile" ]; then
+                info "login profile: ${c_white}$(head -1 "$pinfile" | tr -d '[:space:]')${c_reset} ${c_dim}($pinfile)${c_reset}"
+            else
+                info "login profile: ${c_white}default${c_reset} ${c_dim}(no pin set — claw pin <profile>)${c_reset}"
+            fi
+            ;;
+        --clear|clear)
+            rm -f "$pinfile"
+            ok "login pin cleared ${c_dim}(logins fall back to default)${c_reset}"
+            ;;
+        -h|--help)
+            printf "  ${c_white}claw pin${c_reset} ${c_dim}[<profile>|--clear]${c_reset}\n"
+            ;;
+        *)
+            if [ ! -f "$DOTFILES/shell/profiles/$1.zsh" ]; then
+                err "no such profile: $1 ${c_dim}(claw registry ids profiles)${c_reset}"
+                return 1
+            fi
+            mkdir -p "$CLAW_CONFIG_DIR"
+            printf '%s\n' "$1" > "$pinfile"
+            ok "login profile pinned to ${c_white}$1${c_reset}"
+            ;;
+    esac
+}
+
+# `claw ack <id> [--hours N]` — silence one attention item for a while.
+# situation.sh's evaluate already reads acks.tsv as `<id>\t<until_epoch>`;
+# this is the writer, and it re-evaluates so the strip and ⚑ update at once.
+cmd_ack() {
+    local id="" hours=8
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --hours)   hours="${2:-}"; shift 2 ;;
+            --hours=*) hours="${1#*=}"; shift ;;
+            -h|--help) printf "  ${c_white}claw ack${c_reset} ${c_dim}<id> [--hours N]   (ids: claw situation show)${c_reset}\n"; return 0 ;;
+            *) [ -z "$id" ] && id="$1"; shift ;;
+        esac
+    done
+    if [ -z "$id" ]; then
+        err "usage: claw ack <id> [--hours N]"
+        return 2
     fi
-    local useful=$((profile + tool)) noop=$((def + esc))
-    local useful_pct=$(( useful * 100 / fires ))
-    local skip_pct=$(( skip * 100 / fires ))
-    printf "\n  ${c_orange}${c_bold}Verdict${c_reset}  ${c_dim}— %s%% of fires did real work, %s%% were no-ops${c_reset}\n" "$useful_pct" $(( noop * 100 / fires ))
-    if (( useful_pct < 20 )); then
-        printf "    ${c_red}● KILL${c_reset}     ${c_dim}TUI is mostly tax: %s/%s fires were no-ops. Move to opt-in (claw menu).${c_reset}\n" "$noop" "$fires"
-    elif (( profile > 0 && tool >= profile * 3 )); then
-        printf "    ${c_orange}● REFRAME${c_reset}  ${c_dim}used as a tool launcher (%s) far more than a profile picker (%s). Make tools the headline.${c_reset}\n" "$tool" "$profile"
-    elif (( useful_pct < 50 )); then
-        printf "    ${c_orange}● REFRAME${c_reset}  ${c_dim}used %s%% of fires. Default to last profile; surface TUI on demand.${c_reset}\n" "$useful_pct"
-    else
-        printf "    ${c_green}● KEEP${c_reset}     ${c_dim}earns its real estate at %s%% useful.${c_reset}\n" "$useful_pct"
+    case "$hours" in ''|*[!0-9]*) err "--hours must be a positive integer (got '${hours}')"; return 2 ;; esac
+
+    local state="${XDG_STATE_HOME:-$HOME/.local/state}/claw"
+    mkdir -p "$state"
+    printf '%s\t%s\n' "$id" "$(( $(date +%s) + hours * 3600 ))" >> "$state/acks.tsv"
+    ok "acked ${c_white}${id}${c_reset} ${c_dim}for ${hours}h${c_reset}"
+    if [ -r "$DOTFILES/scripts/utils/situation.sh" ]; then
+        DOTFILES_DIR="$DOTFILES" bash "$DOTFILES/scripts/utils/situation.sh" evaluate >/dev/null 2>&1 || true
     fi
-    (( skip_pct > 10 )) && \
-        printf "    ${c_dim}↳ %s%% of fires ended in 'skip to shell' — strong signal you want a faster path to bare prompt.${c_reset}\n" "$skip_pct"
+}
+
+# `claw dash` — the login card on demand (same render path as the hook).
+cmd_dash() {
+    [ -r "$DOTFILES/scripts/utils/claw-dashboard.py" ] || { err "claw-dashboard.py not found under $DOTFILES"; return 1; }
+    DOTFILES_DIR="$DOTFILES" exec python3 "$DOTFILES/scripts/utils/claw-dashboard.py" --login "$@"
 }
 
 cmd_validate() {
@@ -414,6 +649,30 @@ cmd_doctor() {
         info "updates:  $(bash "$DOTFILES/scripts/utils/update-status.sh" read 2>/dev/null || echo n/a)"
     else
         info "updates:  ${c_dim}n/a${c_reset}"
+    fi
+
+    # Cache ages + attention count (audit F-18). Every surface on the login
+    # path — strip, card, p10k flag — renders from these five files and never
+    # probes, so "why is the strip stale?" is answered here, not by guessing.
+    printf "\n  ${c_purple}${c_bold}Caches${c_reset} ${c_dim}(login path reads these, never probes)${c_reset}\n"
+    local _c _age
+    for _c in situation homelab updates local attention; do
+        _age="$(_file_age "$CLAW_CACHE_DIR/${_c}.json")"
+        if [[ -n "$_age" ]]; then
+            ok "${_c}${c_dim} · $(_fmt_age "$_age") old${c_reset}"
+        else
+            printf "  ${c_dim}·${c_reset} ${_c}${c_dim} — absent (claw situation probe)${c_reset}\n"
+        fi
+    done
+    if [[ -r "$CLAW_CACHE_DIR/attention.count" ]]; then
+        local _n; _n="$(head -1 "$CLAW_CACHE_DIR/attention.count" 2>/dev/null | tr -dc '0-9')"
+        if [[ "${_n:-0}" -gt 0 ]]; then
+            printf "  ${c_orange}⚑${c_reset} attention.count: ${c_white}${_n}${c_reset} ${c_dim}(claw situation show)${c_reset}\n"
+        else
+            ok "attention.count: ${c_dim}0 — all clear${c_reset}"
+        fi
+    else
+        printf "  ${c_dim}·${c_reset} attention.count${c_dim} — absent (claw situation evaluate)${c_reset}\n"
     fi
 
     printf "\n  ${c_purple}${c_bold}Core CLI${c_reset}\n"
@@ -1131,7 +1390,11 @@ case "${1:-menu}" in
     doctor)         shift; cmd_doctor "$@" ;;
     validate)       shift; cmd_validate "$@" ;;
     stats)          cmd_stats ;;
-    tui-stats)      cmd_tui_stats ;;
+    tui-stats)      shift; cmd_tui_stats "$@" ;;
+    registry)       shift; cmd_registry "$@" ;;
+    pin)            shift; cmd_pin "$@" ;;
+    ack)            shift; cmd_ack "$@" ;;
+    dash)           shift; cmd_dash "$@" ;;
     update|upgrade) shift; cmd_update "$@" ;;
     tools)          shift; cmd_tools "$@" ;;
     tun|tunnel)     shift; cmd_tun "$@" ;;
