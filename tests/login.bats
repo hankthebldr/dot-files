@@ -616,3 +616,201 @@ _CLAW_LOGIN_MODE=human TERM_PROGRAM=Apple_Terminal _claw_login_render"
   # 5 columns: the 4-column readers (bin/claw stats) still parse it
   [ "$(awk -F'\t' '/tui:login:human:cortex/ {print NF}' "$log")" = "5" ]
 }
+
+# ============================================================================
+# T1-07c — the whole login path, end to end, through a real pty.
+#
+# .zshrc step 2b decides; the first precmd renders. These cases pin the
+# behaviours the audit found broken: F-01 (interrupt), F-02 (agents render
+# nothing), F-03 (no question at login), F-06 (typed-ahead survives),
+# F-20 (no fzf on the path), F-21 (nested shells keep their cwd).
+# ============================================================================
+
+# Seed the harness's hermetic HOME before the run: two attention items and a
+# card stamp from yesterday, so a human login has something to say and a card
+# to draw.
+seed_home() {
+  local h="$BATS_TEST_TMPDIR/$1/home"
+  mkdir -p "$h/.cache/claw"
+  cp "$BATS_TEST_DIRNAME/fixtures/attention/attention.tsv" "$h/.cache/claw/attention.tsv"
+  date -v-1d +%Y%m%d > "$h/.cache/claw/card.stamp" 2>/dev/null || \
+    date -d yesterday +%Y%m%d > "$h/.cache/claw/card.stamp"
+}
+
+@test "zshrc: step 2b sources claw-login and the welcome-TUI block is gone" {
+  local rc="$REPO/shell/.zshrc"
+  run grep -n 'source "$DOTFILES_DIR/shell/claw-login.zsh"' "$rc"
+  echo "$output"; [ "$status" -eq 0 ]
+  run grep -c 'claw_welcome_tui' "$rc"
+  [ "$output" = "0" ]
+  # claw_login must be decided before the theme engine reads CLAW_THEME
+  local a b
+  a="$(grep -n 'shell/claw-login.zsh' "$rc" | head -1 | cut -d: -f1)"
+  b="$(grep -n 'scripts/utils/theme.sh' "$rc" | head -1 | cut -d: -f1)"
+  echo "claw-login@$a theme@$b"
+  [ "$a" -lt "$b" ]
+}
+
+@test "zshrc: the start-dir applier is gated on a fresh login" {
+  run grep -n '_CLAW_FRESH_LOGIN:-0' "$REPO/shell/.zshrc"
+  echo "$output"; [ "$status" -eq 0 ]
+  [[ "$output" == *"_claw_profile_cd"* ]]
+}
+
+@test "login(pty): an agent shell renders nothing and probes nothing" {
+  require_pty
+  seed_home agent
+  login agent --dash-sleep-ms 50 --env CLAUDECODE=1 \
+    --probe 'print "PROBE_MODE=${_CLAW_LOGIN_MODE:-none}"' \
+    --probe 'print "PROBE_HOOK=$(( ${precmd_functions[(I)_claw_login_render]:-0} ))"' \
+    --probe 'print "PROBE_P=$CLAW_ACTIVE_PROFILE"'
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROBE_MODE=agent"* ]]
+  [[ "$output" == *"PROBE_HOOK=0"* ]]
+  [[ "$output" == *"PROBE_P=default"* ]]
+  # nothing from the attention file, no card, no background probes, no picker
+  [[ "$output" != *"tailscale down"* ]]
+  [ ! -f "$BATS_TEST_TMPDIR/agent/home/dash.log" ]
+  [ ! -f "$BATS_TEST_TMPDIR/agent/home/probes.log" ]
+  [ ! -f "$BATS_TEST_TMPDIR/agent/home/fzf.log" ]
+  # the shell itself is still fully built
+  [[ "$output" == *"PROBE_CLAW=yes"* ]]
+}
+
+@test "login(pty): a human tab gets the strip, then the card once a day" {
+  require_pty
+  seed_home human
+  login human --dash-sleep-ms 50 --env TERM_PROGRAM=Apple_Terminal \
+    --probe 'print "PROBE_MODE=$_CLAW_LOGIN_MODE"'
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROBE_MODE=human"* ]]
+  [[ "$output" == *"tailscale down"* ]]
+  [[ "$output" == *"gitea on ms-01"* ]]
+  [[ "$output" != *"more · claw dash"* ]]
+  local h="$BATS_TEST_TMPDIR/human/home"
+  echo "dash: $(cat "$h/dash.log")"
+  [ "$(wc -l < "$h/dash.log")" -eq 1 ]
+  grep -q -- '--login' "$h/dash.log"
+  echo "probes: $(cat "$h/probes.log")"
+  grep -q 'situation.sh homelab' "$h/probes.log"
+  grep -q 'situation.sh local' "$h/probes.log"
+  grep -q 'update-status.sh --refresh' "$h/probes.log"
+  grep -q 'tool-updater.sh' "$h/probes.log"
+  [ ! -f "$h/fzf.log" ]
+
+  # second login the same day: strip again, card not again
+  login human --dash-sleep-ms 50 --env TERM_PROGRAM=Apple_Terminal
+  echo "$output"
+  [[ "$output" == *"tailscale down"* ]]
+  [ "$(wc -l < "$h/dash.log")" -eq 1 ]
+}
+
+@test "login(pty): an unknown terminal gets the strip but no card" {
+  require_pty
+  seed_home unknownterm
+  login unknownterm --dash-sleep-ms 50 \
+    --probe 'print "PROBE_MODE=$_CLAW_LOGIN_MODE"'
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROBE_MODE=unknown"* ]]
+  [[ "$output" == *"tailscale down"* ]]
+  [ ! -f "$BATS_TEST_TMPDIR/unknownterm/home/dash.log" ]
+  [ ! -f "$BATS_TEST_TMPDIR/unknownterm/home/probes.log" ]
+}
+
+@test "login(pty): typed-ahead text runs as a command instead of being eaten" {
+  require_pty
+  seed_home typeahead
+  # F-06: the old fzf menu read stdin during the rc, so this became a menu pick.
+  login typeahead --dash-sleep-ms 50 --env TERM_PROGRAM=Apple_Terminal \
+    --type 'cd /tmp
+' --probe 'print "PROBE_PWD=$PWD"' --probe 'print "PROBE_P=$CLAW_ACTIVE_PROFILE"'
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROBE_PWD=/tmp"* ]]
+  [[ "$output" == *"PROBE_P=default"* ]]
+  [ ! -f "$BATS_TEST_TMPDIR/typeahead/home/fzf.log" ]
+}
+
+@test "login(pty): a nested shell keeps its cwd (F-21)" {
+  require_pty
+  login nested --dash-sleep-ms 50 --env CLAW_ACTIVE_PROFILE=vault \
+    --pre 'cd /tmp' \
+    --probe 'print "PROBE_PWD=$PWD"' \
+    --probe 'print "PROBE_FRESH=${_CLAW_FRESH_LOGIN:-unset}"' \
+    --probe 'print "PROBE_NAME=${PROFILE_NAME:-unset}"'
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROBE_PWD=/tmp"* ]]
+  [[ "$output" == *"PROBE_FRESH=0"* ]]
+  # the profile is still sourced — only the relocation is skipped
+  [[ "$output" == *"PROBE_NAME=vault"* ]]
+  [[ "$output" != *"start dir missing"* ]]
+}
+
+@test "login(pty): a pinned profile is loaded without asking (F-03)" {
+  require_pty
+  login pinned --dash-sleep-ms 50 --env TERM_PROGRAM=Apple_Terminal \
+    --env CLAW_LOGIN_PROFILE=security \
+    --probe 'print "PROBE_P=$CLAW_ACTIVE_PROFILE"' \
+    --probe 'print "PROBE_NAME=${PROFILE_NAME:-unset}"' \
+    --probe 'print "PROBE_THEME=${CLAW_THEME:-unset}"' \
+    --probe 'print "PROBE_GROUP=${CLAW_ACTIVE_GROUP:-unset}"' \
+    --probe 'print "PROBE_HELP=$(typeset -f sec-help >/dev/null 2>&1 && echo yes || echo no)"'
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PROBE_P=security"* ]]
+  [[ "$output" == *"PROBE_NAME=security"* ]]
+  [[ "$output" == *"PROBE_THEME=matrix"* ]]
+  [[ "$output" == *"PROBE_GROUP=domain"* ]]
+  [[ "$output" == *"PROBE_HELP=yes"* ]]
+  [ ! -f "$BATS_TEST_TMPDIR/pinned/home/fzf.log" ]
+}
+
+@test "login(pty): Ctrl-C at 50/200/500ms leaves the shell whole (F-01)" {
+  require_pty
+  local ms
+  for ms in 50 200 500; do
+    seed_home "int$ms"
+    login "int$ms" --dash-sleep-ms 400 --env TERM_PROGRAM=Apple_Terminal \
+      --env CLAW_NO_LOG=0 --send-int-at "$ms"
+    echo "--- ${ms}ms: $output"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"__PROMPT__"* ]]
+    [[ "$output" == *"PROBE_ALIAS=yes"* ]]
+    [[ "$output" == *"PROBE_CLAW=yes"* ]]
+    [[ "$output" == *"PROBE_INTTRAP=0"* ]]
+    # whatever the interrupt landed on, it is either survived or recorded
+    local log="$BATS_TEST_TMPDIR/int$ms/home/.cache/claw/usage.tsv"
+    if [ -f "$log" ] && grep -q 'tui:abort' "$log"; then
+      run grep -oE 'tui:abort:(init|render)' "$log"
+      echo "abort rows: $output"
+      [ "$status" -eq 0 ]
+    fi
+  done
+}
+
+@test "render: an interrupt during the card is logged and returns 130" {
+  zl_pre; render_env; att
+  # Ctrl-C reaches the whole foreground group, so the stand-in card signals
+  # the shell that spawned it exactly as a real interrupted python3 would.
+  cat > "$BATS_TEST_TMPDIR/bin/python3" <<'EOS'
+#!/usr/bin/env bash
+kill -INT "$PPID"
+sleep 1
+EOS
+  chmod +x "$BATS_TEST_TMPDIR/bin/python3"
+  zl "$ZL_RENDER
+      unset CLAW_NO_LOG
+      _CLAW_LOGIN_MODE=human CLAW_LOGIN_CARD=always _claw_login_render
+      print \"rc=\$?\""
+  echo "$output"
+  [[ "$output" == *"rc=130"* ]]
+  grep -q 'tui:abort:render' "$XDG_CACHE_HOME/claw/usage.tsv"
+  # the interrupt costs the render, not the shell: no login row, no kicks
+  run grep -c 'tui:login' "$XDG_CACHE_HOME/claw/usage.tsv"
+  [ "$output" = "0" ]
+  [ ! -f "$BATS_TEST_TMPDIR/probes.log" ]
+}

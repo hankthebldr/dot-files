@@ -182,6 +182,11 @@ claw_login() {
     export CLAW_ACTIVE_GROUP="$REPLY"
 
     zmodload -i zsh/datetime 2>/dev/null
+    # Pin the tree the login was decided from. shell/exports.zsh re-exports
+    # DOTFILES_DIR at step 6 as the fully resolved path (${0:A:h:h}), so by the
+    # time the hook fires $DOTFILES_DIR can name a different path to the same
+    # checkout. The render must use the tree the rc actually loaded.
+    typeset -g _CLAW_LOGIN_DOTFILES="$d"
     # NOT exported, on purpose (F-21): a tmux pane, `nvim :terminal` or
     # `exec zsh` inherits the profile but not the flag, so step 8 leaves its
     # cwd alone. A pid check would not work — `exec zsh` keeps the pid.
@@ -294,13 +299,6 @@ _claw_attention_strip() {
     return 0
 }
 
-# The card itself. Separate so the daily gate can call it from inside the
-# block that holds the stamp lock without repeating the invocation.
-_claw_login_card() {
-    DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}" \
-        python3 "${DOTFILES_DIR:-$HOME/.dotfiles}/scripts/utils/claw-dashboard.py" --login
-}
-
 # ── the render ───────────────────────────────────────────────────────────────
 # Runs from the FIRST precmd, so aliases, claw(), completion and p10k already
 # exist. An interrupt here costs you the render and nothing else (F-01).
@@ -319,7 +317,7 @@ _claw_login_render() {
     # string — as a following statement it would never run.
     trap '_claw_tlog tui:abort:render; return 130' INT
 
-    [[ -n "${DOTFILES_DIR:-}" ]] || typeset -g DOTFILES_DIR="$HOME/.dotfiles"
+    local d="${_CLAW_LOGIN_DOTFILES:-${DOTFILES_DIR:-$HOME/.dotfiles}}"
     local mode="${_CLAW_LOGIN_MODE:-unknown}"
     local cache="${XDG_CACHE_HOME:-$HOME/.cache}/claw"
 
@@ -360,17 +358,26 @@ _claw_login_render() {
             fi
         fi
     fi
-    (( card )) && { _claw_login_card || card=0 }
+    # Inline on purpose: a `trap ... INT` handler runs in the context of the
+    # function that was executing when the signal arrived, so `return 130` has
+    # to be able to return from THIS function. Wrapping the card in a helper
+    # would abort the helper and let the render carry on.
+    # `cmd || card=0` would swallow the trap's status: an INT during the card
+    # still aborts the render, but the function would report 0.
+    if (( card )); then
+        DOTFILES_DIR="$d" python3 "$d/scripts/utils/claw-dashboard.py" --login
+        (( $? )) && card=0
+    fi
 
     # ── background kicks ────────────────────────────────────────────────────
     # Only where a person will see the result (F-02). All four are throttled
     # and single-flighted by their own scripts; `&!` disowns so no job-control
     # notice bleeds over the card.
     if [[ "$mode" == human || "$mode" == ssh ]]; then
-        nice -n 10 bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab &>/dev/null &!
-        nice -n 10 bash "$DOTFILES_DIR/scripts/utils/situation.sh" local &>/dev/null &!
-        "$DOTFILES_DIR/scripts/utils/update-status.sh" --refresh &>/dev/null &!
-        "$DOTFILES_DIR/scripts/utils/tool-updater.sh" &>/dev/null &!
+        nice -n 10 bash "$d/scripts/utils/situation.sh" homelab &>/dev/null &!
+        nice -n 10 bash "$d/scripts/utils/situation.sh" local &>/dev/null &!
+        "$d/scripts/utils/update-status.sh" --refresh &>/dev/null &!
+        "$d/scripts/utils/tool-updater.sh" &>/dev/null &!
     fi
 
     # Terminal chrome follows the palette — the emitter's own gate makes this a
