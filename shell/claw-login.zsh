@@ -91,6 +91,18 @@ _claw_actor() {
 
 # Sets $REPLY to the login mode: `nested` when this shell already inherited a
 # profile (a tmux pane, `exec zsh`, a subshell), else the actor.
+# True when this shell is one a PERSON is looking at, i.e. a login-path renderer
+# may print. agent/ide shells are opened by tooling (Claude Desktop, IDE panels)
+# and nested shells already showed their login — neither gets output. An
+# unrecognised terminal is treated as human so a new terminal degrades to
+# visible-but-plain, never to silence (audit F-02).
+_claw_login_is_human() {
+    case "${_CLAW_LOGIN_MODE:-unknown}" in
+        agent|ide|nested) return 1 ;;
+        *)                return 0 ;;
+    esac
+}
+
 _claw_login_mode() {
     if [[ -n "${CLAW_ACTIVE_PROFILE:-}" ]]; then
         REPLY=nested

@@ -814,3 +814,31 @@ EOS
   [ "$output" = "0" ]
   [ ! -f "$BATS_TEST_TMPDIR/probes.log" ]
 }
+
+# audit F-02: "has a pty" is not "a human is here". delight.zsh's fact card and
+# pkg nudge gated on `-t 1` alone, so every Claude Desktop / IDE pty printed
+# them — the exact pollution the actor model exists to stop. They must consume
+# _CLAW_LOGIN_MODE (set by claw_login) like every other login-path renderer.
+@test "delight: fact card and pkg nudge are gated on the login actor, not the tty" {
+  grep -qE '_CLAW_LOGIN_MODE|_claw_login_is_human' "$BATS_TEST_DIRNAME/../shell/delight.zsh"
+  # both render blocks must carry the gate
+  run bash -c "grep -cE '_CLAW_LOGIN_MODE|_claw_login_is_human' '$BATS_TEST_DIRNAME/../shell/delight.zsh'"
+  [ "$output" -ge 2 ]
+}
+
+@test "delight: helper says agent/ide are not human, human/unknown/ssh render" {
+  run zsh -fc '
+    DOTFILES_DIR="'"$BATS_TEST_DIRNAME"'/.."
+    source "$DOTFILES_DIR/shell/claw-login.zsh"
+    for m in human unknown ssh agent ide nested; do
+      _CLAW_LOGIN_MODE=$m
+      _claw_login_is_human && print "$m=yes" || print "$m=no"
+    done'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"human=yes"* ]]
+  [[ "$output" == *"unknown=yes"* ]]
+  [[ "$output" == *"ssh=yes"* ]]
+  [[ "$output" == *"agent=no"* ]]
+  [[ "$output" == *"ide=no"* ]]
+  [[ "$output" == *"nested=no"* ]]
+}

@@ -137,7 +137,11 @@ claw_fact() {
     print -r -- ""
 }
 # One fact per day on interactive login (skip SSH-pipe / non-tty).
-if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_FACT:-1}" == 1 ]]; then
+# Actor gate (audit F-02): a pty is not a person. agent/ide/nested shells
+# print nothing; _claw_login_is_human is defined by claw-login.zsh (step 2b,
+# before this file) and the `typeset -f` guard keeps delight standalone-safe.
+if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_FACT:-1}" == 1 ]] && \
+   { ! typeset -f _claw_login_is_human >/dev/null || _claw_login_is_human }; then
     _claw_fact_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/fact-$(date +%Y%m%d)"
     if [[ ! -f "$_claw_fact_stamp" ]]; then
         # Render FIRST, stamp only on success — never burn the day on a fact that
@@ -161,7 +165,8 @@ wttr()    { curl -fsS "wttr.in/${1:-}" 2>/dev/null || echo "weather: offline"; }
 # Once/day, refresh an untracked-tool count in the background and nudge if any
 # manually-installed tools aren't in the manifest yet. Non-blocking, opt-out
 # with CLAW_PKG_NUDGE=0.
-if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_PKG_NUDGE:-1}" == 1 ]]; then
+if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_PKG_NUDGE:-1}" == 1 ]] && \
+   { ! typeset -f _claw_login_is_human >/dev/null || _claw_login_is_human }; then
     _pkg_count="${XDG_CACHE_HOME:-$HOME/.cache}/claw/pkg-untracked"
     if [[ -s "$_pkg_count" ]]; then
         _n=$(cat "$_pkg_count" 2>/dev/null)
