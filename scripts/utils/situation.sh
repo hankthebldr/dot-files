@@ -891,6 +891,22 @@ _local_json() {
 EOF
 }
 
+# Cache hygiene (audit F-18). shell/delight.zsh used to `touch` one
+# fact-YYYYMMDD / pkgscan-YYYYMMDD stamp per day and never prune; the audit
+# counted 63 zero-byte files in the cache dir. delight.zsh now keeps a single
+# rewritten fact.stamp / pkgscan.stamp and sweeps its own siblings, but a box
+# that logs in rarely (or never interactively) would keep its backlog forever.
+# cmd_local is the right broom: it is already the throttled once-per-10-minutes
+# local probe on the login path, and it owns nothing else. 30 d of grace so a
+# stamp is never removed out from under a same-day reader.
+_prune_stamps() {
+    [ -d "$CACHE_DIR" ] || return 0
+    find "$CACHE_DIR" -maxdepth 1 -type f \
+         \( -name 'fact-*' -o -name 'pkgscan-*' \) -mtime +30 \
+         -exec rm -f {} + 2>/dev/null || true
+    return 0
+}
+
 cmd_local() {
     local force=0
     [ "${1:-}" = "--force" ] && force=1
@@ -900,6 +916,7 @@ cmd_local() {
     fi
     local tmp; tmp="$(mktemp "${CACHE_DIR}/.loc.XXXXXX")" || return 1
     if _local_json >"$tmp" 2>/dev/null; then mv -f "$tmp" "$LOCAL_SNAP"; else rm -f "$tmp"; return 1; fi
+    _prune_stamps
     cmd_evaluate || true
     return 0
 }

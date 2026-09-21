@@ -219,6 +219,80 @@ EOF
   [ ! -s "$CALLS" ]
 }
 
+# ── cache hygiene (T2-09) ──────────────────────────────────────────────────
+# shell/delight.zsh used to touch a fact-YYYYMMDD / pkgscan-YYYYMMDD stamp per
+# day and never prune (63 zero-byte files at audit time). The day now lives in
+# ONE rewritten file per concern; `situation.sh local` sweeps the backlog.
+
+@test "local: prunes fact-* and pkgscan-* stamps older than 30 d" {
+  need_jq; _local_stubs
+  touch -t 202001010000 "$CACHE/fact-20200101" "$CACHE/pkgscan-20200101"
+  touch "$CACHE/fact-today" "$CACHE/pkgscan-today"
+  run env PATH="$STUB:$PATH" bash "$SIT" local --force
+  [ "$status" -eq 0 ]
+  [ ! -e "$CACHE/fact-20200101" ]
+  [ ! -e "$CACHE/pkgscan-20200101" ]
+  # a stamp inside the grace window is left alone
+  [ -e "$CACHE/fact-today" ]
+  [ -e "$CACHE/pkgscan-today" ]
+}
+
+@test "local: pruning never touches the caches the login path reads" {
+  need_jq; _local_stubs
+  touch -t 202001010000 "$CACHE/situation.json" "$CACHE/attention.tsv" \
+                        "$CACHE/card.stamp" "$CACHE/fact.stamp"
+  run env PATH="$STUB:$PATH" bash "$SIT" local --force
+  [ "$status" -eq 0 ]
+  [ -e "$CACHE/attention.tsv" ]
+  [ -e "$CACHE/card.stamp" ]
+  [ -e "$CACHE/fact.stamp" ]
+}
+
+# ── delight.zsh daily stamp ────────────────────────────────────────────────
+
+# Run <zsh code> with delight.zsh sourced. Non-interactive, so the file's own
+# fact / pkg-nudge trigger blocks are inert and only the mechanism is exercised.
+dz() {
+  run env HOME="$HOME" XDG_CACHE_HOME="$XDG_CACHE_HOME" CLAW_NO_LOG=1 \
+      zsh -fc "DOTFILES_DIR='$DOTFILES'; source '$DOTFILES/shell/delight.zsh'; $1"
+}
+
+@test "delight: _claw_day_stamp reports a day that has not been claimed yet" {
+  command -v zsh >/dev/null || skip "zsh required"
+  dz '_claw_day_stamp "$XDG_CACHE_HOME/claw/fact.stamp" && print yes || print no'
+  [ "$status" -eq 0 ]
+  [ "$output" = yes ]
+}
+
+@test "delight: claim writes today INTO one file and is idempotent for the day" {
+  command -v zsh >/dev/null || skip "zsh required"
+  f="$CACHE/fact.stamp"
+  dz "_claw_day_stamp '$f' claim"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$f")" = "$(date +%Y%m%d)" ]
+  dz "_claw_day_stamp '$f' && print yes || print no"
+  [ "$output" = no ]
+  # a second claim rewrites the SAME file — nothing accumulates
+  dz "_claw_day_stamp '$f' claim"
+  [ "$(find "$CACHE" -maxdepth 1 -name 'fact*' | wc -l | tr -d ' ')" = 1 ]
+}
+
+@test "delight: claim sweeps the legacy per-day stamps it replaces" {
+  command -v zsh >/dev/null || skip "zsh required"
+  touch "$CACHE/fact-20260101" "$CACHE/fact-20260102" "$CACHE/keep.json"
+  dz "_claw_day_stamp '$CACHE/fact.stamp' claim"
+  [ "$status" -eq 0 ]
+  [ ! -e "$CACHE/fact-20260101" ]
+  [ ! -e "$CACHE/fact-20260102" ]
+  [ -e "$CACHE/fact.stamp" ]
+  [ -e "$CACHE/keep.json" ]
+}
+
+@test "delight: no per-day stamp path survives in the source" {
+  run grep -nE '(fact|pkgscan)-\$\(date' "$DOTFILES/shell/delight.zsh"
+  [ "$status" -ne 0 ]
+}
+
 # ── homelab throttle + single-flight lock ──────────────────────────────────
 
 _hl_stubs() {

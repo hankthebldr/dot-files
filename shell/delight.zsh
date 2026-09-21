@@ -4,6 +4,37 @@
 # this in a non-interactive/SSH-pipe shell is a no-op (never pollutes stdout).
 # Part of the Open Claw "every element should delight" mandate (see ULTRAPLAN).
 
+# ── Daily stamps: ONE file per concern, rewritten (audit F-18) ──────────────
+# The login card, the fact and the pkg-track nudge each fire once a day. The
+# fact and the nudge used to `touch` a fact-YYYYMMDD / pkgscan-YYYYMMDD file
+# and never prune — 63 zero-byte stamps in ~/.cache/claw by the time the audit
+# ran. The day now lives INSIDE one file that is rewritten, exactly as
+# shell/claw-login.zsh's card.stamp does.
+#
+#   _claw_day_stamp <file>        -> rc 0 when today is NOT yet stamped
+#   _claw_day_stamp <file> claim  -> stamp today, and sweep any legacy
+#                                    <base>-YYYYMMDD siblings while we are here
+#
+# Sweeping on claim (not once, on first run) means a box whose cache predates
+# this change converges on its next login, and stays converged.
+_claw_day_stamp() {
+    emulate -L zsh
+    local file="$1" mode="${2:-check}" today="" prev=""
+    if zmodload zsh/datetime 2>/dev/null; then
+        strftime -s today '%Y%m%d' $EPOCHSECONDS 2>/dev/null
+    fi
+    [[ -n "$today" ]] || today="$(command date +%Y%m%d 2>/dev/null)"
+    [[ -n "$today" ]] || return 1          # no clock, no claim — never render
+    if [[ "$mode" == claim ]]; then
+        [[ -d "${file:h}" ]] || mkdir -p "${file:h}" 2>/dev/null || return 1
+        print -r -- "$today" >| "$file" 2>/dev/null || return 1
+        command rm -f -- "${file:r}"-*(N) 2>/dev/null
+        return 0
+    fi
+    [[ -r "$file" ]] && read -r prev < "$file" 2>/dev/null
+    [[ "$prev" != "$today" ]]
+}
+
 # ── Progress-aware file ops (pv / rsync) ────────────────────────────────────
 # cpv  — copy with a live progress bar+ETA (rsync if present, else pv per-file).
 # mvv  — same, then remove source. dlv — download with progress (aria2 > xh > curl).
@@ -142,12 +173,13 @@ claw_fact() {
 # before this file) and the `typeset -f` guard keeps delight standalone-safe.
 if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_FACT:-1}" == 1 ]] && \
    { ! typeset -f _claw_login_is_human >/dev/null || _claw_login_is_human }; then
-    _claw_fact_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/fact-$(date +%Y%m%d)"
-    if [[ ! -f "$_claw_fact_stamp" ]]; then
+    _claw_fact_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/fact.stamp"
+    if _claw_day_stamp "$_claw_fact_stamp"; then
         # Render FIRST, stamp only on success — never burn the day on a fact that
         # was never emitted (empty pool / no fortune). claw_fact returns non-zero
         # when it prints nothing, so a bad first login retries on the next one.
-        claw_fact && mkdir -p "${_claw_fact_stamp:h}" 2>/dev/null && touch "$_claw_fact_stamp"
+        # (That is why this one claims AFTER the work, unlike card.stamp.)
+        claw_fact && _claw_day_stamp "$_claw_fact_stamp" claim
     fi
     unset _claw_fact_stamp
 fi
@@ -174,9 +206,11 @@ if [[ -o interactive && -t 1 && -z "${SSH_CONNECTION:-}" && "${CLAW_PKG_NUDGE:-1
             printf "  \e[38;2;%sm●\e[0m \e[38;2;%sm%s untracked tool(s) — \e[38;2;%smclaw pkg track\e[0m\n" \
                 "${CLAW_RGB_AMBER:-227;179;65}" "${CLAW_RGB_MUTED:-139;148;158}" "$_n" "${CLAW_RGB_FG:-201;209;217}"
     fi
-    _pkg_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/pkgscan-$(date +%Y%m%d)"
-    if [[ ! -f "$_pkg_stamp" ]]; then
-        mkdir -p "${_pkg_stamp:h}" 2>/dev/null && touch "$_pkg_stamp"
+    _pkg_stamp="${XDG_CACHE_HOME:-$HOME/.cache}/claw/pkgscan.stamp"
+    if _claw_day_stamp "$_pkg_stamp"; then
+        # Claim BEFORE the work here (unlike the fact): the scan is a detached
+        # background job, so ten tabs opening together would otherwise all fire it.
+        _claw_day_stamp "$_pkg_stamp" claim
         ( bash "$DOTFILES_DIR/scripts/utils/pkg-manifest.sh" scan 2>/dev/null \
             | command grep -cE '^    [a-zA-Z0-9]' > "$_pkg_count" 2>/dev/null ) &!
     fi
