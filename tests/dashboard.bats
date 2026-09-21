@@ -11,6 +11,11 @@ setup() {
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
   export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
   export CLAW_NO_LOG=1
+  export XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/config"; mkdir -p "$XDG_CONFIG_HOME"
+  # The renderer is depth- and glyph-aware as of T2-03; pin both inputs so a
+  # bats run never inherits the ambient TERM / CLAW_GLYPHS.
+  export TERM=xterm-256color
+  unset CLAW_GLYPHS CLAW_COLOR_DEPTH CLAW_COLOR_DEPTH_STRICT CLAW_FORCE_COLOR
   DASH="$BATS_TEST_DIRNAME/../scripts/utils/claw-dashboard.py"
   FIX="$BATS_TEST_DIRNAME/fixtures/fastfetch.json"
 }
@@ -196,10 +201,14 @@ PY
 # red bar — the old ("cpu","CPU") bar was load1/ncpu clamped at 100%. Colour
 # comes from the loaded palette: fg below 1.0, amber >=1.0, red >=2.0.
 @test "dashboard bar_rows: Load text row present, CPU bar absent, palette thresholds" {
-  run env NO_COLOR=1 python3 - "$DASH" <<'PY'
+  run env -u NO_COLOR TERM=xterm-256color python3 - "$DASH" <<'PY'
 import sys, importlib.util as u
 spec = u.spec_from_file_location('d', sys.argv[1])
 m = u.module_from_spec(spec); spec.loader.exec_module(m)
+# NO_COLOR is no longer in the environment (it would pin DEPTH — and therefore
+# every C[...] — to the empty string, which no tone assertion could tell apart);
+# the module-level switch reproduces exactly the same monochrome rows.
+m.NOCOLOR = True
 base = dict(cores="14", mem_pct="72", swap_pct="3", disk_pct="82", batt_pct="90")
 rows = m.bar_rows(dict(base, load="2.2 1.9 1.7", load_ratio="0.16", cpu_pct="16"))
 print("\n".join(rows))
@@ -433,4 +442,172 @@ PY
   [ "${lines[2]}" = "Mac16,7" ]          # no parenthetical: unchanged
   [ "${lines[3]}" = "BD790i" ]           # no size in the parenthetical: name only
   [ "${#lines[@]}" -eq 4 ]               # empty input prints an empty line
+}
+
+# ── T2-03 · colour depth and glyph fallback ─────────────────────────────────
+
+# Every codepoint above U+007F in the output, as hex — empty when pure ASCII.
+_nonascii() {
+  python3 -c 'import sys
+print(" ".join(sorted({hex(ord(c)) for c in sys.stdin.read() if ord(c) > 127})))'
+}
+
+@test "dashboard: CLAW_GLYPHS=ascii renders with no codepoint above U+007F" {
+  for mode in "--login" "--profile security"; do
+    run env NO_COLOR=1 COLUMNS=120 CLAW_GLYPHS=ascii PROFILE_CLASS=NIGHTHACKER \
+        PROFILE_KEY_TOOLS="nmap sh" PROFILE_TOOLCHAIN=security-toolchain.sh \
+        python3 "$DASH" $mode --json-fixture "$FIX"
+    [ "$status" -eq 0 ]
+    hi="$(printf '%s' "$output" | _nonascii)"
+    [ -z "$hi" ] || { echo "$mode leaked: $hi"; false; }
+    [[ "$output" == *"OPEN CLAW"* ]]
+  done
+}
+
+@test "dashboard: CLAW_GLYPHS=ascii keeps the frame width-exact at 58/80/120" {
+  for w in 58 80 120 200; do
+    run env NO_COLOR=1 COLUMNS="$w" CLAW_GLYPHS=ascii python3 "$DASH" --login \
+        --json-fixture "$FIX"
+    [ "$status" -eq 0 ]
+    widths="$(printf '%s\n' "$output" | python3 -c 'import sys
+ls=[len(l) for l in sys.stdin.read().splitlines() if l.strip()]
+print(len(set(ls)), max(ls))')"
+    set -- $widths
+    [ "$1" -eq 1 ] || { echo "ragged at $w"; false; }
+    [ "$2" -le "$w" ] || { echo "overflow at $w: $2"; false; }
+  done
+}
+
+@test "dashboard: TERM=linux auto-detects ascii (no PUA glyphs on the console)" {
+  run env NO_COLOR=1 COLUMNS=100 TERM=linux python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  hi="$(printf '%s' "$output" | _nonascii)"
+  [ -z "$hi" ] || { echo "leaked: $hi"; false; }
+}
+
+@test "dashboard: CLAW_COLOR_DEPTH downgrades every escape it emits" {
+  # 24: truecolor, unchanged
+  run env COLUMNS=120 CLAW_FORCE_COLOR=1 CLAW_COLOR_DEPTH=24 python3 "$DASH" \
+      --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\e[38;2;'* ]]
+
+  # 256: the cube only — no 38;2 anywhere, and still coloured
+  run env COLUMNS=120 CLAW_FORCE_COLOR=1 CLAW_COLOR_DEPTH=256 python3 "$DASH" \
+      --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"38;2;"* ]]
+  [[ "$output" != *"48;2;"* ]]
+  [[ "$output" == *$'\e[38;5;'* ]]
+
+  # 8: base ANSI only — no 38;2, no 38;5, and every SGR a plain 3x/0/1
+  run env COLUMNS=120 CLAW_FORCE_COLOR=1 CLAW_COLOR_DEPTH=8 python3 "$DASH" \
+      --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"38;2;"* ]]
+  [[ "$output" != *"38;5;"* ]]
+  bad="$(printf '%s' "$output" | python3 -c 'import sys,re
+codes = set(re.findall("\x1b\\[([0-9;]*)m", sys.stdin.read()))
+print(" ".join(sorted(c for c in codes if c not in ("0","1","30","31","32","33","34","35","36","37"))))')"
+  [ -z "$bad" ] || { echo "non-base SGR: $bad"; false; }
+
+  # 0: plain text, no escapes at all
+  run env COLUMNS=120 CLAW_FORCE_COLOR=1 CLAW_COLOR_DEPTH=0 python3 "$DASH" \
+      --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *$'\e['* ]]
+}
+
+@test "dashboard: a probed 256 still emits truecolor unless asked to be strict" {
+  run env COLUMNS=120 CLAW_FORCE_COLOR=1 TERM=xterm-256color python3 "$DASH" \
+      --login --json-fixture "$FIX"
+  [[ "$output" == *$'\e[38;2;'* ]]
+  run env COLUMNS=120 CLAW_FORCE_COLOR=1 TERM=xterm-256color \
+      CLAW_COLOR_DEPTH_STRICT=1 python3 "$DASH" --login --json-fixture "$FIX"
+  [[ "$output" != *"38;2;"* ]]
+  [[ "$output" == *$'\e[38;5;'* ]]
+}
+
+@test "dashboard: imported logo art is quantised too, not pasted raw" {
+  d="$BATS_TEST_TMPDIR/dots"; mkdir -p "$d/shell/profiles/fixt"
+  printf '\033[38;2;255;0;0mRED\033[0m\n' > "$d/shell/profiles/fixt/logo.txt"
+  run env COLUMNS=120 CLAW_FORCE_COLOR=1 CLAW_COLOR_DEPTH=256 DOTFILES_DIR="$d" \
+      python3 "$DASH" --profile fixt --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"RED"* ]]
+  [[ "$output" != *"38;2;255;0;0"* ]]
+  [[ "$output" == *"38;5;196"* ]]
+}
+
+# ── T2-02 · the shared card primitive ───────────────────────────────────────
+
+@test "dashboard --card: frames stdin, width-exact and clamped at 58/80/120" {
+  for w in 58 80 120; do
+    run env NO_COLOR=1 COLUMNS="$w" bash -c \
+      "printf 'tamper-check + install verification\n' | python3 '$DASH' --card 'OPEN CLAW Integrity Audit'"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"tamper-check + install verification"* ]]
+    [[ "$output" == *"OPEN CLAW Integrity Audit"* ]]
+    widths="$(printf '%s\n' "$output" | python3 -c 'import sys
+ls=[len(l) for l in sys.stdin.read().splitlines() if l.strip()]
+print(len(set(ls)), max(ls), len(ls))')"
+    set -- $widths
+    [ "$1" -eq 1 ] || { echo "ragged at $w"; false; }
+    [ "$2" -le "$w" ] || { echo "overflow at $w: $2"; false; }
+    [ "$3" -eq 3 ] || { echo "want 3 lines at $w, got $3"; false; }
+  done
+}
+
+@test "dashboard --card: empty stdin still frames, and the title is clipped" {
+  run env NO_COLOR=1 COLUMNS=60 bash -c "printf '' | python3 '$DASH' --card 'T'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"T"* ]]
+  run env NO_COLOR=1 COLUMNS=40 bash -c \
+    "printf 'x\n' | python3 '$DASH' --card '$(printf 'L%.0s' $(seq 1 90))'"
+  [ "$status" -eq 0 ]
+  w="$(printf '%s\n' "$output" | python3 -c 'import sys
+print(max(len(l) for l in sys.stdin.read().splitlines() if l.strip()))')"
+  [ "$w" -le 40 ]
+}
+
+@test "dashboard --card: honours the palette and the requested tones" {
+  blue="$(python3 -c '
+import sys
+hx=open(sys.argv[1]).read()
+import re
+m=dict(l.split("=",1) for l in hx.splitlines() if "=" in l and not l.startswith("#"))
+v=m["blue"].strip()
+print("%d;%d;%d" % (int(v[0:2],16), int(v[2:4],16), int(v[4:6],16)))' \
+    "$DOTFILES_DIR/config/themes/matrix/palette.theme")"
+  run env COLUMNS=80 CLAW_FORCE_COLOR=1 CLAW_THEME=matrix CLAW_COLOR_DEPTH=24 bash -c \
+    "printf 'sub\n' | python3 '$DASH' --card 'Title' --border purple --title-tone blue"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\e[38;2;'"${blue}m"* ]]
+}
+
+@test "dashboard --card: NO_COLOR strips the caller's own escapes too" {
+  run env NO_COLOR=1 COLUMNS=80 bash -c \
+    "printf '\033[38;2;255;0;0mred line\033[0m\n' | python3 '$DASH' --card 'T'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"red line"* ]]
+  [[ "$output" != *$'\e['* ]]
+}
+
+@test "dashboard --login: third breakpoint puts attention beside the grid at >=140" {
+  run env NO_COLOR=1 COLUMNS=120 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"attention"* ]]
+  n120="$(printf '%s\n' "$output" | grep -c . || true)"
+  run env NO_COLOR=1 COLUMNS=150 python3 "$DASH" --login --json-fixture "$FIX"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"attention"* ]]
+  n150="$(printf '%s\n' "$output" | grep -c . || true)"
+  # the same payload, fewer lines: the attention block folded into the grid
+  [ "$n150" -lt "$n120" ] || { echo "no fold: 120=$n120 150=$n150"; false; }
+  widths="$(printf '%s\n' "$output" | python3 -c 'import sys
+ls=[len(l) for l in sys.stdin.read().splitlines() if l.strip()]
+print(len(set(ls)), max(ls))')"
+  set -- $widths
+  [ "$1" -eq 1 ]
+  [ "$2" -le 150 ]
 }
