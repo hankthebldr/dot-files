@@ -150,7 +150,7 @@ claw_login() {
     emulate -L zsh
 
     if [[ "${CLAW_LOGIN_FORCE_TTY:-0}" != 1 ]]; then
-        # SAFETY (verbatim from the retiring welcome-tui.zsh): never in
+        # SAFETY (carried over from the retired fzf login menu, now legacy/): never in
         # non-interactive shells (breaks scp, rsync, git-over-ssh), never with
         # piped stdin, never inside an SSH session that is piping data.
         [[ ! -o interactive ]] && return 0

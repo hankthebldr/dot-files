@@ -279,7 +279,7 @@ claw_theme_apply_ghostty() {
 # Apply a profile's declared palette for THIS SESSION (env override only — the
 # persisted `claw theme set` choice is untouched). Call after sourcing a
 # profile: reads PROFILE_THEME_DEFAULT (set in the profile's meta.zsh), applies
-# it only if that .theme actually exists. claw-fn.zsh and welcome-tui both use
+# it only if that .theme actually exists. claw-fn.zsh and claw-login.zsh both use
 # this, so `claw load security` re-themes the prompt/menus/dashboard in one move.
 claw_theme_apply_profile() {
     _pt="${PROFILE_THEME_DEFAULT:-}"

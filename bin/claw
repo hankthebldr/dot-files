@@ -252,7 +252,7 @@ cmd_help() {
 }
 
 # Audit F-18: this spawned `zsh -i -c` which INHERITED CLAW_ACTIVE_PROFILE, so
-# welcome-tui's own guard returned immediately and `claw menu` was a silent
+# the old login menu's guard returned immediately and `claw menu` was a silent
 # no-op from inside any loaded profile — exactly when you reach for it. The
 # palette is an in-shell surface (it has to be: picking a profile must mutate
 # THIS shell), so the bash dispatcher's only honest job is to say where it is.

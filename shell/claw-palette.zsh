@@ -60,7 +60,7 @@ _claw_frecency_bump() {
 # ── the outcome applier ─────────────────────────────────────────────────────
 # `PROFILE\t<id>` | `ACTION\t<id>` | anything else (NONE) → nothing.
 # THE one applier: the palette, `claw <p>`, `claw load <p>` and any future
-# front-end all land here. Moved out of welcome-tui.zsh, whose ACTION branch
+# front-end all land here. Moved out of the retired login menu, whose ACTION branch
 # hard-coded six ids (three of which fell through to `*) :` — F-19).
 _claw_apply_outcome() {
     emulate -L zsh
