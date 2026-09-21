@@ -1,0 +1,80 @@
+# config/claw/actions.tsv — registry source 2 (verbs). See scripts/utils/registry.sh.
+#
+# One row per claw verb. Tab-separated, 8 columns, '#' comments, '-' = empty.
+#   id       palette/completion key; unique among actions
+#   aliases  '|'-separated extra names (the bin/claw case-arm aliases)
+#   group    palette section: system | tools
+#   glyph    one Nerd Font glyph, unique across the whole registry ('-' = none)
+#   label    title case, shown in the palette
+#   desc     <=40 chars, lower case, never names a sibling verb
+#   run      snippet eval'd in the current zsh by _claw_action
+#   flags    ',' separated: '-' none | '!' confirm | 'x' external (no shell
+#            mutation) | 'l:<mod>' lazy-source that module first | 'hidden'
+#            (help + completion only, never in the palette)
+#
+# Every remaining bin/claw dispatch arm carries a 'hidden' row below so the
+# registry's coverage of the dispatcher is total (audit F-15).
+#
+# id	aliases	group	glyph	label	desc	run	flags
+
+# --- palette verbs -------------------------------------------------------
+update	upgrade	system		Update	repo sync then packages	command claw update	-
+doctor	-	system		Doctor	system + attention detail	command claw doctor	-
+dash	-	system		Dashboard	framed card now	command claw dash	-
+tun	tunnel|tunnels	tools		Tunnels	SSH tunnel manager	command claw tun	x
+homelab	-	tools		Homelab	SSH topology · fleet	command claw homelab	x
+mcp	-	tools		MCP	server manager	command claw mcp	x
+agent	agents	tools		Agents	registered agent picker	command claw agent list	-
+vault-open	-	tools		Open Vault	Obsidian → active vault	ov	l:obsidian
+clin	-	tools		Clin Notes	note TUI in the profile folder	cl	l:obsidian,l:clin
+handoff	-	tools		Handoff	session note → vault inbox	command claw handoff	-
+harness	-	tools		Harness	custom skills: list|new|deploy	command claw harness list	-
+tmux	-	system		tmux	attach or new session	tmux attach 2>/dev/null || tmux new-session	x
+yazi	-	system		yazi	file browser	yazi	x
+top	-	system		Monitor	btop	btop	x
+integrity	verify|check	system		Integrity	verify install	command claw integrity audit	-
+onboard	onboarding|character	system		Onboarding	arcade profile picker	command claw onboard	-
+gamble	slots|casino	system		Claw Machine	honest slot machine	command claw gamble	-
+theme	themes|colors	system		Theme	pick a palette	command claw theme fzf-pick	-
+off	-	system		Off	unload profile, keep shell	claw off	-
+
+# --- hidden: every remaining bin/claw dispatch arm -----------------------
+menu	-	system	-	Menu	open the claw palette	command claw menu	hidden
+help	-	system	-	Help	command reference	command claw help	hidden
+validate	-	system	-	Validate	install self-check	command claw validate	hidden
+stats	-	system	-	Stats	usage counters	command claw stats	hidden
+tui-stats	-	system	-	TUI Stats	palette + profile telemetry	command claw tui-stats	hidden
+tools	-	tools	-	Tools	modern CLI inventory	command claw tools	hidden
+toolkit	-	tools	-	Toolkit	fzf workflow launcher	command claw toolkit	hidden
+ai-services	aisvc|services	tools	-	ai-services	self-hosted stacks	command claw ai-services	hidden
+docker	containers|dps	tools	-	docker	container overview	command claw docker	hidden
+skills	-	tools	-	Skills	security skill catalogue	command claw skills	hidden
+sec	security	tools	-	Security	scope-gated recon harness	command claw sec	hidden
+obsidian	vault	tools	-	Obsidian	vault helpers	command claw obsidian	hidden
+load	-	system	-	Load	activate a profile	claw load	hidden
+restore-shell	relink	system	-	Restore Shell	re-stow the shell symlinks	command claw restore-shell	hidden
+lock-shell	-	system	-	Lock Shell	freeze the shell config	command claw lock-shell	hidden
+unlock-shell	-	system	-	Unlock Shell	thaw the shell config	command claw unlock-shell	hidden
+docs-sync	docs	tools	-	Docs Sync	repo docs → vault	command claw docs-sync	hidden
+install	-	system	-	Install	run a domain toolchain	command claw install	hidden
+profiles	-	system	-	Profiles	list | paths | lint	command claw profiles	hidden
+provision	-	system	-	Provision	bootstrap a fresh machine	command claw provision	hidden
+pkg	packages	system	-	Packages	manifest track | update	command claw pkg	hidden
+secret	secrets	tools	-	Secrets	1Password helpers	command claw secret	hidden
+ai	-	tools	-	AI	local model helpers	command claw ai	hidden
+mcp-sync	-	tools	-	MCP Sync	reconcile MCP servers	command claw mcp-sync	hidden
+selfupdate	-	system	-	Selfupdate	schedule the update timer	command claw selfupdate	hidden
+capture-tasks	-	tools	-	Capture Tasks	repo TODOs → Things 3	command claw capture-tasks	hidden
+cheatsheet	cheat	system	-	Cheatsheet	alias + keybinding card	command claw cheatsheet	hidden
+output	-	system	-	Output	render helpers	command claw output	hidden
+storage	-	system	-	Storage	disk doctor	command claw storage	hidden
+specs	sysinfo	system	-	Specs	static hardware facts	command claw specs	hidden
+gpu	gpu-node	tools	-	GPU	k3s GPU node helpers	command claw gpu	hidden
+gateway	openshell	tools	-	Gateway	openshell gateway	command claw gateway	hidden
+uninstall	remove	system	-	Uninstall	remove the install	command claw uninstall	hidden
+claude-sync	csync	tools	-	Claude Sync	deploy claude/ → ~/.claude	command claw claude-sync	hidden
+situation	sit	system	-	Situation	probe | homelab | local | tick	command claw situation	hidden
+notify	notify-send	system	-	Notify	desktop notification	command claw notify	hidden
+pin	-	system	-	Pin	pin the login profile	command claw pin	hidden
+ack	-	system	-	Ack	silence an attention item	command claw ack	hidden
+registry	-	system	-	Registry	rows | palette | check	command claw registry	hidden
