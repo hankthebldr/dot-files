@@ -16,6 +16,7 @@
 #
 # JSON shape (design contract — absent/failed manager => null, NEVER 0):
 #   {"ts":"…","brew":N|null,"apt":N|null,"repo_behind":N|null,
+#    "brew_err":"xcode-license"|"failed"|"<stderr>"|null   (why brew is null; audit F-07)
 #    "repo_ahead":N|null,"last_run":EPOCH|null}
 set -u
 
@@ -57,15 +58,26 @@ iso_to_epoch() {
 
 # ── Probes: best-effort, timeout-bounded, absent/failed manager => null ─────
 probe_json() {
-    local ts brew_n=null apt_n=null behind=null ahead=null last=null out lts
+    local ts brew_n=null brew_err=null apt_n=null behind=null ahead=null last=null out lts
 
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
     # brew: one line per outdated formula/cask (a clean run with none IS 0)
     if have brew; then
-        if out="$(timeout 30 brew outdated --quiet 2>/dev/null)"; then
+        local errf; errf="$(mktemp "${TMPDIR:-/tmp}/.upd-err.XXXXXX")"
+        if out="$(timeout 30 brew outdated --quiet 2>"$errf")"; then
             brew_n="$(printf '%s\n' "$out" | grep -c '[^[:space:]]')"
+        else
+            # A FAILING brew stays null (never 0) but now says WHY. The 2026-09
+            # Xcode-license breakage rendered as "no brew" for weeks (audit F-07).
+            local reason; reason="$(head -c 200 "$errf" 2>/dev/null | tr -d '\n"\\')"
+            case "$reason" in
+                *[Xx]code*license*) brew_err='"xcode-license"' ;;
+                "")                 brew_err='"failed"' ;;
+                *)                  brew_err="\"$(printf '%s' "$reason" | cut -c1-48)\"" ;;
+            esac
         fi
+        rm -f "$errf"
     fi
 
     # apt: simulated upgrade — no sudo needed; one `Inst …` line per package
@@ -99,7 +111,7 @@ probe_json() {
     fi
 
     cat <<EOF
-{ "ts": "$ts", "brew": $brew_n, "apt": $apt_n, "repo_behind": $behind, "repo_ahead": $ahead, "last_run": $last }
+{ "ts": "$ts", "brew": $brew_n, "brew_err": $brew_err, "apt": $apt_n, "repo_behind": $behind, "repo_ahead": $ahead, "last_run": $last }
 EOF
 }
 
@@ -136,14 +148,20 @@ cmd_read() {
     # "12 pkg · repo ↓3" (pkg = brew+apt) / "current" (probed, nothing pending)
     # / "n/a" (nothing probe-able on this box). ff-readout renders through here
     # too, so the glance is identical on every surface.
+    # Bind the snapshot FIRST: after the `| [ … ]` pipe `.` is the array, so a
+    # bare `.repo_behind` threw "Cannot index array with string" and the
+    # `|| echo n/a` masked it — every Mac with brew=null read "n/a" (audit F-07).
     jq -r '
-      (if .brew == null and .apt == null then null
-       else ((.brew // 0) + (.apt // 0)) end) as $pkg
+      . as $in
+      | (if $in.brew == null and $in.apt == null then null
+         else (($in.brew // 0) + ($in.apt // 0)) end) as $pkg
       | [ (if ($pkg // 0) > 0 then (($pkg | tostring) + " pkg") else empty end),
-          (if (.repo_behind // 0) > 0
-           then ("repo ↓" + (.repo_behind | tostring)) else empty end) ]
+          (if ($in.repo_behind // 0) > 0
+           then ("repo ↓" + ($in.repo_behind | tostring)) else empty end),
+          (if (($in.brew_err // "") | length) > 0
+           then ("brew ✗ " + $in.brew_err) else empty end) ]
       | if length > 0 then join(" · ")
-        elif $pkg == null and .repo_behind == null then "n/a"
+        elif $pkg == null and $in.repo_behind == null then "n/a"
         else "current" end
     ' "$SNAP" 2>/dev/null || echo "n/a"
 }

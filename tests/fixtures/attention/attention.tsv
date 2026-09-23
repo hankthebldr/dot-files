@@ -1,0 +1,2 @@
+crit	tailscale	tailscale down	tailscale up	1789900000	1789900000
+warn	svc:ms-01:gitea	gitea on ms-01	http 502	1789899000	1789900000

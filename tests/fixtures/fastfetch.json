@@ -1,0 +1,102 @@
+[
+  {
+    "type": "OS",
+    "result": {
+      "id": "macos",
+      "name": "macOS",
+      "prettyName": "macOS Golden Gate 27.2 (26B5086k)",
+      "version": "27.2",
+      "versionID": "27.2"
+    }
+  },
+  {
+    "type": "Host",
+    "result": {
+      "family": "Mac16,7",
+      "name": "MacBook Pro (16-inch, 2024, Three Thunderbolt 5 ports)",
+      "vendor": "Apple Inc."
+    }
+  },
+  {
+    "type": "Kernel",
+    "result": {
+      "architecture": "arm64",
+      "name": "Darwin",
+      "release": "27.2.0"
+    }
+  },
+  {
+    "type": "Uptime",
+    "result": {
+      "uptime": 10178514,
+      "bootTime": "2026-09-20T04:51:00.000-0500"
+    }
+  },
+  {
+    "type": "Shell",
+    "result": {
+      "exeName": "zsh",
+      "prettyName": "zsh",
+      "version": "5.9"
+    }
+  },
+  {
+    "type": "CPU",
+    "result": {
+      "cpu": "Apple M4 Pro",
+      "vendor": "Apple",
+      "cores": { "physical": 14, "logical": 14, "online": 14 }
+    }
+  },
+  {
+    "type": "Memory",
+    "result": { "total": 51539607552, "used": 37571231744 }
+  },
+  {
+    "type": "Swap",
+    "result": [ { "name": "Encrypted", "used": 2181038080, "total": 3221225472 } ]
+  },
+  {
+    "type": "Disk",
+    "result": [
+      {
+        "bytes": { "available": 97084088320, "free": 97084088320, "total": 494353338368, "used": 397269250048 },
+        "filesystem": "apfs",
+        "mountpoint": "/",
+        "name": "Macintosh HD"
+      },
+      {
+        "bytes": { "available": 446550016, "free": 446550016, "total": 17171480576, "used": 16724930560 },
+        "filesystem": "apfs",
+        "mountpoint": "/System/Volumes/Data",
+        "name": "Data"
+      }
+    ]
+  },
+  {
+    "type": "LocalIp",
+    "result": [
+      { "name": "lo0", "ipv4": "127.0.0.1/8" },
+      { "name": "en0", "defaultRoute": { "ipv4": true }, "ipv4": "192.168.1.111/24" }
+    ]
+  },
+  {
+    "type": "Wifi",
+    "result": [
+      {
+        "inf": { "description": "en0", "status": "Power On" },
+        "conn": { "status": "Active", "ssid": "HR-TRUST", "protocol": "802.11ac (Wi-Fi 5)", "security": "WPA2 Personal", "signalQuality": 74.0 }
+      }
+    ]
+  },
+  {
+    "type": "Battery",
+    "result": [
+      { "capacity": 72.0, "manufacturer": "Apple Inc.", "cycleCount": 151, "timeRemaining": 37200, "status": [ "Discharging" ] }
+    ]
+  },
+  {
+    "type": "Loadavg",
+    "result": [ 2.59033203125, 3.533203125, 3.30126953125 ]
+  }
+]

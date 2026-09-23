@@ -5,9 +5,12 @@
 PROFILE_NAME="local"
 PROFILE_CLASS="GARAGE-HACKER"
 PROFILE_TIER="1"
+PROFILE_GLYPH=""
+PROFILE_DESC="local CLIs · Go/Rust/Python tooling"
 
 # VISUAL IDENTITY
-PROFILE_THEME_DEFAULT="dosbbs"
+# inherits the persisted claw theme (refined-dark until claw theme set) — put a slug back for a per-profile override
+PROFILE_THEME_DEFAULT=""
 PROFILE_TAG="compiles everything from source · owns 11 unfinished CLI tools"
 PROFILE_FLAIR="11 half-finished CLI tools — one of them will ship in 2027"
 

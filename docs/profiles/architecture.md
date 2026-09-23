@@ -19,7 +19,7 @@ shell/profiles/
     └── logo.txt               ← ASCII splash referenced by fastfetch + claw load
 ```
 
-The dispatcher (`cloud.zsh`) is the entry point that `welcome-tui.zsh`, `claw load`, and `.zshrc` all source. It chains together the assets in the right order. You touch the dispatcher only when adding/removing per-OS sub-files.
+The dispatcher (`cloud.zsh`) is the entry point that `_claw_load_profile` (`shell/claw-fn.zsh` — the one load path behind `claw cloud`, `claw load cloud` and the palette) and `.zshrc` source. It chains together the assets in the right order. You touch the dispatcher only when adding/removing per-OS sub-files.
 
 ## Dispatcher template
 
@@ -39,6 +39,8 @@ Four lines. `${0:A:h}` resolves to the dispatcher's own directory regardless of 
 
 Pure bash variable assignments — no parser, no logic. Every field is required unless marked optional.
 
+The **line grammar is a contract**, not a style: [`registry.sh`](../../scripts/utils/registry.sh) parses these files with a single awk pass over `^PROFILE_([A-Z_]+)="([^"]*)"`, so every non-comment line must be exactly one field, double-quoted, with the value on the same line and at most a trailing `# comment`. `claw profiles lint` fails the tree on anything else.
+
 ```zsh
 # shell/profiles/cloud/meta.zsh
 
@@ -46,6 +48,8 @@ Pure bash variable assignments — no parser, no logic. Every field is required 
 PROFILE_NAME="cloud"                          # must match the dispatcher filename
 PROFILE_CLASS="SKYSURFER"                     # RPG-style class (consistent w/ onboarding _profile_class)
 PROFILE_TIER="2"                              # 1=general, 2=domain, 3=agent, 4=knowledge, 5=customer, 6=hardware
+PROFILE_GLYPH=""                             # one Nerd Font glyph, unique across all 18, no emoji/VS16
+PROFILE_DESC="AWS · GCP · Azure · terraform"  # ≤40 chars, never names a sibling profile
 
 # VISUAL IDENTITY
 PROFILE_THEME_DEFAULT="synthwave"             # synthwave | matrix | dosbbs | vhs
@@ -73,14 +77,16 @@ PROFILE_KEY_TOOLS="kubectl terraform aws gcloud az helm"   # space-separated, us
 
 | Field | Purpose | Consumers |
 |---|---|---|
-| `PROFILE_NAME` | Canonical identifier | dispatcher, claw load, welcome TUI |
+| `PROFILE_NAME` | Canonical identifier | dispatcher, `_claw_load_profile`, registry.sh |
 | `PROFILE_CLASS` | RPG-style class name | claw load ceremony, onboarding verdict |
-| `PROFILE_TIER` | Menu grouping (1-6) | welcome TUI menu generator |
+| `PROFILE_TIER` | Group: 1 core · 2 domain · 3 agent · 4 knowledge · 5 customer · 6 hardware | palette group (registry.sh) |
+| `PROFILE_GLYPH` | One Nerd Font glyph, unique across the tree | palette rows, help, dashboard header (registry.sh) |
+| `PROFILE_DESC` | ≤40-char what-this-is, never names a sibling | palette rows, completion, `claw help` (registry.sh) |
 | `PROFILE_THEME_DEFAULT` | Default cinematic theme | claw load splash, fastfetch palette |
-| `PROFILE_START_DIR` | Where the profile drops you | `_claw_profile_cd` (claw load, welcome TUI), `claw profiles paths` |
-| `PROFILE_TAG` | One-line description | menus, fastfetch subtitle, claw doctor |
+| `PROFILE_START_DIR` | Where the profile drops you | `_claw_profile_cd` (every load path), `claw profiles paths` |
+| `PROFILE_TAG` | One-line description | fastfetch subtitle, claw doctor |
 | `PROFILE_FLAIR` | Roast-y subtitle | onboarding box reveal, claw load ceremony |
-| `PROFILE_OS_SUPPORT` | OS-role declaration | claw doctor warnings, welcome TUI filter |
+| `PROFILE_OS_SUPPORT` | OS-role declaration | claw doctor warnings |
 | `PROFILE_TOOLCHAIN` | Install script name | `claw install <profile>` dispatch |
 | `PROFILE_KEY_TOOLS` | Tools to probe for health | `claw doctor` |
 
@@ -90,8 +96,8 @@ A profile is a *place* as much as a toolset — the vault profile belongs in the
 Obsidian vault, devops in the infra tree. That is declared **once**, in
 `meta.zsh`, and applied by **one** function (`_claw_profile_cd` in
 [`shell/profile-helpers.zsh`](../../shell/profile-helpers.zsh)) that every load
-path calls: `claw load <p>`, the fzf welcome TUI, and the rust-TUI outcome
-applier. Never write a top-level `cd` in a profile file — `claw profiles lint`
+path calls: `claw <p>` / `claw load <p>`, the fzf palette, and the rust-TUI
+outcome applier. Never write a top-level `cd` in a profile file — `claw profiles lint`
 fails the tree if you do (that regression shipped once, in cortex).
 
 ### Spec grammar
@@ -230,12 +236,13 @@ The dispatcher's existence check (`[[ -f "${_PROFILE_DIR}/${OS_FAMILY}.zsh" ]]`)
 
 1. **Create the directory:** `mkdir -p shell/profiles/<name>`
 2. **Write `meta.zsh`:** all required fields, see schema above — including
-   `PROFILE_START_DIR` (`""` is a valid answer; lint requires the line)
+   `PROFILE_START_DIR` (`""` is a valid answer; lint requires the line),
+   a `PROFILE_GLYPH` no other profile uses, and a `PROFILE_DESC`
 3. **Write `common.zsh`:** shared aliases + `<name>-help` function
 4. **Write `mac.zsh` and/or `linux.zsh`:** OS-specific bits
 5. **Write the dispatcher:** copy the 4-line template, replace name
 6. **Add `logo.txt`:** ASCII splash, ≤22×72
-7. **Add to welcome TUI:** the menu auto-populates from `meta.zsh` once that's wired up (Phase D); until then, manually add a `choices+=` line in `shell/welcome-tui.zsh`
+7. **Nothing to add to the menu:** there is no menu file. The palette is generated from the registry (`scripts/utils/registry.sh`), which reads every `meta.zsh` — a profile with a unique `PROFILE_GLYPH` and a `PROFILE_DESC` appears in `claw`, `claw help` and completion on its own. `claw profiles lint` fails the build if either is missing
 8. **Optional: add toolchain installer:** `scripts/install/<name>-toolchain.sh` following the [`toolchain-runner.sh`](../../scripts/install/lib/toolchain-runner.sh) pattern
 9. **Optional: add fastfetch dashboard:** `config/.config/fastfetch/config-<name>.jsonc`
 10. **Test on Mac AND Linux:** `claw load <name>` on each, verify help fn + key aliases work

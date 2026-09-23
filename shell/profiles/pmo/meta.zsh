@@ -2,6 +2,8 @@
 PROFILE_NAME="pmo"
 PROFILE_CLASS="SCRIBE-OPERATOR"
 PROFILE_TIER="4"
+PROFILE_GLYPH=""
+PROFILE_DESC="Things 3 · project cadence"
 PROFILE_THEME_DEFAULT="dosbbs"
 PROFILE_TAG="Things 3 is the inbox. the repo is the truth. PR is the receipt."
 PROFILE_FLAIR="closes the loop between what you said you'd build and what you built"

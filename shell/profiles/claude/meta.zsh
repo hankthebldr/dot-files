@@ -5,9 +5,12 @@
 PROFILE_NAME="claude"
 PROFILE_CLASS="PROMPT-RIDER"
 PROFILE_TIER="3"
+PROFILE_GLYPH=""
+PROFILE_DESC="Claude Code · agent harness"
 
 # VISUAL IDENTITY
-PROFILE_THEME_DEFAULT="synthwave"
+# inherits the persisted claw theme (refined-dark until claw theme set) — put a slug back for a per-profile override
+PROFILE_THEME_DEFAULT=""
 PROFILE_TAG="talks to AI more than humans · git history is 90% agent commits"
 PROFILE_FLAIR="MCP servers · Agent SDK · skill registry curated weekly"
 

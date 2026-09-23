@@ -1,62 +1,72 @@
 # shell/claw-completion.zsh — zsh tab completion for the `claw` dispatcher.
 # Sourced from ~/.zshrc after claw-fn.zsh (compinit has already run via OMZ).
-# Two levels: top-level subcommands, then context-aware args for the common
-# ones (ai-services actions + service names, theme names, install toolchains,
-# profiles, integrity/gateway/docker actions).
+#
+# Audit F-15: this file used to carry its own hand-maintained 41-entry copy of
+# the dispatcher, which had drifted to 39 real arms and was missing `harness`
+# — Henry's most-used verb. The top-level word list is now GENERATED from
+# scripts/utils/registry.sh (the same meta.zsh + actions.tsv the palette and
+# `claw help` read), so a new verb is one actions.tsv row and nothing else.
+#
+# Cost: one bash fork on the FIRST Tab of the shell, cached in a zsh global
+# for the rest of the session. Never on the login path.
+
+typeset -ga _claw_top_cache
+
+# Static last resort — only used when registry.sh is unreadable (mid-bootstrap,
+# a stubbed DOTFILES_DIR). Deliberately tiny: it is not a second taxonomy.
+typeset -ga _claw_top_fallback
+_claw_top_fallback=(
+  'help:show help'
+  'doctor:environment health check'
+  'update:phased update — repo sync then packages'
+  'load:load a workflow profile'
+  'registry:rows | palette | check'
+)
+
+_claw_top_words() {
+  (( ${#_claw_top_cache} )) && return 0
+  local dotfiles="${DOTFILES_DIR:-$HOME/.dotfiles}"
+  local reg="$dotfiles/scripts/utils/registry.sh"
+  if [[ -r $reg ]]; then
+    _claw_top_cache=("${(@f)$(DOTFILES_DIR=$dotfiles command bash $reg completion 2>/dev/null)}")
+    # `registry.sh completion` emits `id:desc`; drop anything that is not.
+    _claw_top_cache=("${(@M)_claw_top_cache:#*:*}")
+  fi
+  (( ${#_claw_top_cache} )) || _claw_top_cache=("${_claw_top_fallback[@]}")
+  return 0
+}
+
+# Profile ids straight from the registry (the 18-name list lives in exactly
+# one place now); the glob is the no-registry fallback.
+_claw_profile_ids() {
+  local dotfiles="${DOTFILES_DIR:-$HOME/.dotfiles}"
+  local reg="$dotfiles/scripts/utils/registry.sh"
+  local -a ids
+  [[ -r $reg ]] && ids=("${(@f)$(DOTFILES_DIR=$dotfiles command bash $reg ids profiles 2>/dev/null)}")
+  ids=("${(@)ids:#}")
+  (( ${#ids} )) || ids=($dotfiles/shell/profiles/*.zsh(N:t:r))
+  print -rl -- $ids
+}
+
+# Attention ids are runtime data, not registry data: field 2 of attention.tsv
+# (tier \t id \t text \t hint \t src \t since), written by situation.sh.
+_claw_attention_ids() {
+  local att="${XDG_CACHE_HOME:-$HOME/.cache}/claw/attention.tsv"
+  [[ -r $att ]] || return 0
+  command cut -f2 "$att" 2>/dev/null
+}
 
 _claw() {
   local curcontext="$curcontext" state line
   typeset -A opt_args
   local dotfiles="${DOTFILES_DIR:-$HOME/.dotfiles}"
 
-  local -a top=(
-    'menu:interactive menu'
-    'help:show help'
-    'doctor:environment health check'
-    'wt:worktree-per-task (new · ls · rm · path)'
-    'validate:full install validation'
-    'stats:usage statistics'
-    'update:phased update — repo sync then packages'
-    'tools:interactive tool updater'
-    'install:install a domain toolchain'
-    'ai-services:manage self-hosted AI/web stacks'
-    'docker:grouped overview of all containers'
-    'theme:switch color theme'
-    'tun:SSH tunnel manager'
-    'mcp:MCP server manager'
-    'mcp-sync:render MCP registry to clients'
-    'homelab:SSH topology manager'
-    'toolkit:interactive workflow launcher'
-    'skills:browse Claude skills'
-    'obsidian:Obsidian vault integration'
-    'onboard:gamified onboarding'
-    'integrity:integrity manifest (generate/verify/audit)'
-    'load:load a workflow profile'
-    'profiles:profile contracts (lint) + start dirs (paths)'
-    'off:reset to a plain shell'
-    'restore-shell:relink shell dotfiles'
-    'lock-shell:make shell symlinks immutable'
-    'unlock-shell:lift the shell-symlink lock'
-    'gpu:GPU / Blackwell node tools'
-    'gateway:OpenShell gateway management'
-    'secret:secrets manager'
-    'provision:machine provisioning'
-    'pkg:package manifest'
-    'handoff:session handoff'
-    'selfupdate:weekly auto-update timer (now/install/status/uninstall)'
-    'cheatsheet:command cheatsheet'
-    'docs-sync:sync docs to the vault'
-    'capture-tasks:capture tasks'
-    'agent:run or list registered agents'
-    'claude-sync:sync Claude config'
-    'uninstall:uninstall Open Claw'
-  )
-
   _arguments -C '1: :->cmd' '*:: :->args' && return 0
 
   case $state in
     cmd)
-      _describe -t commands 'claw command' top
+      _claw_top_words
+      _describe -t commands 'claw command' _claw_top_cache
       ;;
     args)
       case $words[1] in
@@ -82,9 +92,22 @@ _claw() {
           _values 'toolchain' nextgen cloud security devops ai ai-workstation \
             ai-skills research cortex homelab deck demo design
           ;;
-        load)
-          local -a profiles; profiles=($dotfiles/shell/profiles/*.zsh(N:t:r))
+        load|pin)
+          local -a profiles; profiles=("${(@f)$(_claw_profile_ids)}")
+          [[ $words[1] == pin ]] && profiles+=(--clear)
           _values 'profile' $profiles
+          ;;
+        ack)
+          if (( CURRENT == 2 )); then
+            local -a ids; ids=("${(@f)$(_claw_attention_ids)}")
+            ids=("${(@)ids:#}")
+            _values 'attention id' $ids
+          else
+            _values 'flag' --hours
+          fi
+          ;;
+        registry)
+          _values 'command' rows palette help completion ids run show check
           ;;
         profiles)
           _values 'action' lint paths
@@ -112,6 +135,11 @@ _claw() {
           ;;
         agent)
           _values 'action' list run
+          ;;
+        tui-stats)
+          _values 'flag' \
+            '--days[trailing window in days (default 30)]' \
+            '--actor[human|agent|all (default human)]'
           ;;
         update|upgrade)
           _values 'flag' \

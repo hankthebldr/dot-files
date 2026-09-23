@@ -9,3 +9,4 @@ Superseded or uncalled scripts, archived during the architecture consolidation
 | `openclaw.sh` | `bin/claw` (this was the pre-claw dispatcher; `openclaw`/`oc` aliases removed) |
 | `backup/` | unreferenced; `claw integrity` + git cover the use case |
 | `security-hardening.sh` | unreferenced one-shot; security toolchain lives in `scripts/install/security-toolchain.sh` |
+| `welcome-tui.zsh` | `shell/claw-login.zsh` (decide-then-render login) + `shell/claw-palette.zsh` (on-demand palette); two-level fzf picker retired 2026-09 (audit F-03) |

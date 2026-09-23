@@ -64,7 +64,7 @@ g() {  # g <field> → value (best-effort, fast, never errors)
             else cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null || uname -n; fi ;;
     kernel) uname -sr ;;
     uptime) local s now b
-            if is_mac; then b=$(sysctl -n kern.boottime 2>/dev/null | sed -E 's/.*sec = ([0-9]+).*/\1/'); now=$(date +%s); s=$(( now - ${b:-now} ))
+            if is_mac; then b=$(sysctl -n kern.boottime 2>/dev/null | sed -E 's/^\{ *sec *= *([0-9]+).*/\1/'); now=$(date +%s); s=$(( now - ${b:-now} ))
             else s=$(cut -d. -f1 /proc/uptime 2>/dev/null); fi
             s=${s:-0}; printf '%dd %dh %dm' $((s/86400)) $((s%86400/3600)) $((s%3600/60)) ;;
     load)   if is_mac; then sysctl -n vm.loadavg 2>/dev/null | awk '{printf "%s %s %s",$2,$3,$4}'
@@ -79,8 +79,6 @@ g() {  # g <field> → value (best-effort, fast, never errors)
     cores)  if is_mac; then sysctl -n hw.ncpu 2>/dev/null; else nproc 2>/dev/null; fi ;;
     mem)    if is_mac; then echo "$(( $(sysctl -n hw.memsize 2>/dev/null) / 1073741824 )) GiB"
             else awk '/MemTotal/{printf "%.0f GiB", $2/1048576}' /proc/meminfo 2>/dev/null; fi ;;
-    mem_pct) if is_mac; then memory_pressure 2>/dev/null | awk -F: '/free percentage/{gsub(/[ %]/,"",$2); print 100-$2}'
-            else free 2>/dev/null | awk '/^Mem:/{a=($7!=""?$7:$4); if($2>0) printf "%d", ($2-a)/$2*100}'; fi ;;
     swap)   if is_mac; then sysctl -n vm.swapusage 2>/dev/null | sed -E 's/.*used = ([0-9.]+[KMG]).*/\1 used/'
             else free -h 2>/dev/null | awk '/Swap/{print $3" / "$2}'; fi ;;
     disk)   df -H / 2>/dev/null | awk 'NR==2{print $3" / "$2}' ;;
@@ -139,15 +137,32 @@ row() {
   fi
 }
 
-# pct <resource> → integer 0-100 utilization (fast, best-effort) for the
-# btop-style bars in claw-dashboard.py. CPU is load1/ncpu (an instant proxy —
-# true instantaneous CPU% needs slow sampling that would defeat instant startup).
+# _ffr_load → "<load1> <ncpu>" (empty when either is unavailable). Shared by
+# pct cpu and load_ratio so both read the same sample.
+_ffr_load() {
+  local l n
+  if is_mac; then l=$(sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}'); n=$(sysctl -n hw.ncpu 2>/dev/null)
+  else l=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null); n=$(nproc 2>/dev/null); fi
+  [[ -n "$l" && "${n:-0}" -gt 0 ]] 2>/dev/null && printf '%s %s' "$l" "$n"
+}
+
+# load_ratio → load1/ncpu with 2 decimals (e.g. 2.00 = every core has a runnable
+# task queued twice over). Audit F-08: this is the number the dashboard shows as
+# TEXT, colour-thresholded — never as a utilization bar.
+load_ratio() {
+  local l n; read -r l n <<<"$(_ffr_load)"
+  [[ -n "$l" && -n "$n" ]] && awk -v l="$l" -v n="$n" 'BEGIN{printf "%.2f", l/n}'
+}
+
+# pct <resource> → integer utilization (fast, best-effort) for the btop-style
+# bars in claw-dashboard.py. cpu is load1/ncpu*100 and is deliberately NOT
+# clamped at 100 (audit F-08: 26.8/14 used to render a full red bar); it is a
+# load proxy, not real CPU% — true instantaneous CPU% needs slow sampling that
+# would defeat instant startup. The dashboard no longer draws a bar from it.
 pct() {
   case "$1" in
-    cpu)  local l n
-          if is_mac; then l=$(sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}'); n=$(sysctl -n hw.ncpu 2>/dev/null)
-          else l=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null); n=$(nproc 2>/dev/null); fi
-          [[ -n "$l" && "${n:-0}" -gt 0 ]] && awk -v l="$l" -v n="$n" 'BEGIN{v=l/n*100; if(v>100)v=100; printf "%d",v+0.5}' ;;
+    cpu)  local l n; read -r l n <<<"$(_ffr_load)"
+          [[ -n "$l" && -n "$n" ]] && awk -v l="$l" -v n="$n" 'BEGIN{printf "%d", l/n*100+0.5}' ;;
     mem)  if is_mac; then
             local t; t=$(sysctl -n hw.memsize 2>/dev/null)
             vm_stat 2>/dev/null | awk -v t="$t" '
@@ -174,14 +189,17 @@ pct() {
 
 case "${1:-all}" in
   # Machine-readable dump for claw-dashboard.py (one key=value per line),
-  # plus <res>_pct utilization values that feed the resource bars.
+  # plus <res>_pct utilization values that feed the resource bars and
+  # load_ratio (load1/ncpu) for the text Load row. mem_pct is emitted ONCE,
+  # from pct() (audit F-12: it used to print twice).
   fields)
-    for _f in os host kernel uptime load shell term pkgs locale cpu cores mem mem_pct swap disk disk_pct ip wifi batt date updates; do
+    for _f in os host kernel uptime load shell term pkgs locale cpu cores mem swap disk disk_pct ip wifi batt date updates; do
         printf '%s=%s\n' "$_f" "$(g "$_f")"
     done
     for _p in cpu mem swap disk batt; do
         printf '%s_pct=%s\n' "$_p" "$(pct "$_p")"
-    done ;;
+    done
+    printf 'load_ratio=%s\n' "$(load_ratio)" ;;
   field) shift; g "${1:-os}" ;;
   r1) row "$I_OS"   "OS"     os      "$I_CPU"  "CPU"   cpu ;;
   r2) row "$I_HOST" "Host"   host    "$I_CORE" "Cores" cores ;;

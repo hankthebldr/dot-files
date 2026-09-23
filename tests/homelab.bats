@@ -140,19 +140,25 @@ setup() {
   [[ "$output" == *"ollama"* ]]
 }
 
-@test "welcome-tui _claw_homelab_block: prints fleet summary from cache" {
+# The login no longer renders a fleet block of its own: homelab trouble reaches
+# the shell as an attention row that situation.sh wrote, and _claw_attention_strip
+# (shell/claw-login.zsh) is the surface that prints it. These two replace the
+# retired login-menu _claw_homelab_block pair (audit F-03 / T1-10).
+
+@test "attention strip: a crit homelab row reaches the login strip" {
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"; mkdir -p "$XDG_CACHE_HOME/claw"
-  cp "$BATS_TEST_DIRNAME/fixtures/homelab.up.json" "$XDG_CACHE_HOME/claw/homelab.json"
-  run zsh -c "source '$BATS_TEST_DIRNAME/../shell/welcome-tui.zsh'; _claw_homelab_block"
+  # 6 columns: tier, id, text, hint, since_epoch, src_epoch.
+  printf 'crit\tbd790i\tbd790i down\tclaw homelab\t%s\t%s\n' "$(date +%s)" "$(date +%s)" \
+    > "$XDG_CACHE_HOME/claw/attention.tsv"
+  run env NO_COLOR=1 zsh -c "source '$BATS_TEST_DIRNAME/../shell/claw-login.zsh'; _claw_attention_strip"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"HR-TRUST"* ]]
   [[ "$output" == *"bd790i"* ]]
-  [[ "$output" == *"2/2 up"* ]]   # proves the jq/read field-split works, not just a substring
+  [[ "$output" == *"claw homelab"* ]]   # the hint survives the tab split, not just a substring
 }
 
-@test "welcome-tui _claw_homelab_block: silent when cache absent" {
+@test "attention strip: silent when attention.tsv is absent" {
   export XDG_CACHE_HOME="$BATS_TEST_TMPDIR/none"
-  run zsh -c "source '$BATS_TEST_DIRNAME/../shell/welcome-tui.zsh'; _claw_homelab_block"
+  run env NO_COLOR=1 zsh -c "source '$BATS_TEST_DIRNAME/../shell/claw-login.zsh'; _claw_attention_strip"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
@@ -246,4 +252,99 @@ setup() {
   run bash "$BATS_TEST_DIRNAME/../scripts/utils/homelab.sh" poll
   [ "$status" -eq 0 ]
   [ -f "$XDG_CACHE_HOME/claw/homelab.json" ]
+}
+
+# ── audit 2026-09-20 F-05: LAN fallback must not probe a stranger's network ──
+# Stub the network so the test is hermetic: no tailscale/kubectl/gh/curl; a
+# `route`/`ip` that reports a FOREIGN gateway; a `ping` that logs its calls.
+_lan_stubs() {
+  STUB="$BATS_TEST_TMPDIR/stub"; CALLS="$BATS_TEST_TMPDIR/calls"; mkdir -p "$STUB"; : > "$CALLS"
+  for t in tailscale kubectl gh curl nc; do printf '#!/usr/bin/env bash\nexit 1\n' > "$STUB/$t"; done
+  printf '#!/usr/bin/env bash\necho "   gateway: 10.99.99.1"\n' > "$STUB/route"
+  printf '#!/usr/bin/env bash\necho "default via 10.99.99.1 dev eth0"\n' > "$STUB/ip"
+  printf '#!/usr/bin/env bash\necho "ping $*" >> "%s"\nexit 1\n' "$CALLS" > "$STUB/ping"
+  chmod +x "$STUB"/*
+  export XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/config" XDG_CACHE_HOME="$BATS_TEST_TMPDIR/cache"
+  mkdir -p "$XDG_CONFIG_HOME/claw" "$XDG_CACHE_HOME/claw"
+  # one machine on TEST-NET (unroutable), no services, no cluster → only the
+  # reachability fallback can possibly fire
+  cat > "$XDG_CONFIG_HOME/claw/fleet.yml" <<'YML'
+fleet: { name: T, poll_seconds: 60, lan_gateway: 192.168.1.1 }
+cluster: { context: "", traefik_ip: "" }
+machines:
+  - { id: box, host: 192.0.2.1, user: t, ssh: false, role: worker, services: [] }
+services: {}
+YML
+}
+
+@test "situation homelab: off the home LAN the nc/ping fallback does NOT run" {
+  _lan_stubs
+  run env PATH="$STUB:$PATH" bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+  [ "$status" -eq 0 ]
+  [ ! -s "$CALLS" ]                                  # ping never dialled
+  # ...and neither was /dev/tcp: both live in the one fallback block the
+  # unknown state short-circuits. (The block cannot be probed with a `bash`
+  # stub — situation.sh is itself run by the bash on PATH.)
+  run jq -r '.machines[0].state' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$output" = "unknown" ]
+}
+
+@test "situation homelab: unknown is off-LAN-and-no-peer, never reported as down" {
+  _lan_stubs
+  run env PATH="$STUB:$PATH" bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+  [ "$status" -eq 0 ]
+  run jq -r '[.machines[] | select(.state=="down")] | length' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$output" = "0" ]
+}
+
+@test "situation homelab: lan_gateway as a LIST matches the current gateway" {
+  _lan_stubs
+  # the foreign gateway the stub reports is now one of the declared LAN gateways
+  cat > "$XDG_CONFIG_HOME/claw/fleet.yml" <<'YML'
+fleet: { name: T, poll_seconds: 60, lan_gateway: [192.168.1.1, 10.99.99.1] }
+cluster: { context: "", traefik_ip: "" }
+machines:
+  - { id: box, host: 192.0.2.1, user: t, ssh: false, role: worker, services: [] }
+services: {}
+YML
+  run env PATH="$STUB:$PATH" bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+  [ "$status" -eq 0 ]
+  grep -q '^ping ' "$CALLS"                          # on-LAN => the fallback runs
+  run jq -r '.machines[0].state' "$XDG_CACHE_HOME/claw/homelab.json"
+  [ "$output" = "down" ]                             # probed and genuinely unreachable
+}
+
+@test "situation homelab: lan_ssid matches the current wifi network" {
+  _lan_stubs
+  printf '#!/usr/bin/env bash\necho "  SSID : HR-TRUST"\n' > "$STUB/ipconfig"
+  printf '#!/usr/bin/env bash\necho "HR-TRUST"\n' > "$STUB/iwgetid"
+  chmod +x "$STUB/ipconfig" "$STUB/iwgetid"
+  cat > "$XDG_CONFIG_HOME/claw/fleet.yml" <<'YML'
+fleet: { name: T, poll_seconds: 60, lan_gateway: [192.168.1.1], lan_ssid: [HR-TRUST] }
+cluster: { context: "", traefik_ip: "" }
+machines:
+  - { id: box, host: 192.0.2.1, user: t, ssh: false, role: worker, services: [] }
+services: {}
+YML
+  run env PATH="$STUB:$PATH" bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+  [ "$status" -eq 0 ]
+  grep -q '^ping ' "$CALLS"                          # SSID says we are home
+}
+
+@test "fleet.yml: lan_gateway is a list and every machine declares a ts name" {
+  f="$BATS_TEST_DIRNAME/../config/homelab/fleet.yml"
+  run yq -r '.fleet.lan_gateway | length' "$f"
+  [ "$status" -eq 0 ]; [ "$output" -ge 1 ]
+  run yq -r '[.machines[] | select(has("ts"))] | length' "$f"
+  [ "$status" -eq 0 ]; total="$output"
+  run yq -r '.machines | length' "$f"
+  [ "$output" = "$total" ]
+  run yq -r '.fleet.lan_ssid[0]' "$f"; [ "$output" = "HR-TRUST" ]
+}
+
+@test "situation homelab: CLAW_HOMELAB_LAN=1 forces the fallback (ping is reached)" {
+  _lan_stubs
+  run env PATH="$STUB:$PATH" CLAW_HOMELAB_LAN=1 bash "$DOTFILES_DIR/scripts/utils/situation.sh" homelab
+  [ "$status" -eq 0 ]
+  grep -q '^ping ' "$CALLS"
 }

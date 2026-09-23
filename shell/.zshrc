@@ -5,8 +5,10 @@
 #
 # Loading order:
 #   1. PATH + DOTFILES_DIR (must be first — tools need to be in PATH)
-#   2. Platform shims (clipboard, open, IP — cross-platform)
-#   3. Welcome TUI (fastfetch + fzf menu — BEFORE p10k instant prompt)
+#   2. Platform shims (clipboard, open, IP — cross-platform) + ghostty terminfo
+#   2b. claw_login (decide only; render from precmd)
+#   2c. Theme engine   2d. fastfetch launcher
+#   3. (was the welcome TUI — the login now renders from a precmd hook)
 #   4. P10k instant prompt
 #   5. Oh-My-Zsh framework + plugins
 #   6. Modular sources (exports, aliases, security, obsidian)
@@ -14,6 +16,14 @@
 #   8. P10k theme config
 
 # ── 1. PATH + DOTFILES_DIR ──────────────────────────────
+# Ctrl-C during login must never abort the rc. Without this trap, an interrupt
+# landing anywhere in steps 2-8 (most likely during the step-3 dashboard render)
+# kills .zshrc mid-file and drops you into a shell with no aliases, no claw(),
+# no p10k — a wedged login that looks like a crash (audit F-01). ':' makes INT
+# a no-op for the duration of the rc; the LAST line restores the default so
+# interactive Ctrl-C keeps working normally.
+trap ':' INT
+
 # Must be FIRST so fastfetch, fzf, and all brew tools are found
 export DOTFILES_DIR="$HOME/.dotfiles"
 
@@ -37,8 +47,19 @@ export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 # ── 2. Platform Shims ───────────────────────────────────
 [[ -f "$DOTFILES_DIR/shell/platform.zsh" ]] && source "$DOTFILES_DIR/shell/platform.zsh"
 
-# ── 2b. Ghostty terminfo guard (before the TUI uses the terminal) ───────────
+# ── 2 (cont). Ghostty terminfo guard (before anything touches the terminal) ─
 [[ -f "$DOTFILES_DIR/shell/ghostty-terminfo.zsh" ]] && source "$DOTFILES_DIR/shell/ghostty-terminfo.zsh"
+
+# ── 2b. claw_login — DECIDE only (F-02/F-03) ────────────────────────────────
+# Resolves the login mode, the profile, the theme and the group, exports them,
+# and registers a ONE-SHOT precmd hook. Pure zsh, ~1 ms, no forks, no output —
+# safe this early precisely because it renders nothing. Everything that draws,
+# probes or reads the terminal runs from that hook, after step 8, when the
+# shell is complete. Agent and IDE shells never register it at all.
+[[ -f "$DOTFILES_DIR/shell/claw-login.zsh" ]] && {
+    source "$DOTFILES_DIR/shell/claw-login.zsh"
+    claw_login
+}
 
 # ── 2c. Theme engine (single source of truth for ALL colors) ─────────────────
 # Sourcing exports CLAW_C_* / CLAW_RGB_* from the active palette
@@ -51,13 +72,13 @@ export PATH="${DOTFILES_DIR}/bin:$PATH"   # claw dispatcher (single entry point)
 # ── 2d. fastfetch launcher (claw_ff: kitty/iterm logo in Ghostty, text elsewhere) ──
 [[ -f "$DOTFILES_DIR/shell/fastfetch.zsh" ]] && source "$DOTFILES_DIR/shell/fastfetch.zsh"
 
-# ── 3. Welcome TUI (BEFORE p10k instant prompt) ─────────
-# P10k instant prompt suppresses all stdout during init.
-# The TUI must run BEFORE that, while we still own the terminal.
-if [[ -f "$DOTFILES_DIR/shell/welcome-tui.zsh" ]]; then
-    source "$DOTFILES_DIR/shell/welcome-tui.zsh"
-    claw_welcome_tui
-fi
+# ── 3. (removed) ────────────────────────────────────────
+# The fzf welcome menu used to run here, before p10k, and ask which profile to
+# load — a full-screen stdin reader in the middle of the rc. It swallowed
+# typed-ahead text as a menu pick (F-06), rendered for agents and IDE panels
+# (F-02), and an interrupt killed the rc mid-file (F-01). Step 2b decides;
+# _claw_login_render draws from the first precmd. `claw` / `claw menu` still
+# open the picker, once a prompt exists to come back to.
 
 # ── 4. Powerlevel10k ─────────────────────────────────────
 # Instant prompt DISABLED — Open Claw TUI (fastfetch + fzf) provides
@@ -93,10 +114,16 @@ if [[ -d "$ZSH" ]]; then
         git gh github aliases sudo vi-mode copybuffer copypath copyfile cp
         colored-man-pages jsontools
         aws azure gcloud kubectl helm kubectx terraform vault ansible
-        docker docker-compose istioctl operator-sdk kind
+        docker docker-compose kind
         golang python node npm dotnet brew
-        colorize web-search emoji ssh ssh-agent
+        colorize web-search ssh ssh-agent
     )
+    # istioctl/operator-sdk/emoji dropped 2026-09 (F-22). Measured on an M4
+    # mac (hyperfine, 25 runs, `zsh -ic exit`): 227.8ms -> 161.9ms, ~66ms
+    # saved. Per plugin: operator-sdk ~33ms, istioctl ~19ms, emoji ~2ms --
+    # the first two shell out to `<tool> completion zsh` on EVERY shell start.
+    # CLAW_OMZ_EXTRA_PLUGINS=(istioctl) in ~/.zshenv re-adds
+    (( ${#CLAW_OMZ_EXTRA_PLUGINS[@]} )) && plugins+=("${CLAW_OMZ_EXTRA_PLUGINS[@]}")
     [[ "$OSTYPE" == "darwin"* ]] && plugins+=(macos vscode)
     [[ -f /etc/debian_version ]] && plugins+=(ubuntu debian)
 
@@ -183,21 +210,22 @@ export EDITOR='nvim'
 export VISUAL='nvim'
 export CLICOLOR=1
 
-# Profile was loaded by TUI in step 3 — load p10k config for it
+# CLAW_ACTIVE_PROFILE was resolved by claw_login in step 2b (or inherited from
+# a parent shell) — source the profile and load p10k's config for it.
 if [[ -n "$CLAW_ACTIVE_PROFILE" ]]; then
     PROFILE_PATH="$DOTFILES_DIR/shell/profiles/${CLAW_ACTIVE_PROFILE}.zsh"
-    # Profile may already be sourced by TUI, but guard for manual CLAW_ACTIVE_PROFILE sets
-    # PROFILE_NAME (set by every profile's meta.zsh) = "already sourced by the
-    # TUI" sentinel. The old sentinel was CLAW_PROFILE_THEME, a dead export
-    # removed in the P2 theme unification.
+    # PROFILE_NAME (set by every profile's meta.zsh) = "already sourced".
     if [[ -f "$PROFILE_PATH" && -z "${PROFILE_NAME:-}" ]]; then
         source "$PROFILE_PATH"
-        # An env-set profile (export CLAW_ACTIVE_PROFILE=… && exec zsh) never
-        # went through the TUI, so land in its start dir here too — the same
-        # applier and the same knobs (PROFILE_START_DIR in meta.zsh,
-        # CLAW_PROFILE_CD, ~/.config/claw/start-dirs.conf). profile-helpers.zsh
-        # loaded in step 6.
-        typeset -f _claw_profile_cd &>/dev/null && _claw_profile_cd "$CLAW_ACTIVE_PROFILE"
+        # Land in the profile's start dir ONLY on a fresh login (F-21).
+        # _CLAW_FRESH_LOGIN is set — and deliberately not exported — by
+        # claw_login, so a tmux pane, `nvim :terminal`, `exec zsh` or any other
+        # shell that merely inherited CLAW_ACTIVE_PROFILE keeps the cwd you
+        # were in. Same applier and same knobs as `claw load` (PROFILE_START_DIR
+        # in meta.zsh, CLAW_PROFILE_CD, ~/.config/claw/start-dirs.conf);
+        # profile-helpers.zsh loaded in step 6.
+        (( ${_CLAW_FRESH_LOGIN:-0} )) && typeset -f _claw_profile_cd &>/dev/null && \
+            _claw_profile_cd "$CLAW_ACTIVE_PROFILE"
     fi
 fi
 
@@ -268,3 +296,7 @@ unset _fzf_init
 [[ -d /Volumes/LacieDrive ]] && export OLLAMA_MODELS="/Volumes/LacieDrive/ollama-models"
 
 [[ -f "$HOME/.acme.sh/acme.sh.env" ]] && . "$HOME/.acme.sh/acme.sh.env"
+
+# ── Release the login INT guard (step 1) ────────────────
+# MUST stay last: from here on Ctrl-C is the user's again.
+trap - INT

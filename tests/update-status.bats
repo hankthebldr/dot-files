@@ -262,7 +262,7 @@ EOF
   [[ "$output" == *"repo:↓2"* ]]
 }
 
-# ── readers: ff-readout + welcome-TUI kick ───────────────────────────────────
+# ── readers: ff-readout + login kick ─────────────────────────────────────────
 
 @test "ff-readout fields: emits the updates= line from the cache" {
   echo '{"ts":"x","brew":5,"apt":4,"repo_behind":2,"repo_ahead":0,"last_run":null}' > "$SNAP"
@@ -277,9 +277,9 @@ EOF
   echo "$output" | grep -qx 'updates='
 }
 
-@test "welcome TUI: third background kick refreshes update-status" {
-  grep -qF 'update-status.sh" --refresh &>/dev/null &!' "$DOTFILES/shell/welcome-tui.zsh"
-  run zsh -n "$DOTFILES/shell/welcome-tui.zsh"
+@test "login render: third background kick refreshes update-status" {
+  grep -qF 'update-status.sh" --refresh &>/dev/null &!' "$DOTFILES/shell/claw-login.zsh"
+  run zsh -n "$DOTFILES/shell/claw-login.zsh"
   [ "$status" -eq 0 ]
 }
 
@@ -289,4 +289,29 @@ EOF
   command -v shellcheck &>/dev/null || skip "shellcheck not installed"
   run shellcheck -x -S warning -e SC1090,SC1091,SC2034,SC2059,SC2015,SC2154 "$US"
   [ "$status" -eq 0 ]
+}
+
+# ── audit 2026-09-20 F-07: the glance was dead three times over ──────────────
+
+@test "read: brew/apt absent but repo probed clean renders 'current' (jq scope regression)" {
+  # `.` inside the `| [ … ] | if` chain is the ARRAY, so `.repo_behind` threw
+  # "Cannot index array with string" and the `|| echo n/a` masked it.
+  echo '{"ts":"x","brew":null,"apt":null,"repo_behind":0,"repo_ahead":0,"last_run":null}' > "$SNAP"
+  run_us read
+  [ "$status" -eq 0 ]
+  [ "$output" = "current" ]
+}
+
+@test "json shape: a FAILING brew probe records brew_err (never silently 'no brew')" {
+  stub_fail brew
+  run_us --force
+  [ "$status" -eq 0 ]
+  jq -e '.brew == null and (.brew_err | type) == "string" and (.brew_err | length) > 0' "$SNAP"
+}
+
+@test "read: a failed brew probe renders 'brew ✗ <reason>' instead of n/a" {
+  echo '{"ts":"x","brew":null,"brew_err":"xcode-license","apt":null,"repo_behind":0,"repo_ahead":0,"last_run":null}' > "$SNAP"
+  run_us read
+  [ "$status" -eq 0 ]
+  [ "$output" = "brew ✗ xcode-license" ]
 }
