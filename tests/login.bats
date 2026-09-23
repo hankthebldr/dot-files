@@ -488,7 +488,11 @@ att() {
   printf 'crit\tc\thours ago\tfix\t%s\t%s\n'   "$(( now - 7200 ))"  "$(( now - 7200 ))"  >> "$f"
   zl 'NO_COLOR=1 _claw_attention_strip'
   echo "$output"
-  [[ "$output" == *"(12s)"* ]]
+  # The age is computed at RENDER time, so the seconds bucket drifts by however
+  # long the shell took to start — asserting exactly "(12s)" failed whenever the
+  # machine was busy. Assert the FORMAT and a tolerant window instead; the
+  # minute and hour buckets round and so stay stable.
+  [[ "$output" =~ \(1[2-9]s\) ]]
   [[ "$output" == *"(4m)"* ]]
   [[ "$output" == *"(2h)"* ]]
 }
@@ -573,9 +577,20 @@ _CLAW_LOGIN_MODE=human TERM_PROGRAM=Apple_Terminal _claw_login_render"
     rm -f "$BATS_TEST_TMPDIR/probes.log"
     zl "$ZL_RENDER
         _CLAW_LOGIN_MODE=$m CLAW_LOGIN_CARD=never _claw_login_render
-        # the kicks are disowned; give them a moment to land
-        while [[ ! -s \"$BATS_TEST_TMPDIR/probes.log\" ]]; do sleep 0.05; done
-        sleep 0.3"
+        # The kicks are disowned, so they land asynchronously and NOT in order.
+        # Waiting for the log to be merely non-empty then sleeping a fixed 0.3 s
+        # raced the remaining three under load (~1 run in 4). Wait for all four
+        # markers, with a deadline so a genuine regression still fails fast.
+        _n=0
+        while (( _n < 60 )); do
+          if grep -q 'situation.sh homelab' \"$BATS_TEST_TMPDIR/probes.log\" 2>/dev/null &&
+             grep -q 'situation.sh local'   \"$BATS_TEST_TMPDIR/probes.log\" 2>/dev/null &&
+             grep -q 'update-status.sh --refresh' \"$BATS_TEST_TMPDIR/probes.log\" 2>/dev/null &&
+             grep -q 'tool-updater.sh' \"$BATS_TEST_TMPDIR/probes.log\" 2>/dev/null; then
+            break
+          fi
+          sleep 0.05; _n=\$(( _n + 1 ))
+        done"
     echo "$m: $(cat "$BATS_TEST_TMPDIR/probes.log")"
     grep -q 'situation.sh homelab' "$BATS_TEST_TMPDIR/probes.log"
     grep -q 'situation.sh local' "$BATS_TEST_TMPDIR/probes.log"

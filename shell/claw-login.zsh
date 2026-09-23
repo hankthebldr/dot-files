@@ -372,13 +372,10 @@ _claw_login_render() {
     # ── daily card ──────────────────────────────────────────────────────────
     # One card per day per machine, not per tab.
     #
-    # The day is CLAIMED by writing the stamp before the render, not after:
-    # ten tabs opened together otherwise all read yesterday during the ~120 ms
-    # the card takes to draw and all draw it. Claiming first shrinks that
-    # window to two syscalls. `zsystem flock` closes it completely where the
-    # module exists — and the whole check-claim sequence stays inside the block
-    # that took the lock, because zsh drops a `flock -f` descriptor when the
-    # enclosing compound command finishes.
+    # The day is CLAIMED before the render, not after: ten tabs opened together
+    # otherwise all read yesterday during the ~120 ms the card takes to draw,
+    # and all draw it. The claim is an mkdir (see below) — atomic on any POSIX
+    # filesystem and the idiom this repo already uses for single-flight.
     local card=0 want="${CLAW_LOGIN_CARD:-daily}" today="" stamp="$cache/card.stamp"
     if [[ "$mode" == human && "$want" != never ]]; then
         zmodload -i zsh/datetime 2>/dev/null
@@ -388,19 +385,32 @@ _claw_login_render() {
         elif [[ -n "$today" ]]; then
             [[ -d "$cache" ]] || mkdir -p "$cache" 2>/dev/null
             [[ -e "$stamp" ]] || : >| "$stamp" 2>/dev/null
-            zmodload -F zsh/system b:zsystem 2>/dev/null
-            local fd="" prev=""
-            if (( $+builtins[zsystem] )) && zsystem flock -t 1 -f fd "$stamp" 2>/dev/null; then
-                read -r prev < "$stamp" 2>/dev/null
+            # Claim the day with mkdir — the portable atomic test-and-set this
+            # repo already uses for single-flight (update-status.sh,
+            # situation.sh). `zsystem flock` was tried first and does NOT hold
+            # here: a traced four-tab race showed two shells both reporting the
+            # lock acquired and both reading the stale stamp, so both drew the
+            # card. mkdir has no timeout semantics to get wrong and needs no
+            # zsh/system module.
+            local claim="$cache/card.claim" prev=""
+            # Steal a claim left behind by a shell that died mid-render; the
+            # window it guards is one ~120 ms draw, so a minute is generous.
+            if [[ -d "$claim" ]]; then
+                local age=""
+                zmodload -F zsh/stat b:zstat 2>/dev/null
+                if (( $+builtins[zstat] )); then
+                    local -a st
+                    zstat -A st +mtime "$claim" 2>/dev/null && age=$(( EPOCHSECONDS - st[1] ))
+                fi
+                [[ -n "$age" && "$age" -gt 60 ]] && rmdir "$claim" 2>/dev/null
+            fi
+            read -r prev < "$stamp" 2>/dev/null
+            if [[ "$prev" != "$today" ]] && mkdir "$claim" 2>/dev/null; then
+                read -r prev < "$stamp" 2>/dev/null     # re-read under the claim
                 if [[ "$prev" != "$today" ]]; then
                     print -r -- "$today" >| "$stamp" 2>/dev/null && card=1
                 fi
-                exec {fd}>&-
-            else
-                read -r prev < "$stamp" 2>/dev/null
-                if [[ "$prev" != "$today" ]]; then
-                    print -r -- "$today" >| "$stamp" 2>/dev/null && card=1
-                fi
+                rmdir "$claim" 2>/dev/null
             fi
         fi
     fi
